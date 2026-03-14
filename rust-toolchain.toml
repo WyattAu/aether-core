@@ -1,0 +1,4 @@
+[toolchain]
+channel = "nightly-2026-03-01" # Pin a specific nightly for the latest WASM features
+components = ["rustc", "cargo", "rust-src", "clippy", "rustfmt"]
+targets = ["wasm32-wasi", "x86_64-unknown-linux-gnu"]
