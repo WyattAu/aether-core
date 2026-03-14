@@ -1,0 +1,55 @@
+export AETHER_ROOT=$(dirname $(dirname $(readlink -f "$0")))
+export AETHER_RUNTIME_MODE=development
+export AETHER_LOG_LEVEL=debug
+export AETHER_WASM_ENGINE=wasmtime
+
+export SOURCE_DATE_EPOCH=1733097600
+export RUSTFLAGS="--remap-path-prefix ${HOME}=/ --remap-path-prefix ${PWD}=/aether"
+export CARGO_INCREMENTAL=0
+export CARGO_HOME="${AETHER_ROOT}/.cargo"
+export RUST_BACKTRACE=full
+
+export PATH="${AETHER_ROOT}/.cargo/bin:${PATH}"
+export PATH="${AETHER_ROOT}/target/debug:${PATH}"
+export PATH="${HOME}/.elan/bin:${PATH}"
+
+export PROTOC=$(which protoc 2>/dev/null || echo "/usr/bin/protoc")
+export PROTOC_INCLUDE="/usr/include"
+
+use flake
+
+layout python
+
+watch_file Cargo.toml
+watch_file Cargo.lock
+watch_file flake.nix
+watch_file .specs/00_requirements/tool_requirements.toml
+
+if command -v elan &> /dev/null; then
+    elan default stable
+fi
+
+log_status "Aether development environment loaded"
+log_status "Project root: ${AETHER_ROOT}"
+log_status "Rust: $(rustc --version 2>/dev/null || echo 'not found')"
+log_status "Wasmtime: $(wasmtime --version 2>/dev/null || echo 'not found')"
+log_status "Lean4: $(lean --version 2>/dev/null || echo 'not found')"
+log_status "Coq: $(coqc --version 2>/dev/null || echo 'not found')"
+
+check_required_tools() {
+    local missing=()
+    
+    command -v rustc >/dev/null 2>&1 || missing+=("rustc")
+    command -v cargo >/dev/null 2>&1 || missing+=("cargo")
+    command -v protoc >/dev/null 2>&1 || missing+=("protoc")
+    command -v cmake >/dev/null 2>&1 || missing+=("cmake")
+    
+    if [ ${#missing[@]} -gt 0 ]; then
+        log_error "Missing required tools: ${missing[*]}"
+        log_error "Run 'nix develop' or install manually"
+    fi
+}
+
+check_required_tools
+
+export -f check_required_tools

@@ -1,0 +1,631 @@
+{
+  "@context": {
+    "@vocab": "https://aether.project/concepts/",
+    "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+    "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+    "xsd": "http://www.w3.org/2001/XMLSchema#",
+    "skos": "http://www.w3.org/2004/02/skos/core#",
+    "aether": "https://aether.project/concepts/",
+    "is-a": {"@type": "@id", "@id": "rdfs:subClassOf"},
+    "part-of": {"@type": "@id", "@id": "aether:partOf"},
+    "similar-to": {"@type": "@id", "@id": "aether:similarTo"},
+    "depends-on": {"@type": "@id", "@id": "aether:dependsOn"},
+    "enables": {"@type": "@id", "@id": "aether:enables"},
+    "prevents": {"@type": "@id", "@id": "aether:prevents"},
+    "has-component": {"@type": "@id", "@id": "aether:hasComponent"},
+    "implemented-by": {"@type": "@id", "@id": "aether:implementedBy"}
+  },
+  "@graph": [
+    {
+      "@id": "aether:WASMRuntime",
+      "@type": "Concept",
+      "rdfs:label": {
+        "en": "WebAssembly Runtime",
+        "zh": "WebAssembly运行时",
+        "ru": "Среда выполнения WebAssembly",
+        "de": "WebAssembly-Laufzeitumgebung",
+        "fr": "Runtime WebAssembly",
+        "jp": "WebAssemblyランタイム"
+      },
+      "rdfs:comment": "Secure execution environment for WebAssembly modules with sandboxing and capability-based security",
+      "aether:domain": "runtime",
+      "aether:confidence": {"@value": 0.95, "@type": "xsd:decimal"},
+      "aether:tqaLevel": 4,
+      "aether:source": "YP-WASM-RUNTIME-001",
+      "has-component": ["aether:LinearMemory", "aether:FuelCounter", "aether:CapabilitySystem", "aether:WASMModule"],
+      "enables": ["aether:ActorExecution", "aether:Sandboxing"]
+    },
+    {
+      "@id": "aether:LinearMemory",
+      "@type": "Concept",
+      "rdfs:label": {
+        "en": "Linear Memory",
+        "zh": "线性内存",
+        "ru": "Линейная память",
+        "de": "Linearer Speicher",
+        "fr": "Mémoire linéaire",
+        "jp": "線形メモリ"
+      },
+      "rdfs:comment": "Contiguous byte array addressable from 0 to size-1, isolated per WASM instance",
+      "aether:domain": "runtime",
+      "aether:confidence": {"@value": 1.0, "@type": "xsd:decimal"},
+      "aether:source": "YP-WASM-RUNTIME-001",
+      "is-a": "aether:IsolationMechanism",
+      "part-of": "aether:WASMRuntime",
+      "aether:property": "isolated"
+    },
+    {
+      "@id": "aether:FuelCounter",
+      "@type": "Concept",
+      "rdfs:label": {
+        "en": "Fuel Counter",
+        "zh": "燃料计数器",
+        "ru": "Счётчик топлива",
+        "de": "Treibstoffzähler",
+        "fr": "Compteur de carburant",
+        "jp": "燃料カウンター"
+      },
+      "rdfs:comment": "Monotonically decreasing counter for deterministic execution termination",
+      "aether:domain": "runtime",
+      "aether:confidence": {"@value": 0.98, "@type": "xsd:decimal"},
+      "aether:source": "YP-WASM-RUNTIME-001",
+      "part-of": "aether:WASMRuntime",
+      "enables": "aether:DeterministicExecution"
+    },
+    {
+      "@id": "aether:CapabilitySystem",
+      "@type": "Concept",
+      "rdfs:label": {
+        "en": "Capability System",
+        "zh": "能力系统",
+        "ru": "Система возможностей",
+        "de": "Befugnissystem",
+        "fr": "Système de capacités",
+        "jp": "ケーパビリティシステム"
+      },
+      "rdfs:comment": "Deny-by-default access control with unforgeable capability tokens",
+      "aether:domain": "security",
+      "aether:confidence": {"@value": 1.0, "@type": "xsd:decimal"},
+      "aether:source": "YP-WASM-RUNTIME-001",
+      "is-a": "aether:AccessControlMechanism",
+      "prevents": ["aether:UnauthorizedAccess", "aether:PrivilegeEscalation"]
+    },
+    {
+      "@id": "aether:ColdStart",
+      "@type": "Concept",
+      "rdfs:label": {
+        "en": "Cold Start",
+        "zh": "冷启动",
+        "ru": "Холодный старт",
+        "de": "Kaltstart",
+        "fr": "Démarrage à froid",
+        "jp": "コールドスタート"
+      },
+      "rdfs:comment": "Module instantiation latency from compiled artifact to ready state",
+      "aether:domain": "performance",
+      "aether:confidence": {"@value": 0.92, "@type": "xsd:decimal"},
+      "aether:source": "YP-WASM-RUNTIME-001",
+      "aether:target": "< 50 microseconds",
+      "depends-on": ["aether:AOTCompilation", "aether:MemoryAllocation"]
+    },
+    {
+      "@id": "aether:MicroVM",
+      "@type": "Concept",
+      "rdfs:label": {
+        "en": "MicroVM",
+        "zh": "微虚拟机",
+        "ru": "МикроВМ",
+        "de": "Mikro-VM",
+        "fr": "Micro-VM",
+        "jp": "マイクロVM"
+      },
+      "rdfs:comment": "Minimal virtual machine with reduced device model for fast boot",
+      "aether:domain": "virtualization",
+      "aether:confidence": {"@value": 0.98, "@type": "xsd:decimal"},
+      "aether:source": "YP-VIRT-KVM-001",
+      "is-a": "aether:VirtualMachine",
+      "has-component": ["aether:KVM", "aether:Firecracker"],
+      "aether:bootTime": "< 125ms"
+    },
+    {
+      "@id": "aether:HardwareIsolation",
+      "@type": "Concept",
+      "rdfs:label": {
+        "en": "Hardware Isolation",
+        "zh": "硬件隔离",
+        "ru": "Аппаратная изоляция",
+        "de": "Hardware-Isolierung",
+        "fr": "Isolation matérielle",
+        "jp": "ハードウェア分離"
+      },
+      "rdfs:comment": "VMX/SVM extensions providing verifiable guest-host separation",
+      "aether:domain": "virtualization",
+      "aether:confidence": {"@value": 1.0, "@type": "xsd:decimal"},
+      "aether:source": "YP-VIRT-KVM-001",
+      "is-a": "aether:IsolationMechanism",
+      "enables": "aether:GuestEscapePrevention"
+    },
+    {
+      "@id": "aether:EPT",
+      "@type": "Concept",
+      "rdfs:label": {
+        "en": "Extended Page Tables",
+        "zh": "扩展页表",
+        "ru": "Расширенные таблицы страниц",
+        "de": "Erweiterte Seitentabellen",
+        "fr": "Tables de pages étendues",
+        "jp": "拡張ページテーブル"
+      },
+      "rdfs:comment": "Intel's second-level address translation for guest physical memory",
+      "aether:domain": "virtualization",
+      "aether:confidence": {"@value": 1.0, "@type": "xsd:decimal"},
+      "aether:source": "YP-VIRT-KVM-001",
+      "is-a": "aether:MemoryIsolation",
+      "implemented-by": "aether:IntelVMX"
+    },
+    {
+      "@id": "aether:VMExit",
+      "@type": "Concept",
+      "rdfs:label": {
+        "en": "VM Exit",
+        "zh": "虚拟机退出",
+        "ru": "Выход из ВМ",
+        "de": "VM-Exit",
+        "fr": "Sortie VM",
+        "jp": "VM終了"
+      },
+      "rdfs:comment": "Hardware-triggered transition from guest to hypervisor for privileged operations",
+      "aether:domain": "virtualization",
+      "aether:confidence": {"@value": 0.99, "@type": "xsd:decimal"},
+      "aether:source": "YP-VIRT-KVM-001",
+      "enables": "aether:ControlledInterception"
+    },
+    {
+      "@id": "aether:QUICMesh",
+      "@type": "Concept",
+      "rdfs:label": {
+        "en": "QUIC Mesh",
+        "zh": "QUIC网格",
+        "ru": "QUIC-сетка",
+        "de": "QUIC-Gitter",
+        "fr": "Maillage QUIC",
+        "jp": "QUICメッシュ"
+      },
+      "rdfs:comment": "Distributed peer-to-peer network using QUIC transport",
+      "aether:domain": "networking",
+      "aether:confidence": {"@value": 0.97, "@type": "xsd:decimal"},
+      "aether:source": "YP-NETWORK-MESH-001",
+      "has-component": ["aether:QUICConnection", "aether:ActorAddressing", "aether:Backpressure"],
+      "is-a": "aether:DistributedSystem"
+    },
+    {
+      "@id": "aether:Backpressure",
+      "@type": "Concept",
+      "rdfs:label": {
+        "en": "Backpressure",
+        "zh": "背压",
+        "ru": "Обратное давление",
+        "de": "Gegendruck",
+        "fr": "Rétropression",
+        "jp": "バックプレッシャー"
+      },
+      "rdfs:comment": "Flow control mechanism propagating congestion signals upstream",
+      "aether:domain": "networking",
+      "aether:confidence": {"@value": 0.95, "@type": "xsd:decimal"},
+      "aether:source": "YP-NETWORK-MESH-001",
+      "enables": "aether:DeadlockFreedom",
+      "depends-on": "aether:CreditBasedFlowControl"
+    },
+    {
+      "@id": "aether:ActorAddressing",
+      "@type": "Concept",
+      "rdfs:label": {
+        "en": "Actor Addressing",
+        "zh": "Actor寻址",
+        "ru": "Адресация актёров",
+        "de": "Akteur-Adressierung",
+        "fr": "Adressage d'acteurs",
+        "jp": "アクターアドレッシング"
+      },
+      "rdfs:comment": "Hierarchical addressing with O(log N) routing using content-addressable identifiers",
+      "aether:domain": "networking",
+      "aether:confidence": {"@value": 0.96, "@type": "xsd:decimal"},
+      "aether:source": "YP-NETWORK-MESH-001",
+      "depends-on": "aether:KademliaDHT",
+      "enables": "aether:ActorRouting"
+    },
+    {
+      "@id": "aether:ZeroCopySerialization",
+      "@type": "Concept",
+      "rdfs:label": {
+        "en": "Zero-Copy Serialization",
+        "zh": "零拷贝序列化",
+        "ru": "Нулевое копирование",
+        "de": "Nullkopie-Serialisierung",
+        "fr": "Sérialisation zéro-copie",
+        "jp": "ゼロコピーシリアライゼーション"
+      },
+      "rdfs:comment": "Serialization format allowing direct memory access without parsing",
+      "aether:domain": "serialization",
+      "aether:confidence": {"@value": 0.95, "@type": "xsd:decimal"},
+      "aether:source": "YP-SERIAL-RKYV-001",
+      "implemented-by": "aether:rkyv",
+      "enables": ["aether:StateHydration", "aether:ActorMigration"]
+    },
+    {
+      "@id": "aether:StateHydration",
+      "@type": "Concept",
+      "rdfs:label": {
+        "en": "State Hydration",
+        "zh": "状态水合",
+        "ru": "Гидратация состояния",
+        "de": "Zustandshydrierung",
+        "fr": "Hydratation d'état",
+        "jp": "ステートハイドレーション"
+      },
+      "rdfs:comment": "Reconstruction of live actor state from archived representation",
+      "aether:domain": "serialization",
+      "aether:confidence": {"@value": 0.94, "@type": "xsd:decimal"},
+      "aether:source": "YP-SERIAL-RKYV-001",
+      "aether:target": "< 50ms",
+      "depends-on": "aether:ZeroCopySerialization"
+    },
+    {
+      "@id": "aether:CheckpointAtomicity",
+      "@type": "Concept",
+      "rdfs:label": {
+        "en": "Checkpoint Atomicity",
+        "zh": "检查点原子性",
+        "ru": "Атомарность контрольной точки",
+        "de": "Prüfpunkt-Atomarität",
+        "fr": "Atomicité de checkpoint",
+        "jp": "チェックポイント原子性"
+      },
+      "rdfs:comment": "ACID guarantees for checkpoint writes to FoundationDB",
+      "aether:domain": "serialization",
+      "aether:confidence": {"@value": 0.99, "@type": "xsd:decimal"},
+      "aether:source": "YP-SERIAL-RKYV-001",
+      "depends-on": "aether:FoundationDB",
+      "enables": "aether:FaultTolerance"
+    },
+    {
+      "@id": "aether:IOUring",
+      "@type": "Concept",
+      "rdfs:label": {
+        "en": "io_uring",
+        "zh": "io_uring",
+        "ru": "io_uring",
+        "de": "io_uring",
+        "fr": "io_uring",
+        "jp": "io_uring"
+      },
+      "rdfs:comment": "Linux async I/O interface using shared ring buffers for kernel-userspace communication",
+      "aether:domain": "async",
+      "aether:confidence": {"@value": 0.99, "@type": "xsd:decimal"},
+      "aether:source": "YP-ASYNC-IOURING-001",
+      "has-component": ["aether:SubmissionQueue", "aether:CompletionQueue"],
+      "enables": ["aether:ZeroCopyIO", "aether:HighThroughputIO"]
+    },
+    {
+      "@id": "aether:SubmissionQueue",
+      "@type": "Concept",
+      "rdfs:label": {
+        "en": "Submission Queue",
+        "zh": "提交队列",
+        "ru": "Очередь отправки",
+        "de": "Einreichungswarteschlange",
+        "fr": "File de soumission",
+        "jp": "サブミッションキュー"
+      },
+      "rdfs:comment": "Ring buffer for submitting async I/O operations to kernel",
+      "aether:domain": "async",
+      "aether:confidence": {"@value": 1.0, "@type": "xsd:decimal"},
+      "aether:source": "YP-ASYNC-IOURING-001",
+      "is-a": "aether:RingBuffer",
+      "part-of": "aether:IOUring"
+    },
+    {
+      "@id": "aether:CompletionQueue",
+      "@type": "Concept",
+      "rdfs:label": {
+        "en": "Completion Queue",
+        "zh": "完成队列",
+        "ru": "Очередь завершения",
+        "de": "Abschlusswarteschlange",
+        "fr": "File d'achèvement",
+        "jp": "コンプリーションキュー"
+      },
+      "rdfs:comment": "Ring buffer for receiving async I/O completion notifications",
+      "aether:domain": "async",
+      "aether:confidence": {"@value": 1.0, "@type": "xsd:decimal"},
+      "aether:source": "YP-ASYNC-IOURING-001",
+      "is-a": "aether:RingBuffer",
+      "part-of": "aether:IOUring"
+    },
+    {
+      "@id": "aether:ThreadPerCore",
+      "@type": "Concept",
+      "rdfs:label": {
+        "en": "Thread-Per-Core",
+        "zh": "每核一线程",
+        "ru": "Поток на ядро",
+        "de": "Thread-pro-Kern",
+        "fr": "Thread par cœur",
+        "jp": "スレッドパーコア"
+      },
+      "rdfs:comment": "Architecture with dedicated thread pinned to each CPU core",
+      "aether:domain": "async",
+      "aether:confidence": {"@value": 0.92, "@type": "xsd:decimal"},
+      "aether:source": "YP-ASYNC-IOURING-001",
+      "implemented-by": "aether:Monoio",
+      "enables": ["aether:LinearScaling", "aether:NUMA_Awareness"]
+    },
+    {
+      "@id": "aether:ZeroCopyIO",
+      "@type": "Concept",
+      "rdfs:label": {
+        "en": "Zero-Copy I/O",
+        "zh": "零拷贝I/O",
+        "ru": "Нулевое копирование I/O",
+        "de": "Nullkopie-I/O",
+        "fr": "E/S zéro-copie",
+        "jp": "ゼロコピーI/O"
+      },
+      "rdfs:comment": "Direct DMA transfers without kernel-to-userspace copying",
+      "aether:domain": "async",
+      "aether:confidence": {"@value": 0.95, "@type": "xsd:decimal"},
+      "aether:source": "YP-ASYNC-IOURING-001",
+      "depends-on": "aether:RegisteredBuffers",
+      "similar-to": "aether:ZeroCopySerialization"
+    },
+    {
+      "@id": "aether:Actor",
+      "@type": "Concept",
+      "rdfs:label": {
+        "en": "Actor",
+        "zh": "演员",
+        "ru": "Актёр",
+        "de": "Akteur",
+        "fr": "Acteur",
+        "jp": "アクター"
+      },
+      "rdfs:comment": "Fundamental unit of computation with isolated state and message-driven behavior",
+      "aether:domain": "core",
+      "aether:confidence": {"@value": 0.97, "@type": "xsd:decimal"},
+      "aether:source": "Multiple",
+      "has-component": ["aether:IsolatedState", "aether:MessageQueue"],
+      "enables": ["aether:DistributedComputation", "aether:Concurrency"]
+    },
+    {
+      "@id": "aether:Sandbox",
+      "@type": "Concept",
+      "rdfs:label": {
+        "en": "Sandbox",
+        "zh": "沙箱",
+        "ru": "Песочница",
+        "de": "Sandbox",
+        "fr": "Bac à sable",
+        "jp": "サンドボックス"
+      },
+      "rdfs:comment": "Isolated execution environment with restricted capabilities",
+      "aether:domain": "security",
+      "aether:confidence": {"@value": 1.0, "@type": "xsd:decimal"},
+      "aether:source": "Multiple",
+      "is-a": "aether:IsolationMechanism",
+      "prevents": ["aether:Escape", "aether:DataLeak"]
+    },
+    {
+      "@id": "aether:CAP_Theorem",
+      "@type": "Theorem",
+      "rdfs:label": {
+        "en": "CAP Theorem",
+        "zh": "CAP定理",
+        "ru": "Теорема CAP",
+        "de": "CAP-Theorem",
+        "fr": "Théorème CAP",
+        "jp": "CAP定理"
+      },
+      "rdfs:comment": "In presence of partitions, system must choose between consistency and availability",
+      "aether:domain": "distributed",
+      "aether:confidence": {"@value": 1.0, "@type": "xsd:decimal"},
+      "aether:source": "Brewer 2000",
+      "aether:designDecision": "CP (Consistent Partition-tolerant)"
+    },
+    {
+      "@id": "aether:MemoryIsolationInvariant",
+      "@type": "Theorem",
+      "rdfs:label": {
+        "en": "Memory Isolation Invariant",
+        "zh": "内存隔离不变式"
+      },
+      "rdfs:comment": "Memory isolation is preserved across all execution transitions",
+      "aether:domain": "runtime",
+      "aether:confidence": {"@value": 0.99, "@type": "xsd:decimal"},
+      "aether:source": "YP-WASM-RUNTIME-001 THM-WASM-001",
+      "depends-on": "aether:LinearMemory"
+    },
+    {
+      "@id": "aether:FuelExhaustionTermination",
+      "@type": "Theorem",
+      "rdfs:label": {
+        "en": "Fuel Exhaustion Termination",
+        "zh": "燃料耗尽终止"
+      },
+      "rdfs:comment": "Any WASM execution with finite fuel will terminate within bounded instructions",
+      "aether:domain": "runtime",
+      "aether:confidence": {"@value": 0.98, "@type": "xsd:decimal"},
+      "aether:source": "YP-WASM-RUNTIME-001 THM-WASM-002",
+      "depends-on": "aether:FuelCounter"
+    },
+    {
+      "@id": "aether:GuestEscapePrevention",
+      "@type": "Theorem",
+      "rdfs:label": {
+        "en": "Guest Escape Prevention",
+        "zh": "客户机逃逸防止"
+      },
+      "rdfs:comment": "Guest VM cannot modify host without explicit hypervisor cooperation",
+      "aether:domain": "virtualization",
+      "aether:confidence": {"@value": 0.98, "@type": "xsd:decimal"},
+      "aether:source": "YP-VIRT-KVM-001 THM-VIRT-001",
+      "depends-on": ["aether:HardwareIsolation", "aether:EPT"]
+    },
+    {
+      "@id": "aether:MessageDeliveryGuarantee",
+      "@type": "Theorem",
+      "rdfs:label": {
+        "en": "Message Delivery Guarantee",
+        "zh": "消息投递保证"
+      },
+      "rdfs:comment": "Mesh provides at-least-once message delivery",
+      "aether:domain": "networking",
+      "aether:confidence": {"@value": 0.97, "@type": "xsd:decimal"},
+      "aether:source": "YP-NETWORK-MESH-001 THM-NET-001",
+      "depends-on": "aether:QUICMesh"
+    },
+    {
+      "@id": "aether:FlowControlDeadlockFreedom",
+      "@type": "Theorem",
+      "rdfs:label": {
+        "en": "Flow Control Deadlock Freedom",
+        "zh": "流控无死锁"
+      },
+      "rdfs:comment": "Backpressure-aware flow control is deadlock-free",
+      "aether:domain": "networking",
+      "aether:confidence": {"@value": 0.95, "@type": "xsd:decimal"},
+      "aether:source": "YP-NETWORK-MESH-001 THM-NET-002",
+      "depends-on": "aether:Backpressure"
+    },
+    {
+      "@id": "aether:DeserializationSafety",
+      "@type": "Theorem",
+      "rdfs:label": {
+        "en": "Deserialization Safety",
+        "zh": "反序列化安全"
+      },
+      "rdfs:comment": "Zero-copy access has O(1) overhead relative to parsing-based deserialization",
+      "aether:domain": "serialization",
+      "aether:confidence": {"@value": 0.95, "@type": "xsd:decimal"},
+      "aether:source": "YP-SERIAL-RKYV-001 THM-SER-001",
+      "depends-on": "aether:ZeroCopySerialization"
+    },
+    {
+      "@id": "aether:CompletionUniqueness",
+      "@type": "Theorem",
+      "rdfs:label": {
+        "en": "Completion Uniqueness",
+        "zh": "完成唯一性"
+      },
+      "rdfs:comment": "Each submitted SQE produces exactly one CQE",
+      "aether:domain": "async",
+      "aether:confidence": {"@value": 0.99, "@type": "xsd:decimal"},
+      "aether:source": "YP-ASYNC-IOURING-001 THM-ASYNC-003",
+      "depends-on": "aether:IOUring"
+    },
+    {
+      "@id": "aether:ColdStartAlgorithm",
+      "@type": "Algorithm",
+      "rdfs:label": {
+        "en": "Cold Start Initialization",
+        "zh": "冷启动初始化"
+      },
+      "rdfs:comment": "Instantiate WASM module with <50µs latency",
+      "aether:domain": "runtime",
+      "aether:source": "YP-WASM-RUNTIME-001 ALG-WASM-001",
+      "aether:complexity": "O(1) for AOT-compiled",
+      "implements": "aether:ColdStart"
+    },
+    {
+      "@id": "aether:MicroVMBootAlgorithm",
+      "@type": "Algorithm",
+      "rdfs:label": {
+        "en": "MicroVM Boot Sequence",
+        "zh": "微虚拟机启动序列"
+      },
+      "rdfs:comment": "Boot Firecracker MicroVM in <125ms",
+      "aether:domain": "virtualization",
+      "aether:source": "YP-VIRT-KVM-001 ALG-VIRT-001",
+      "aether:complexity": "O(n) where n = kernel size",
+      "implements": "aether:MicroVM"
+    },
+    {
+      "@id": "aether:ActorAddressResolutionAlgorithm",
+      "@type": "Algorithm",
+      "rdfs:label": {
+        "en": "Actor Address Resolution",
+        "zh": "Actor地址解析"
+      },
+      "rdfs:comment": "Resolve actor identifier to reachable node with O(log N) complexity",
+      "aether:domain": "networking",
+      "aether:source": "YP-NETWORK-MESH-001 ALG-NET-001",
+      "aether:complexity": "O(log N)",
+      "implements": "aether:ActorAddressing"
+    },
+    {
+      "@id": "aether:StateHydrationAlgorithm",
+      "@type": "Algorithm",
+      "rdfs:label": {
+        "en": "State Hydration",
+        "zh": "状态水合"
+      },
+      "rdfs:comment": "Reconstruct actor state from archive within 50ms",
+      "aether:domain": "serialization",
+      "aether:source": "YP-SERIAL-RKYV-001 ALG-SER-002",
+      "aether:complexity": "O(|state|)",
+      "implements": "aether:StateHydration"
+    },
+    {
+      "@id": "aether:ProactorEventLoopAlgorithm",
+      "@type": "Algorithm",
+      "rdfs:label": {
+        "en": "Proactor Event Loop",
+        "zh": "主动器事件循环"
+      },
+      "rdfs:comment": "Process io_uring completions with handler dispatch",
+      "aether:domain": "async",
+      "aether:source": "YP-ASYNC-IOURING-001 ALG-ASYNC-003",
+      "aether:complexity": "O(k) per batch",
+      "implements": "aether:ProactorPattern"
+    },
+    {
+      "@id": "aether:IsolationMechanism",
+      "@type": "Concept",
+      "rdfs:label": {"en": "Isolation Mechanism"},
+      "rdfs:comment": "Abstract concept for isolation patterns"
+    },
+    {
+      "@id": "aether:RingBuffer",
+      "@type": "Concept",
+      "rdfs:label": {"en": "Ring Buffer"},
+      "rdfs:comment": "Fixed-size circular buffer with head/tail pointers"
+    },
+    {
+      "@id": "aether:AccessControlMechanism",
+      "@type": "Concept",
+      "rdfs:label": {"en": "Access Control Mechanism"},
+      "rdfs:comment": "Abstract concept for access control patterns"
+    },
+    {
+      "@id": "aether:VirtualMachine",
+      "@type": "Concept",
+      "rdfs:label": {"en": "Virtual Machine"},
+      "rdfs:comment": "Hardware-isolated execution environment"
+    },
+    {
+      "@id": "aether:DistributedSystem",
+      "@type": "Concept",
+      "rdfs:label": {"en": "Distributed System"},
+      "rdfs:comment": "System spanning multiple networked nodes"
+    }
+  ],
+  "aether:metadata": {
+    "aether:version": "1.0.0",
+    "aether:created": "2026-03-05",
+    "aether:phase": "1.25",
+    "aether:conceptCount": 38,
+    "aether:theoremCount": 9,
+    "aether:algorithmCount": 5,
+    "aether:averageConfidence": 0.97,
+    "aether:languages": ["en", "zh", "ru", "de", "fr", "jp"]
+  }
+}

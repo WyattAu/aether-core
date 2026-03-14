@@ -1,0 +1,1251 @@
+# Test Vectors for Async I/O (io_uring)
+# YP-ASYNC-IOURING-001
+# Version: 1.0.0
+# Created: 2026-03-05
+
+[metadata]
+document_id = "YP-ASYNC-IOURING-001"
+version = "1.0.0"
+description = "Test vectors for io_uring async I/O conformance testing"
+format_version = "1.0"
+
+# =============================================================================
+# CATEGORY 1: Ring Buffer Operations
+# =============================================================================
+
+[[test_vectors]]
+test_id = "TV-ASYNC-001"
+category = "ring_buffer_ops"
+name = "sq_ring_initialization"
+description = "Verify submission queue ring is correctly initialized"
+confidence_required = 0.99
+
+[test_vectors.input]
+sq_entries = 256
+cq_entries = 512
+flags = 0
+
+[test_vectors.expected]
+sq_head = 0
+sq_tail = 0
+sq_ring_mask = 255
+cq_head = 0
+cq_tail = 0
+cq_ring_mask = 511
+fd_valid = true
+
+[test_vectors.invariant]
+"AX-ASYNC-003" = "indices_start_at_zero"
+
+---
+
+[[test_vectors]]
+test_id = "TV-ASYNC-002"
+category = "ring_buffer_ops"
+name = "sq_entry_submit_single"
+description = "Submit single SQE and verify tail advancement"
+confidence_required = 0.98
+
+[test_vectors.input]
+operation = "IORING_OP_NOP"
+user_data = 0x12345678
+
+[test_vectors.setup]
+initial_sq_tail = 0
+initial_sq_head = 0
+
+[test_vectors.expected]
+sq_tail_advanced = true
+sq_tail_delta = 1
+sq_entry_valid = true
+
+[test_vectors.measurement]
+metric = "latency"
+unit = "nanoseconds"
+max_submit_ns = 100
+
+---
+
+[[test_vectors]]
+test_id = "TV-ASYNC-003"
+category = "ring_buffer_ops"
+name = "sq_ring_wrap_around"
+description = "Verify ring buffer wrap-around with mask"
+confidence_required = 0.99
+
+[test_vectors.input]
+sq_entries = 256
+submit_count = 300  # Exceeds ring size
+
+[test_vectors.setup]
+initial_head = 0
+initial_tail = 0
+
+[test_vectors.process]
+step_1 = { submits = 256, expect_tail = 256 }
+step_2 = { completes = 200, expect_head = 200 }
+step_3 = { submits = 244, expect_tail = 500 }
+
+[test_vectors.expected]
+no_overflow = true
+indices_correct = true
+wrap_correct = true
+
+[test_vectors.invariant]
+"AX-ASYNC-003" = "monotonic_with_wrap"
+
+---
+
+[[test_vectors]]
+test_id = "TV-ASYNC-004"
+category = "ring_buffer_ops"
+name = "cq_peek_batch"
+description = "Peek multiple completions in single batch"
+confidence_required = 0.95
+
+[test_vectors.input]
+batch_size = 32
+pending_completions = 50
+
+[test_vectors.expected]
+returned_count = 32
+all_cqes_valid = true
+cq_head_unchanged = true  # Peek doesn't advance
+
+[test_vectors.measurement]
+metric = "throughput"
+unit = "completions_per_batch"
+min_batch = 32
+max_batch = 256
+
+---
+
+[[test_vectors]]
+test_id = "TV-ASYNC-005"
+category = "ring_buffer_ops"
+name = "cq_advance_batch"
+description = "Advance CQ head after processing completions"
+confidence_required = 0.99
+
+[test_vectors.input]
+advance_count = 32
+initial_cq_head = 100
+initial_cq_tail = 150
+
+[test_vectors.expected]
+new_cq_head = 132
+kernel_visible = true  # Shared memory update
+
+[test_vectors.invariant]
+"AX-ASYNC-004" = "release_semantics"
+
+---
+
+[[test_vectors]]
+test_id = "TV-ASYNC-006"
+category = "ring_buffer_ops"
+name = "sq_full_detection"
+description = "Detect when submission queue is full"
+confidence_required = 0.99
+
+[test_vectors.input]
+sq_entries = 256
+pending_submissions = 256
+
+[test_vectors.expected]
+is_full = true
+available_space = 0
+submit_would_block = true
+
+[test_vectors.invariant]
+"THM-ASYNC-002" = "backpressure_enforced"
+
+---
+
+[[test_vectors]]
+test_id = "TV-ASYNC-007"
+category = "ring_buffer_ops"
+name = "cq_empty_detection"
+description = "Detect when completion queue is empty"
+confidence_required = 0.99
+
+[test_vectors.input]
+cq_head = 100
+cq_tail = 100
+
+[test_vectors.expected]
+is_empty = true
+pending_count = 0
+peek_returns_empty = true
+
+---
+
+[[test_vectors]]
+test_id = "TV-ASYNC-008"
+category = "ring_buffer_ops"
+name = "memory_barrier_ordering"
+description = "Verify memory barrier semantics for producer-consumer"
+confidence_required = 0.95
+
+[test_vectors.input]
+test_pattern = "store_buffer"
+iterations = 10000
+
+[test_vectors.expected]
+no_reordering = true
+sqe_visible_before_tail = true
+cqe_visible_before_tail = true
+
+[test_vectors.invariant]
+"AX-ASYNC-004" = "correct_memory_ordering"
+
+---
+
+[[test_vectors]]
+test_id = "TV-ASYNC-009"
+category = "ring_buffer_ops"
+name = "ring_size_power_of_two"
+description = "Verify ring sizes are powers of 2"
+confidence_required = 1.0
+
+[test_vectors.input]
+requested_sizes = [64, 128, 256, 512, 1024, 2048]
+
+[test_vectors.expected]
+all_valid = true
+ring_masks_valid = true
+
+[test_vectors.constraints]
+min_entries = 1
+max_entries = 32768
+
+---
+
+[[test_vectors]]
+test_id = "TV-ASYNC-010"
+category = "ring_buffer_ops"
+name = "mmap_shared_memory"
+description = "Verify SQ/CQ rings use shared memory"
+confidence_required = 0.98
+
+[test_vectors.input]
+ring_fd = "valid_fd"
+
+[test_vectors.expected]
+sq_ring_shared = true
+cq_ring_shared = true
+kernel_user_synchronized = true
+
+# =============================================================================
+# CATEGORY 2: Submission/Completion Semantics
+# =============================================================================
+
+[[test_vectors]]
+test_id = "TV-ASYNC-011"
+category = "submission_completion"
+name = "single_nop_completion"
+description = "Submit NOP and receive completion"
+confidence_required = 0.99
+
+[test_vectors.input]
+opcode = "IORING_OP_NOP"
+user_data = 0xDEADBEEF
+
+[test_vectors.expected]
+completion_received = true
+cqe_user_data = 0xDEADBEEF
+cqe_res = 0
+cqe_flags = 0
+
+[test_vectors.invariant]
+"AX-ASYNC-002" = "every_sqe_gets_cqe"
+
+---
+
+[[test_vectors]]
+test_id = "TV-ASYNC-012"
+category = "submission_completion"
+name = "user_data_preserved"
+description = "User data is preserved through submission/completion"
+confidence_required = 0.99
+
+[test_vectors.input]
+user_data_values = [0, 1, 0xFFFFFFFFFFFFFFFF, 0x1234567890ABCDEF]
+opcode = "IORING_OP_NOP"
+
+[test_vectors.expected]
+all_user_data_preserved = true
+
+[test_vectors.measurement]
+iterations = 1000
+success_rate = 1.0
+
+---
+
+[[test_vectors]]
+test_id = "TV-ASYNC-013"
+category = "submission_completion"
+name = "completion_result_codes"
+description = "Verify result codes in CQE"
+confidence_required = 0.95
+
+[test_vectors.input]
+test_cases = [
+    { opcode = "IORING_OP_READ", fd = "valid", expect_res = "bytes_read" },
+    { opcode = "IORING_OP_READ", fd = "invalid", expect_res = "-EBADF" },
+    { opcode = "IORING_OP_WRITE", fd = "read_only", expect_res = "-EBADF" }
+]
+
+[test_vectors.expected]
+positive_res_means_success = true
+negative_res_is_errno = true
+
+---
+
+[[test_vectors]]
+test_id = "TV-ASYNC-014"
+category = "submission_completion"
+name = "fifo_ordering_preserved"
+description = "Completions arrive in submission order for same fd"
+confidence_required = 0.95
+
+[test_vectors.input]
+sequence_length = 100
+opcode = "IORING_OP_WRITE"
+same_fd = true
+
+[test_vectors.setup]
+file_offset = 0
+buffer_pattern = "sequential"
+
+[test_vectors.expected]
+completion_order = "sequential"
+data_integrity = true
+
+[test_vectors.invariant]
+"AX-ASYNC-001" = "fifo_ordering"
+
+---
+
+[[test_vectors]]
+test_id = "TV-ASYNC-015"
+category = "submission_completion"
+name = "linked_sqes_chain"
+description = "Linked SQEs execute in sequence"
+confidence_required = 0.90
+
+[test_vectors.input]
+chain_length = 5
+link_flags = "IOSQE_IO_LINK"
+
+[test_vectors.process]
+sqe_0 = { opcode = "NOP", flags = "LINK" }
+sqe_1 = { opcode = "NOP", flags = "LINK" }
+sqe_2 = { opcode = "NOP", flags = "LINK" }
+sqe_3 = { opcode = "NOP", flags = "LINK" }
+sqe_4 = { opcode = "NOP", flags = 0 }
+
+[test_vectors.expected]
+all_executed = true
+chain_order_preserved = true
+
+---
+
+[[test_vectors]]
+test_id = "TV-ASYNC-016"
+category = "submission_completion"
+name = "linked_chain_failure_cancels"
+description = "Failed SQE in chain cancels remaining"
+confidence_required = 0.90
+
+[test_vectors.input]
+chain = [
+    { opcode = "NOP", flags = "LINK" },
+    { opcode = "READ", fd = "invalid", flags = "LINK" },
+    { opcode = "NOP", flags = 0 }
+]
+
+[test_vectors.expected]
+first_executed = true
+second_failed = true
+third_cancelled = true
+
+---
+
+[[test_vectors]]
+test_id = "TV-ASYNC-017"
+category = "submission_completion"
+name = "drain_all_pending"
+description = "IOSQE_IO_DRAIN waits for all previous completions"
+confidence_required = 0.90
+
+[test_vectors.input]
+pending_writes = 100
+drain_read = { opcode = "READ", flags = "DRAIN" }
+
+[test_vectors.expected]
+all_writes_complete_before_read = true
+
+---
+
+[[test_vectors]]
+test_id = "TV-ASYNC-018"
+category = "submission_completion"
+name = "async_flag_force"
+description = "IOSQE_ASYNC forces async execution"
+confidence_required = 0.85
+
+[test_vectors.input]
+operation = "IORING_OP_READ"
+flags = "IOSQE_ASYNC"
+data_size = 1  # Would normally be sync
+
+[test_vectors.expected]
+always_returns_eagain = false  # Not inline
+completion_via_cq = true
+
+---
+
+[[test_vectors]]
+test_id = "TV-ASYNC-019"
+category = "submission_completion"
+name = "batch_submit_efficiency"
+description = "Batch submission is more efficient than individual"
+confidence_required = 0.90
+
+[test_vectors.input]
+batch_sizes = [1, 8, 32, 128]
+operations_per_test = 1024
+
+[test_vectors.measurement]
+metric = "submit_latency"
+unit = "nanoseconds_per_op"
+
+[test_vectors.expected]
+batch_1_latency_ns = 150
+batch_8_latency_per_op_ns = 50
+batch_32_latency_per_op_ns = 20
+batch_128_latency_per_op_ns = 15
+
+---
+
+[[test_vectors]]
+test_id = "TV-ASYNC-020"
+category = "submission_completion"
+name = "completion_uniqueness"
+description = "Each SQE produces exactly one CQE"
+confidence_required = 0.99
+
+[test_vectors.input]
+submission_count = 1000
+opcode = "IORING_OP_NOP"
+
+[test_vectors.expected]
+completion_count = 1000
+no_duplicates = true
+no_missing = true
+
+[test_vectors.invariant]
+"THM-ASYNC-003" = "unique_completion"
+
+# =============================================================================
+# CATEGORY 3: Zero-Copy I/O
+# =============================================================================
+
+[[test_vectors]]
+test_id = "TV-ASYNC-021"
+category = "zero_copy"
+name = "buffer_registration"
+description = "Register buffers for zero-copy I/O"
+confidence_required = 0.95
+
+[test_vectors.input]
+buffer_count = 16
+buffer_size = 65536
+alignment = 512
+
+[test_vectors.expected]
+registration_success = true
+buffers_pinned = true
+indices_assigned = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+
+[test_vectors.constraints]
+max_buffers = 32768
+min_alignment = 512
+
+---
+
+[[test_vectors]]
+test_id = "TV-ASYNC-022"
+category = "zero_copy"
+name = "zerocopy_read_correctness"
+description = "Zero-copy read produces correct data"
+confidence_required = 0.95
+
+[test_vectors.input]
+opcode = "IORING_OP_READ_FIXED"
+buffer_index = 0
+read_offset = 0
+read_length = 4096
+source_data = "known_pattern"
+
+[test_vectors.expected]
+data_correct = true
+no_kernel_copy = true
+dma_direct = true
+
+[test_vectors.invariant]
+"THM-ASYNC-001" = "zerocopy_semantic_equivalence"
+
+---
+
+[[test_vectors]]
+test_id = "TV-ASYNC-023"
+category = "zero_copy"
+name = "zerocopy_write_correctness"
+description = "Zero-copy write transmits correct data"
+confidence_required = 0.95
+
+[test_vectors.input]
+opcode = "IORING_OP_WRITE_FIXED"
+buffer_index = 0
+write_offset = 0
+write_length = 4096
+source_data = "known_pattern"
+
+[test_vectors.expected]
+data_transmitted_correctly = true
+no_kernel_copy = true
+destination_matches_source = true
+
+[test_vectors.invariant]
+"THM-ASYNC-001" = "zerocopy_semantic_equivalence"
+
+---
+
+[[test_vectors]]
+test_id = "TV-ASYNC-024"
+category = "zero_copy"
+name = "buffer_select_automatic"
+description = "IOSQE_BUFFER_SELECT auto-selects from pool"
+confidence_required = 0.90
+
+[test_vectors.input]
+opcode = "IORING_OP_RECV"
+flags = "IOSQE_BUFFER_SELECT"
+buffer_group = 0
+
+[test_vectors.expected]
+cqe_flags_has_buffer = true
+buffer_index_in_flags = true
+no_manual_buffer = true
+
+---
+
+[[test_vectors]]
+test_id = "TV-ASYNC-025"
+category = "zero_copy"
+name = "registered_files"
+description = "Use registered file descriptors"
+confidence_required = 0.95
+
+[test_vectors.input]
+file_count = 1024
+opcode = "IORING_OP_READ"
+flags = "IOSQE_FIXED_FILE"
+
+[test_vectors.expected]
+registration_success = true
+file_indices_valid = true
+no_fd_lookup_overhead = true
+
+---
+
+[[test_vectors]]
+test_id = "TV-ASYNC-026"
+category = "zero_copy"
+name = "buffer_unregistration"
+description = "Unregister buffers releases resources"
+confidence_required = 0.90
+
+[test_vectors.input]
+registered_buffers = 16
+unregister_all = true
+
+[test_vectors.expected]
+unregistration_success = true
+buffers_unpinned = true
+resources_freed = true
+
+---
+
+[[test_vectors]]
+test_id = "TV-ASYNC-027"
+category = "zero_copy"
+name = "buffer_alignment_requirement"
+description = "Unaligned buffers fail registration"
+confidence_required = 0.95
+
+[test_vectors.input]
+alignment_tests = [
+    { address = 512, expect = "success" },
+    { address = 513, expect = "failure" },
+    { address = 1024, expect = "success" },
+    { address = 1, expect = "failure" }
+]
+
+[test_vectors.expected]
+results_match_expectations = true
+
+---
+
+[[test_vectors]]
+test_id = "TV-ASYNC-028"
+category = "zero_copy"
+name = "zerocopy_performance_benefit"
+description = "Zero-copy provides measurable performance benefit"
+confidence_required = 0.85
+
+[test_vectors.input]
+data_size = 1048576  # 1 MiB
+iterations = 100
+
+[test_vectors.measurement]
+metric = "throughput"
+unit = "GiB_per_second"
+
+[test_vectors.expected]
+zerocopy_throughput_gibps = 12.0
+standard_throughput_gibps = 6.0
+speedup_factor = 2.0
+
+---
+
+[[test_vectors]]
+test_id = "TV-ASYNC-029"
+category = "zero_copy"
+name = "scatter_gather_iov"
+description = "Vectored I/O with multiple iovecs"
+confidence_required = 0.90
+
+[test_vectors.input]
+opcode = "IORING_OP_READV"
+iovec_count = 4
+iovec_sizes = [1024, 2048, 4096, 8192]
+
+[test_vectors.expected]
+all_iovecs_filled = true
+total_bytes = 15360
+correct_offsets = true
+
+---
+
+[[test_vectors]]
+test_id = "TV-ASYNC-030"
+category = "zero_copy"
+name = "provided_buffers"
+description = "Use provided buffer mechanism"
+confidence_required = 0.85
+
+[test_vectors.input]
+buffer_ring_size = 256
+buffer_group = 0
+
+[test_vectors.expected]
+buffers_available = true
+buffer_selection_fast = true
+return_mechanism = "IORING_CQE_F_BUFFER"
+
+# =============================================================================
+# CATEGORY 4: Backpressure and Flow Control
+# =============================================================================
+
+[[test_vectors]]
+test_id = "TV-ASYNC-031"
+category = "backpressure"
+name = "sq_full_blocks_submit"
+description = "Full SQ blocks further submissions"
+confidence_required = 0.95
+
+[test_vectors.input]
+sq_size = 256
+submit_count = 300
+block_timeout_ms = 100
+
+[test_vectors.expected]
+first_256_succeed = true
+submission_257_blocks = true
+timeout_triggered = true
+
+[test_vectors.invariant]
+"THM-ASYNC-002" = "backpressure_blocks"
+
+---
+
+[[test_vectors]]
+test_id = "TV-ASYNC-032"
+category = "backpressure"
+name = "cq_overflow_protection"
+description = "CQ overflow is handled correctly"
+confidence_required = 0.90
+
+[test_vectors.input]
+cq_size = 256
+completions_generated = 300
+consume_rate = "slow"
+
+[test_vectors.expected]
+overflow_detected = true
+backlog_stored = true  # If IORING_SETUP_CQSIZE not exceeded
+no_completions_lost = true
+
+---
+
+[[test_vectors]]
+test_id = "TV-ASYNC-033"
+category = "backpressure"
+name = "gradual_backpressure_release"
+description = "Backpressure releases as completions are consumed"
+confidence_required = 0.90
+
+[test_vectors.input]
+initial_pending = 256
+consume_batch = 64
+submit_batch = 64
+
+[test_vectors.process]
+iteration_1 = { consume = 64, submit = 64, expect_success = true }
+iteration_2 = { consume = 64, submit = 64, expect_success = true }
+iteration_3 = { consume = 64, submit = 64, expect_success = true }
+iteration_4 = { consume = 64, submit = 64, expect_success = true }
+
+[test_vectors.expected]
+all_submissions_succeed = true
+no_blocking = true
+
+---
+
+[[test_vectors]]
+test_id = "TV-ASYNC-034"
+category = "backpressure"
+name = "timeout_on_full_ring"
+description = "Submit with timeout on full ring"
+confidence_required = 0.90
+
+[test_vectors.input]
+sq_size = 64
+fill_ring = true
+submit_timeout_ms = 50
+
+[test_vectors.expected]
+submission_fails = true
+error_code = "-EBUSY"  # or timeout
+
+---
+
+[[test_vectors]]
+test_id = "TV-ASYNC-035"
+category = "backpressure"
+name = "sqe_reservation"
+description = "Reserve SQE slots before filling"
+confidence_required = 0.90
+
+[test_vectors.input]
+reserve_count = 32
+fill_count = 16
+
+[test_vectors.expected]
+reservation_success = true
+partial_fill_allowed = true
+commit_advances_tail = true
+
+---
+
+[[test_vectors]]
+test_id = "TV-ASYNC-036"
+category = "backpressure"
+name = "completion_rate_limiting"
+description = "Limit completion processing rate"
+confidence_required = 0.85
+
+[test_vectors.input]
+max_completions_per_iteration = 64
+total_completions = 256
+
+[test_vectors.expected]
+bounded_processing_time = true
+fairness_maintained = true
+
+[test_vectors.constraints]
+max_cqes_per_iteration = 256
+
+---
+
+[[test_vectors]]
+test_id = "TV-ASYNC-037"
+category = "backpressure"
+name = "io_uring_enter_backoff"
+description = "io_uring_enter backs off on kernel pressure"
+confidence_required = 0.85
+
+[test_vectors.input]
+min_complete = 1
+flags = "IORING_ENTER_GETEVENTS"
+kernel_pressure = "high"
+
+[test_vectors.expected]
+enter_returns = true
+events_available = true
+no_busy_spin = true
+
+---
+
+[[test_vectors]]
+test_id = "TV-ASYNC-038"
+category = "backpressure"
+name = "sq_thread_wake_on_demand"
+description = "SQPOLL thread wakes when needed"
+confidence_required = 0.80
+
+[test_vectors.input]
+flags = "IORING_SETUP_SQPOLL"
+sq_thread_idle_ms = 100
+submit_after_idle = 500
+
+[test_vectors.expected]
+thread_was_sleeping = true
+thread_woke_on_submit = true
+submission_succeeded = true
+
+---
+
+[[test_vectors]]
+test_id = "TV-ASYNC-039"
+category = "backpressure"
+name = "eventfd_notification"
+description = "Eventfd for CQ notification"
+confidence_required = 0.90
+
+[test_vectors.input]
+register_eventfd = true
+submit_operation = true
+wait_for_eventfd = true
+
+[test_vectors.expected]
+eventfd_signaled = true
+signal_count = 1
+no_spurious_wakeups = true
+
+---
+
+[[test_vectors]]
+test_id = "TV-ASYNC-040"
+category = "backpressure"
+name = "cooperative_scheduling"
+description = "IORING_SETUP_COOP_TASKRUN reduces IPIs"
+confidence_required = 0.80
+
+[test_vectors.input]
+flags = "IORING_SETUP_COOP_TASKRUN"
+submit_from_thread_a = true
+complete_from_thread_a = true
+
+[test_vectors.expected]
+reduced_ipis = true
+same_thread_preferred = true
+
+# =============================================================================
+# CATEGORY 5: Thread-Per-Core Scaling
+# =============================================================================
+
+[[test_vectors]]
+test_id = "TV-ASYNC-041"
+category = "thread_per_core"
+name = "single_core_baseline"
+description = "Establish single-core throughput baseline"
+confidence_required = 0.95
+
+[test_vectors.input]
+core_count = 1
+runtime_type = "monoio"
+io_pattern = "request_response"
+
+[test_vectors.measurement]
+metric = "throughput"
+unit = "requests_per_second"
+duration_seconds = 60
+
+[test_vectors.expected]
+throughput_rps = 500000
+latency_p50_us = 2
+latency_p99_us = 10
+
+---
+
+[[test_vectors]]
+test_id = "TV-ASYNC-042"
+category = "thread_per_core"
+name = "linear_scaling_4_cores"
+description = "Verify linear scaling with 4 cores"
+confidence_required = 0.90
+
+[test_vectors.input]
+core_count = 4
+runtime_type = "monoio"
+io_pattern = "request_response"
+
+[test_vectors.measurement]
+metric = "throughput"
+unit = "requests_per_second"
+
+[test_vectors.expected]
+throughput_rps = 1900000  # ~3.8x single core
+scaling_efficiency = 0.95
+
+[test_vectors.invariant]
+"THM-ASYNC-004" = "linear_scaling"
+
+---
+
+[[test_vectors]]
+test_id = "TV-ASYNC-043"
+category = "thread_per_core"
+name = "core_pinning_verification"
+description = "Verify threads are pinned to dedicated cores"
+confidence_required = 0.95
+
+[test_vectors.input]
+thread_count = 4
+pinning_enabled = true
+
+[test_vectors.expected]
+all_threads_pinned = true
+no_core_migration = true
+cpu_affinity_correct = true
+
+---
+
+[[test_vectors]]
+test_id = "TV-ASYNC-044"
+category = "thread_per_core"
+name = "numa_local_allocation"
+description = "Memory allocated on NUMA-local node"
+confidence_required = 0.90
+
+[test_vectors.input]
+numa_node = 0
+allocation_size = 1048576  # 1 MiB
+
+[test_vectors.expected]
+memory_on_node_0 = true
+no_remote_memory_access = true
+numa_hit_rate = 1.0
+
+---
+
+[[test_vectors]]
+test_id = "TV-ASYNC-045"
+category = "thread_per_core"
+name = "no_lock_contention"
+description = "Thread-per-core eliminates lock contention"
+confidence_required = 0.90
+
+[test_vectors.input]
+thread_count = 4
+runtime_type = "monoio"
+operation = "high_frequency_io"
+
+[test_vectors.expected]
+lock_contention_count = 0
+cache_misses_minimized = true
+no_false_sharing = true
+
+---
+
+[[test_vectors]]
+test_id = "TV-ASYNC-046"
+category = "thread_per_core"
+name = "isolated_io_uring_instances"
+description = "Each thread has isolated io_uring instance"
+confidence_required = 0.99
+
+[test_vectors.input]
+thread_count = 4
+
+[test_vectors.expected]
+instances_per_thread = 1
+no_shared_rings = true
+no_cross_thread_io = true
+
+---
+
+[[test_vectors]]
+test_id = "TV-ASYNC-047"
+category = "thread_per_core"
+name = "hash_based_distribution"
+description = "Tasks distributed via hash to specific cores"
+confidence_required = 0.90
+
+[test_vectors.input]
+task_count = 10000
+distribution_key = "connection_id"
+
+[test_vectors.expected]
+consistent_routing = true
+even_distribution = true
+load_imbalance_max_percent = 10
+
+---
+
+[[test_vectors]]
+test_id = "TV-ASYNC-048"
+category = "thread_per_core"
+name = "cross_numa_scaling"
+description = "Scaling across NUMA nodes"
+confidence_required = 0.80
+
+[test_vectors.input]
+numa_nodes = 2
+cores_per_node = 4
+
+[test_vectors.measurement]
+metric = "throughput"
+unit = "requests_per_second"
+
+[test_vectors.expected]
+scaling_efficiency = 0.85  # Lower than single NUMA
+cross_numa_overhead_detected = true
+
+---
+
+[[test_vectors]]
+test_id = "TV-ASYNC-049"
+category = "thread_per_core"
+name = "work_stealing_disabled"
+description = "Work stealing is disabled for thread-per-core"
+confidence_required = 0.95
+
+[test_vectors.input]
+runtime_config = { work_stealing = false }
+
+[test_vectors.expected]
+no_task_migration = true
+each_core_handles_own_tasks = true
+deterministic_routing = true
+
+---
+
+[[test_vectors]]
+test_id = "TV-ASYNC-050"
+category = "thread_per_core"
+name = "hyperthreading_impact"
+description = "Hyperthreading impact on thread-per-core"
+confidence_required = 0.80
+
+[test_vectors.input]
+physical_cores = 4
+logical_cores = 8
+test_mode = "physical_only"
+
+[test_vectors.measurement]
+metric = "throughput"
+
+[test_vectors.expected]
+physical_only_throughput = "baseline"
+with_ht_throughput = "1.3x"  # HT gives ~30% boost, not 2x
+recommendation = "use_physical_cores"
+
+# =============================================================================
+# CATEGORY 6: Error Handling
+# =============================================================================
+
+[[test_vectors]]
+test_id = "TV-ASYNC-051"
+category = "error_handling"
+name = "invalid_fd_error"
+description = "Invalid file descriptor returns error in CQE"
+confidence_required = 0.99
+
+[test_vectors.input]
+opcode = "IORING_OP_READ"
+fd = -1
+
+[test_vectors.expected]
+cqe_res = -9  # -EBADF
+error_in_cqe = true
+no_crash = true
+
+---
+
+[[test_vectors]]
+test_id = "TV-ASYNC-052"
+category = "error_handling"
+name = "permission_denied_error"
+description = "Permission denied returns error in CQE"
+confidence_required = 0.95
+
+[test_vectors.input]
+opcode = "IORING_OP_OPENAT"
+path = "/root/restricted_file"
+flags = "O_RDONLY"
+
+[test_vectors.expected]
+cqe_res = -13  # -EACCES
+no_exception = true
+
+---
+
+[[test_vectors]]
+test_id = "TV-ASYNC-053"
+category = "error_handling"
+name = "cqe_error_negative_errno"
+description = "CQE errors are negative errno values"
+confidence_required = 0.99
+
+[test_vectors.input]
+error_scenarios = [
+    { scenario = "bad_fd", expected_errno = 9 },   # EBADF
+    { scenario = "no_memory", expected_errno = 12 }, # ENOMEM
+    { scenario = "no_space", expected_errno = 28 },  # ENOSPC
+    { scenario = "io_error", expected_errno = 5 }    # EIO
+]
+
+[test_vectors.expected]
+all_errors_negative = true
+errno_values_correct = true
+
+---
+
+[[test_vectors]]
+test_id = "TV-ASYNC-054"
+category = "error_handling"
+name = "operation_cancellation"
+description = "IORING_OP_ASYNC_CANCEL cancels pending operation"
+confidence_required = 0.90
+
+[test_vectors.input]
+submit_read = { opcode = "READ", timeout = 10000 }
+cancel_request = { opcode = "ASYNC_CANCEL", user_data = "read_user_data" }
+
+[test_vectors.expected]
+read_cancelled = true
+cancel_cqe_res = 0
+original_read_cqe_res = -125  # -ECANCELED
+
+---
+
+[[test_vectors]]
+test_id = "TV-ASYNC-055"
+category = "error_handling"
+name = "ring_closed_handling"
+description = "Handle closed ring gracefully"
+confidence_required = 0.95
+
+[test_vectors.input]
+close_ring = true
+then_submit = true
+
+[test_vectors.expected]
+submit_fails = true
+error_code = -9  # -EBADF
+resources_cleaned_up = true
+
+---
+
+[[test_vectors]]
+test_id = "TV-ASYNC-056"
+category = "error_handling"
+name = "out_of_memory_recovery"
+description = "Recover from out-of-memory during registration"
+confidence_required = 0.90
+
+[test_vectors.input]
+allocate_huge = 10737418240  # 10 GiB
+register_buffers = true
+
+[test_vectors.expected]
+registration_fails = true
+error_code = -12  # -ENOMEM
+runtime_stable = true
+previous_registrations_intact = true
+
+---
+
+[[test_vectors]]
+test_id = "TV-ASYNC-057"
+category = "error_handling"
+name = "timeout_completion"
+description = "IORING_OP_TIMEOUT fires after specified time"
+confidence_required = 0.95
+
+[test_vectors.input]
+opcode = "IORING_OP_TIMEOUT"
+timeout_ms = 100
+clock = "CLOCK_MONOTONIC"
+
+[test_vectors.expected]
+cqe_fires_after_ms = 100
+cqe_res = -62  # -ETIME
+no_early_fire = true
+
+[test_vectors.constraints]
+timing_tolerance_percent = 5
+
+---
+
+[[test_vectors]]
+test_id = "TV-ASYNC-058"
+category = "error_handling"
+name = "signal_interrupt"
+description = "Signal interrupts waiting io_uring_enter"
+confidence_required = 0.90
+
+[test_vectors.input]
+enter_flags = "IORING_ENTER_GETEVENTS"
+min_complete = 1
+send_signal = "SIGUSR1"
+
+[test_vectors.expected]
+enter_interrupted = true
+error_code = -4  # -EINTR
+ring_state_preserved = true
+
+---
+
+[[test_vectors]]
+test_id = "TV-ASYNC-059"
+category = "error_handling"
+name = "feature_probe"
+description = "Probe supported io_uring features"
+confidence_required = 0.95
+
+[test_vectors.input]
+probe_operations = [
+    "IORING_OP_READ_FIXED",
+    "IORING_OP_WRITE_FIXED",
+    "IORING_OP_ACCEPT",
+    "IORING_OP_CONNECT"
+]
+
+[test_vectors.expected]
+probe_results = { all = "supported" }
+feature_flags = { all = "available" }
+
+---
+
+[[test_vectors]]
+test_id = "TV-ASYNC-060"
+category = "error_handling"
+name = "graceful_shutdown"
+description = "Graceful shutdown flushes pending operations"
+confidence_required = 0.90
+
+[test_vectors.input]
+pending_operations = 100
+initiate_shutdown = true
+drain_timeout_ms = 1000
+
+[test_vectors.expected]
+all_completions_received = true
+no_operations_lost = true
+clean_exit = true

@@ -1,0 +1,588 @@
+# Interface Contracts for Aether Host Runtime (BP-HOST-RUNTIME-001)
+# IEEE 1016-2009 Compliant Interface Specifications
+
+version = "1.0.0"
+document_id = "BP-HOST-RUNTIME-001"
+standard = "IEEE-1016-2009"
+created = "2026-03-05"
+last_modified = "2026-03-05"
+yellow_paper_refs = ["YP-WASM-RUNTIME-001", "YP-ASYNC-IOURING-001", "YP-VIRT-KVM-001"]
+
+# ============================================================================
+# IF-HOST-001: Actor Lifecycle Management
+# ============================================================================
+
+[interfaces.IF-HOST-001]
+name = "Actor Lifecycle Management"
+id = "IF-HOST-001"
+provider = "COMP-WASM-001"
+consumer = ["COMP-HOST-001", "COMP-MESH-001"]
+protocol = "Internal API"
+purpose = "Manage the complete lifecycle of WASM actors"
+yellow_paper_ref = "ALG-WASM-001"
+
+[interfaces.IF-HOST-001.signature]
+language = "rust"
+definition = """
+trait ActorLifecycle {
+    fn create_actor(
+        &mut self,
+        descriptor: ActorDescriptor
+    ) -> impl Future<Output = Result<ActorId, ActorError>>;
+    
+    fn invoke_actor(
+        &mut self,
+        actor_id: ActorId,
+        message: ActorMessage,
+        timeout: Duration
+    ) -> impl Future<Output = Result<ActorResponse, ActorError>>;
+    
+    fn destroy_actor(
+        &mut self,
+        actor_id: ActorId,
+        mode: DestroyMode
+    ) -> impl Future<Output = Result<(), ActorError>>;
+    
+    fn migrate_actor(
+        &mut self,
+        actor_id: ActorId,
+        target_node: NodeId
+    ) -> impl Future<Output = Result<(), ActorError>>;
+}
+"""
+
+[interfaces.IF-HOST-001.parameters.descriptor]
+type = "ActorDescriptor"
+description = "Actor creation descriptor"
+fields = [
+    { name = "module_hash", type = "[u8; 32]", description = "SHA-256 hash of WASM module" },
+    { name = "capabilities", type = "CapabilitySet", description = "Requested capabilities" },
+    { name = "memory_limit", type = "u32", default = "256", description = "Memory limit in pages" },
+    { name = "fuel_limit", type = "u64", default = "10000000", description = "Initial fuel budget" },
+    { name = "init_payload", type = "Option<Vec<u8>>", default = "None", description = "Initialization data" }
+]
+
+[interfaces.IF-HOST-001.parameters.actor_id]
+type = "ActorId"
+description = "Unique actor identifier (UUID v4)"
+
+[interfaces.IF-HOST-001.parameters.message]
+type = "ActorMessage"
+description = "Message to deliver to actor"
+fields = [
+    { name = "sender", type = "ActorId", description = "Sender actor ID" },
+    { name = "payload", type = "Vec<u8>", description = "Message payload" },
+    { name = "correlation_id", type = "Uuid", description = "For request-response correlation" }
+]
+
+[interfaces.IF-HOST-001.parameters.timeout]
+type = "Duration"
+description = "Maximum time to wait for response"
+default = "5s"
+
+[interfaces.IF-HOST-001.parameters.mode]
+type = "DestroyMode"
+description = "How to destroy the actor"
+variants = [
+    { name = "Graceful", description = "Wait for pending operations" },
+    { name = "Immediate", description = "Terminate immediately" },
+    { name = "Checkpoint", description = "Checkpoint before destroy" }
+]
+
+[interfaces.IF-HOST-001.returns]
+type = "Result<ActorId/ActorResponse/(), ActorError>"
+
+[interfaces.IF-HOST-001.returns.success_create]
+type = "ActorId"
+description = "Unique identifier for created actor"
+properties = [
+    "Actor is in Running state",
+    "Memory allocated and isolated",
+    "Capabilities bound",
+    "Cold start completed < 50µs"
+]
+
+[interfaces.IF-HOST-001.returns.success_invoke]
+type = "ActorResponse"
+description = "Response from actor invocation"
+fields = [
+    { name = "payload", type = "Vec<u8>", description = "Response payload" },
+    { name = "fuel_consumed", type = "u64", description = "Fuel consumed" },
+    { name = "correlation_id", type = "Uuid", description = "Matches request" }
+]
+
+[interfaces.IF-HOST-001.returns.errors]
+types = [
+    { name = "ModuleNotFound", description = "Referenced module not compiled", recoverable = false },
+    { name = "InsufficientResources", description = "Memory or fuel exhausted", recoverable = true },
+    { name = "CapabilityDenied", description = "Requested capability not granted", recoverable = false },
+    { name = "Timeout", description = "Operation exceeded deadline", recoverable = true },
+    { name = "ActorNotFound", description = "Actor ID doesn't exist", recoverable = false },
+    { name = "ActorFailed", description = "Actor trapped during operation", recoverable = false },
+    { name = "MigrationFailed", description = "Could not migrate actor", recoverable = true }
+]
+
+[interfaces.IF-HOST-001.preconditions]
+items = [
+    "descriptor.module_hash references a valid compiled module",
+    "descriptor.capabilities is subset of allowed capabilities",
+    "Sufficient resources available for actor creation",
+    "actor_id exists for invoke/destroy/migrate operations",
+    "Caller has actor.create/actor.invoke/actor.destroy capability"
+]
+
+[interfaces.IF-HOST-001.postconditions]
+on_success = [
+    "create_actor: Actor in Running state with assigned ActorId",
+    "invoke_actor: Message delivered, response received",
+    "destroy_actor: Actor destroyed, resources freed",
+    "migrate_actor: Actor running on target node",
+    "All invariants maintained"
+]
+on_error = [
+    "No resources allocated (create)",
+    "Actor state unchanged (invoke/destroy)",
+    "Original actor unchanged (migrate)",
+    "Error returned with diagnostic information"
+]
+
+[interfaces.IF-HOST-001.invariants]
+items = [
+    "Each ActorId uniquely identifies one actor",
+    "Actor memory is isolated from all other actors",
+    "Actor capabilities never exceed granted set",
+    "Actor state transitions follow defined state machine"
+]
+
+[interfaces.IF-HOST-001.behavior]
+idempotent = false
+blocking = true
+timeout = "Configurable per operation"
+concurrency = "Thread-safe, actors independent"
+
+[interfaces.IF-HOST-001.performance]
+create_cold_start_p50 = "<30µs"
+create_cold_start_p99 = "<50µs"
+invoke_overhead = "<100ns"
+destroy_time = "<10µs"
+migrate_time = "<50ms"
+
+# ============================================================================
+# IF-HOST-002: Capability System
+# ============================================================================
+
+[interfaces.IF-HOST-002]
+name = "Capability System"
+id = "IF-HOST-002"
+provider = "COMP-HOST-002"
+consumer = ["All Components"]
+protocol = "Internal API"
+purpose = "Manage capability grants, checks, and revocation"
+yellow_paper_ref = "AX-WASM-003"
+
+[interfaces.IF-HOST-002.signature]
+language = "rust"
+definition = """
+trait CapabilitySystem {
+    fn grant_capability(
+        &mut self,
+        target: CapabilityTarget,
+        capability: Capability
+    ) -> Result<(), CapabilityError>;
+    
+    fn revoke_capability(
+        &mut self,
+        target: CapabilityTarget,
+        capability: Capability
+    ) -> Result<(), CapabilityError>;
+    
+    fn check_capability(
+        &self,
+        target: CapabilityTarget,
+        capability: Capability
+    ) -> bool;
+    
+    fn get_capabilities(
+        &self,
+        target: CapabilityTarget
+    ) -> CapabilitySet;
+    
+    fn delegate_capabilities(
+        &mut self,
+        source: CapabilityTarget,
+        target: CapabilityTarget,
+        capabilities: CapabilitySet
+    ) -> Result<(), CapabilityError>;
+}
+"""
+
+[interfaces.IF-HOST-002.parameters.target]
+type = "CapabilityTarget"
+description = "Target for capability operations"
+variants = [
+    { name = "Actor", field = "ActorId", description = "Individual actor" },
+    { name = "Role", field = "String", description = "Named role" },
+    { name = "Subsystem", field = "SubsystemId", description = "Internal subsystem" }
+]
+
+[interfaces.IF-HOST-002.parameters.capability]
+type = "Capability"
+description = "Individual capability token"
+variants = [
+    { name = "Io", inner = "IoCapability", description = "I/O operations" },
+    { name = "Network", inner = "NetworkCapability", description = "Network operations" },
+    { name = "State", inner = "StateCapability", description = "State operations" },
+    { name = "Vm", inner = "VmCapability", description = "VM operations" },
+    { name = "Actor", inner = "ActorCapability", description = "Actor lifecycle" },
+    { name = "Capability", inner = "CapabilityCapability", description = "Capability delegation" }
+]
+
+[interfaces.IF-HOST-002.parameters.capabilities]
+type = "CapabilitySet"
+description = "Set of capabilities (bitmap)"
+representation = "u64 bitmap"
+
+[interfaces.IF-HOST-002.returns]
+type = "Result<(), CapabilityError> or bool or CapabilitySet"
+
+[interfaces.IF-HOST-002.returns.errors]
+types = [
+    { name = "NotFound", description = "Target doesn't exist", recoverable = false },
+    { name = "AlreadyGranted", description = "Capability already present", recoverable = true },
+    { name = "NotGranted", description = "Capability not present for revoke", recoverable = true },
+    { name = "DelegationDenied", description = "Caller lacks delegation right", recoverable = false },
+    { name = "AmplificationDenied", description = "Cannot amplify capabilities", recoverable = false },
+    { name = "InvalidCapability", description = "Unknown capability", recoverable = false }
+]
+
+[interfaces.IF-HOST-002.preconditions]
+items = [
+    "Target exists (actor, role, or subsystem)",
+    "Caller has capability.grant for grant/revoke",
+    "Caller has capability.delegate for delegation",
+    "Source has capabilities being delegated (delegation)"
+]
+
+[interfaces.IF-HOST-002.postconditions]
+on_success = [
+    "grant: Target's capability set includes new capability",
+    "revoke: Target's capability set excludes capability",
+    "check: Returns correct boolean",
+    "delegate: Target has subset of source capabilities",
+    "Capability bitmap updated atomically"
+]
+on_error = [
+    "Target capability set unchanged",
+    "Error returned with diagnostic"
+]
+
+[interfaces.IF-HOST-002.invariants]
+items = [
+    "Capability sets are monotonically decreasing through delegation",
+    "No capability amplification possible",
+    "O(1) check complexity maintained",
+    "Capability bitmap is consistent across all queries"
+]
+
+[interfaces.IF-HOST-002.behavior]
+idempotent = true
+blocking = false
+timeout = "Immediate"
+concurrency = "Thread-safe with atomic operations"
+
+[interfaces.IF-HOST-002.performance]
+check_latency = "<10ns"
+grant_latency = "<50ns"
+revoke_latency = "<50ns"
+delegate_latency = "<100ns"
+
+# ============================================================================
+# IF-HOST-003: Configuration Loading
+# ============================================================================
+
+[interfaces.IF-HOST-003]
+name = "Configuration Loading"
+id = "IF-HOST-003"
+provider = "COMP-HOST-003"
+consumer = ["COMP-HOST-001"]
+protocol = "Internal API"
+purpose = "Load, validate, and apply runtime configuration"
+
+[interfaces.IF-HOST-003.signature]
+language = "rust"
+definition = """
+trait ConfigurationLoader {
+    fn load_config(
+        &mut self,
+        source: ConfigSource
+    ) -> Result<HostConfig, ConfigError>;
+    
+    fn validate_config(
+        &self,
+        config: &HostConfig
+    ) -> Result<(), Vec<ConfigValidationError>>;
+    
+    fn apply_config(
+        &mut self,
+        config: HostConfig
+    ) -> Result<(), ConfigError>;
+    
+    fn watch_config(
+        &mut self,
+        source: ConfigSource
+    ) -> impl Stream<Item = ConfigChange>;
+    
+    fn get_current_config(&self) -> &HostConfig;
+}
+"""
+
+[interfaces.IF-HOST-003.parameters.source]
+type = "ConfigSource"
+description = "Configuration source location"
+variants = [
+    { name = "File", field = "PathBuf", description = "Local file path" },
+    { name = "Env", field = "String", description = "Environment variable prefix" },
+    { name = "Consul", field = "ConsulConfig", description = "Consul KV store" },
+    { name = "Inline", field = "String", description = "Inline TOML/YAML" }
+]
+
+[interfaces.IF-HOST-003.parameters.config]
+type = "HostConfig"
+description = "Complete host configuration"
+fields = [
+    { name = "version", type = "String", description = "Configuration schema version" },
+    { name = "subsystems", type = "Map<String, SubsystemConfig>", description = "Per-subsystem config" },
+    { name = "limits", type = "ResourceLimits", description = "Global resource limits" },
+    { name = "capabilities", type = "Map<String, CapabilitySet>", description = "Role-based grants" },
+    { name = "monitoring", type = "MonitoringConfig", description = "Metrics/logging config" },
+    { name = "shutdown_timeout", type = "Duration", default = "30s", description = "Graceful shutdown timeout" }
+]
+
+[interfaces.IF-HOST-003.returns]
+type = "Result<HostConfig/(), ConfigError>"
+
+[interfaces.IF-HOST-003.returns.errors]
+types = [
+    { name = "InvalidFormat", description = "Syntax error in configuration", recoverable = false },
+    { name = "ValidationError", description = "Semantic validation failed", recoverable = false },
+    { name = "NotFound", description = "Configuration source not found", recoverable = true },
+    { name = "PermissionDenied", description = "Cannot read configuration source", recoverable = true },
+    { name = "IoError", description = "I/O error reading configuration", recoverable = true },
+    { name = "ParseError", description = "Failed to parse configuration", recoverable = false }
+]
+
+[interfaces.IF-HOST-003.preconditions]
+items = [
+    "Configuration source is accessible",
+    "Configuration format is valid (TOML/YAML)",
+    "Caller has config.read capability"
+]
+
+[interfaces.IF-HOST-003.postconditions]
+on_success = [
+    "Configuration is valid and consistent",
+    "Runtime state matches configuration (apply)",
+    "Previous configuration preserved on error",
+    "Watch stream emits changes"
+]
+on_error = [
+    "Previous configuration unchanged",
+    "Validation errors enumerated",
+    "Error returned with location information"
+]
+
+[interfaces.IF-HOST-003.invariants]
+items = [
+    "Configuration is always valid after successful load",
+    "Runtime state is consistent with loaded configuration",
+    "Changes are atomic (all or nothing)",
+    "Watch stream never misses changes"
+]
+
+[interfaces.IF-HOST-003.behavior]
+idempotent = true
+blocking = true
+timeout = "Load timeout configurable, default 5s"
+concurrency = "Read-write lock for config access"
+
+[interfaces.IF-HOST-003.performance]
+load_time = "<100ms"
+validate_time = "<10ms"
+apply_time = "<1s"
+watch_latency = "<100ms"
+
+# ============================================================================
+# Capability Definitions
+# ============================================================================
+
+[capabilities]
+total_slots = 64
+description = "Capability bitmap slots for Host Runtime"
+
+[capabilities.io]
+description = "I/O capabilities (slots 0-15)"
+slots = [
+    { slot = 0, name = "fd-read", description = "Read from file descriptor" },
+    { slot = 1, name = "fd-write", description = "Write to file descriptor" },
+    { slot = 2, name = "fd-seek", description = "Seek in file descriptor" },
+    { slot = 3, name = "fd-close", description = "Close file descriptor" },
+    { slot = 4, name = "fd-stat", description = "Get file descriptor metadata" },
+    { slot = 5, name = "path-open", description = "Open file by path" },
+    { slot = 6, name = "path-stat", description = "Get file metadata by path" },
+    { slot = 7, name = "path-create", description = "Create file/directory" },
+    { slot = 8, name = "path-delete", description = "Delete file/directory" }
+]
+
+[capabilities.network]
+description = "Network capabilities (slots 16-31)"
+slots = [
+    { slot = 16, name = "sock-create", description = "Create socket" },
+    { slot = 17, name = "sock-connect", description = "Connect socket" },
+    { slot = 18, name = "sock-bind", description = "Bind socket" },
+    { slot = 19, name = "sock-listen", description = "Listen on socket" },
+    { slot = 20, name = "sock-accept", description = "Accept connection" },
+    { slot = 21, name = "sock-send", description = "Send data on socket" },
+    { slot = 22, name = "sock-recv", description = "Receive data on socket" },
+    { slot = 23, name = "dns-resolve", description = "Resolve DNS names" }
+]
+
+[capabilities.state]
+description = "State capabilities (slots 32-47)"
+slots = [
+    { slot = 32, name = "state-read", description = "Read from state store" },
+    { slot = 33, name = "state-write", description = "Write to state store" },
+    { slot = 34, name = "state-delete", description = "Delete from state store" },
+    { slot = 35, name = "state-watch", description = "Watch state changes" },
+    { slot = 36, name = "state-checkpoint", description = "Create checkpoint" },
+    { slot = 37, name = "state-restore", description = "Restore from checkpoint" }
+]
+
+[capabilities.actor]
+description = "Actor lifecycle capabilities (slots 48-55)"
+slots = [
+    { slot = 48, name = "actor-create", description = "Create new actor" },
+    { slot = 49, name = "actor-destroy", description = "Destroy actor" },
+    { slot = 50, name = "actor-invoke", description = "Invoke actor" },
+    { slot = 51, name = "actor-migrate", description = "Migrate actor" },
+    { slot = 52, name = "actor-list", description = "List actors" },
+    { slot = 53, name = "actor-inspect", description = "Inspect actor state" }
+]
+
+[capabilities.capability]
+description = "Capability management capabilities (slots 56-63)"
+slots = [
+    { slot = 56, name = "capability-grant", description = "Grant capabilities" },
+    { slot = 57, name = "capability-revoke", description = "Revoke capabilities" },
+    { slot = 58, name = "capability-delegate", description = "Delegate capabilities" },
+    { slot = 59, name = "capability-list", description = "List capabilities" }
+]
+
+# ============================================================================
+# Error Code Registry
+# ============================================================================
+
+[error_codes]
+range = "0x0000-0xFFFF"
+description = "Host Runtime error codes"
+
+[error_codes.categories]
+actor = { prefix = "0x20", name = "Actor Errors", range = "0x2000-0x20FF" }
+capability = { prefix = "0x21", name = "Capability Errors", range = "0x2100-0x21FF" }
+config = { prefix = "0x22", name = "Configuration Errors", range = "0x2200-0x22FF" }
+subsystem = { prefix = "0x23", name = "Subsystem Errors", range = "0x2300-0x23FF" }
+resource = { prefix = "0x24", name = "Resource Errors", range = "0x2400-0x24FF" }
+
+[error_codes.actor]
+ModuleNotFound = 0x2001
+InsufficientResources = 0x2002
+CapabilityDenied = 0x2003
+Timeout = 0x2004
+ActorNotFound = 0x2005
+ActorFailed = 0x2006
+MigrationFailed = 0x2007
+InvalidActorId = 0x2008
+ActorAlreadyExists = 0x2009
+
+[error_codes.capability]
+NotFound = 0x2101
+AlreadyGranted = 0x2102
+NotGranted = 0x2103
+DelegationDenied = 0x2104
+AmplificationDenied = 0x2105
+InvalidCapability = 0x2106
+
+[error_codes.config]
+InvalidFormat = 0x2201
+ValidationError = 0x2202
+NotFound = 0x2203
+PermissionDenied = 0x2204
+IoError = 0x2205
+ParseError = 0x2206
+
+[error_codes.subsystem]
+NotInitialized = 0x2301
+AlreadyInitialized = 0x2302
+StartupFailed = 0x2303
+ShutdownFailed = 0x2304
+HealthCheckFailed = 0x2305
+
+[error_codes.resource]
+CpuLimitExceeded = 0x2401
+MemoryLimitExceeded = 0x2402
+FdLimitExceeded = 0x2403
+IoLimitExceeded = 0x2404
+
+# ============================================================================
+# Component Interface Mapping
+# ============================================================================
+
+[component_interfaces]
+COMP-HOST-001 = ["IF-HOST-001", "IF-HOST-003"]
+COMP-HOST-002 = ["IF-HOST-002"]
+COMP-HOST-003 = ["IF-HOST-003"]
+COMP-HOST-004 = []  # Internal: health monitoring
+COMP-HOST-005 = []  # Internal: resource accounting
+COMP-WASM-001 = ["IF-HOST-001"]
+COMP-VM-001 = []    # VM lifecycle via COMP-HOST-001
+COMP-MESH-001 = []  # Mesh via COMP-HOST-001
+COMP-STATE-001 = [] # State via COMP-HOST-001
+
+# ============================================================================
+# Versioning
+# ============================================================================
+
+[versioning]
+current_version = "1.0.0"
+compatibility = "semantic versioning"
+stability_guarantee = "Interfaces are stable within major version"
+
+[versioning.deprecation_policy]
+notice_period = "6 months"
+support_period = "12 months after deprecation"
+
+# ============================================================================
+# Compliance
+# ============================================================================
+
+[compliance]
+ieee_1016_2009 = true
+rust_api_guidelines = true
+documentation_coverage = "100%"
+
+[compliance.testing]
+unit_tests = "required for all interfaces"
+integration_tests = "required for cross-component interfaces"
+contract_tests = "required for public APIs"
+property_tests = "required for capability and resource invariants"
+
+[compliance.yellow_paper_traceability]
+IF-HOST-001 = "ALG-WASM-001 (Cold Start), THM-WASM-001 (Memory Isolation)"
+IF-HOST-002 = "AX-WASM-003 (Capability Deny-by-Default)"
+IF-HOST-003 = "ADR-005 (Configuration Schema)"
+
+# ============================================================================
+# Document History
+# ============================================================================
+
+[history]
+1_0_0 = { date = "2026-03-05", author = "Construct", changes = "Initial creation" }

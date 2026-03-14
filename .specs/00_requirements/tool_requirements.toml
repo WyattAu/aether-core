@@ -1,0 +1,119 @@
+[aether]
+project = "aether-core"
+phase = -0.5
+environment_version = "0.1.0"
+
+[rust]
+version = "nightly-2026-03-01"
+channel = "nightly"
+targets = [
+    "x86_64-unknown-linux-gnu",
+    "wasm32-wasip2",
+    "wasm32-unknown-unknown",
+]
+components = [
+    "rust-src",
+    "rust-analyzer",
+    "clippy",
+    "rustfmt",
+    "llvm-tools-preview",
+]
+profile = "minimal"
+
+[wasmtime]
+version = ">=25.0.0"
+min_version = "25.0.0"
+features = [
+    "cranelift",
+    "pooling-allocator",
+    "component-model",
+]
+
+[firecracker]
+version = ">=1.9.0"
+min_version = "1.9.0"
+required = true
+purpose = "microvm-isolated component execution"
+
+[containers]
+docker_version = ">=24.0.0"
+podman_version = ">=5.0.0"
+buildah_version = ">=1.35.0"
+
+[database]
+foundationdb_version = ">=7.3.0"
+min_version = "7.3.0"
+cluster_size = 3
+required = true
+
+[verification]
+lean4_version = ">=4.12.0"
+coq_version = ">=8.19.0"
+purpose = "formal verification of capability proofs"
+
+[build_tools]
+protobuf_version = ">=3.25.0"
+cmake_version = ">=3.28.0"
+ninja_version = ">=1.12.0"
+pkg_config_version = ">=0.29.0"
+
+[security]
+openssl_version = ">=3.2.0"
+libsodium_version = ">=1.0.19"
+
+[testing]
+cargo_nextest_version = ">=0.9.0"
+cargo_llvm_cov_version = ">=0.6.0"
+cargo_mutants_version = ">=24.0.0"
+
+[linting]
+clippy_version = "from-rust-toolchain"
+rustfmt_version = "from-rust-toolchain"
+
+[monitoring]
+prometheus_version = ">=2.50.0"
+grafana_version = ">=10.3.0"
+
+[ci_cd]
+github_actions = true
+deterministic_build = true
+source_date_epoch = 1733097600
+
+[cargo_tools]
+cargo_chef_version = ">=0.1.67"
+cargo_audit_version = ">=0.20.0"
+cargo_deny_version = ">=2.0.0"
+cargo_expand_version = ">=1.0.0"
+
+[platforms]
+supported = [
+    "x86_64-unknown-linux-gnu",
+    "aarch64-unknown-linux-gnu",
+    "x86_64-apple-darwin",
+    "aarch64-apple-darwin",
+]
+wasm_targets = [
+    "wasm32-wasip2",
+    "wasm32-unknown-unknown",
+]
+
+[capabilities]
+required = [
+    "wasm-component-model",
+    "microvm-isolation",
+    "distributed-tx-log",
+    "formal-verification",
+    "capability-based-auth",
+]
+
+optional = [
+    "gpu-acceleration",
+    "sgx-enclave",
+    "sev-snp",
+]
+
+[environment_variables]
+SOURCE_DATE_EPOCH = "1733097600"
+RUSTFLAGS = "--remap-path-prefix=${HOME}=/ --remap-path-prefix=${PWD}=/aether"
+CARGO_INCREMENTAL = "0"
+CARGO_NET_OFFLINE = "false"

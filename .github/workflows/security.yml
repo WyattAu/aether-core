@@ -1,0 +1,215 @@
+name: Security
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  audit:
+    name: Dependency Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: nightly-2024-03-01
+      
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
+      
+      - name: Run security audit
+        run: cargo audit --json > audit-results.json || true
+      
+      - name: Generate SARIF output
+        run: |
+          cat > audit.sarif <<'EOF'
+          {
+            "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+            "version": "2.1.0",
+            "runs": [{
+              "tool": {
+                "driver": {
+                  "name": "cargo-audit",
+                  "informationUri": "https://github.com/RustSec/cargo-audit"
+                }
+              },
+              "results": []
+            }]
+          }
+          EOF
+          
+          if [ -f audit-results.json ]; then
+            python3 <<'PYTHON'
+          import json
+          import sys
+          
+          try:
+              with open('audit-results.json', 'r') as f:
+                  data = json.load(f)
+              
+              sarif = {
+                  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+                  "version": "2.1.0",
+                  "runs": [{
+                      "tool": {
+                          "driver": {
+                              "name": "cargo-audit",
+                              "informationUri": "https://github.com/RustSec/cargo-audit"
+                          }
+                      },
+                      "results": []
+                  }]
+              }
+              
+              vulnerabilities = data.get('vulnerabilities', {}).get('list', [])
+              for vuln in vulnerabilities:
+                  result = {
+                      "ruleId": vuln.get('advisory', {}).get('id', 'unknown'),
+                      "message": {
+                          "text": f"{vuln.get('advisory', {}).get('title', 'Unknown vulnerability')}: {vuln.get('advisory', {}).get('description', '')}"
+                      },
+                      "locations": [{
+                          "physicalLocation": {
+                              "artifactLocation": {
+                                  "uri": f"Cargo.lock"
+                              }
+                          }
+                      }]
+                  }
+                  sarif["runs"][0]["results"].append(result)
+              
+              with open('audit.sarif', 'w') as f:
+                  json.dump(sarif, f, indent=2)
+          except Exception as e:
+              print(f"Error processing audit results: {e}", file=sys.stderr)
+          PYTHON
+          fi
+      
+      - name: Upload SARIF results
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: audit.sarif
+          category: cargo-audit
+      
+      - name: Check for vulnerabilities
+        run: cargo audit
+      
+      - name: Upload audit results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-audit
+          path: |
+            audit-results.json
+            audit.sarif
+
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          allow-licenses: Apache-2.0, MIT, BSD-2-Clause, BSD-3-Clause, ISC, MPL-2.0
+
+  codeql:
+    name: CodeQL Analysis
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: rust
+          queries: security-and-quality
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: nightly-2024-03-01
+      
+      - name: Build
+        run: cargo build --workspace --all-features
+      
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: rust-security
+
+  secrets-scan:
+    name: Secrets Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  license-check:
+    name: License Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Install cargo-license
+        run: cargo install cargo-license
+      
+      - name: Check licenses
+        run: |
+          cargo license --avoid-dev-deps --avoid-build-deps --filter-platform x86_64-unknown-linux-gnu > licenses.txt
+          cat licenses.txt
+          
+          echo "Checking for forbidden licenses..."
+          if grep -iE "GPL|AGPL|LGPL|SSPL|BSL" licenses.txt; then
+            echo "Error: Found copyleft or restrictive licenses"
+            exit 1
+          fi
+          echo "License check passed!"
+      
+      - name: Upload license report
+        uses: actions/upload-artifact@v4
+        with:
+          name: license-report
+          path: licenses.txt
+
+  security-summary:
+    name: Security Summary
+    needs: [audit, codeql, secrets-scan, license-check]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Check security job results
+        run: |
+          echo "## Security Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Dependency Audit | ${{ needs.audit.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| CodeQL Analysis | ${{ needs.codeql.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Secrets Scan | ${{ needs.secrets-scan.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| License Check | ${{ needs.license-check.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY

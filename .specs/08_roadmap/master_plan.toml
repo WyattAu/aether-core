@@ -1,0 +1,1145 @@
+# Aether Master Execution Plan
+# Generated: 2026-03-06
+# Total Tasks: 85
+# Topological Sort: Dependencies resolved for parallel execution
+
+[metadata]
+total_phases = 8
+total_tasks = 85
+critical_path_length = 42
+estimated_weeks = 16
+parallel_factor = 2.5
+total_estimated_hours = 1240
+
+# =============================================================================
+# PHASE 1: Core Runtime Foundation (Weeks 1-4)
+# =============================================================================
+
+[[task]]
+id = "TASK-001"
+name = "Initialize Cargo Workspace"
+phase = 1
+priority = "critical"
+dependencies = []
+outputs = ["Cargo.toml", "core/Cargo.toml", "cli/Cargo.toml", "daemon/Cargo.toml"]
+verification = "cargo check --workspace"
+estimated_hours = 2
+assignee = "team-infrastructure"
+
+[[task]]
+id = "TASK-002"
+name = "Define Core Error Types"
+phase = 1
+priority = "critical"
+dependencies = ["TASK-001"]
+outputs = ["core/src/error.rs"]
+verification = "cargo test --package aether-core --lib error"
+estimated_hours = 4
+assignee = "team-core"
+
+[[task]]
+id = "TASK-003"
+name = "Implement Configuration System"
+phase = 1
+priority = "critical"
+dependencies = ["TASK-001"]
+outputs = ["core/src/config/mod.rs", "core/src/config/runtime.rs"]
+verification = "cargo test --package aether-core --lib config"
+estimated_hours = 8
+assignee = "team-core"
+
+[[task]]
+id = "TASK-004"
+name = "Implement Logging Infrastructure"
+phase = 1
+priority = "critical"
+dependencies = ["TASK-001", "TASK-002"]
+outputs = ["core/src/logging/mod.rs", "core/src/logging/tracing.rs"]
+verification = "cargo test --package aether-core --lib logging"
+estimated_hours = 6
+assignee = "team-infrastructure"
+
+[[task]]
+id = "TASK-005"
+name = "Define Actor Trait System"
+phase = 1
+priority = "critical"
+dependencies = ["TASK-001", "TASK-002"]
+outputs = ["core/src/actor/mod.rs", "core/src/actor/trait.rs"]
+verification = "cargo test --package aether-core --lib actor"
+estimated_hours = 12
+assignee = "team-core"
+
+[[task]]
+id = "TASK-006"
+name = "Implement Capability Types"
+phase = 1
+priority = "critical"
+dependencies = ["TASK-001", "TASK-002"]
+outputs = ["core/src/capability/mod.rs", "core/src/capability/set.rs"]
+verification = "cargo test --package aether-core --lib capability"
+estimated_hours = 8
+assignee = "team-security"
+
+[[task]]
+id = "TASK-007"
+name = "Implement WASI Bridge Trait"
+phase = 1
+priority = "critical"
+dependencies = ["TASK-001", "TASK-005", "TASK-006"]
+outputs = ["core/src/wasi/bridge.rs", "core/src/wasi/mod.rs"]
+verification = "cargo test --package aether-core --lib wasi"
+estimated_hours = 16
+assignee = "team-wasm"
+
+[[task]]
+id = "TASK-008"
+name = "Implement Resource Handle System"
+phase = 1
+priority = "critical"
+dependencies = ["TASK-001", "TASK-002"]
+outputs = ["core/src/resource/mod.rs", "core/src/resource/handle.rs"]
+verification = "cargo test --package aether-core --lib resource"
+estimated_hours = 10
+assignee = "team-core"
+
+[[task]]
+id = "TASK-009"
+name = "Implement Memory Pool Allocator"
+phase = 1
+priority = "high"
+dependencies = ["TASK-001", "TASK-008"]
+outputs = ["core/src/memory/pool.rs", "core/src/memory/allocator.rs"]
+verification = "cargo test --package aether-core --lib memory"
+estimated_hours = 12
+assignee = "team-core"
+
+[[task]]
+id = "TASK-010"
+name = "Define State Machine Types"
+phase = 1
+priority = "high"
+dependencies = ["TASK-001", "TASK-002"]
+outputs = ["core/src/state/mod.rs", "core/src/state/machine.rs"]
+verification = "cargo test --package aether-core --lib state"
+estimated_hours = 8
+assignee = "team-core"
+
+# =============================================================================
+# PHASE 2: WASM Engine (Weeks 5-8)
+# =============================================================================
+
+[[task]]
+id = "TASK-011"
+name = "Integrate wasmtime Runtime"
+phase = 2
+priority = "critical"
+dependencies = ["TASK-001", "TASK-007"]
+outputs = ["core/src/wasm/engine.rs", "core/src/wasm/store.rs"]
+verification = "cargo test --package aether-core --lib wasm::engine"
+estimated_hours = 16
+assignee = "team-wasm"
+
+[[task]]
+id = "TASK-012"
+name = "Implement WASI Preview 2 Host"
+phase = 2
+priority = "critical"
+dependencies = ["TASK-011"]
+outputs = ["core/src/wasm/wasi_host.rs", "core/src/wasm/wasi_impl.rs"]
+verification = "cargo test --package aether-core --lib wasm::wasi"
+estimated_hours = 20
+assignee = "team-wasm"
+
+[[task]]
+id = "TASK-013"
+name = "Implement Fuel Metering"
+phase = 2
+priority = "critical"
+dependencies = ["TASK-011"]
+outputs = ["core/src/wasm/fuel.rs", "core/src/wasm/metering.rs"]
+verification = "cargo test --package aether-core --lib wasm::fuel"
+estimated_hours = 8
+assignee = "team-wasm"
+
+[[task]]
+id = "TASK-014"
+name = "Implement Capability Enforcement"
+phase = 2
+priority = "critical"
+dependencies = ["TASK-006", "TASK-011"]
+outputs = ["core/src/wasm/capability.rs", "core/src/wasm/policy.rs"]
+verification = "cargo test --package aether-core --lib wasm::capability"
+estimated_hours = 12
+assignee = "team-security"
+
+[[task]]
+id = "TASK-015"
+name = "Implement Module Caching"
+phase = 2
+priority = "high"
+dependencies = ["TASK-011"]
+outputs = ["core/src/wasm/cache.rs", "core/src/wasm/compiler.rs"]
+verification = "cargo test --package aether-core --lib wasm::cache"
+estimated_hours = 10
+assignee = "team-wasm"
+
+[[task]]
+id = "TASK-016"
+name = "Implement Snapshot/Restore"
+phase = 2
+priority = "high"
+dependencies = ["TASK-011", "TASK-008"]
+outputs = ["core/src/wasm/snapshot.rs", "core/src/wasm/restore.rs"]
+verification = "cargo test --package aether-core --lib wasm::snapshot"
+estimated_hours = 16
+assignee = "team-wasm"
+
+[[task]]
+id = "TASK-017"
+name = "Implement Cold Start Optimization"
+phase = 2
+priority = "high"
+dependencies = ["TASK-011", "TASK-015"]
+outputs = ["core/src/wasm/pool.rs", "core/src/wasm/prewarm.rs"]
+verification = "cargo test --package aether-core --lib wasm::pool"
+estimated_hours = 12
+assignee = "team-performance"
+
+[[task]]
+id = "TASK-018"
+name = "Implement Actor Loading"
+phase = 2
+priority = "critical"
+dependencies = ["TASK-005", "TASK-011"]
+outputs = ["core/src/actor/loader.rs", "core/src/actor/registry.rs"]
+verification = "cargo test --package aether-core --lib actor::loader"
+estimated_hours = 14
+assignee = "team-core"
+
+[[task]]
+id = "TASK-019"
+name = "Implement Actor Scheduler"
+phase = 2
+priority = "critical"
+dependencies = ["TASK-005", "TASK-010", "TASK-011"]
+outputs = ["core/src/actor/scheduler.rs", "core/src/actor/queue.rs"]
+verification = "cargo test --package aether-core --lib actor::scheduler"
+estimated_hours = 16
+assignee = "team-core"
+
+[[task]]
+id = "TASK-020"
+name = "Implement Actor Messaging"
+phase = 2
+priority = "critical"
+dependencies = ["TASK-005", "TASK-019"]
+outputs = ["core/src/actor/mailbox.rs", "core/src/actor/channel.rs"]
+verification = "cargo test --package aether-core --lib actor::mailbox"
+estimated_hours = 12
+assignee = "team-core"
+
+# =============================================================================
+# PHASE 3: Firecracker Integration (Weeks 9-12)
+# =============================================================================
+
+[[task]]
+id = "TASK-021"
+name = "Implement Firecracker Client"
+phase = 3
+priority = "critical"
+dependencies = ["TASK-001", "TASK-002"]
+outputs = ["core/src/vm/client.rs", "core/src/vm/api.rs"]
+verification = "cargo test --package aether-core --lib vm::client"
+estimated_hours = 12
+assignee = "team-vm"
+
+[[task]]
+id = "TASK-022"
+name = "Implement MicroVM Configuration"
+phase = 3
+priority = "critical"
+dependencies = ["TASK-021"]
+outputs = ["core/src/vm/config.rs", "core/src/vm/resources.rs"]
+verification = "cargo test --package aether-core --lib vm::config"
+estimated_hours = 8
+assignee = "team-vm"
+
+[[task]]
+id = "TASK-023"
+name = "Implement Jailer Integration"
+phase = 3
+priority = "critical"
+dependencies = ["TASK-021"]
+outputs = ["core/src/vm/jailer.rs", "core/src/vm/seccomp.rs"]
+verification = "cargo test --package aether-core --lib vm::jailer"
+estimated_hours = 16
+assignee = "team-security"
+
+[[task]]
+id = "TASK-024"
+name = "Implement VM Pool Manager"
+phase = 3
+priority = "critical"
+dependencies = ["TASK-021", "TASK-009"]
+outputs = ["core/src/vm/pool.rs", "core/src/vm/lifecycle.rs"]
+verification = "cargo test --package aether-core --lib vm::pool"
+estimated_hours = 14
+assignee = "team-vm"
+
+[[task]]
+id = "TASK-025"
+name = "Implement Snapshot/Restore for VMs"
+phase = 3
+priority = "high"
+dependencies = ["TASK-021", "TASK-024"]
+outputs = ["core/src/vm/snapshot.rs", "core/src/vm/memfile.rs"]
+verification = "cargo test --package aether-core --lib vm::snapshot"
+estimated_hours = 20
+assignee = "team-vm"
+
+[[task]]
+id = "TASK-026"
+name = "Implement OCI Runtime Handler"
+phase = 3
+priority = "critical"
+dependencies = ["TASK-021", "TASK-022"]
+outputs = ["core/src/oci/handler.rs", "core/src/oci/bundle.rs"]
+verification = "cargo test --package aether-core --lib oci"
+estimated_hours = 16
+assignee = "team-vm"
+
+[[task]]
+id = "TASK-027"
+name = "Implement Image Registry Client"
+phase = 3
+priority = "high"
+dependencies = ["TASK-026"]
+outputs = ["core/src/oci/registry.rs", "core/src/oci/pull.rs"]
+verification = "cargo test --package aether-core --lib oci::registry"
+estimated_hours = 12
+assignee = "team-vm"
+
+[[task]]
+id = "TASK-028"
+name = "Implement Layer Extraction"
+phase = 3
+priority = "high"
+dependencies = ["TASK-027"]
+outputs = ["core/src/oci/extract.rs", "core/src/oci/layers.rs"]
+verification = "cargo test --package aether-core --lib oci::extract"
+estimated_hours = 10
+assignee = "team-vm"
+
+[[task]]
+id = "TASK-029"
+name = "Implement Script Interpreter Shim"
+phase = 3
+priority = "medium"
+dependencies = ["TASK-011", "TASK-026"]
+outputs = ["core/src/script/shim.rs", "core/src/script/python.rs"]
+verification = "cargo test --package aether-core --lib script"
+estimated_hours = 14
+assignee = "team-wasm"
+
+[[task]]
+id = "TASK-030"
+name = "Implement Dual-Runtime Router"
+phase = 3
+priority = "critical"
+dependencies = ["TASK-019", "TASK-024"]
+outputs = ["core/src/runtime/router.rs", "core/src/runtime/selector.rs"]
+verification = "cargo test --package aether-core --lib runtime::router"
+estimated_hours = 10
+assignee = "team-core"
+
+# =============================================================================
+# PHASE 4: Mesh Networking (Weeks 13-16)
+# =============================================================================
+
+[[task]]
+id = "TASK-031"
+name = "Implement QUIC Endpoint"
+phase = 4
+priority = "critical"
+dependencies = ["TASK-001", "TASK-002"]
+outputs = ["core/src/net/endpoint.rs", "core/src/net/quic.rs"]
+verification = "cargo test --package aether-core --lib net::endpoint"
+estimated_hours = 16
+assignee = "team-network"
+
+[[task]]
+id = "TASK-032"
+name = "Implement Certificate Management"
+phase = 4
+priority = "critical"
+dependencies = ["TASK-031"]
+outputs = ["core/src/net/tls.rs", "core/src/net/certs.rs"]
+verification = "cargo test --package aether-core --lib net::tls"
+estimated_hours = 12
+assignee = "team-security"
+
+[[task]]
+id = "TASK-033"
+name = "Implement Actor Addressing"
+phase = 4
+priority = "critical"
+dependencies = ["TASK-005", "TASK-031"]
+outputs = ["core/src/net/address.rs", "core/src/net/routing.rs"]
+verification = "cargo test --package aether-core --lib net::address"
+estimated_hours = 10
+assignee = "team-network"
+
+[[task]]
+id = "TASK-034"
+name = "Implement Connection Pool"
+phase = 4
+priority = "high"
+dependencies = ["TASK-031", "TASK-009"]
+outputs = ["core/src/net/pool.rs", "core/src/net/connection.rs"]
+verification = "cargo test --package aether-core --lib net::pool"
+estimated_hours = 14
+assignee = "team-network"
+
+[[task]]
+id = "TASK-035"
+name = "Implement Message Serialization"
+phase = 4
+priority = "critical"
+dependencies = ["TASK-005"]
+outputs = ["core/src/codec/encoder.rs", "core/src/codec/decoder.rs"]
+verification = "cargo test --package aether-core --lib codec"
+estimated_hours = 10
+assignee = "team-core"
+
+[[task]]
+id = "TASK-036"
+name = "Implement rkyv Zero-Copy Serialization"
+phase = 4
+priority = "high"
+dependencies = ["TASK-035"]
+outputs = ["core/src/codec/rkyv.rs", "core/src/codec/zero_copy.rs"]
+verification = "cargo test --package aether-core --lib codec::rkyv"
+estimated_hours = 12
+assignee = "team-performance"
+
+[[task]]
+id = "TASK-037"
+name = "Implement TCP Proxy"
+phase = 4
+priority = "high"
+dependencies = ["TASK-031", "TASK-033"]
+outputs = ["core/src/net/proxy.rs", "core/src/net/tcp.rs"]
+verification = "cargo test --package aether-core --lib net::proxy"
+estimated_hours = 12
+assignee = "team-network"
+
+[[task]]
+id = "TASK-038"
+name = "Implement HTTP/3 Server"
+phase = 4
+priority = "high"
+dependencies = ["TASK-031"]
+outputs = ["core/src/net/http3.rs", "core/src/net/handler.rs"]
+verification = "cargo test --package aether-core --lib net::http3"
+estimated_hours = 16
+assignee = "team-network"
+
+[[task]]
+id = "TASK-039"
+name = "Implement Mesh Discovery"
+phase = 4
+priority = "high"
+dependencies = ["TASK-031", "TASK-033"]
+outputs = ["core/src/net/discovery.rs", "core/src/net/gossip.rs"]
+verification = "cargo test --package aether-core --lib net::discovery"
+estimated_hours = 14
+assignee = "team-network"
+
+[[task]]
+id = "TASK-040"
+name = "Implement Load Balancer"
+phase = 4
+priority = "high"
+dependencies = ["TASK-034", "TASK-039"]
+outputs = ["core/src/net/balancer.rs", "core/src/net/health.rs"]
+verification = "cargo test --package aether-core --lib net::balancer"
+estimated_hours = 12
+assignee = "team-network"
+
+# =============================================================================
+# PHASE 5: State Management (Weeks 13-16, Parallel)
+# =============================================================================
+
+[[task]]
+id = "TASK-041"
+name = "Implement FoundationDB Client"
+phase = 5
+priority = "critical"
+dependencies = ["TASK-001", "TASK-002"]
+outputs = ["core/src/state/fdb.rs", "core/src/state/client.rs"]
+verification = "cargo test --package aether-core --lib state::fdb"
+estimated_hours = 16
+assignee = "team-state"
+
+[[task]]
+id = "TASK-042"
+name = "Implement Key-Value Abstraction"
+phase = 5
+priority = "critical"
+dependencies = ["TASK-041"]
+outputs = ["core/src/state/kv.rs", "core/src/state/store.rs"]
+verification = "cargo test --package aether-core --lib state::kv"
+estimated_hours = 12
+assignee = "team-state"
+
+[[task]]
+id = "TASK-043"
+name = "Implement Transaction Layer"
+phase = 5
+priority = "critical"
+dependencies = ["TASK-041", "TASK-042"]
+outputs = ["core/src/state/transaction.rs", "core/src/state/atomic.rs"]
+verification = "cargo test --package aether-core --lib state::transaction"
+estimated_hours = 16
+assignee = "team-state"
+
+[[task]]
+id = "TASK-044"
+name = "Implement Actor State Checkpointing"
+phase = 5
+priority = "high"
+dependencies = ["TASK-005", "TASK-042"]
+outputs = ["core/src/state/checkpoint.rs", "core/src/state/restore.rs"]
+verification = "cargo test --package aether-core --lib state::checkpoint"
+estimated_hours = 14
+assignee = "team-state"
+
+[[task]]
+id = "TASK-045"
+name = "Implement Actor Migration"
+phase = 5
+priority = "high"
+dependencies = ["TASK-016", "TASK-025", "TASK-044"]
+outputs = ["core/src/state/migration.rs", "core/src/state/transfer.rs"]
+verification = "cargo test --package aether-core --lib state::migration"
+estimated_hours = 16
+assignee = "team-state"
+
+[[task]]
+id = "TASK-046"
+name = "Implement Distributed Lock"
+phase = 5
+priority = "high"
+dependencies = ["TASK-041"]
+outputs = ["core/src/state/lock.rs", "core/src/state/lease.rs"]
+verification = "cargo test --package aether-core --lib state::lock"
+estimated_hours = 10
+assignee = "team-state"
+
+[[task]]
+id = "TASK-047"
+name = "Implement Watch/Subscribe"
+phase = 5
+priority = "medium"
+dependencies = ["TASK-042"]
+outputs = ["core/src/state/watch.rs", "core/src/state/notify.rs"]
+verification = "cargo test --package aether-core --lib state::watch"
+estimated_hours = 10
+assignee = "team-state"
+
+[[task]]
+id = "TASK-048"
+name = "Implement Backup/Restore"
+phase = 5
+priority = "medium"
+dependencies = ["TASK-041", "TASK-042"]
+outputs = ["core/src/state/backup.rs", "core/src/state/recovery.rs"]
+verification = "cargo test --package aether-core --lib state::backup"
+estimated_hours = 12
+assignee = "team-state"
+
+# =============================================================================
+# PHASE 6: CLI & Tooling (Weeks 13-16, Parallel)
+# =============================================================================
+
+[[task]]
+id = "TASK-049"
+name = "Implement CLI Framework"
+phase = 6
+priority = "high"
+dependencies = ["TASK-001"]
+outputs = ["cli/src/main.rs", "cli/src/commands/mod.rs"]
+verification = "cargo test --package aether-cli"
+estimated_hours = 8
+assignee = "team-tooling"
+
+[[task]]
+id = "TASK-050"
+name = "Implement Deploy Command"
+phase = 6
+priority = "critical"
+dependencies = ["TASK-049", "TASK-018", "TASK-026"]
+outputs = ["cli/src/commands/deploy.rs"]
+verification = "cargo test --package aether-cli --lib commands::deploy"
+estimated_hours = 10
+assignee = "team-tooling"
+
+[[task]]
+id = "TASK-051"
+name = "Implement Status Command"
+phase = 6
+priority = "high"
+dependencies = ["TASK-049"]
+outputs = ["cli/src/commands/status.rs"]
+verification = "cargo test --package aether-cli --lib commands::status"
+estimated_hours = 6
+assignee = "team-tooling"
+
+[[task]]
+id = "TASK-052"
+name = "Implement Logs Command"
+phase = 6
+priority = "high"
+dependencies = ["TASK-049", "TASK-004"]
+outputs = ["cli/src/commands/logs.rs"]
+verification = "cargo test --package aether-cli --lib commands::logs"
+estimated_hours = 8
+assignee = "team-tooling"
+
+[[task]]
+id = "TASK-053"
+name = "Implement Scale Command"
+phase = 6
+priority = "high"
+dependencies = ["TASK-049", "TASK-019"]
+outputs = ["cli/src/commands/scale.rs"]
+verification = "cargo test --package aether-cli --lib commands::scale"
+estimated_hours = 8
+assignee = "team-tooling"
+
+[[task]]
+id = "TASK-054"
+name = "Implement Capability Command"
+phase = 6
+priority = "high"
+dependencies = ["TASK-049", "TASK-006"]
+outputs = ["cli/src/commands/capability.rs"]
+verification = "cargo test --package aether-cli --lib commands::capability"
+estimated_hours = 8
+assignee = "team-tooling"
+
+[[task]]
+id = "TASK-055"
+name = "Implement Mesh Command"
+phase = 6
+priority = "high"
+dependencies = ["TASK-049", "TASK-039"]
+outputs = ["cli/src/commands/mesh.rs"]
+verification = "cargo test --package aether-cli --lib commands::mesh"
+estimated_hours = 10
+assignee = "team-tooling"
+
+[[task]]
+id = "TASK-056"
+name = "Implement Config Generation"
+phase = 6
+priority = "medium"
+dependencies = ["TASK-003", "TASK-049"]
+outputs = ["cli/src/commands/config.rs"]
+verification = "cargo test --package aether-cli --lib commands::config"
+estimated_hours = 6
+assignee = "team-tooling"
+
+# =============================================================================
+# PHASE 7: Dashboard & Observability (Weeks 13-16, Parallel)
+# =============================================================================
+
+[[task]]
+id = "TASK-057"
+name = "Implement Metrics Collector"
+phase = 7
+priority = "high"
+dependencies = ["TASK-004"]
+outputs = ["core/src/metrics/collector.rs", "core/src/metrics/registry.rs"]
+verification = "cargo test --package aether-core --lib metrics"
+estimated_hours = 12
+assignee = "team-observability"
+
+[[task]]
+id = "TASK-058"
+name = "Implement Prometheus Exporter"
+phase = 7
+priority = "high"
+dependencies = ["TASK-057"]
+outputs = ["core/src/metrics/prometheus.rs", "core/src/metrics/exporter.rs"]
+verification = "cargo test --package aether-core --lib metrics::prometheus"
+estimated_hours = 10
+assignee = "team-observability"
+
+[[task]]
+id = "TASK-059"
+name = "Implement Distributed Tracing"
+phase = 7
+priority = "high"
+dependencies = ["TASK-004"]
+outputs = ["core/src/tracing/jaeger.rs", "core/src/tracing/span.rs"]
+verification = "cargo test --package aether-core --lib tracing"
+estimated_hours = 14
+assignee = "team-observability"
+
+[[task]]
+id = "TASK-060"
+name = "Implement Health Check System"
+phase = 7
+priority = "critical"
+dependencies = ["TASK-057"]
+outputs = ["core/src/health/checker.rs", "core/src/health/endpoints.rs"]
+verification = "cargo test --package aether-core --lib health"
+estimated_hours = 10
+assignee = "team-observability"
+
+[[task]]
+id = "TASK-061"
+name = "Implement Dashboard Backend"
+phase = 7
+priority = "medium"
+dependencies = ["TASK-057", "TASK-060"]
+outputs = ["dashboard/src/backend/mod.rs", "dashboard/src/backend/api.rs"]
+verification = "cargo test --package aether-dashboard"
+estimated_hours = 16
+assignee = "team-dashboard"
+
+[[task]]
+id = "TASK-062"
+name = "Implement Dashboard Frontend"
+phase = 7
+priority = "medium"
+dependencies = ["TASK-061"]
+outputs = ["dashboard/frontend/"]
+verification = "npm test"
+estimated_hours = 24
+assignee = "team-dashboard"
+
+[[task]]
+id = "TASK-063"
+name = "Implement Log Aggregation"
+phase = 7
+priority = "medium"
+dependencies = ["TASK-004", "TASK-057"]
+outputs = ["core/src/logs/aggregator.rs", "core/src/logs/shipper.rs"]
+verification = "cargo test --package aether-core --lib logs"
+estimated_hours = 12
+assignee = "team-observability"
+
+# =============================================================================
+# PHASE 8: Enterprise Features (Weeks 13-16, Parallel)
+# =============================================================================
+
+[[task]]
+id = "TASK-064"
+name = "Implement RBAC System"
+phase = 8
+priority = "medium"
+dependencies = ["TASK-006", "TASK-042"]
+outputs = ["core/src/auth/rbac.rs", "core/src/auth/roles.rs"]
+verification = "cargo test --package aether-core --lib auth"
+estimated_hours = 16
+assignee = "team-security"
+
+[[task]]
+id = "TASK-065"
+name = "Implement API Key Management"
+phase = 8
+priority = "medium"
+dependencies = ["TASK-064"]
+outputs = ["core/src/auth/api_keys.rs", "core/src/auth/tokens.rs"]
+verification = "cargo test --package aether-core --lib auth::api_keys"
+estimated_hours = 10
+assignee = "team-security"
+
+[[task]]
+id = "TASK-066"
+name = "Implement Audit Logging"
+phase = 8
+priority = "medium"
+dependencies = ["TASK-004", "TASK-064"]
+outputs = ["core/src/audit/logger.rs", "core/src/audit/events.rs"]
+verification = "cargo test --package aether-core --lib audit"
+estimated_hours = 12
+assignee = "team-security"
+
+[[task]]
+id = "TASK-067"
+name = "Implement Secrets Management"
+phase = 8
+priority = "high"
+dependencies = ["TASK-041", "TASK-064"]
+outputs = ["core/src/secrets/manager.rs", "core/src/secrets/vault.rs"]
+verification = "cargo test --package aether-core --lib secrets"
+estimated_hours = 14
+assignee = "team-security"
+
+[[task]]
+id = "TASK-068"
+name = "Implement Resource Quotas"
+phase = 8
+priority = "medium"
+dependencies = ["TASK-008", "TASK-042"]
+outputs = ["core/src/quota/manager.rs", "core/src/quota/enforcement.rs"]
+verification = "cargo test --package aether-core --lib quota"
+estimated_hours = 12
+assignee = "team-core"
+
+[[task]]
+id = "TASK-069"
+name = "Implement Multi-Tenancy"
+phase = 8
+priority = "medium"
+dependencies = ["TASK-064", "TASK-068"]
+outputs = ["core/src/tenant/manager.rs", "core/src/tenant/isolation.rs"]
+verification = "cargo test --package aether-core --lib tenant"
+estimated_hours = 16
+assignee = "team-core"
+
+# =============================================================================
+# INTEGRATION & TESTING TASKS
+# =============================================================================
+
+[[task]]
+id = "TASK-070"
+name = "Implement Daemon Entry Point"
+phase = 6
+priority = "critical"
+dependencies = ["TASK-003", "TASK-004", "TASK-019", "TASK-030"]
+outputs = ["daemon/src/main.rs", "daemon/src/server.rs"]
+verification = "cargo test --package aether-daemon"
+estimated_hours = 12
+assignee = "team-infrastructure"
+
+[[task]]
+id = "TASK-071"
+name = "Integration Tests - Local Runtime"
+phase = 6
+priority = "critical"
+dependencies = ["TASK-070"]
+outputs = ["tests/integration/local_runtime.rs"]
+verification = "cargo test --test local_runtime"
+estimated_hours = 16
+assignee = "team-qa"
+
+[[task]]
+id = "TASK-072"
+name = "Integration Tests - Dual Runtime"
+phase = 6
+priority = "critical"
+dependencies = ["TASK-070", "TASK-030"]
+outputs = ["tests/integration/dual_runtime.rs"]
+verification = "cargo test --test dual_runtime"
+estimated_hours = 16
+assignee = "team-qa"
+
+[[task]]
+id = "TASK-073"
+name = "Integration Tests - Mesh Networking"
+phase = 6
+priority = "high"
+dependencies = ["TASK-070", "TASK-040"]
+outputs = ["tests/integration/mesh.rs"]
+verification = "cargo test --test mesh"
+estimated_hours = 20
+assignee = "team-qa"
+
+[[task]]
+id = "TASK-074"
+name = "Performance Benchmarks"
+phase = 7
+priority = "high"
+dependencies = ["TASK-071"]
+outputs = ["benches/"]
+verification = "cargo bench"
+estimated_hours = 16
+assignee = "team-performance"
+
+[[task]]
+id = "TASK-075"
+name = "Security Fuzzing"
+phase = 7
+priority = "critical"
+dependencies = ["TASK-071", "TASK-072"]
+outputs = ["fuzz/"]
+verification = "cargo fuzz run"
+estimated_hours = 20
+assignee = "team-security"
+
+[[task]]
+id = "TASK-076"
+name = "End-to-End Tests"
+phase = 7
+priority = "critical"
+dependencies = ["TASK-073"]
+outputs = ["tests/e2e/"]
+verification = "cargo test --test e2e"
+estimated_hours = 24
+assignee = "team-qa"
+
+[[task]]
+id = "TASK-077"
+name = "Chaos Engineering Tests"
+phase = 8
+priority = "medium"
+dependencies = ["TASK-076"]
+outputs = ["tests/chaos/"]
+verification = "cargo test --test chaos"
+estimated_hours = 16
+assignee = "team-qa"
+
+# =============================================================================
+# DOCUMENTATION & DEPLOYMENT TASKS
+# =============================================================================
+
+[[task]]
+id = "TASK-078"
+name = "Write API Documentation"
+phase = 7
+priority = "high"
+dependencies = ["TASK-071"]
+outputs = ["docs/api/"]
+verification = "cargo doc --no-deps"
+estimated_hours = 16
+assignee = "team-docs"
+
+[[task]]
+id = "TASK-079"
+name = "Write Deployment Guide"
+phase = 7
+priority = "high"
+dependencies = ["TASK-071"]
+outputs = ["docs/deployment/"]
+verification = "manual review"
+estimated_hours = 12
+assignee = "team-docs"
+
+[[task]]
+id = "TASK-080"
+name = "Create Docker Images"
+phase = 8
+priority = "high"
+dependencies = ["TASK-070"]
+outputs = ["docker/"]
+verification = "docker build"
+estimated_hours = 10
+assignee = "team-infra"
+
+[[task]]
+id = "TASK-081"
+name = "Create Kubernetes Manifests"
+phase = 8
+priority = "high"
+dependencies = ["TASK-080"]
+outputs = ["k8s/"]
+verification = "kubectl apply --dry-run"
+estimated_hours = 12
+assignee = "team-infra"
+
+[[task]]
+id = "TASK-082"
+name = "Create Helm Charts"
+phase = 8
+priority = "medium"
+dependencies = ["TASK-081"]
+outputs = ["helm/"]
+verification = "helm template"
+estimated_hours = 10
+assignee = "team-infra"
+
+[[task]]
+id = "TASK-083"
+name = "Security Audit"
+phase = 8
+priority = "critical"
+dependencies = ["TASK-075"]
+outputs = ["docs/security/audit.md"]
+verification = "external audit"
+estimated_hours = 40
+assignee = "external"
+
+[[task]]
+id = "TASK-084"
+name = "Performance Validation"
+phase = 8
+priority = "critical"
+dependencies = ["TASK-074"]
+outputs = ["docs/performance/validation.md"]
+verification = "benchmark comparison"
+estimated_hours = 16
+assignee = "team-performance"
+
+[[task]]
+id = "TASK-085"
+name = "Release Preparation"
+phase = 8
+priority = "critical"
+dependencies = ["TASK-076", "TASK-078", "TASK-083", "TASK-084"]
+outputs = ["RELEASE_NOTES.md"]
+verification = "release checklist"
+estimated_hours = 8
+assignee = "team-lead"
+
+# =============================================================================
+# CRITICAL PATH
+# =============================================================================
+
+[critical_path]
+path = [
+    "TASK-001", "TASK-005", "TASK-011", "TASK-019", "TASK-030",
+    "TASK-070", "TASK-071", "TASK-072", "TASK-075", "TASK-076",
+    "TASK-083", "TASK-084", "TASK-085"
+]
+total_hours = 228
+contingency_hours = 34
+total_weeks = 16
+
+# =============================================================================
+# RESOURCE ALLOCATION
+# =============================================================================
+
+[resources]
+team_infrastructure = 2
+team_core = 3
+team_wasm = 2
+team_vm = 2
+team_network = 2
+team_state = 2
+team_security = 2
+team_tooling = 1
+team_observability = 1
+team_dashboard = 2
+team_qa = 2
+team_performance = 1
+team_docs = 1
+team_infra = 1
+external = 1
+
+total_engineers = 22
+peak_parallelism = 10
+
+# =============================================================================
+# RISK MITIGATION
+# =============================================================================
+
+[[risk]]
+id = "RISK-001"
+description = "WASM cold start performance targets not met"
+probability = "medium"
+impact = "high"
+mitigation = "Early prototyping in Phase 2, fallback to pool-based prewarming"
+contingency_task = "TASK-017"
+
+[[risk]]
+id = "RISK-002"
+description = "Firecracker snapshot/restore latency exceeds target"
+probability = "medium"
+impact = "high"
+mitigation = "Use UFFD-based lazy restore, evaluate alternative VM managers"
+contingency_task = "TASK-025"
+
+[[risk]]
+id = "RISK-003"
+description = "FoundationDB integration complexity"
+probability = "low"
+impact = "high"
+mitigation = "Abstract storage layer, support multiple backends"
+contingency_task = "TASK-042"
+
+[[risk]]
+id = "RISK-004"
+description = "Security vulnerabilities in WASM runtime"
+probability = "medium"
+impact = "critical"
+mitigation = "Extensive fuzzing, capability enforcement, sandbox hardening"
+contingency_task = "TASK-075"
+
+[[risk]]
+id = "RISK-005"
+description = "Mesh network partitioning edge cases"
+probability = "medium"
+impact = "medium"
+mitigation = "Comprehensive chaos testing, split-brain detection"
+contingency_task = "TASK-077"
+
+# =============================================================================
+# QUALITY GATES
+# =============================================================================
+
+[[quality_gate]]
+phase = 1
+name = "Foundation Complete"
+criteria = [
+    "All core types compile",
+    "Configuration loads correctly",
+    "Logging outputs structured JSON"
+]
+
+[[quality_gate]]
+phase = 2
+name = "WASM Engine Operational"
+criteria = [
+    "WASM modules execute successfully",
+    "Cold start < 50ms",
+    "Capability enforcement blocks unauthorized access"
+]
+
+[[quality_gate]]
+phase = 3
+name = "Dual Runtime Ready"
+criteria = [
+    "Both WASM and OCI containers execute",
+    "Firecracker VMs start < 125ms",
+    "Jailer isolation verified"
+]
+
+[[quality_gate]]
+phase = 4
+name = "Mesh Network Functional"
+criteria = [
+    "Multi-node communication works",
+    "Message latency < 10ms",
+    "Failover occurs within 100ms"
+]
+
+[[quality_gate]]
+phase = 5
+name = "State Management Stable"
+criteria = [
+    "Actor checkpointing works",
+    "Migration preserves state",
+    "Transactions are ACID"
+]
+
+[[quality_gate]]
+phase = 6
+name = "CLI & API Ready"
+criteria = [
+    "All CLI commands work",
+    "API is fully documented",
+    "Integration tests pass"
+]
+
+[[quality_gate]]
+phase = 7
+name = "Production Observability"
+criteria = [
+    "Metrics export to Prometheus",
+    "Traces export to Jaeger",
+    "Health checks respond correctly"
+]
+
+[[quality_gate]]
+phase = 8
+name = "Enterprise Ready"
+criteria = [
+    "RBAC enforces permissions",
+    "Audit logs capture all events",
+    "Security audit passes"
+]

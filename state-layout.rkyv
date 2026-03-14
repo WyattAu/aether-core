@@ -1,0 +1,9 @@
+// This is the memory-mapped layout definition for Aether-State
+#[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+#[archive(check_bytes)]
+pub struct AetherStateLayout {
+    pub version: u32,             // e.g., 1 for initial
+    pub actor_id: [u8; 16],       // UUID
+    pub checkpoint_seq: u64,      // Sequence number for FDB
+    pub data_blob: rkyv::Archived<Vec<u8>>, // Zero-copy state
+}

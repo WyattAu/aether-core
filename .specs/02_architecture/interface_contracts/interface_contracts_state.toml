@@ -1,0 +1,685 @@
+# Interface Contracts for State Manager
+# BP-STATE-MANAGER-001
+# Version: 1.0.0
+# Standard: IEEE 1016-2009 / OpenAPI 3.0.3 Equivalent
+
+[meta]
+document_id = "IF-STATE-CONTRACTS-001"
+version = "1.0.0"
+status = "DRAFT"
+created = "2026-03-05"
+author = "Construct (Systems Architect)"
+blueprint_ref = "BP-STATE-MANAGER-001"
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# IF-STATE-001: Read State Interface
+# ═══════════════════════════════════════════════════════════════════════════════
+
+[interfaces.IF-STATE-001]
+name = "ReadState"
+description = "Retrieve actor state from cache or FoundationDB"
+version = "1.0.0"
+type = "trait"
+visibility = "public"
+
+[interfaces.IF-STATE-001.operations.read]
+description = "Read actor state from cache or FoundationDB"
+async = true
+timeout_ms = 10000
+
+[[interfaces.IF-STATE-001.operations.read.parameters]]
+name = "actor_id"
+type = "ActorId"
+description = "Unique 32-byte actor identifier"
+required = true
+constraints = { min_length = 32, max_length = 32 }
+
+[[interfaces.IF-STATE-001.operations.read.parameters]]
+name = "options"
+type = "ReadOptions"
+description = "Read configuration options"
+required = false
+default = { consistency = "Cached", timeout_ms = 10000, bypass_cache = false }
+
+[interfaces.IF-STATE-001.operations.read.returns]
+type = "Result<ActorState, StateError>"
+description = "Actor state or error"
+
+[interfaces.IF-STATE-001.operations.read.errors]
+NotFound = { code = 404, description = "Actor does not exist" }
+Timeout = { code = 504, description = "Read exceeded deadline" }
+ValidationFailed = { code = 422, description = "Archive validation failed" }
+Unavailable = { code = 503, description = "FDB unavailable" }
+
+[interfaces.IF-STATE-001.operations.read.performance]
+cache_hit_latency_us = { p50 = 50, p99 = 100 }
+cache_miss_latency_ms = { p50 = 3, p99 = 5 }
+throughput_ops_per_sec = 100000
+
+[interfaces.IF-STATE-001.operations.read.guarantees]
+consistency = "linearizable"
+atomicity = "read-only"
+isolation = "serializable"
+
+[[interfaces.IF-STATE-001.operations.read.invariants]]
+id = "INV-READ-001"
+description = "Returned state includes valid versionstamp"
+expression = "result.versionstamp.is_valid()"
+
+[[interfaces.IF-STATE-001.operations.read.invariants]]
+id = "INV-READ-002"
+description = "Cache entry versionstamp matches FDB on cache hit"
+expression = "cache_hit => cache_version == fdb_version"
+
+[interfaces.IF-STATE-001.operations.read_raw]
+description = "Read raw archive bytes without hydration"
+async = true
+timeout_ms = 5000
+
+[[interfaces.IF-STATE-001.operations.read_raw.parameters]]
+name = "actor_id"
+type = "ActorId"
+required = true
+
+[interfaces.IF-STATE-001.operations.read_raw.returns]
+type = "Result<ArchiveBytes, StateError>"
+description = "Raw archived bytes"
+
+[interfaces.IF-STATE-001.operations.read_batch]
+description = "Batch read multiple actor states"
+async = true
+timeout_ms = 15000
+
+[[interfaces.IF-STATE-001.operations.read_batch.parameters]]
+name = "actor_ids"
+type = "Vec<ActorId>"
+required = true
+constraints = { max_items = 100 }
+
+[interfaces.IF-STATE-001.operations.read_batch.returns]
+type = "Result<Vec<(ActorId, ActorState)>, StateError>"
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# IF-STATE-002: Write State Interface
+# ═══════════════════════════════════════════════════════════════════════════════
+
+[interfaces.IF-STATE-002]
+name = "WriteState"
+description = "Persist actor state to FoundationDB with ACID guarantees"
+version = "1.0.0"
+type = "trait"
+visibility = "public"
+
+[interfaces.IF-STATE-002.operations.write]
+description = "Write actor state to FoundationDB"
+async = true
+timeout_ms = 20000
+
+[[interfaces.IF-STATE-002.operations.write.parameters]]
+name = "actor_id"
+type = "ActorId"
+required = true
+
+[[interfaces.IF-STATE-002.operations.write.parameters]]
+name = "state"
+type = "ActorState"
+required = true
+
+[[interfaces.IF-STATE-002.operations.write.parameters]]
+name = "options"
+type = "WriteOptions"
+required = false
+default = { checkpoint = false, durability = "Committed", invalidate_cache = true }
+
+[interfaces.IF-STATE-002.operations.write.returns]
+type = "Result<WriteResult, StateError>"
+
+[interfaces.IF-STATE-002.operations.write.errors]
+Conflict = { code = 409, description = "Optimistic lock failure" }
+Timeout = { code = 504, description = "Write exceeded deadline" }
+TooLarge = { code = 413, description = "State exceeds maximum size" }
+Unavailable = { code = 503, description = "FDB unavailable" }
+
+[interfaces.IF-STATE-002.operations.write.performance]
+write_latency_ms = { p50 = 5, p99 = 10 }
+checkpoint_latency_ms = { p50 = 10, p99 = 20 }
+throughput_ops_per_sec = 50000
+
+[interfaces.IF-STATE-002.operations.write.guarantees]
+atomicity = "all-or-nothing"
+isolation = "serializable"
+durability = "committed"
+
+[[interfaces.IF-STATE-002.operations.write.invariants]]
+id = "INV-WRITE-001"
+description = "Versionstamp is incremented on write"
+expression = "new_versionstamp > old_versionstamp"
+
+[[interfaces.IF-STATE-002.operations.write.invariants]]
+id = "INV-WRITE-002"
+description = "Archive checksum is computed and stored"
+expression = "stored_checksum == xxhash3_64(archive)"
+
+[interfaces.IF-STATE-002.operations.write_if_version]
+description = "Conditional write with version check"
+async = true
+timeout_ms = 20000
+
+[[interfaces.IF-STATE-002.operations.write_if_version.parameters]]
+name = "actor_id"
+type = "ActorId"
+required = true
+
+[[interfaces.IF-STATE-002.operations.write_if_version.parameters]]
+name = "state"
+type = "ActorState"
+required = true
+
+[[interfaces.IF-STATE-002.operations.write_if_version.parameters]]
+name = "expected_version"
+type = "Versionstamp"
+required = true
+description = "Version to match for optimistic locking"
+
+[interfaces.IF-STATE-002.operations.write_if_version.returns]
+type = "Result<WriteResult, StateError>"
+
+[interfaces.IF-STATE-002.operations.write_if_version.errors]
+Conflict = { code = 409, description = "Version mismatch" }
+
+[interfaces.IF-STATE-002.operations.write_batch]
+description = "Batch write multiple actor states"
+async = true
+timeout_ms = 30000
+
+[[interfaces.IF-STATE-002.operations.write_batch.parameters]]
+name = "updates"
+type = "Vec<(ActorId, ActorState)>"
+required = true
+constraints = { max_items = 100 }
+
+[interfaces.IF-STATE-002.operations.write_batch.returns]
+type = "Result<Vec<WriteResult>, StateError>"
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# IF-STATE-003: Checkpoint Interface
+# ═══════════════════════════════════════════════════════════════════════════════
+
+[interfaces.IF-STATE-003]
+name = "Checkpoint"
+description = "Create atomic checkpoints with versionstamps"
+version = "1.0.0"
+type = "trait"
+visibility = "public"
+yp_ref = "YP-SERIAL-RKYV-001::THM-SER-003"
+
+[interfaces.IF-STATE-003.operations.checkpoint]
+description = "Create checkpoint for single actor"
+async = true
+timeout_ms = 20000
+
+[[interfaces.IF-STATE-003.operations.checkpoint.parameters]]
+name = "actor_id"
+type = "ActorId"
+required = true
+
+[[interfaces.IF-STATE-003.operations.checkpoint.parameters]]
+name = "options"
+type = "CheckpointOptions"
+required = false
+default = { checkpoint_type = "Full", retention_days = 7, verify = true }
+
+[interfaces.IF-STATE-003.operations.checkpoint.returns]
+type = "Result<CheckpointResult, StateError>"
+
+[interfaces.IF-STATE-003.operations.checkpoint.errors]
+NotFound = { code = 404, description = "Actor does not exist" }
+CheckpointFailed = { code = 500, description = "Checkpoint creation failed" }
+QuotaExceeded = { code = 507, description = "Checkpoint quota exceeded" }
+
+[interfaces.IF-STATE-003.operations.checkpoint.performance]
+checkpoint_latency_ms = { p50 = 10, p99 = 20 }
+
+[interfaces.IF-STATE-003.operations.checkpoint.guarantees]
+atomicity = "atomic"
+versioned = true
+verifiable = true
+
+[[interfaces.IF-STATE-003.operations.checkpoint.invariants]]
+id = "INV-CHK-001"
+description = "Checkpoint is atomic - either fully written or not at all"
+expression = "checkpoint_result => (fully_written OR not_written)"
+
+[[interfaces.IF-STATE-003.operations.checkpoint.invariants]]
+id = "INV-CHK-002"
+description = "Checkpoint includes valid checksum"
+expression = "result.checksum == xxhash3_64(archive)"
+
+[interfaces.IF-STATE-003.operations.checkpoint_batch]
+description = "Create checkpoint for multiple actors atomically"
+async = true
+timeout_ms = 30000
+
+[[interfaces.IF-STATE-003.operations.checkpoint_batch.parameters]]
+name = "actor_ids"
+type = "Vec<ActorId>"
+required = true
+constraints = { max_items = 50 }
+
+[interfaces.IF-STATE-003.operations.checkpoint_batch.returns]
+type = "Result<BatchCheckpointResult, StateError>"
+
+[interfaces.IF-STATE-003.operations.restore]
+description = "Restore actor from checkpoint"
+async = true
+timeout_ms = 30000
+
+[[interfaces.IF-STATE-003.operations.restore.parameters]]
+name = "actor_id"
+type = "ActorId"
+required = true
+
+[[interfaces.IF-STATE-003.operations.restore.parameters]]
+name = "versionstamp"
+type = "Option<Versionstamp>"
+required = false
+description = "Specific version to restore (None = latest)"
+
+[interfaces.IF-STATE-003.operations.restore.returns]
+type = "Result<ActorState, StateError>"
+
+[interfaces.IF-STATE-003.operations.restore.errors]
+NotFound = { code = 404, description = "Checkpoint not found" }
+Corrupted = { code = 422, description = "Checkpoint data corrupted" }
+
+[interfaces.IF-STATE-003.operations.list_checkpoints]
+description = "List available checkpoints for actor"
+async = true
+timeout_ms = 5000
+
+[[interfaces.IF-STATE-003.operations.list_checkpoints.parameters]]
+name = "actor_id"
+type = "ActorId"
+required = true
+
+[interfaces.IF-STATE-003.operations.list_checkpoints.returns]
+type = "Result<Vec<CheckpointMetadata>, StateError>"
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# IF-STATE-004: Hydrate Interface
+# ═══════════════════════════════════════════════════════════════════════════════
+
+[interfaces.IF-STATE-004]
+name = "Hydrate"
+description = "Reconstruct actor state from archive within time budget"
+version = "1.0.0"
+type = "trait"
+visibility = "public"
+yp_ref = "YP-SERIAL-RKYV-001::ALG-SER-002"
+
+[interfaces.IF-STATE-004.operations.hydrate]
+description = "Hydrate actor state from archive"
+async = true
+timeout_ms = 100
+
+[[interfaces.IF-STATE-004.operations.hydrate.parameters]]
+name = "actor_id"
+type = "ActorId"
+required = true
+
+[[interfaces.IF-STATE-004.operations.hydrate.parameters]]
+name = "budget"
+type = "Duration"
+required = false
+default_ms = 50
+description = "Time budget for hydration"
+constraints = { max_ms = 100 }
+
+[interfaces.IF-STATE-004.operations.hydrate.returns]
+type = "Result<HydrationResult, StateError>"
+
+[interfaces.IF-STATE-004.operations.hydrate.errors]
+HydrationTimeout = { code = 504, description = "Exceeded time budget" }
+ValidationFailed = { code = 422, description = "Archive corrupted" }
+TooLarge = { code = 413, description = "State too large for budget" }
+
+[interfaces.IF-STATE-004.operations.hydrate.performance]
+target_latency_ms = { max = 50 }
+validation_latency_ms = { max = 5 }
+hydration_latency_ms = { max = 45 }
+
+[[interfaces.IF-STATE-004.operations.hydrate.invariants]]
+id = "INV-HYD-001"
+description = "Hydrated state is semantically equivalent to original"
+expression = "forall op: exec(hydrated_state, op) == exec(original_state, op)"
+yp_ref = "YP-SERIAL-RKYV-001::THM-SER-002"
+
+[[interfaces.IF-STATE-004.operations.hydrate.invariants]]
+id = "INV-HYD-002"
+description = "Hydration respects time budget"
+expression = "hydration_time <= budget"
+
+[[interfaces.IF-STATE-004.operations.hydrate.invariants]]
+id = "INV-HYD-003"
+description = "Archive is validated before hydration"
+expression = "hydrate(archive) => validate(archive).ok()"
+
+[interfaces.IF-STATE-004.operations.hydrate_from_bytes]
+description = "Hydrate from raw archive bytes"
+async = false
+timeout_ms = 50
+
+[[interfaces.IF-STATE-004.operations.hydrate_from_bytes.parameters]]
+name = "archive"
+type = "&[u8]"
+required = true
+constraints = { max_bytes = 1048576 }
+
+[[interfaces.IF-STATE-004.operations.hydrate_from_bytes.parameters]]
+name = "budget"
+type = "Duration"
+required = false
+default_ms = 50
+
+[interfaces.IF-STATE-004.operations.hydrate_from_bytes.returns]
+type = "Result<ActorState, StateError>"
+
+[interfaces.IF-STATE-004.operations.validate]
+description = "Validate archive without hydration"
+async = false
+timeout_ms = 10
+
+[[interfaces.IF-STATE-004.operations.validate.parameters]]
+name = "archive"
+type = "&[u8]"
+required = true
+
+[interfaces.IF-STATE-004.operations.validate.returns]
+type = "Result<ValidationResult, StateError>"
+
+[interfaces.IF-STATE-004.operations.validate.performance]
+validation_latency_ms = { max = 5 }
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# IF-STATE-005: Migrate Interface
+# ═══════════════════════════════════════════════════════════════════════════════
+
+[interfaces.IF-STATE-005]
+name = "Migrate"
+description = "Coordinate actor state migration between nodes"
+version = "1.0.0"
+type = "trait"
+visibility = "public"
+yp_ref = "YP-SERIAL-RKYV-001::ALG-SER-004"
+
+[interfaces.IF-STATE-005.operations.prepare_migration]
+description = "Prepare actor for migration"
+async = true
+timeout_ms = 30000
+
+[[interfaces.IF-STATE-005.operations.prepare_migration.parameters]]
+name = "actor_id"
+type = "ActorId"
+required = true
+
+[[interfaces.IF-STATE-005.operations.prepare_migration.parameters]]
+name = "target_node"
+type = "NodeId"
+required = true
+
+[interfaces.IF-STATE-005.operations.prepare_migration.returns]
+type = "Result<MigrationPrep, StateError>"
+
+[interfaces.IF-STATE-005.operations.prepare_migration.errors]
+MigrationInProgress = { code = 409, description = "Already migrating" }
+NotFound = { code = 404, description = "Actor does not exist" }
+LockFailed = { code = 423, description = "Could not acquire migration lock" }
+
+[[interfaces.IF-STATE-005.operations.prepare_migration.invariants]]
+id = "INV-MIG-001"
+description = "Actor is quiesced before migration"
+expression = "prepared => actor.status == Suspended"
+
+[[interfaces.IF-STATE-005.operations.prepare_migration.invariants]]
+id = "INV-MIG-002"
+description = "Migration lock is held"
+expression = "prepared => migration_lock(actor_id).held()"
+
+[interfaces.IF-STATE-005.operations.receive_migration]
+description = "Receive migrated actor state"
+async = true
+timeout_ms = 60000
+
+[[interfaces.IF-STATE-005.operations.receive_migration.parameters]]
+name = "prep"
+type = "MigrationPrep"
+required = true
+
+[interfaces.IF-STATE-005.operations.receive_migration.returns]
+type = "Result<MigrationResult, StateError>"
+
+[interfaces.IF-STATE-005.operations.receive_migration.errors]
+ValidationFailed = { code = 422, description = "Archive validation failed" }
+HydrationFailed = { code = 500, description = "State hydration failed" }
+ActivationFailed = { code = 500, description = "Actor activation failed" }
+
+[[interfaces.IF-STATE-005.operations.receive_migration.invariants]]
+id = "INV-RCV-001"
+description = "Idempotent receive - duplicate calls return same result"
+expression = "receive(prep) == receive(prep) // idempotent"
+
+[[interfaces.IF-STATE-005.operations.receive_migration.invariants]]
+id = "INV-RCV-002"
+description = "Versionstamp preserved during migration"
+expression = "result.state.versionstamp == prep.versionstamp"
+
+[interfaces.IF-STATE-005.operations.confirm_migration]
+description = "Confirm migration completion"
+async = true
+timeout_ms = 10000
+
+[[interfaces.IF-STATE-005.operations.confirm_migration.parameters]]
+name = "actor_id"
+type = "ActorId"
+required = true
+
+[[interfaces.IF-STATE-005.operations.confirm_migration.parameters]]
+name = "source_node"
+type = "NodeId"
+required = true
+
+[interfaces.IF-STATE-005.operations.confirm_migration.returns]
+type = "Result<(), StateError>"
+
+[[interfaces.IF-STATE-005.operations.confirm_migration.invariants]]
+id = "INV-CFM-001"
+description = "Source state deleted after confirmation"
+expression = "confirmed => !exists(source_state)"
+
+[[interfaces.IF-STATE-005.operations.confirm_migration.invariants]]
+id = "INV-CFM-002"
+description = "Routing table updated"
+expression = "confirmed => routing[actor_id] == target_node"
+
+[interfaces.IF-STATE-005.operations.abort_migration]
+description = "Abort in-progress migration"
+async = true
+timeout_ms = 5000
+
+[[interfaces.IF-STATE-005.operations.abort_migration.parameters]]
+name = "actor_id"
+type = "ActorId"
+required = true
+
+[interfaces.IF-STATE-005.operations.abort_migration.returns]
+type = "Result<(), StateError>"
+
+[[interfaces.IF-STATE-005.operations.abort_migration.invariants]]
+id = "INV-ABT-001"
+description = "Actor reactivated on source after abort"
+expression = "aborted => source_actor.status == Active"
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Data Types
+# ═══════════════════════════════════════════════════════════════════════════════
+
+[types.ActorId]
+description = "Unique 32-byte actor identifier (SHA-256)"
+type = "struct"
+fields = [
+    { name = "bytes", type = "[u8; 32]" }
+]
+
+[types.ActorState]
+description = "Core actor state structure"
+type = "struct"
+fields = [
+    { name = "actor_id", type = "ActorId" },
+    { name = "version", type = "u64" },
+    { name = "actor_type", type = "ActorType" },
+    { name = "status", type = "ActorStatus" },
+    { name = "created_at", type = "DateTime<Utc>" },
+    { name = "modified_at", type = "DateTime<Utc>" },
+    { name = "payload", type = "StatePayload" },
+    { name = "resources", type = "Vec<ResourceHandle>" },
+    { name = "mailbox", type = "MailboxState" },
+    { name = "metrics", type = "ActorMetrics" }
+]
+serde = "rkyv"
+alignment = 8
+
+[types.Versionstamp]
+description = "FoundationDB versionstamp (10 bytes)"
+type = "struct"
+fields = [
+    { name = "bytes", type = "[u8; 10]" }
+]
+
+[types.CheckpointMetadata]
+description = "Metadata for actor checkpoints"
+type = "struct"
+fields = [
+    { name = "actor_id", type = "ActorId" },
+    { name = "versionstamp", type = "Versionstamp" },
+    { name = "timestamp", type = "DateTime<Utc>" },
+    { name = "size", type = "usize" },
+    { name = "checksum", type = "u64" },
+    { name = "checkpoint_type", type = "CheckpointType" },
+    { name = "previous_version", type = "Option<Versionstamp>" },
+    { name = "compression_ratio", type = "f32" },
+    { name = "source_node", type = "NodeId" }
+]
+
+[types.ReadOptions]
+type = "struct"
+fields = [
+    { name = "consistency", type = "ConsistencyLevel", default = "Cached" },
+    { name = "timeout", type = "Duration", default_ms = 10000 },
+    { name = "bypass_cache", type = "bool", default = false }
+]
+
+[types.WriteOptions]
+type = "struct"
+fields = [
+    { name = "checkpoint", type = "bool", default = false },
+    { name = "durability", type = "DurabilityLevel", default = "Committed" },
+    { name = "invalidate_cache", type = "bool", default = true }
+]
+
+[types.WriteResult]
+type = "struct"
+fields = [
+    { name = "versionstamp", type = "Versionstamp" },
+    { name = "archive_size", type = "usize" },
+    { name = "latency", type = "Duration" }
+]
+
+[types.HydrationResult]
+type = "struct"
+fields = [
+    { name = "state", type = "ActorState" },
+    { name = "hydration_time", type = "Duration" },
+    { name = "source", type = "HydrationSource" },
+    { name = "archive_size", type = "usize" }
+]
+
+[types.MigrationPrep]
+type = "struct"
+fields = [
+    { name = "actor_id", type = "ActorId" },
+    { name = "source_node", type = "NodeId" },
+    { name = "target_node", type = "NodeId" },
+    { name = "archive", type = "Vec<u8>" },
+    { name = "versionstamp", type = "Versionstamp" },
+    { name = "checksum", type = "u64" },
+    { name = "timestamp", type = "DateTime<Utc>" }
+]
+
+[types.MigrationResult]
+type = "struct"
+fields = [
+    { name = "actor_id", type = "ActorId" },
+    { name = "state", type = "ActorState" },
+    { name = "migration_time", type = "Duration" },
+    { name = "hydration_time", type = "Duration" }
+]
+
+[types.ValidationResult]
+type = "struct"
+fields = [
+    { name = "valid", type = "bool" },
+    { name = "checksum", type = "u64" },
+    { name = "size", type = "usize" },
+    { name = "validation_time", type = "Duration" }
+]
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Enums
+# ═══════════════════════════════════════════════════════════════════════════════
+
+[enums.ConsistencyLevel]
+variants = ["Cached", "Causal", "Linearizable"]
+
+[enums.DurabilityLevel]
+variants = ["MemoryOnly", "Committed", "MajorityAck"]
+
+[enums.CheckpointType]
+variants = ["Full", "Delta", "Metadata"]
+
+[enums.ActorStatus]
+variants = ["Creating", "Active", "Suspended", "Destroying"]
+
+[enums.HydrationSource]
+variants = ["MemoryCache", "PersistentCache", "FoundationDB", "Network"]
+
+[enums.StateError]
+description = "State management errors"
+variants = [
+    { name = "NotFound", description = "Actor or checkpoint not found" },
+    { name = "Timeout", description = "Operation exceeded deadline" },
+    { name = "Conflict", description = "Optimistic lock failure" },
+    { name = "ValidationFailed", description = "Archive validation failed" },
+    { name = "HydrationTimeout", description = "Hydration exceeded budget" },
+    { name = "MigrationInProgress", description = "Migration already in progress" },
+    { name = "CheckpointFailed", description = "Checkpoint creation failed" },
+    { name = "TooLarge", description = "State exceeds maximum size" },
+    { name = "Unavailable", description = "Storage unavailable" },
+    { name = "Corrupted", description = "Data corruption detected" }
+]
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Cross-Reference Validation
+# ═══════════════════════════════════════════════════════════════════════════════
+
+[validation]
+all_interfaces_implemented = true
+all_types_defined = true
+all_errors_documented = true
+all_invariants_expressible = true
+all_performance_targets_measurable = true
+
+[cross_references]
+blueprint = "BP-STATE-MANAGER-001"
+yellow_papers = ["YP-SERIAL-RKYV-001", "YP-NETWORK-MESH-001"]
+components = ["COMP-STATE-001", "COMP-STATE-002", "COMP-STATE-003", "COMP-STATE-004", "COMP-STATE-005"]
+properties = ["PROP-STATE-001", "PROP-STATE-002", "PROP-STATE-003"]

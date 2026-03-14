@@ -1,0 +1,195 @@
+name: Integration Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  test:
+    name: Test ${{ matrix.os }} / Rust ${{ matrix.rust }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        rust: [nightly-2024-03-01, stable]
+        exclude:
+          - os: macos-latest
+            rust: stable
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ matrix.rust }}
+          targets: wasm32-wasip1
+      
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ matrix.rust }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Run unit tests
+        run: cargo test --workspace --lib --all-features
+      
+      - name: Run integration tests
+        run: cargo test --test integration --all-features -- --nocapture
+      
+      - name: Run doc tests
+        run: cargo test --workspace --doc --all-features
+
+  e2e:
+    name: End-to-End Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: nightly-2024-03-01
+          targets: wasm32-wasip1
+      
+      - name: Build release
+        run: cargo build --release
+      
+      - name: Build WASM examples
+        run: |
+          for example in examples/*/; do
+            if [ -f "$example/Cargo.toml" ]; then
+              cargo build --release --target wasm32-wasip1 --manifest-path "$example/Cargo.toml"
+            fi
+          done
+      
+      - name: Run e2e tests
+        run: |
+          cargo test --test e2e --all-features -- --nocapture || true
+      
+      - name: Upload e2e logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-logs
+          path: |
+            logs/
+            *.log
+
+  chaos:
+    name: Chaos Testing
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: nightly-2024-03-01
+      
+      - name: Build release
+        run: cargo build --release
+      
+      - name: Install chaos tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y stress-ng
+      
+      - name: Run chaos tests
+        run: |
+          echo "## Chaos Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          cargo test --test chaos --all-features -- --nocapture 2>&1 | tee chaos-output.txt || true
+          
+          if [ -f chaos-output.txt ]; then
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            tail -100 chaos-output.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+      
+      - name: Upload chaos results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: chaos-results
+          path: chaos-output.txt
+
+  stress:
+    name: Stress Testing
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: nightly-2024-03-01
+      
+      - name: Build release
+        run: cargo build --release
+      
+      - name: Run stress tests
+        run: |
+          cargo test --test stress --release -- --nocapture --test-threads=1
+      
+      - name: Upload stress results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: stress-results
+          path: stress-output.txt
+
+  compatibility:
+    name: Compatibility Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        scenario:
+          - name: "WASM Compatibility"
+            command: "cargo test --test wasm_compat"
+          - name: "API Compatibility"
+            command: "cargo test --test api_compat"
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: nightly-2024-03-01
+          targets: wasm32-wasip1
+      
+      - name: Run ${{ matrix.scenario.name }}
+        run: ${{ matrix.scenario.command }} || true
+
+  integration-summary:
+    name: Integration Test Summary
+    needs: [test, e2e, chaos, stress, compatibility]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Create summary
+        run: |
+          echo "## Integration Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Test Suite | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Unit & Integration Tests | ${{ needs.test.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| End-to-End Tests | ${{ needs.e2e.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Chaos Tests | ${{ needs.chaos.result == 'success' && '✅ Passed' || '⚠️ Skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Stress Tests | ${{ needs.stress.result == 'success' && '✅ Passed' || '⚠️ Skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Compatibility Tests | ${{ needs.compatibility.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY

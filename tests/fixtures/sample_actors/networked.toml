@@ -1,0 +1,7 @@
+[[actor]]
+name = "api"
+kind = "wasm"
+image = "api.wasm"
+
+[actor.capabilities]
+networking = "public"

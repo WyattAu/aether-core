@@ -1,0 +1,194 @@
+name: Benchmarks
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  benchmark:
+    name: Performance Benchmarks
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      deployments: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: nightly-2024-03-01
+      
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-bench-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Run benchmarks
+        run: |
+          cargo bench --workspace -- --save-baseline new-baseline --output-format bencher | tee benchmark-results.txt
+      
+      - name: Download previous baseline
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: benchmark-baseline
+          path: target/criterion
+      
+      - name: Compare with baseline
+        if: github.event_name == 'pull_request'
+        run: |
+          if [ -d "target/criterion" ]; then
+            echo "## Performance Comparison" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            cargo bench --workspace -- --baseline new-baseline --output-format bencher 2>&1 | tee comparison.txt || true
+            
+            if grep -q "Performance has regressed" comparison.txt; then
+              echo "⚠️ Performance regression detected!" >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              grep -A 5 "Performance has regressed" comparison.txt >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+            else
+              echo "✅ No performance regressions detected" >> $GITHUB_STEP_SUMMARY
+            fi
+          fi
+      
+      - name: Generate benchmark report
+        run: |
+          echo "## Benchmark Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat benchmark-results.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+      
+      - name: Store benchmark result
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          tool: 'cargo'
+          output-file-path: benchmark-results.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: ${{ github.ref == 'refs/heads/main' }}
+          alert-threshold: '150%'
+          comment-on-alert: true
+          fail-on-alert: true
+          alert-comment-cc-users: '@${{ github.actor }}'
+      
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: |
+            benchmark-results.txt
+            target/criterion
+      
+      - name: Update baseline on main
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-baseline
+          path: target/criterion
+
+  memory-benchmark:
+    name: Memory Usage Benchmark
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: nightly-2024-03-01
+      
+      - name: Install valgrind
+        run: sudo apt-get install -y valgrind
+      
+      - name: Build release
+        run: cargo build --release
+      
+      - name: Run memory benchmark
+        run: |
+          echo "## Memory Usage Analysis" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          valgrind --tool=massif --massif-out-file=massif.out ./target/release/aether --help || true
+          
+          if [ -f massif.out ]; then
+            ms_print massif.out > memory-report.txt
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            head -50 memory-report.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+      
+      - name: Upload memory report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: memory-benchmark
+          path: |
+            massif.out
+            memory-report.txt
+
+  startup-benchmark:
+    name: Startup Time Benchmark
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: nightly-2024-03-01
+      
+      - name: Build release
+        run: cargo build --release
+      
+      - name: Measure startup time
+        run: |
+          echo "## Startup Time Analysis" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Run | Time (ms) |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|-----------|" >> $GITHUB_STEP_SUMMARY
+          
+          TOTAL=0
+          for i in {1..10}; do
+            START=$(date +%s%N)
+            ./target/release/aether --help > /dev/null 2>&1
+            END=$(date +%s%N)
+            TIME=$(( (END - START) / 1000000 ))
+            TOTAL=$((TOTAL + TIME))
+            echo "| $i | $TIME |" >> $GITHUB_STEP_SUMMARY
+          done
+          
+          AVG=$((TOTAL / 10))
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Average startup time: ${AVG}ms**" >> $GITHUB_STEP_SUMMARY
+
+  benchmark-summary:
+    name: Benchmark Summary
+    needs: [benchmark, memory-benchmark, startup-benchmark]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Create summary
+        run: |
+          echo "## All Benchmarks Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Benchmark | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Performance | ${{ needs.benchmark.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Memory | ${{ needs.memory-benchmark.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Startup | ${{ needs.startup-benchmark.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY

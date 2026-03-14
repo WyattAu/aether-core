@@ -1,0 +1,28 @@
+FROM rust:1.75 AS builder
+
+WORKDIR /app
+
+COPY Cargo.toml Cargo.lock ./
+COPY crates ./crates
+COPY tests ./tests
+
+RUN cargo build --release
+
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /app/target/release/aether /usr/local/bin/
+COPY --from=builder /app/tests/fixtures /app/fixtures
+
+WORKDIR /app
+
+EXPOSE 8000 7000
+
+HEALTHCHECK --interval=5s --timeout=3s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+CMD ["aether", "run"]

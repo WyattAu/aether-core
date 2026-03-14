@@ -1,0 +1,575 @@
+# Domain Constraints for Async I/O (io_uring)
+# YP-ASYNC-IOURING-001
+# Version: 1.0.0
+# Created: 2026-03-05
+
+[metadata]
+document_id = "YP-ASYNC-IOURING-001"
+version = "1.0.0"
+description = "Domain constraints for io_uring async I/O operations"
+format_version = "1.0"
+
+# =============================================================================
+# SECTION 1: Ring Buffer Constraints
+# =============================================================================
+
+[ring_buffer]
+description = "Constraints for io_uring ring buffer configuration"
+
+[ring_buffer.sizes]
+# Submission queue size (must be power of 2)
+sq_entries_min = 1
+sq_entries_max = 32768
+sq_entries_default = 256
+sq_entries_power_of_two = true
+
+# Completion queue size (must be power of 2, typically 2x SQ)
+cq_entries_min = 1
+cq_entries_max = 65536
+cq_entries_default = 512
+cq_entries_power_of_two = true
+
+# CQ must be at least as large as SQ
+cq_ge_sq = true
+
+[ring_buffer.memory]
+# Memory mapping requirements
+sq_ring_mmap_flags = ["MAP_SHARED", "MAP_POPULATE"]
+cq_ring_mmap_flags = ["MAP_SHARED", "MAP_POPULATE"]
+sqes_mmap_flags = ["MAP_SHARED", "MAP_POPULATE"]
+
+# Protection flags
+ring_protection = ["PROT_READ", "PROT_WRITE"]
+
+# Page alignment
+page_aligned = true
+page_size = 4096
+
+[ring_buffer.indexing]
+# Index wrapping
+wrap_mask_computation = "entries - 1"
+index_type = "uint32_t"
+head_initial = 0
+tail_initial = 0
+
+# Index range
+max_raw_index = 4294967295  # uint32 max
+overflow_check = true
+
+[ring_buffer.capacity]
+# Maximum pending submissions
+max_pending_sqes = "sq_entries"
+# Maximum pending completions  
+max_pending_cqes = "cq_entries"
+
+# =============================================================================
+# SECTION 2: Submission Constraints
+# =============================================================================
+
+[submission]
+description = "Constraints for SQE submission"
+
+[submission.timing]
+# Submission latency targets
+submit_latency_min_ns = 20
+submit_latency_avg_ns = 100
+submit_latency_max_ns = 500
+
+# Batch submission efficiency
+batch_submit_overhead_ns = 200
+per_sqe_overhead_ns = 20
+
+[submission.batching]
+# Optimal batch sizes
+batch_size_min = 1
+batch_size_max = 256
+batch_size_optimal = 32
+batch_size_default = 32
+
+# Batch submission limits
+max_batch_per_enter = 256
+
+[submission.user_data]
+# User data field
+user_data_type = "uint64_t"
+user_data_unique_per_sqe = false  # Not required to be unique
+
+[submission.flags]
+# SQE flags
+valid_flags = [
+    "IOSQE_FIXED_FILE",
+    "IOSQE_IO_DRAIN",
+    "IOSQE_IO_LINK",
+    "IOSQE_IO_HARDLINK",
+    "IOSQE_ASYNC",
+    "IOSQE_BUFFER_SELECT",
+    "IOSQE_CQE_SKIP_SUCCESS"
+]
+
+# Flag combinations
+link_flags = ["IOSQE_IO_LINK", "IOSQE_IO_HARDLINK"]
+drain_flags = ["IOSQE_IO_DRAIN"]
+
+[submission.linked_chains]
+# Maximum linked chain length
+max_chain_length = 255
+
+# Chain behavior on error
+chain_failure = "cancel_remaining"  # or "continue" with HARDLINK
+
+# =============================================================================
+# SECTION 3: Completion Constraints
+# =============================================================================
+
+[completion]
+description = "Constraints for CQE processing"
+
+[completion.timing]
+# Completion notification latency
+notification_latency_min_ns = 50
+notification_latency_avg_ns = 500
+notification_latency_max_us = 10  # For slow ops
+
+# Completion processing overhead
+peek_overhead_ns = 50
+advance_overhead_ns = 20
+process_overhead_ns = 100
+
+[completion.batching]
+# Completion batch sizes
+batch_size_min = 1
+batch_size_max = 256
+batch_size_optimal = 64
+batch_size_default = 64
+
+[completion.result_codes]
+# Result code semantics
+success_min = 0
+error_max = -1
+error_range = [-4095, -1]  # Negative errno values
+
+# Common errno values
+errno_EBADF = -9
+errno_EACCES = -13
+errno_ENOMEM = -12
+errno_EIO = -5
+errno_ECANCELED = -125
+errno_ETIME = -62
+
+[completion.flags]
+# CQE flags
+valid_flags = [
+    "IORING_CQE_F_BUFFER",
+    "IORING_CQE_F_MORE",
+    "IORING_CQE_F_SOCK_NONEMPTY",
+    "IORING_CQE_F_NOTIF"
+]
+
+# Buffer selection flag
+buffer_flag_bits = 16  # Lower 16 bits for buffer index
+
+# =============================================================================
+# SECTION 4: Zero-Copy Constraints
+# =============================================================================
+
+[zero_copy]
+description = "Constraints for zero-copy I/O operations"
+
+[zero_copy.buffer_registration]
+# Buffer count limits
+buffers_min = 1
+buffers_max = 32768
+buffers_default = 256
+
+# Buffer size limits
+buffer_size_min = 1
+buffer_size_max = 1073741824  # 1 GiB per buffer
+total_buffer_size_max = 4294967296  # 4 GiB total
+
+# Buffer alignment
+alignment_min = 512
+alignment_recommended = 4096
+alignment_default = 512
+
+[zero_copy.buffer_pinning]
+# Pinning behavior
+buffers_pinned = true
+swappable = false
+dma_safe = true
+
+# Memory pressure
+unpin_on_low_memory = true
+re_register_allowed = true
+
+[zero_copy.file_registration]
+# Registered file limits
+files_min = 1
+files_max = 32768
+files_default = 1024
+
+# File descriptor requirements
+fd_must_be_valid = true
+fd_auto_update_supported = true
+
+[zero_copy.fixed_ops]
+# Fixed operation opcodes
+read_fixed_opcode = "IORING_OP_READ_FIXED"
+write_fixed_opcode = "IORING_OP_WRITE_FIXED"
+
+# Buffer index range
+buffer_index_min = 0
+buffer_index_max = 32767
+
+# =============================================================================
+# SECTION 5: Proactor Pattern Constraints
+# =============================================================================
+
+[proactor]
+description = "Constraints for proactor event loop implementation"
+
+[proactor.event_loop]
+# Event loop timing
+iteration_target_us = 10
+iteration_max_us = 100
+idle_wait_timeout_us = 1000
+
+# Wake-up mechanisms
+eventfd_enabled = true
+poll_mode_enabled = true
+interrupt_enabled = true
+
+[proactor.io_uring_enter]
+# Enter call parameters
+min_complete_default = 1
+min_complete_max = 256
+submit_flags_default = 0
+wait_flags = "IORING_ENTER_GETEVENTS"
+
+# Timeout for enter
+enter_timeout_ms = 100
+
+[proactor.handler]
+# Handler constraints
+max_handlers = 65536
+handler_registration_overhead_ns = 100
+handler_dispatch_overhead_ns = 50
+
+# Persistent operations (like accept)
+rearm_overhead_ns = 100
+max_persistent_per_ring = 1024
+
+# =============================================================================
+# SECTION 6: Thread-Per-Core Constraints
+# =============================================================================
+
+[thread_per_core]
+description = "Constraints for thread-per-core architecture"
+
+[thread_per_core.topology]
+# Core configuration
+cores_min = 1
+cores_max = 128  # Typical server
+cores_default = 4
+
+# NUMA awareness
+numa_aware = true
+max_numa_nodes = 8
+cores_per_numa_node = 64
+
+[thread_per_core.isolation]
+# Per-thread resources
+io_uring_per_thread = 1
+no_shared_rings = true
+no_shared_buffers = true
+
+# Thread pinning
+core_pinning = true
+no_migration = true
+cpu_affinity_strict = true
+
+[thread_per_core.memory]
+# NUMA-local allocation
+numa_local_memory = true
+allocation_policy = "MPOL_BIND"
+preferred_node_policy = "MPOL_PREFERRED"
+
+# Per-thread allocators
+local_allocator_size_mb = 64
+local_allocator_type = "NUMA-aware"
+
+[thread_per_core.scheduling]
+# Work distribution
+distribution_method = "hash_based"
+hash_key = "connection_id"
+load_balance = "static"
+
+# No work stealing
+work_stealing = false
+task_migration = false
+
+[thread_per_core.scaling]
+# Expected scaling efficiency
+single_numa_efficiency = 0.95
+cross_numa_efficiency = 0.80
+
+# Linear scaling assumption
+scaling_model = "linear_within_numa"
+
+# =============================================================================
+# SECTION 7: Backpressure Constraints
+# =============================================================================
+
+[backpressure]
+description = "Constraints for backpressure and flow control"
+
+[backpressure.queue_full]
+# SQ full behavior
+sq_full_behavior = "block"  # or "fail"
+sq_full_error = "-EBUSY"
+sq_full_timeout_ms = 100
+
+# CQ overflow behavior
+cq_overflow_supported = true
+cq_overflow_backlog_max = 1024
+
+[backpressure.rate_limiting]
+# Completion processing rate
+max_completions_per_iteration = 256
+iteration_budget_us = 100
+
+# Submission rate
+max_submissions_per_iteration = 256
+
+[backpressure.timeouts]
+# Operation timeouts
+default_timeout_ms = 5000
+min_timeout_ms = 1
+max_timeout_ms = 3600000  # 1 hour
+
+# Timeout granularity
+timeout_granularity_us = 1000
+
+[backpressure.notification]
+# Eventfd configuration
+eventfd_max = 1
+eventfd_semaphore_mode = true
+eventfd_nonblocking = true
+
+# =============================================================================
+# SECTION 8: Performance Constraints
+# =============================================================================
+
+[performance]
+description = "Performance targets and constraints"
+
+[performance.latency]
+# Operation latencies (P50, P95, P99)
+nop_p50_ns = 100
+nop_p95_ns = 200
+nop_p99_ns = 500
+
+read_p50_ns = 1000
+read_p95_ns = 5000
+read_p99_ns = 10000
+
+write_p50_ns = 1000
+write_p95_ns = 5000
+write_p99_ns = 10000
+
+accept_p50_ns = 500
+accept_p95_ns = 2000
+accept_p99_ns = 5000
+
+[performance.throughput]
+# Throughput targets
+single_core_ops_per_sec = 500000
+multi_core_ops_per_sec = 2000000  # 4 cores
+
+# Zero-copy throughput
+zerocopy_gib_per_sec = 12.0
+standard_gib_per_sec = 6.0
+
+[performance.efficiency]
+# CPU efficiency
+cpu_utilization_max = 0.95
+cache_miss_rate_max = 0.05
+branch_miss_rate_max = 0.02
+
+# Memory efficiency
+memory_overhead_percent = 10
+dma_efficiency = 0.95
+
+[performance.scalability]
+# Scaling targets
+linear_scaling_cores = 16
+linear_scaling_efficiency = 0.90
+
+# NUMA scaling
+numa_scaling_efficiency = 0.85
+
+# =============================================================================
+# SECTION 9: Resource Constraints
+# =============================================================================
+
+[resources]
+description = "Resource limits and constraints"
+
+[resources.memory]
+# Per-ring memory
+ring_memory_overhead_kb = 64
+sqe_size = 64  # bytes
+cqe_size = 16  # bytes
+
+# Total memory per thread
+max_memory_per_thread_mb = 256
+min_memory_per_thread_mb = 4
+
+[resources.file_descriptors]
+# FD limits
+max_fds_per_ring = 32768
+reserved_fds = 3
+
+[resources.kernel]
+# Kernel resources
+max_rings_per_process = 256
+kernel_buffer_size_kb = 64
+
+# =============================================================================
+# SECTION 10: Safety Constraints
+# =============================================================================
+
+[safety]
+description = "Safety and correctness constraints"
+
+[safety.memory_safety]
+# Buffer bounds checking
+bounds_checking = true
+oob_detection = true
+
+# Use-after-free prevention
+buffer_lifetime_tracking = true
+registration_required_for_fixed = true
+
+[safety.concurrency]
+# Memory ordering
+acquire_semantics = ["cq_tail_load", "sq_head_load"]
+release_semantics = ["sq_tail_store", "cq_head_store"]
+
+# Atomic operations
+atomic_type = "std::atomic"
+memory_order = "seq_cst"  # for simple cases
+
+[safety.error_recovery]
+# Error handling
+errors_in_cqe = true
+no_exceptions = true
+graceful_degradation = true
+
+# Cancellation support
+cancel_on_shutdown = true
+cancel_timeout_ms = 100
+
+# =============================================================================
+# SECTION 11: Kernel Version Constraints
+# =============================================================================
+
+[kernel]
+description = "Kernel version and feature requirements"
+
+[kernel.version]
+# Minimum kernel version for full io_uring support
+min_kernel_version = "5.19"
+recommended_kernel_version = "6.1"
+
+# Feature availability by kernel version
+[kernel.features]
+"5.1" = ["basic_io_uring"]
+"5.5" = ["buffer_registration", "file_registration"]
+"5.6" = ["SQPOLL", "linked_sqes"]
+"5.7" = ["provided_buffers"]
+"5.15" = ["zero_copy_send"]
+"5.19" = ["recvmsg_multishot", "async_cancel_all"]
+"6.0" = ["single_issuer", "defer_taskrun"]
+"6.1" = ["rw_hint", "io_uring_cmd"]
+
+[kernel.limits]
+# Per-user limits
+max_entries_per_ring = 32768
+max_rings = 256
+max_buffers = 32768
+max_files = 32768
+
+# =============================================================================
+# SECTION 12: Monoio Runtime Constraints
+# =============================================================================
+
+[monoio]
+description = "Monoio-specific runtime constraints"
+
+[monoio.configuration]
+# Default Monoio configuration
+default_sq_entries = 256
+default_cq_entries = 512
+default_batch_size = 32
+default_defer_task_size = 256
+
+# Driver selection
+driver = "io_uring"
+fallback_driver = "none"  # No fallback
+
+[monoio.buffer_pool]
+# Buffer pool configuration
+pool_size = 1024
+buffer_size = 65536
+alignment = 512
+
+# Growth policy
+pool_growth_factor = 2
+pool_max_buffers = 32768
+
+[monoio.task_distribution]
+# Task routing
+routing_strategy = "hash"
+hash_algorithm = "fxhash"
+
+# Load balancing
+balance_check_interval_ms = 100
+rebalance_threshold_percent = 20
+
+[monoio.waker]
+# Waker implementation
+waker_type = "eventfd"
+waker_nonblocking = true
+waker_semaphore = true
+
+# =============================================================================
+# SECTION 13: Validation Rules
+# =============================================================================
+
+[validation]
+description = "Rules for validating constraint compliance"
+
+[validation.ring_setup]
+- "sq_entries must be power of 2"
+- "cq_entries must be power of 2"
+- "cq_entries >= sq_entries"
+- "sq_entries <= 32768"
+- "cq_entries <= 65536"
+
+[validation.buffer_registration]
+- "buffer_count >= 1 and <= 32768"
+- "all buffers aligned to 512 bytes"
+- "total buffer size <= 4 GiB"
+- "buffer addresses valid"
+
+[validation.submission]
+- "user_data is uint64_t"
+- "opcode is valid"
+- "flags combination is valid"
+- "linked chain length <= 255"
+
+[validation.performance]
+- "submit latency <= 500ns"
+- "completion latency <= 10us (normal ops)"
+- "throughput >= target_ops_per_sec"
+- "scaling efficiency >= 0.90"

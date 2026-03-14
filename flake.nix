@@ -17,12 +17,13 @@
         rustToolchain = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
       in
       {
-        devShells.default = pkgs.mkDevShell {
+        devShells.default = pkgs.mkShell {
           buildInputs = with pkgs; [
             rustToolchain
             mold        # Fast linker
             clang_18    # For FFI/Bindgen
             llvmPackages_18.llvm
+            openssl     # For native-tls support
             wasmtime    # Host runtime testing
             binaryen    # For wasm-opt
             protobuf    # For mesh-protocol.proto

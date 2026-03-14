@@ -1,0 +1,130 @@
+[package]
+name = "aether-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Aether Core Runtime - The Post-Container Application OS"
+
+[features]
+default = ["wasm", "mesh"]
+wasm = ["wasmtime", "wasmtime-wasi"]
+mesh = ["quinn", "rustls"]
+enterprise = []
+fdb = ["foundationdb"]
+firecracker = []
+chaos = ["num_cpus"]
+
+[dependencies]
+tokio = { workspace = true, features = ["fs", "sync", "time", "macros", "rt", "rt-multi-thread", "io-util", "net", "process", "signal"] }
+crossbeam-deque = "0.8"
+crossbeam-utils = "0.8"
+monoio = { workspace = true, optional = true }
+wasmtime = { workspace = true, optional = true }
+wasmtime-wasi = { workspace = true, optional = true }
+quinn = { workspace = true, optional = true }
+rustls = { workspace = true, optional = true }
+foundationdb = { version = "0.9", features = ["embedded-fdb-include", "fdb-7_3"], optional = true }
+rcgen = "0.13"
+zstd = "0.13"
+bytes = "1.9"
+lru = "0.13"
+parking_lot = "0.12"
+dashmap = "6.1"
+futures = "0.3"
+pin-project-lite = "0.2"
+serde = { workspace = true }
+serde_json = "1.0"
+serde_yaml = "0.9"
+rkyv = { workspace = true }
+toml = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+opentelemetry = "0.27"
+opentelemetry_sdk = { version = "0.27", features = ["rt-tokio"] }
+opentelemetry-otlp = { version = "0.27", features = ["tonic"] }
+opentelemetry-semantic-conventions = "0.27"
+tracing-opentelemetry = "0.28"
+getrandom = "0.3"
+bitflags = { version = "2.6", features = ["serde"] }
+blake3 = "1.5"
+uuid = { workspace = true }
+rand = "0.9"
+async-trait = "0.1"
+chrono = { version = "0.4", features = ["serde"] }
+time = "0.3"
+bincode = "1.3"
+rustls-pemfile = "2.2"
+rustls-pki-types = "1"
+base64 = "0.22"
+axum = { version = "0.7", features = ["ws", "macros"] }
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors", "fs", "trace"] }
+hyper = { version = "1.6", features = ["client", "http1", "http2", "server"] }
+hyper-util = { version = "0.1", features = ["client-legacy", "http1", "http2", "tokio", "client"] }
+http-body-util = "0.1"
+http = "1.2"
+async-stream = "0.3"
+tokio-tungstenite = "0.26"
+rust-embed = { version = "8.5", features = ["interpolate-folder-path"] }
+mime_guess = "2.0"
+num_cpus = { version = "1.16", optional = true }
+utoipa = "5"
+reqwest = { version = "0.12", features = ["json", "rustls-tls", "stream"], default-features = false }
+hmac = "0.12"
+sha2 = "0.10"
+regex = "1.11"
+glob = "0.3"
+tokio-stream = "0.1"
+tokio-util = { version = "0.7", features = ["io", "rt"] }
+
+[dev-dependencies]
+proptest = { workspace = true }
+tokio-test = "0.4"
+wat = "1.220"
+criterion = { version = "0.5", features = ["html_reports"] }
+tempfile = "3.14"
+
+[[bench]]
+name = "capability_bench"
+harness = false
+
+[[bench]]
+name = "serialization_bench"
+harness = false
+
+[[bench]]
+name = "message_bench"
+harness = false
+
+[[bench]]
+name = "mesh_bench"
+harness = false
+
+[[bench]]
+name = "cold_start_bench"
+harness = false
+required-features = ["wasm"]
+
+[[bench]]
+name = "message_throughput_bench"
+harness = false
+required-features = ["mesh"]
+
+[[bench]]
+name = "state_access_bench"
+harness = false
+
+[[bench]]
+name = "mesh_latency_bench"
+harness = false
+required-features = ["mesh"]
+
+[[bench]]
+name = "scheduler_bench"
+harness = false
+
+[lints]
+workspace = true

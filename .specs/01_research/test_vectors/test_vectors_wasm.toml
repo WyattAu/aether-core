@@ -1,0 +1,843 @@
+# Test Vectors for WebAssembly Runtime
+# YP-WASM-RUNTIME-001
+# Version: 1.0.0
+# Created: 2026-03-05
+
+[metadata]
+document_id = "YP-WASM-RUNTIME-001"
+version = "1.0.0"
+description = "Test vectors for WASM runtime conformance testing"
+format_version = "1.0"
+
+# =============================================================================
+# CATEGORY 1: Cold Start Timing Tests
+# =============================================================================
+
+[[test_vectors]]
+test_id = "TV-WASM-001"
+category = "cold_start_timing"
+name = "minimal_module_cold_start"
+description = "Cold start latency for minimal WASM module"
+confidence_required = 0.95
+
+[test_vectors.input]
+module_type = "aot_compiled"
+module_size_bytes = 1024
+memory_pages_min = 1
+memory_pages_max = 1
+has_start_function = false
+data_segments = []
+element_segments = []
+
+[test_vectors.expected]
+cold_start_max_us = 50
+cold_start_avg_us = 30
+memory_allocated = true
+instance_valid = true
+
+[test_vectors.measurement]
+metric = "latency"
+unit = "microseconds"
+samples = 1000
+percentile_50 = 25
+percentile_95 = 40
+percentile_99 = 48
+
+---
+
+[[test_vectors]]
+test_id = "TV-WASM-002"
+category = "cold_start_timing"
+name = "module_with_data_segments"
+description = "Cold start with 1MB data initialization"
+confidence_required = 0.90
+
+[test_vectors.input]
+module_type = "aot_compiled"
+module_size_bytes = 65536
+memory_pages_min = 16
+memory_pages_max = 16
+has_start_function = false
+data_segments = [
+    { offset = 0, size = 1048576 }
+]
+
+[test_vectors.expected]
+cold_start_max_us = 100  # Relaxed for large data
+memory_allocated = true
+data_initialized = true
+
+[test_vectors.measurement]
+metric = "latency"
+unit = "microseconds"
+samples = 100
+percentile_50 = 60
+percentile_95 = 85
+percentile_99 = 95
+
+---
+
+[[test_vectors]]
+test_id = "TV-WASM-003"
+category = "cold_start_timing"
+name = "module_with_start_function"
+description = "Cold start with start function execution"
+confidence_required = 0.90
+
+[test_vectors.input]
+module_type = "aot_compiled"
+has_start_function = true
+start_function_complexity = "O(1)"
+start_function_fuel = 1000
+
+[test_vectors.expected]
+cold_start_max_us = 60
+start_function_executed = true
+
+[test_vectors.constraints]
+start_function_must_complete = true
+start_function_trap_allowed = true
+
+# =============================================================================
+# CATEGORY 2: Memory Isolation Tests
+# =============================================================================
+
+[[test_vectors]]
+test_id = "TV-WASM-010"
+category = "memory_isolation"
+name = "cross_instance_read_isolation"
+description = "Verify instance A cannot read instance B's memory"
+confidence_required = 0.99
+
+[test_vectors.setup]
+instances = 2
+instance_0_memory_size_pages = 1
+instance_1_memory_size_pages = 1
+instance_1_initial_data = { offset = 0, pattern = "0xDEADBEEF" }
+
+[test_vectors.input]
+source_instance = 0
+operation = "memory_read"
+target_address = 0
+read_size = 4
+
+[test_vectors.expected]
+result = "trap"
+trap_type = "memory_out_of_bounds"
+memory_unchanged = true
+
+[test_vectors.invariant]
+"THM-WASM-001" = "memory_isolation_preserved"
+
+---
+
+[[test_vectors]]
+test_id = "TV-WASM-011"
+category = "memory_isolation"
+name = "cross_instance_write_isolation"
+description = "Verify instance A cannot write to instance B's memory"
+confidence_required = 0.99
+
+[test_vectors.setup]
+instances = 2
+instance_0_memory_size_pages = 1
+instance_1_memory_size_pages = 1
+
+[test_vectors.input]
+source_instance = 0
+operation = "memory_write"
+target_address = 65536  # Outside instance 0's memory
+write_data = "0xCAFEBABE"
+write_size = 4
+
+[test_vectors.expected]
+result = "trap"
+trap_type = "memory_out_of_bounds"
+instance_1_memory_unchanged = true
+
+---
+
+[[test_vectors]]
+test_id = "TV-WASM-012"
+category = "memory_isolation"
+name = "memory_bounds_low"
+description = "Access below memory base (negative offset)"
+confidence_required = 0.99
+
+[test_vectors.setup]
+instances = 1
+memory_size_pages = 1
+
+[test_vectors.input]
+operation = "memory_load"
+offset = 0
+address = -4  # Negative effective address (via i32 wrap)
+size = 4
+
+[test_vectors.expected]
+result = "trap"
+trap_type = "memory_out_of_bounds"
+
+---
+
+[[test_vectors]]
+test_id = "TV-WASM-013"
+category = "memory_isolation"
+name = "memory_bounds_high"
+description = "Access above memory limit"
+confidence_required = 0.99
+
+[test_vectors.setup]
+instances = 1
+memory_size_pages = 1
+
+[test_vectors.input]
+operation = "memory_load"
+offset = 65533
+size = 4  # Would read bytes 65533-65536, but only 0-65535 valid
+
+[test_vectors.expected]
+result = "trap"
+trap_type = "memory_out_of_bounds"
+
+---
+
+[[test_vectors]]
+test_id = "TV-WASM-014"
+category = "memory_isolation"
+name = "memory_grow_preserves_isolation"
+description = "Memory growth does not affect other instances"
+confidence_required = 0.95
+
+[test_vectors.setup]
+instances = 2
+instance_0_memory_pages = 1
+instance_1_memory_pages = 1
+instance_1_data_pattern = { offset = 0, value = "0x12345678" }
+
+[test_vectors.input]
+instance = 0
+operation = "memory_grow"
+additional_pages = 1
+
+[test_vectors.expected]
+instance_0_result = "success"
+instance_0_new_pages = 2
+instance_1_memory_unchanged = true
+instance_1_data_intact = true
+
+# =============================================================================
+# CATEGORY 3: Fuel Exhaustion Tests
+# =============================================================================
+
+[[test_vectors]]
+test_id = "TV-WASM-020"
+category = "fuel_exhaustion"
+name = "exact_fuel_exhaustion"
+description = "Execution terminates when fuel exactly reaches zero"
+confidence_required = 0.95
+
+[test_vectors.input]
+initial_fuel = 100
+code = [
+    { opcode = "i32.const", fuel = 1 },
+    { opcode = "i32.const", fuel = 1 },
+    { opcode = "i32.add", fuel = 1 },
+    # Repeat until fuel exhausted
+]
+fuel_per_iteration = 3
+
+[test_vectors.expected]
+result = "trap"
+trap_type = "out_of_fuel"
+final_fuel = 0
+instructions_executed = 33  # 100 / 3 = 33 complete iterations
+
+[test_vectors.invariant]
+"THM-WASM-002" = "fuel_exhaustion_termination"
+
+---
+
+[[test_vectors]]
+test_id = "TV-WASM-021"
+category = "fuel_exhaustion"
+name = "partial_instruction_fuel"
+description = "Instruction traps if insufficient fuel"
+confidence_required = 0.95
+
+[test_vectors.input]
+initial_fuel = 3
+code = [
+    { opcode = "i32.const", fuel = 1 },  # Fuel: 2
+    { opcode = "i32.const", fuel = 1 },  # Fuel: 1
+    { opcode = "memory.grow", fuel = 100 },  # Insufficient fuel
+]
+
+[test_vectors.expected]
+result = "trap"
+trap_type = "out_of_fuel"
+final_fuel = 1
+instructions_executed = 2
+memory_grow_executed = false
+
+---
+
+[[test_vectors]]
+test_id = "TV-WASM-022"
+category = "fuel_exhaustion"
+name = "infinite_loop_bounded"
+description = "Infinite loop terminates due to fuel exhaustion"
+confidence_required = 0.99
+
+[test_vectors.input]
+initial_fuel = 10000
+code_type = "infinite_loop"
+loop_body_fuel = 5
+
+[test_vectors.expected]
+result = "trap"
+trap_type = "out_of_fuel"
+execution_terminated = true
+max_iterations = 2000  # 10000 / 5
+
+---
+
+[[test_vectors]]
+test_id = "TV-WASM-023"
+category = "fuel_exhaustion"
+name = "call_fuel_accounting"
+description = "Function call fuel includes call overhead"
+confidence_required = 0.90
+
+[test_vectors.input]
+initial_fuel = 100
+code = [
+    { opcode = "call", func_index = 0, fuel = 5 },
+]
+called_function = [
+    { opcode = "i32.const", fuel = 1 },
+    { opcode = "i32.const", fuel = 1 },
+    { opcode = "i32.add", fuel = 1 },
+    { opcode = "return", fuel = 3 },
+]
+
+[test_vectors.expected]
+result = "success"
+fuel_consumed = 11  # 5 (call) + 1 + 1 + 1 + 3 (return)
+remaining_fuel = 89
+
+---
+
+[[test_vectors]]
+test_id = "TV-WASM-024"
+category = "fuel_exhaustion"
+name = "call_indirect_fuel"
+description = "Indirect call has higher fuel cost"
+confidence_required = 0.90
+
+[test_vectors.input]
+initial_fuel = 100
+code = [
+    { opcode = "call_indirect", type_index = 0, table_index = 0, fuel = 10 },
+]
+
+[test_vectors.expected]
+result = "success"
+fuel_consumed_call_indirect = 10
+fuel_consumed_call_direct = 5
+indirect_overhead = 5
+
+# =============================================================================
+# CATEGORY 4: Capability Enforcement Tests
+# =============================================================================
+
+[[test_vectors]]
+test_id = "TV-WASM-030"
+category = "capability_enforcement"
+name = "fd_read_without_capability"
+description = "fd_read denied without capability"
+confidence_required = 0.99
+
+[test_vectors.setup]
+capabilities = []  # No capabilities
+
+[test_vectors.input]
+operation = "host_call"
+function = "fd_read"
+args = { fd = 3, iovs = 0, iovs_len = 1 }
+
+[test_vectors.expected]
+result = "trap"
+trap_type = "capability_denied"
+required_capability = "fd-read"
+
+[test_vectors.invariant]
+"THM-WASM-003" = "capability_confinement"
+
+---
+
+[[test_vectors]]
+test_id = "TV-WASM-031"
+category = "capability_enforcement"
+name = "fd_read_with_capability"
+description = "fd_read allowed with capability"
+confidence_required = 0.99
+
+[test_vectors.setup]
+capabilities = ["fd-read"]
+preopened_fd = 3
+
+[test_vectors.input]
+operation = "host_call"
+function = "fd_read"
+args = { fd = 3, iovs = 0, iovs_len = 1 }
+
+[test_vectors.expected]
+result = "success"
+capability_checked = true
+host_function_executed = true
+
+---
+
+[[test_vectors]]
+test_id = "TV-WASM-032"
+category = "capability_enforcement"
+name = "socket_without_capability"
+description = "Socket creation denied without capability"
+confidence_required = 0.99
+
+[test_vectors.setup]
+capabilities = ["fd-read", "fd-write"]
+
+[test_vectors.input]
+operation = "host_call"
+function = "sock_open"
+args = { family = "AF_INET", type = "SOCK_STREAM" }
+
+[test_vectors.expected]
+result = "trap"
+trap_type = "capability_denied"
+required_capability = "sock-create"
+allowed_capabilities = ["fd-read", "fd-write"]
+
+---
+
+[[test_vectors]]
+test_id = "TV-WASM-033"
+category = "capability_enforcement"
+name = "capability_cannot_be_forged"
+description = "WASM code cannot create capabilities"
+confidence_required = 0.99
+
+[test_vectors.setup]
+capabilities = []
+memory_content = [
+    { offset = 0, data = "fd-read" }  # Try to forge capability string
+]
+
+[test_vectors.input]
+operation = "host_call"
+function = "fd_read"
+capability_attempt = "memory_offset_0"
+
+[test_vectors.expected]
+result = "trap"
+trap_type = "capability_denied"
+forged_capability_ignored = true
+
+---
+
+[[test_vectors]]
+test_id = "TV-WASM-034"
+category = "capability_enforcement"
+name = "capability_restriction"
+description = "Granted capabilities can be restricted subset"
+confidence_required = 0.95
+
+[test_vectors.setup]
+parent_capabilities = ["fd-read", "fd-write", "fd-seek"]
+child_capabilities = ["fd-read"]
+
+[test_vectors.input]
+operation = "create_child_instance"
+child_capabilities = ["fd-read"]
+
+[test_vectors.expected]
+result = "success"
+child_can_read = true
+child_can_write = false
+child_can_seek = false
+
+---
+
+[[test_vectors]]
+test_id = "TV-WASM-035"
+category = "capability_enforcement"
+name = "deny_by_default"
+description = "All operations denied without explicit capability"
+confidence_required = 0.99
+
+[test_vectors.setup]
+capabilities = []
+
+[test_vectors.input]
+operations = [
+    { function = "fd_read" },
+    { function = "fd_write" },
+    { function = "sock_open" },
+    { function = "path_open" },
+    { function = "random_get" },
+]
+
+[test_vectors.expected]
+all_results = ["trap", "trap", "trap", "trap", "trap"]
+all_trap_types = ["capability_denied"]
+
+[test_vectors.invariant]
+"AX-WASM-003" = "deny_by_default"
+
+# =============================================================================
+# CATEGORY 5: Memory Bounds Tests
+# =============================================================================
+
+[[test_vectors]]
+test_id = "TV-WASM-040"
+category = "memory_bounds"
+name = "load_at_boundary"
+description = "Load exactly at memory boundary"
+confidence_required = 0.95
+
+[test_vectors.setup]
+memory_pages = 1
+memory_size = 65536
+
+[test_vectors.input]
+operation = "i32.load"
+offset = 65532  # Last valid i32 address
+size = 4
+
+[test_vectors.expected]
+result = "success"
+bytes_read = [65532, 65533, 65534, 65535]
+
+---
+
+[[test_vectors]]
+test_id = "TV-WASM-041"
+category = "memory_bounds"
+name = "load_over_boundary"
+description = "Load crossing memory boundary"
+confidence_required = 0.95
+
+[test_vectors.setup]
+memory_pages = 1
+memory_size = 65536
+
+[test_vectors.input]
+operation = "i32.load"
+offset = 65533  # Would read 65533-65536, but 65536 is out of bounds
+size = 4
+
+[test_vectors.expected]
+result = "trap"
+trap_type = "memory_out_of_bounds"
+
+---
+
+[[test_vectors]]
+test_id = "TV-WASM-042"
+category = "memory_bounds"
+name = "store_at_boundary"
+description = "Store exactly at memory boundary"
+confidence_required = 0.95
+
+[test_vectors.setup]
+memory_pages = 1
+
+[test_vectors.input]
+operation = "i32.store"
+offset = 65532
+value = 0xDEADBEEF
+
+[test_vectors.expected]
+result = "success"
+memory_modified = true
+
+---
+
+[[test_vectors]]
+test_id = "TV-WASM-043"
+category = "memory_bounds"
+name = "store_over_boundary"
+description = "Store crossing memory boundary"
+confidence_required = 0.95
+
+[test_vectors.setup]
+memory_pages = 1
+
+[test_vectors.input]
+operation = "i32.store"
+offset = 65533
+value = 0xDEADBEEF
+
+[test_vectors.expected]
+result = "trap"
+trap_type = "memory_out_of_bounds"
+memory_unchanged = true
+
+---
+
+[[test_vectors]]
+test_id = "TV-WASM-044"
+category = "memory_bounds"
+name = "overflow_address_calculation"
+description = "Address calculation overflow detection"
+confidence_required = 0.95
+
+[test_vectors.setup]
+memory_pages = 1
+
+[test_vectors.input]
+operation = "i32.load"
+base = 0xFFFFFFF0
+offset = 32  # base + offset overflows
+
+[test_vectors.expected]
+result = "trap"
+trap_type = "memory_out_of_bounds"
+
+# =============================================================================
+# CATEGORY 6: Edge Cases
+# =============================================================================
+
+[[test_vectors]]
+test_id = "TV-WASM-050"
+category = "edge_cases"
+name = "zero_memory_pages"
+description = "Module with zero initial memory pages"
+confidence_required = 0.90
+
+[test_vectors.input]
+memory_pages_min = 0
+memory_pages_max = 0
+
+[test_vectors.expected]
+instantiation_result = "success"
+memory_size = 0
+memory_grow_allowed = false
+
+---
+
+[[test_vectors]]
+test_id = "TV-WASM-051"
+category = "edge_cases"
+name = "maximum_memory_pages"
+description = "Module with maximum memory pages"
+confidence_required = 0.90
+
+[test_vectors.input]
+memory_pages_min = 65536  # 4GB for 32-bit WASM
+memory_pages_max = 65536
+
+[test_vectors.constraints]
+host_memory_available = "4GB"
+
+[test_vectors.expected]
+instantiation_result = "success_or_oom"
+memory_size_pages = 65536
+
+---
+
+[[test_vectors]]
+test_id = "TV-WASM-052"
+category = "edge_cases"
+name = "infinite_fuel"
+description = "Execution with infinite fuel"
+confidence_required = 0.95
+
+[test_vectors.input]
+initial_fuel = "infinite"
+code = "infinite_loop"
+
+[test_vectors.expected]
+result = "timeout"  # Must be killed by external timeout
+fuel_exhausted = false
+
+---
+
+[[test_vectors]]
+test_id = "TV-WASM-053"
+category = "edge_cases"
+name = "recursive_call_depth"
+description = "Maximum recursive call depth"
+confidence_required = 0.90
+
+[test_vectors.input]
+initial_fuel = 1000000
+call_depth = 10000
+
+[test_vectors.expected]
+result = "trap"
+trap_type = "call_stack_exhausted"
+max_depth_reached = 10000
+
+---
+
+[[test_vectors]]
+test_id = "TV-WASM-054"
+category = "edge_cases"
+name = "empty_module"
+description = "Module with no functions, no memory"
+confidence_required = 0.95
+
+[test_vectors.input]
+module_type = "minimal"
+functions = []
+memory = null
+tables = []
+globals = []
+
+[test_vectors.expected]
+instantiation_result = "success"
+instance_valid = true
+cold_start_us = 10  # Very fast for empty module
+
+---
+
+[[test_vectors]]
+test_id = "TV-WASM-055"
+category = "edge_cases"
+name = "table_out_of_bounds"
+description = "call_indirect with invalid table index"
+confidence_required = 0.95
+
+[test_vectors.setup]
+table_size = 10
+
+[test_vectors.input]
+operation = "call_indirect"
+table_index = 15  # Out of bounds
+
+[test_vectors.expected]
+result = "trap"
+trap_type = "table_out_of_bounds"
+
+---
+
+[[test_vectors]]
+test_id = "TV-WASM-056"
+category = "edge_cases"
+name = "table_null_reference"
+description = "call_indirect with null table entry"
+confidence_required = 0.95
+
+[test_vectors.setup]
+table_size = 10
+table_entry_5 = null
+
+[test_vectors.input]
+operation = "call_indirect"
+table_index = 5
+
+[test_vectors.expected]
+result = "trap"
+trap_type = "null_reference"
+
+---
+
+[[test_vectors]]
+test_id = "TV-WASM-057"
+category = "edge_cases"
+name = "type_mismatch_call_indirect"
+description = "call_indirect with type mismatch"
+confidence_required = 0.95
+
+[test_vectors.setup]
+table_size = 10
+table_entry_0 = { func_index = 0, type = "(i32) -> (i32)" }
+
+[test_vectors.input]
+operation = "call_indirect"
+table_index = 0
+expected_type = "(i64) -> (i64)"
+
+[test_vectors.expected]
+result = "trap"
+trap_type = "type_mismatch"
+
+# =============================================================================
+# CATEGORY 7: Performance Benchmarks
+# =============================================================================
+
+[[test_vectors]]
+test_id = "TV-WASM-060"
+category = "performance"
+name = "cold_start_p99"
+description = "Cold start P99 latency benchmark"
+confidence_required = 0.95
+
+[test_vectors.input]
+iterations = 10000
+module_complexity = "typical"
+
+[test_vectors.expected]
+p50_us = 25
+p95_us = 40
+p99_us = 50
+max_us = 75
+
+---
+
+[[test_vectors]]
+test_id = "TV-WASM-061"
+category = "performance"
+name = "memory_throughput"
+description = "Memory read/write throughput"
+confidence_required = 0.90
+
+[test_vectors.input]
+operation = "memory_benchmark"
+access_pattern = "sequential"
+size_mb = 10
+
+[test_vectors.expected]
+read_throughput_gbps = 10
+write_throughput_gbps = 8
+
+---
+
+[[test_vectors]]
+test_id = "TV-WASM-062"
+category = "performance"
+name = "call_overhead"
+description = "Function call overhead measurement"
+confidence_required = 0.90
+
+[test_vectors.input]
+operation = "call_benchmark"
+iterations = 1000000
+function_complexity = "minimal"
+
+[test_vectors.expected]
+call_overhead_ns = 10
+calls_per_second = 100000000
+
+# =============================================================================
+# Test Execution Configuration
+# =============================================================================
+
+[execution]
+parallel_groups = 4
+timeout_per_test_ms = 5000
+retries = 3
+fail_fast = false
+
+[reporting]
+output_format = "junit"
+output_path = "test-results/wasm-runtime.xml"
+coverage_enabled = true
+
+[validation]
+strict_mode = true
+verify_invariants = true
+verify_axioms = true

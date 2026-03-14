@@ -1,0 +1,280 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-alpha.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-beta.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-rc.[0-9]+'
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  validate:
+    name: Validate Release
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Extract version
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          if [[ "$VERSION" =~ -(alpha|beta|rc)\. ]]; then
+            echo "prerelease=true" >> $GITHUB_OUTPUT
+          else
+            echo "prerelease=false" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Verify version matches Cargo.toml
+        run: |
+          CARGO_VERSION=$(grep -m1 'version = "' Cargo.toml | cut -d'"' -f2)
+          TAG_VERSION=${{ steps.version.outputs.version }}
+          if [ "$CARGO_VERSION" != "$TAG_VERSION" ]; then
+            echo "Error: Cargo.toml version ($CARGO_VERSION) does not match tag version ($TAG_VERSION)"
+            exit 1
+          fi
+
+  build:
+    name: Build ${{ matrix.target }}
+    needs: validate
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            artifact: aether-linux-x86_64
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            artifact: aether-linux-arm64
+            cross: true
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            artifact: aether-darwin-x86_64
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            artifact: aether-darwin-arm64
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: nightly-2024-03-01
+          targets: ${{ matrix.target }}
+      
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Install cross-compilation tools
+        if: matrix.cross
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+      
+      - name: Build release
+        run: cargo build --release --target ${{ matrix.target }}
+      
+      - name: Strip binary
+        if: runner.os == 'Linux'
+        run: strip target/${{ matrix.target }}/release/aether
+      
+      - name: Create archive
+        run: |
+          cd target/${{ matrix.target }}/release
+          tar -czf ../../../${{ matrix.artifact }}.tar.gz aether
+      
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.artifact }}.tar.gz
+
+  build-wasm:
+    name: Build WASM Examples
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: nightly-2024-03-01
+          targets: wasm32-wasip1
+      
+      - name: Build WASM examples
+        run: |
+          mkdir -p wasm-artifacts
+          for example in examples/*/; do
+            if [ -f "$example/Cargo.toml" ]; then
+              name=$(basename "$example")
+              cargo build --release --target wasm32-wasip1 --manifest-path "$example/Cargo.toml"
+              cp target/wasm32-wasip1/release/*.wasm wasm-artifacts/ 2>/dev/null || true
+            fi
+          done
+      
+      - name: Package WASM examples
+        run: tar -czf wasm-examples.tar.gz -C wasm-artifacts .
+      
+      - name: Upload WASM artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: wasm-examples
+          path: wasm-examples.tar.gz
+
+  generate-changelog:
+    name: Generate Changelog
+    needs: validate
+    runs-on: ubuntu-latest
+    outputs:
+      changelog: ${{ steps.changelog.outputs.changelog }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Generate changelog
+        id: changelog
+        run: |
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          
+          echo "## What's Changed" >> CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          
+          if [ -n "$PREVIOUS_TAG" ]; then
+            git log --pretty=format:"- %s (%h)" $PREVIOUS_TAG..HEAD --reverse >> CHANGELOG.md
+            echo "" >> CHANGELOG.md
+            echo "" >> CHANGELOG.md
+            echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${PREVIOUS_TAG}...${{ github.ref_name }}" >> CHANGELOG.md
+          else
+            git log --pretty=format:"- %s (%h)" --reverse >> CHANGELOG.md
+          fi
+          
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          cat CHANGELOG.md >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+  publish-crate:
+    name: Publish to crates.io
+    runs-on: ubuntu-latest
+    needs: [validate, build]
+    if: needs.validate.outputs.prerelease == 'false'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: nightly-2024-03-01
+      
+      - name: Publish aether-core
+        run: cargo publish -p aether-core --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        continue-on-error: true
+      
+      - name: Publish aether-cli
+        run: cargo publish -p aether-cli --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        continue-on-error: true
+      
+      - name: Publish aether-actor-sdk
+        run: cargo publish -p aether-actor-sdk --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        continue-on-error: true
+
+  release:
+    name: Create Release
+    needs: [validate, build, build-wasm, generate-changelog]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      
+      - name: Prepare release assets
+        run: |
+          mkdir -p release-assets
+          find artifacts -name "*.tar.gz" -exec cp {} release-assets/ \;
+          cd release-assets
+          sha256sum * > checksums.sha256
+      
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Release ${{ github.ref_name }}
+          body: |
+            ${{ needs.generate-changelog.outputs.changelog }}
+            
+            ## Binaries
+            
+            - `aether-linux-x86_64.tar.gz` - Linux x86_64
+            - `aether-linux-arm64.tar.gz` - Linux ARM64
+            - `aether-darwin-x86_64.tar.gz` - macOS Intel
+            - `aether-darwin-arm64.tar.gz` - macOS Apple Silicon
+            - `wasm-examples.tar.gz` - Pre-built example actors
+            
+            ## Install
+            
+            ```bash
+            # Linux/macOS
+            curl -LO https://github.com/aether-project/aether/releases/download/${{ github.ref_name }}/aether-linux-x86_64.tar.gz
+            tar xzf aether-linux-x86_64.tar.gz
+            sudo mv aether /usr/local/bin/
+            ```
+            
+            ## Verify
+            
+            ```bash
+            sha256sum -c checksums.sha256
+            ```
+          prerelease: ${{ needs.validate.outputs.prerelease }}
+          files: release-assets/*
+          draft: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  update-homebrew:
+    name: Update Homebrew Formula
+    runs-on: ubuntu-latest
+    needs: release
+    if: needs.validate.outputs.prerelease == 'false'
+    steps:
+      - name: Update tap
+        run: |
+          echo "TODO: Update homebrew-aether tap with version ${{ needs.validate.outputs.version }}"
+          echo "This would trigger a PR to the homebrew tap repository"
+
+  notify:
+    name: Notify
+    needs: release
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Send notification
+        run: |
+          if [ "${{ needs.release.result }}" == "success" ]; then
+            echo "✅ Release ${{ github.ref_name }} created successfully!"
+            echo "📦 Download: https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}"
+          else
+            echo "❌ Release ${{ github.ref_name }} failed"
+            exit 1
+          fi

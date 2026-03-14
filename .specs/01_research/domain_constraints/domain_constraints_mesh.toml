@@ -1,0 +1,376 @@
+# Domain Constraints for YP-NETWORK-MESH-001
+# QUIC-Based Mesh Networking
+
+version = "1.0.0"
+spec_document = "YP-NETWORK-MESH-001"
+generated = "2026-03-05"
+
+# ==============================================================================
+# Network Topology Constraints
+# ==============================================================================
+
+[topology]
+description = "Mesh network topology limits"
+
+[topology.mesh_diameter]
+max_hops = 10
+rationale = "Prevents excessive latency accumulation; with 50ms RTT per hop, max 500ms end-to-end"
+violation_handling = "Route around long paths; prefer geographically closer nodes"
+
+[topology.max_nodes]
+theoretical = 4294967296  # 2^32 - limited by Node ID space
+practical = 10000
+rationale = "Practical limit based on DHT routing table memory and maintenance overhead"
+violation_handling = "Network partitioning into shards"
+
+[topology.min_nodes]
+value = 3
+rationale = "Minimum for meaningful consensus (byzantine fault tolerance requires n >= 3f + 1)"
+violation_handling = "Degraded mode; no consensus guarantees"
+
+[topology.node_degree]
+min = 3
+max = 50
+optimal = 10
+rationale = "Balance between connectivity and connection overhead"
+violation_handling = "Node rejects new connections if degree > max"
+
+# ==============================================================================
+# Latency Constraints
+# ==============================================================================
+
+[latency]
+description = "Network latency bounds and expectations"
+
+[latency.one_way]
+min_ms = 1
+typical_ms = 25
+max_ms = 500
+unit = "milliseconds"
+rationale = "Covers local datacenter to inter-continental latencies"
+
+[latency.rtt]
+min_ms = 2
+typical_ms = 50
+max_ms = 1000
+unit = "milliseconds"
+
+[latency.connection_establishment]
+full_handshake_ms = 300
+zero_rtt_ms = 100
+rationale = "QUIC 0-RTT for repeat connections; full handshake for new peers"
+
+[latency.backpressure_propagation]
+max_delay_factor = 1.5
+formula = "max_delay = rtt_max * hop_count * delay_factor"
+rationale = "Allows 50% overhead for processing delays"
+
+[latency.ack_timeout]
+initial_ms = 100
+max_ms = 5000
+exponential_backoff_base = 2
+rationale = "RFC 9002 loss detection guidelines"
+
+# ==============================================================================
+# Bandwidth Constraints
+# ==============================================================================
+
+[bandwidth]
+description = "Available bandwidth assumptions"
+
+[bandwidth.per_connection]
+min_mbps = 1
+typical_mbps = 100
+max_mbps = 10000
+unit = "megabits per second"
+
+[bandwidth.aggregate]
+min_mbps = 10
+typical_mbps = 1000
+max_mbps = 40000
+unit = "megabits per second"
+rationale = "Aggregate across all connections on a node"
+
+[bandwidth.message_overhead]
+quic_frame_bytes = 2
+stream_header_bytes = 2
+total_percent = 5
+rationale = "QUIC framing overhead"
+
+# ==============================================================================
+# Buffer and Memory Constraints
+# ==============================================================================
+
+[buffers]
+description = "Buffer sizing and memory limits"
+
+[buffers.per_connection]
+initial_window_bytes = 65536
+max_window_bytes = 1048576
+rationale = "Start conservative, grow based on BDP"
+
+[buffers.per_stream]
+initial_window_bytes = 65536
+max_window_bytes = 262144
+rationale = "Smaller per-stream to prevent starvation"
+
+[buffers.total_per_node]
+max_bytes = 104857600  # 100 MB
+rationale = "Prevent OOM on memory-constrained nodes"
+violation_handling = "Reject new connections or streams"
+
+[buffers.backpressure_thresholds]
+high_watermark = 0.8
+low_watermark = 0.5
+rationale = "Hysteresis prevents oscillation"
+
+[buffers.queue_depth]
+max_messages = 1000
+rationale = "Bound memory for queued messages"
+
+# ==============================================================================
+# Connection Constraints
+# ==============================================================================
+
+[connections]
+description = "QUIC connection limits"
+
+[connections.pool_size]
+max_per_node = 100
+rationale = "Balance connectivity with resource consumption"
+violation_handling = "LRU eviction"
+
+[connections.idle_timeout]
+min_ms = 30000
+default_ms = 60000
+max_ms = 300000
+rationale = "Allow temporary idle without reconnection overhead"
+
+[connections.max_idle]
+before_close = 5
+rationale = "Number of PTOs before closing idle connection"
+
+[connections.concurrent_streams]
+max_per_connection = 100
+max_bidirectional = 50
+max_unidirectional = 50
+rationale = "Prevent resource exhaustion"
+
+[connections.handshake_timeout]
+ms = 30000
+rationale = "Maximum time to complete QUIC handshake"
+
+[connections.health_check]
+interval_ms = 30000
+failure_threshold = 3
+rationale = "Detect and remove unhealthy connections"
+
+# ==============================================================================
+# Message Constraints
+# ==============================================================================
+
+[messages]
+description = "Message size and rate limits"
+
+[messages.size]
+min_bytes = 0
+max_bytes = 65535
+optimal_bytes = 1400
+rationale = "Optimal fits in typical MTU; max allows large payloads"
+
+[messages.rate]
+max_per_second_per_stream = 10000
+max_per_second_per_connection = 50000
+rationale = "Prevent flooding attacks"
+
+[messages.ttl]
+max_hops = 15
+rationale = "Prevent infinite routing loops"
+violation_handling = "Drop message, send error to originator"
+
+[messages.idempotency]
+window_ms = 60000
+rationale = "Time window for detecting duplicate messages"
+
+# ==============================================================================
+# Flow Control Constraints
+# ==============================================================================
+
+[flow_control]
+description = "Credit-based flow control parameters"
+
+[flow_control.credit]
+initial_bytes = 65536
+min_bytes = 16384
+max_bytes = 1048576
+increment_bytes = 16384
+rationale = "Allow reasonable burst while preventing unbounded growth"
+
+[flow_control.timeout]
+credit_wait_ms = 5000
+rationale = "Maximum time to wait for credit before failing"
+
+[flow_control.backpressure]
+propagation_delay_factor = 1.5
+signal_coalescing_window_ms = 10
+rationale = "Batch backpressure signals to reduce overhead"
+
+# ==============================================================================
+# Actor Addressing Constraints
+# ==============================================================================
+
+[addressing]
+description = "Actor identifier and routing constraints"
+
+[addressing.actor_id]
+algorithm = "SHA-256"
+length_bytes = 32
+rationale = "Cryptographic uniqueness with collision resistance"
+
+[addressing.node_id]
+algorithm = "Ed25519"
+length_bytes = 32
+rationale = "Public key for authentication and identity"
+
+[addressing.routing_table]
+max_entries_per_bucket = 20
+refresh_interval_ms = 60000
+rationale = "Kademlia k-bucket sizing"
+
+[addressing.cache]
+max_entries = 10000
+ttl_ms = 60000
+rationale = "Balance memory with lookup performance"
+
+[addressing.dht]
+alpha = 3  # Concurrency factor
+k = 20     # Replication factor
+rationale = "Standard Kademlia parameters"
+
+# ==============================================================================
+# Consensus Constraints
+# ==============================================================================
+
+[consensus]
+description = "Distributed consensus parameters"
+
+[consensus.quorum]
+read = 0.51
+write = 0.67
+rationale = "Read: simple majority; Write: supermajority for safety"
+
+[consensus.timeout]
+election_ms = 5000
+heartbeat_ms = 1000
+rationale = "Raft-style leader election timing"
+
+[consensus.log]
+max_entries = 1000000
+snapshot_threshold = 10000
+rationale = "Prevent unbounded log growth"
+
+# ==============================================================================
+# Resource Limits
+# ==============================================================================
+
+[resources]
+description = "Node resource constraints"
+
+[resources.cpu]
+max_utilization = 0.8
+rationale = "Headroom for burst traffic"
+
+[resources.memory]
+max_utilization = 0.75
+reserved_mb = 256
+rationale = "Prevent OOM; reserve for critical operations"
+
+[resources.file_descriptors]
+max_per_node = 10000
+rationale = "Each connection consumes file descriptors"
+
+[resources.goroutines]
+max_per_node = 50000
+rationale = "Prevent goroutine explosion"
+
+# ==============================================================================
+# Security Constraints
+# ==============================================================================
+
+[security]
+description = "Security-related constraints"
+
+[security.tls]
+min_version = "1.3"
+cipher_suites = ["TLS_AES_128_GCM_SHA256", "TLS_AES_256_GCM_SHA384", "TLS_CHACHA20_POLY1305_SHA256"]
+rationale = "QUIC requires TLS 1.3"
+
+[security.rate_limiting]
+auth_failures_per_ip = 5
+window_ms = 60000
+rationale = "Prevent brute force attacks"
+
+[security.message_authentication]
+required = true
+algorithm = "HMAC-SHA256"
+rationale = "All messages must be authenticated"
+
+# ==============================================================================
+# Operational Constraints
+# ==============================================================================
+
+[operational]
+description = "Operational and deployment constraints"
+
+[operational.uptime_sla]
+target = 0.999
+measurement_window_days = 30
+rationale = "Production SLA requirement"
+
+[operational.graceful_shutdown]
+timeout_ms = 30000
+rationale = "Allow in-flight requests to complete"
+
+[operational.metrics]
+collection_interval_ms = 1000
+retention_days = 30
+rationale = "Monitoring and debugging requirements"
+
+[operational.logging]
+level = "INFO"
+max_message_size_bytes = 4096
+rationale = "Balance visibility with performance"
+
+# ==============================================================================
+# Constraint Violation Handling
+# ==============================================================================
+
+[violation_handling]
+description = "Default strategies for constraint violations"
+
+strategies = [
+  { constraint_type = "latency", action = "retry_with_backoff", max_retries = 3 },
+  { constraint_type = "bandwidth", action = "throttle", backpressure = true },
+  { constraint_type = "buffer", action = "reject_new_requests", log_warning = true },
+  { constraint_type = "connection", action = "evict_lru", create_new = true },
+  { constraint_type = "message_size", action = "reject", error_code = "MESSAGE_TOO_LARGE" },
+  { constraint_type = "security", action = "reject_and_log", alert = true }
+]
+
+# ==============================================================================
+# Validation Rules
+# ==============================================================================
+
+[validation]
+description = "Rules for validating constraint configuration"
+
+rules = [
+  "latency.one_way.max_ms > latency.one_way.min_ms",
+  "latency.rtt.max_ms >= 2 * latency.one_way.max_ms",
+  "buffers.per_connection.max_window_bytes >= buffers.per_connection.initial_window_bytes",
+  "connections.pool_size.max_per_node <= resources.file_descriptors.max_per_node",
+  "flow_control.credit.max_bytes <= buffers.per_connection.max_window_bytes",
+  "messages.size.max_bytes <= buffers.per_stream.max_window_bytes",
+  "consensus.quorum.write >= consensus.quorum.read",
+  "security.rate_limiting.auth_failures_per_ip > 0"
+]

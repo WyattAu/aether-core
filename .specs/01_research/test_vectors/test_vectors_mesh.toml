@@ -1,0 +1,274 @@
+# Test Vectors for YP-NETWORK-MESH-001
+# QUIC-Based Mesh Networking
+
+version = "1.0.0"
+spec_document = "YP-NETWORK-MESH-001"
+generated = "2026-03-05"
+
+# ==============================================================================
+# TV-NET-001: Actor Address Resolution
+# ==============================================================================
+
+[[test_vectors]]
+id = "TV-NET-001"
+name = "actor_address_resolution"
+description = "Validate Kademlia-style DHT resolution returns correct node set"
+algorithm_ref = "ALG-NET-001"
+
+[[test_vectors.cases]]
+name = "local_cache_hit"
+input = { actor_id = "0x" }
+expected = { nodes = ["node_abc123"], cache_hit = true }
+setup = """
+  routing_table = {
+    "0x" -> ["node_abc123"]
+  }
+"""
+
+[[test_vectors.cases]]
+name = "dht_lookup_success"
+input = { actor_id = "0x" }
+expected = { nodes = ["node_def456", "node_ghi789"], cache_hit = false, dht_queries = 3 }
+setup = """
+  routing_table = {}
+  dht_nodes = [
+    { id: "node_001", distance: 42, hosts_actor: false },
+    { id: "node_002", distance: 17, hosts_actor: true, actor_node: "node_def456" },
+    { id: "node_003", distance: 23, hosts_actor: true, actor_node: "node_ghi789" }
+  ]
+"""
+
+[[test_vectors.cases]]
+name = "actor_not_found"
+input = { actor_id = "0x" }
+expected = { nodes = [], error = "ACTOR_NOT_FOUND" }
+setup = """
+  routing_table = {}
+  dht_nodes = []
+"""
+
+# ==============================================================================
+# TV-NET-002: QUIC Connection Pooling
+# ==============================================================================
+
+[[test_vectors]]
+id = "TV-NET-002"
+name = "connection_pool_management"
+description = "Validate connection pool lifecycle and LRU eviction"
+algorithm_ref = "ALG-NET-002"
+
+[[test_vectors.cases]]
+name = "existing_healthy_connection"
+input = { target_node = "node_abc123" }
+expected = { connection_id = "conn_001", from_pool = true, health_check = "healthy" }
+setup = """
+  pool = {
+    "node_abc123" -> { conn_id: "conn_001", health: "healthy", last_used: 1000 }
+  }
+"""
+
+[[test_vectors.cases]]
+name = "eviction_on_pool_full"
+input = { target_node = "node_new" }
+expected = { connection_id = "conn_new", evicted_node = "node_lru", pool_size = 100 }
+setup = """
+  pool_size_limit = 100
+  pool = full_pool_with_node_lru_as("node_lru")
+"""
+
+[[test_vectors.cases]]
+name = "unhealthy_connection_reconnect"
+input = { target_node = "node_abc123" }
+expected = { connection_id = "conn_new", from_pool = false, old_conn_removed = true }
+setup = """
+  pool = {
+    "node_abc123" -> { conn_id: "conn_001", health: "unhealthy", last_used: 1000 }
+  }
+"""
+
+# ==============================================================================
+# TV-NET-003: Backpressure Signal Propagation
+# ==============================================================================
+
+[[test_vectors]]
+id = "TV-NET-003"
+name = "backpressure_propagation"
+description = "Validate backpressure signals propagate within bounded delay"
+algorithm_ref = "ALG-NET-004"
+theorem_ref = "THM-NET-002"
+
+[[test_vectors.cases]]
+name = "single_hop_propagation"
+input = { node_buffer_occupancy = 0.9, threshold_high = 0.8 }
+expected = { backpressure_signal = 1, propagation_delay_ms = 5 }
+setup = """
+  network_latency_ms = 5
+  hop_count = 1
+"""
+
+[[test_vectors.cases]]
+name = "multi_hop_propagation"
+input = { node_buffer_occupancy = 0.85, threshold_high = 0.8, hop_distance = 3 }
+expected = { backpressure_signal = 1, max_propagation_delay_ms = 150 }
+setup = """
+  network_latency_ms = 50
+  hop_count = 3
+  max_delay = hop_count * network_latency_ms
+"""
+
+[[test_vectors.cases]]
+name = "hysteresis_no_oscillation"
+input = { buffer_sequence = [0.75, 0.78, 0.79, 0.81, 0.79, 0.78] }
+expected = { signal_sequence = [0, 0, 0, 1, 1, 1] }
+setup = """
+  threshold_high = 0.8
+  threshold_low = 0.5
+"""
+
+# ==============================================================================
+# TV-NET-004: Message Delivery Under Loss
+# ==============================================================================
+
+[[test_vectors]]
+id = "TV-NET-004"
+name = "message_delivery_guarantee"
+description = "Validate at-least-once delivery under packet loss"
+algorithm_ref = "ALG-NET-004"
+theorem_ref = "THM-NET-001"
+
+[[test_vectors.cases]]
+name = "no_loss_delivery"
+input = { message = { id = "msg_001", bytes = [0xDE, 0xAD, 0xBE, 0xEF] }, loss_rate = 0.0 }
+expected = { deliveries = 1, retries = 0, ack_received = true }
+
+[[test_vectors.cases]]
+name = "single_retry_success"
+input = { message = { id = "msg_001", bytes = [0xCA, 0xFE] }, loss_rate = 0.3, seed = 42 }
+expected = { deliveries = 1, retries = 1, ack_received = true }
+note = "Loss simulation: first attempt dropped, retry succeeds"
+
+[[test_vectors.cases]]
+name = "multiple_retries_eventual_success"
+input = { message = { id = "msg_001", bytes = [0xBA, 0xAD, 0xF0, 0x0D] }, loss_rate = 0.5, seed = 123 }
+expected = { deliveries = 1, retries = 3, ack_received = true }
+
+[[test_vectors.cases]]
+name = "duplicate_delivery_detected"
+input = { messages = [
+  { id = "msg_001", bytes = [0x01] },
+  { id = "msg_001", bytes = [0x01] }
+]}
+expected = { deliveries = 2, unique_deliveries = 1, duplicates_detected = 1 }
+note = "Receiver must implement idempotency check"
+
+# ==============================================================================
+# TV-NET-005: Flow Control Deadlock Scenarios
+# ==============================================================================
+
+[[test_vectors]]
+id = "TV-NET-005"
+name = "flow_control_deadlock_freedom"
+description = "Validate no deadlock under backpressure"
+algorithm_ref = "ALG-NET-004"
+theorem_ref = "THM-NET-002"
+
+[[test_vectors.cases]]
+name = "circular_backpressure_resolution"
+input = { topology = "ring", nodes = 3, initial_buffers = [0.9, 0.9, 0.9] }
+expected = { deadlock = false, resolution_time_ms = 500, final_buffers = [0.4, 0.4, 0.4] }
+setup = """
+  nodes = [n1, n2, n3]
+  edges = [(n1, n2), (n2, n3), (n3, n1)]
+  drain_rate = 1000 bytes/sec
+  message_rate = 500 bytes/sec
+"""
+
+[[test_vectors.cases]]
+name = "credit_release_enables_progress"
+input = { sender_credit = 0, receiver_drains = true }
+expected = { credit_released = 1000, sender_unblocked = true, messages_delivered = 1 }
+setup = """
+  initial_credit = 0
+  message_size = 1000
+  receiver_drain_size = 1000
+"""
+
+[[test_vectors.cases]]
+name = "ttl_prevents_infinite_loops"
+input = { message_ttl = 10, max_hops = 15 }
+expected = { message_dropped = true, drop_reason = "TTL_EXCEEDED", hops_traversed = 10 }
+
+# ==============================================================================
+# TV-NET-006: TCP-to-QUIC Proxying
+# ==============================================================================
+
+[[test_vectors]]
+id = "TV-NET-006"
+name = "tcp_quic_proxy"
+description = "Validate TCP-to-QUIC proxy functionality"
+algorithm_ref = "ALG-NET-003"
+
+[[test_vectors.cases]]
+name = "bidirectional_stream_mapping"
+input = { tcp_data = "HELLO WORLD", target_actor = "actor_001" }
+expected = { quic_stream_data = "HELLO WORLD", response_returned = true }
+
+[[test_vectors.cases]]
+name = "tcp_closure_closes_quic"
+input = { action = "close_tcp" }
+expected = { quic_stream_closed = true, cleanup_complete = true }
+
+[[test_vectors.cases]]
+name = "quic_closure_closes_tcp"
+input = { action = "close_quic_stream" }
+expected = { tcp_connection_closed = true, cleanup_complete = true }
+
+# ==============================================================================
+# TV-NET-007: Edge Cases and Boundary Conditions
+# ==============================================================================
+
+[[test_vectors]]
+id = "TV-NET-007"
+name = "edge_cases"
+description = "Boundary condition handling"
+
+[[test_vectors.cases]]
+name = "zero_length_message"
+input = { message = { id = "msg_empty", bytes = [] } }
+expected = { deliveries = 1, credit_consumed = 0 }
+
+[[test_vectors.cases]]
+name = "maximum_message_size"
+input = { message = { id = "msg_max", bytes_size = 65535 } }
+expected = { deliveries = 1, credit_consumed = 65535 }
+
+[[test_vectors.cases]]
+name = "message_exceeds_window"
+input = { message_size = 70000, window_size = 65535 }
+expected = { error = "MESSAGE_TOO_LARGE", delivery_attempted = false }
+
+[[test_vectors.cases]]
+name = "connection_timeout_handling"
+input = { connection_establish_time_ms = 30000, timeout_ms = 25000 }
+expected = { error = "CONNECTION_TIMEOUT", retry_triggered = true }
+
+[[test_vectors.cases]]
+name = "simultaneous_connection_requests"
+input = { concurrent_requests = 5, target_node = "node_abc123" }
+expected = { connections_created = 1, deduplication = true }
+note = "Multiple concurrent requests should result in single connection"
+
+# ==============================================================================
+# Test Execution Configuration
+# ==============================================================================
+
+[execution]
+parallel = true
+timeout_per_test_ms = 5000
+retry_count = 2
+fail_fast = false
+
+[validation]
+require_all_tests_pass = true
+coverage_threshold = 0.95
+performance_regression_threshold = 1.2

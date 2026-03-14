@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "actor": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "kind"],
+        "properties": {
+          "name": { "type": "string" },
+          "kind": { "enum": ["wasm", "oci"] },
+          "capabilities": {
+            "type": "object",
+            "properties": {
+              "networking": { "enum": ["public", "private", "none"] },
+              "volumes": { "type": "object" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

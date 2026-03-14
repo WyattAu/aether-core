@@ -1,0 +1,30 @@
+// aether.wit - The core capability contract
+package aether:runtime@0.1.0;
+
+interface host {
+    // The state-container for persistent variables
+    resource state-handle {
+        static open: func(name: string) -> result<state-handle, error>;
+        read: func(key: string) -> result<option<list<u8>>, error>;
+        write: func(key: string, value: list<u8>) -> result<_, error>;
+    }
+
+    // Deterministic time and randomness injection
+    record host-context {
+        timestamp-ns: u64,
+        entropy: list<u8>,
+    }
+    
+    get-context: func() -> host-context;
+    
+    // Logging capability
+    log: func(level: level, message: string);
+    enum level { info, warn, error, debug }
+}
+
+world aether-actor {
+    import host;
+    
+    // The Actor must export this to receive requests
+    export handle-request: func(payload: list<u8>) -> result<list<u8>, string>;
+}

@@ -1,0 +1,486 @@
+# Domain Constraints for WebAssembly Runtime
+# YP-WASM-RUNTIME-001
+# Version: 1.0.0
+# Created: 2026-03-05
+
+[metadata]
+document_id = "YP-WASM-RUNTIME-001"
+version = "1.0.0"
+description = "Domain constraints for WASM runtime execution"
+format_version = "1.0"
+
+# =============================================================================
+# SECTION 1: Memory Constraints
+# =============================================================================
+
+[memory]
+description = "Linear memory constraints for WASM instances"
+
+[memory.limits]
+# Default memory allocation for new instances
+default_pages = 1
+default_bytes = 65536
+
+# Minimum allowed memory (can be zero for headless modules)
+min_pages = 0
+min_bytes = 0
+
+# Maximum memory for 32-bit WASM
+max_pages_32bit = 65536
+max_bytes_32bit = 4294967296  # 4 GiB
+
+# Maximum memory for 64-bit WASM (future)
+max_pages_64bit = 4294967296
+max_bytes_64bit = 281474976710656  # 256 TiB
+
+# Memory growth constraints
+max_growth_pages_per_request = 65536
+growth_granularity_pages = 1
+
+[memory.performance]
+# Memory allocation latency targets
+allocation_latency_us = 15  # Target for single page allocation
+deallocation_latency_us = 5
+
+# Memory access performance
+read_latency_ns = 1  # Cache hit
+write_latency_ns = 1  # Cache hit
+
+[memory.guard_pages]
+# Guard pages for bounds checking optimization
+guard_size_bytes = 65536  # One guard page
+enable_virtual_memory_guard = true
+
+# =============================================================================
+# SECTION 2: Fuel Constraints
+# =============================================================================
+
+[fuel]
+description = "Fuel-based execution constraints"
+
+[fuel.limits]
+# Default fuel allocation per invocation
+default_fuel = 100000000  # 100M fuel units
+
+# Maximum fuel per invocation
+max_fuel_per_invocation = 10000000000  # 10B fuel units
+
+# Minimum fuel required for any operation
+min_fuel_threshold = 1
+
+# Fuel reservation for cleanup operations
+cleanup_fuel_reserve = 1000
+
+[fuel.consumption]
+# Base fuel costs by category (see Appendix A in Yellow Paper)
+base_opcode_fuel = 1
+memory_access_fuel = 3
+call_overhead_fuel = 5
+indirect_call_overhead_fuel = 10
+host_call_base_fuel = 20
+memory_grow_fuel = 100
+
+[fuel.accounting]
+# Fuel accounting mode
+mode = "eager"  # eager: check before, lazy: check after
+
+# Fuel granularity
+granularity = 1  # Check every instruction
+
+# Fuel recovery on trap
+recover_on_trap = true
+trap_penalty_fuel = 100
+
+[fuel.limits_by_operation_type]
+# Tiered fuel limits by operation complexity
+light = 10000000      # 10M - Simple computations
+standard = 100000000  # 100M - Normal operations
+heavy = 1000000000    # 1B - Complex processing
+unbounded = -1        # Reserved for trusted code
+
+# =============================================================================
+# SECTION 3: Cold Start Constraints
+# =============================================================================
+
+[cold_start]
+description = "Cold start latency constraints"
+
+[cold_start.timing]
+# Target cold start latency
+target_us = 50
+max_us = 100
+p95_target_us = 45
+p99_target_us = 60
+
+# Component timing breakdown
+parsing_max_us = 10
+memory_allocation_max_us = 15
+data_initialization_max_us = 10
+table_initialization_max_us = 5
+global_initialization_max_us = 5
+capability_binding_max_us = 3
+start_function_max_us = 20
+
+[cold_start.optimization]
+# Pre-compilation requirement
+require_aot_compilation = true
+allow_jit_on_cold_start = false
+
+# Module caching
+enable_module_cache = true
+cache_size_mb = 256
+cache_ttl_seconds = 3600
+
+# Instance pooling
+enable_instance_pooling = true
+pool_min_instances = 10
+pool_max_instances = 1000
+pool_warm_instances = 50
+
+[cold_start.breakdown_components]
+# Detailed breakdown of cold start phases
+module_validation = { max_us = 2, description = "Binary validation" }
+instance_allocation = { max_us = 5, description = "Instance struct allocation" }
+memory_mapping = { max_us = 10, description = "mmap for linear memory" }
+data_copy = { max_us = 10, description = "Copy data segments" }
+elem_init = { max_us = 5, description = "Initialize element segments" }
+global_init = { max_us = 3, description = "Initialize globals" }
+capability_setup = { max_us = 3, description = "Bind capabilities" }
+start_exec = { max_us = 12, description = "Execute start function" }
+
+# =============================================================================
+# SECTION 4: Capability Constraints
+# =============================================================================
+
+[capabilities]
+description = "Capability-based security constraints"
+
+[capabilities.default_policy]
+# Default capability policy
+default = "deny"  # Deny all capabilities by default
+
+# Allowed capability sets by context
+[capabilities.contexts]
+
+[capabilities.contexts.untrusted]
+# Untrusted WASM modules (user-provided)
+allowed = ["random", "clock-get"]
+denied = ["fd-read", "fd-write", "sock-create", "path-open"]
+max_capabilities = 5
+
+[capabilities.contexts.standard]
+# Standard modules (verified)
+allowed = ["fd-read", "fd-write", "random", "clock-get", "sched-yield"]
+denied = ["sock-create", "sock-connect", "path-open"]
+max_capabilities = 10
+
+[capabilities.contexts.trusted]
+# Trusted system modules
+allowed = ["*"]  # All capabilities
+denied = []
+max_capabilities = 100
+
+[capabilities.contexts.networking]
+# Modules requiring network access
+allowed = ["fd-read", "fd-write", "sock-create", "sock-connect", "sock-bind", "sock-listen", "sock-send", "sock-recv"]
+denied = ["path-open", "proc-exit"]
+max_capabilities = 20
+
+[capabilities.resource_limits]
+# Resource-specific capability limits
+max_open_fds = 256
+max_open_sockets = 64
+max_path_depth = 32
+max_random_bytes_per_call = 65536
+
+[capabilities.audit]
+# Capability usage auditing
+log_all_checks = true
+log_denied_access = true
+audit_retention_days = 30
+
+# =============================================================================
+# SECTION 5: Execution Constraints
+# =============================================================================
+
+[execution]
+description = "Execution environment constraints"
+
+[execution.stack]
+# Call stack limits
+max_call_stack_depth = 10000
+stack_size_per_frame_bytes = 256
+max_total_stack_bytes = 2560000  # ~2.5 MiB
+
+[execution.table]
+# Indirect call table constraints
+max_table_size = 10000000
+max_tables_per_instance = 1
+
+[execution.globals]
+# Global variable constraints
+max_globals_per_instance = 1000
+max_global_value_size_bytes = 8
+
+[execution.threads]
+# Threading constraints (for future WASM threads)
+enable_threads = false
+max_threads_per_instance = 0
+
+[execution.timeouts]
+# Execution timeouts
+default_timeout_ms = 30000     # 30 seconds
+max_timeout_ms = 300000        # 5 minutes
+min_timeout_ms = 1
+
+# =============================================================================
+# SECTION 6: Host Interface Constraints
+# =============================================================================
+
+[host_interface]
+description = "WASI host interface constraints"
+
+[host_interface.fd]
+# File descriptor constraints
+min_fd = 3          # 0-2 reserved for stdin/stdout/stderr
+max_fd = 65535
+preopen_capacity = 32
+
+[host_interface.path]
+# Path access constraints
+max_path_length = 4096
+max_path_components = 256
+allowed_path_prefixes = ["/tmp", "/var/tmp", "/data"]
+denied_path_patterns = ["*/../*", "*/.ssh/*", "*/.gnupg/*"]
+
+[host_interface.socket]
+# Socket constraints
+max_backlog = 128
+max_message_size = 65536
+connect_timeout_ms = 30000
+read_timeout_ms = 30000
+write_timeout_ms = 30000
+
+[host_interface.clock]
+# Clock constraints
+supported_clocks = ["realtime", "monotonic"]
+clock_resolution_ns = 1
+
+[host_interface.random]
+# Random source constraints
+min_entropy_bytes = 32
+max_random_per_call = 65536
+
+# =============================================================================
+# SECTION 7: Performance Constraints
+# =============================================================================
+
+[performance]
+description = "Performance targets and limits"
+
+[performance.latency]
+# Latency targets for various operations
+cold_start_p50_us = 25
+cold_start_p95_us = 40
+cold_start_p99_us = 50
+
+warm_invocation_p50_us = 5
+warm_invocation_p95_us = 10
+warm_invocation_p99_us = 20
+
+host_call_overhead_ns = 50
+memory_access_ns = 1
+
+[performance.throughput]
+# Throughput targets
+invocations_per_second = 100000
+memory_bandwidth_gbps = 10
+
+[performance.resource_usage]
+# Resource usage limits
+max_cpu_percent = 90
+max_memory_overhead_percent = 20
+
+# =============================================================================
+# SECTION 8: Security Constraints
+# =============================================================================
+
+[security]
+description = "Security constraints and hardening"
+
+[security.sandbox]
+# Sandbox configuration
+enable_seccomp = true
+seccomp_profile = "wasm-runtime"
+enable_user_namespace = true
+enable_network_namespace = false
+
+[security.memory]
+# Memory security
+enable_aslr = true
+enable_stack_protector = true
+forbid_executable_memory = true
+enable_memory_zeroing = true
+
+[security.timing]
+# Timing attack mitigation
+enable_constant_time_crypto = true
+noise_injection_us = 0  # Disabled for performance
+
+[security.audit]
+# Security audit logging
+log_memory_violations = true
+log_capability_violations = true
+log_host_call_failures = true
+
+# =============================================================================
+# SECTION 9: Module Constraints
+# =============================================================================
+
+[module]
+description = "WASM module constraints"
+
+[module.size]
+# Module size limits
+max_module_size_bytes = 104857600  # 100 MiB
+max_code_section_bytes = 52428800  # 50 MiB
+max_data_section_bytes = 52428800  # 50 MiB
+
+[module.complexity]
+# Module complexity limits
+max_functions = 100000
+max_types = 100000
+max_imports = 10000
+max_exports = 10000
+
+[module.features]
+# WASM feature flags
+enable_wasm_1_0 = true
+enable_wasm_2_0 = true
+enable_sign_extension = true
+enable_bulk_memory = true
+enable_reference_types = true
+enable_simd = false  # Security concern
+enable_threads = false  # Not supported yet
+
+# =============================================================================
+# SECTION 10: Resource Quotas
+# =============================================================================
+
+[quotas]
+description = "Resource quotas per instance and global"
+
+[quotas.per_instance]
+# Per-instance resource quotas
+max_memory_bytes = 1073741824        # 1 GiB
+max_fuel = 1000000000                # 1B fuel units
+max_host_calls = 10000               # Per invocation
+max_execution_time_ms = 30000        # 30 seconds
+
+[quotas.global]
+# Global resource quotas (across all instances)
+max_total_memory_bytes = 17179869184  # 16 GiB
+max_total_instances = 10000
+max_total_fuel_per_second = 10000000000
+
+[quotas.enforcement]
+# Quota enforcement policy
+enforcement_mode = "strict"  # strict, soft, advisory
+exceed_action = "trap"       # trap, throttle, warn
+notification = true
+
+# =============================================================================
+# SECTION 11: Compatibility Constraints
+# =============================================================================
+
+[compatibility]
+description = "Compatibility requirements"
+
+[compatibility.wasm_spec]
+# WASM specification compliance
+min_wasm_version = "1.0"
+target_wasm_version = "2.0"
+
+[compatibility.wasi]
+# WASI version support
+wasi_preview1 = false
+wasi_preview2 = true
+wasi_snapshot_preview1 = false
+
+[compatibility.runtime]
+# Runtime compatibility
+supported_runtimes = ["wasmtime", "wasmedge", "wamr"]
+min_wasmtime_version = "15.0.0"
+
+# =============================================================================
+# Validation Rules
+# =============================================================================
+
+[validation]
+description = "Constraint validation rules"
+
+[[validation.rules]]
+id = "VAL-MEM-001"
+constraint = "memory.limits.max_pages_32bit"
+check = "instance.memory.pages <= 65536"
+severity = "error"
+message = "Memory pages exceed 32-bit limit"
+
+[[validation.rules]]
+id = "VAL-FUEL-001"
+constraint = "fuel.limits.max_fuel_per_invocation"
+check = "invocation.fuel <= 10000000000"
+severity = "error"
+message = "Fuel limit exceeds maximum"
+
+[[validation.rules]]
+id = "VAL-COLD-001"
+constraint = "cold_start.timing.max_us"
+check = "cold_start.latency_us <= 100"
+severity = "warning"
+message = "Cold start exceeds target latency"
+
+[[validation.rules]]
+id = "VAL-CAP-001"
+constraint = "capabilities.contexts.untrusted.max_capabilities"
+check = "instance.capabilities.count <= 5"
+severity = "error"
+message = "Too many capabilities for untrusted context"
+
+[[validation.rules]]
+id = "VAL-EXEC-001"
+constraint = "execution.stack.max_call_stack_depth"
+check = "execution.stack_depth <= 10000"
+severity = "error"
+message = "Call stack depth exceeded"
+
+# =============================================================================
+# Constraint Change Log
+# =============================================================================
+
+[changelog]
+description = "History of constraint changes"
+
+[[changelog.entries]]
+version = "1.0.0"
+date = "2026-03-05"
+author = "DeepThought"
+changes = [
+    "Initial constraint specification",
+    "Defined memory limits for 32-bit and 64-bit WASM",
+    "Established 50µs cold start target",
+    "Specified capability contexts and policies",
+    "Added performance and security constraints"
+]
+
+# =============================================================================
+# References
+# =============================================================================
+
+[references]
+yellow_paper = "YP-WASM-RUNTIME-001"
+test_vectors = "test_vectors_wasm.toml"
+related_specs = [
+    "SP-RUNTIME-001",
+    "SP-EDGE-001"
+]

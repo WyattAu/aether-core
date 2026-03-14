@@ -1,0 +1,500 @@
+[pipeline]
+name = "aether-ci"
+description = "Comprehensive CI/CD pipeline for Project Aether"
+version = "1.0.0"
+triggers = ["push", "pull_request", "schedule", "workflow_dispatch"]
+
+[global]
+timeout_minutes = 120
+concurrency_group = "${{ github.workflow }}-${{ github.ref }}"
+fail_fast = false
+cache_version = "v1"
+
+[global.env]
+RUST_BACKTRACE = "1"
+RUST_LOG = "info"
+CARGO_TERM_COLOR = "always"
+CARGO_INCREMENTAL = "0"
+CARGO_NET_RETRY = "10"
+
+[global.matrix]
+rust = ["stable", "beta", "nightly"]
+os = ["ubuntu-latest", "macos-latest", "windows-latest"]
+target = ["x86_64-unknown-linux-gnu", "wasm32-wasip1"]
+
+[[stage]]
+name = "validate"
+description = "Code quality and validation checks"
+parallel = true
+jobs = ["fmt-check", "clippy", "docs-check", "toml-check"]
+
+[[stage]]
+name = "build"
+description = "Multi-target compilation and artifact generation"
+parallel = true
+jobs = ["build-linux", "build-wasm", "build-docs", "build-release"]
+depends_on = ["validate"]
+
+[[stage]]
+name = "test"
+description = "Comprehensive testing suite"
+parallel = true
+jobs = ["unit-tests", "integration-tests", "security-tests", "performance-tests"]
+depends_on = ["build"]
+
+[[stage]]
+name = "security"
+description = "Security scanning and vulnerability assessment"
+parallel = true
+jobs = ["dependency-audit", "secret-scan", "codeql-analysis", "sbom-generation"]
+depends_on = ["validate"]
+
+[[stage]]
+name = "coverage"
+description = "Code coverage analysis"
+parallel = false
+jobs = ["coverage-report"]
+depends_on = ["test"]
+
+[[stage]]
+name = "mutation"
+description = "Mutation testing for test quality"
+parallel = false
+jobs = ["mutation-tests"]
+depends_on = ["test"]
+
+[[stage]]
+name = "benchmark"
+description = "Performance benchmarking"
+parallel = false
+jobs = ["benchmark-suite"]
+depends_on = ["build"]
+
+[[stage]]
+name = "package"
+description = "Artifact packaging and distribution preparation"
+parallel = true
+jobs = ["package-binaries", "package-docs", "package-wasm"]
+depends_on = ["test", "security"]
+
+[[stage]]
+name = "deploy"
+description = "Deployment to target environments"
+parallel = false
+jobs = ["deploy-staging"]
+depends_on = ["package", "coverage", "benchmark"]
+environment = "staging"
+
+[[stage]]
+name = "release"
+description = "Production release"
+parallel = false
+jobs = ["deploy-production", "create-release"]
+depends_on = ["deploy"]
+environment = "production"
+
+[jobs.fmt-check]
+stage = "validate"
+runs_on = "ubuntu-latest"
+timeout_minutes = 10
+steps = [
+    { uses = "actions/checkout@v4" },
+    { uses = "dtolnay/rust-toolchain@stable", with = { components = "rustfmt" } },
+    { run = "cargo fmt --all -- --check" }
+]
+
+[jobs.clippy]
+stage = "validate"
+runs_on = "ubuntu-latest"
+timeout_minutes = 20
+steps = [
+    { uses = "actions/checkout@v4" },
+    { uses = "dtolnay/rust-toolchain@stable", with = { components = "clippy" } },
+    { uses = "Swatinem/rust-cache@v2" },
+    { run = "cargo clippy --all-targets --all-features -- -D warnings -D clippy::all" }
+]
+
+[jobs.docs-check]
+stage = "validate"
+runs_on = "ubuntu-latest"
+timeout_minutes = 15
+steps = [
+    { uses = "actions/checkout@v4" },
+    { uses = "dtolnay/rust-toolchain@stable", with = { components = "rust-docs" } },
+    { uses = "Swatinem/rust-cache@v2" },
+    { run = "cargo doc --no-deps --document-private-items" },
+    { run = "test -d target/doc" }
+]
+
+[jobs.toml-check]
+stage = "validate"
+runs_on = "ubuntu-latest"
+timeout_minutes = 5
+steps = [
+    { uses = "actions/checkout@v4" },
+    { uses = "dtolnay/rust-toolchain@stable" },
+    { run = "cargo install taplo-cli --locked" },
+    { run = "taplo fmt --check" },
+    { run = "taplo lint" }
+]
+
+[jobs.build-linux]
+stage = "build"
+runs_on = "ubuntu-latest"
+timeout_minutes = 30
+strategy = { matrix = { rust = ["stable", "beta"], target = ["x86_64-unknown-linux-gnu"] } }
+steps = [
+    { uses = "actions/checkout@v4" },
+    { uses = "dtolnay/rust-toolchain@master", with = { toolchain = "${{ matrix.rust }}", targets = "${{ matrix.target }}" } },
+    { uses = "Swatinem/rust-cache@v2", with = { key = "${{ matrix.target }}" } },
+    { uses = "jpribyl/action-detect-extra-commits@v1", id = "commit-check" },
+    { run = "cargo build --release --target ${{ matrix.target }} --all-features" },
+    { uses = "actions/upload-artifact@v4", with = { name = "binary-${{ matrix.rust }}-${{ matrix.target }}", path = "target/${{ matrix.target }}/release/aether" } }
+]
+
+[jobs.build-wasm]
+stage = "build"
+runs_on = "ubuntu-latest"
+timeout_minutes = 30
+steps = [
+    { uses = "actions/checkout@v4" },
+    { uses = "dtolnay/rust-toolchain@stable", with = { targets = "wasm32-wasip1" } },
+    { uses = "Swatinem/rust-cache@v2", with = { key = "wasm32-wasip1" } },
+    { run = "cargo build --release --target wasm32-wasip1 --no-default-features --features wasm-runtime" },
+    { uses = "actions/upload-artifact@v4", with = { name = "wasm-module", path = "target/wasm32-wasip1/release/*.wasm" } }
+]
+
+[jobs.build-docs]
+stage = "build"
+runs_on = "ubuntu-latest"
+timeout_minutes = 20
+steps = [
+    { uses = "actions/checkout@v4" },
+    { uses = "dtolnay/rust-toolchain@stable" },
+    { uses = "Swatinem/rust-cache@v2" },
+    { run = "cargo doc --no-deps --all-features" },
+    { uses = "actions/upload-pages-artifact@v3", with = { path = "target/doc" } }
+]
+
+[jobs.build-release]
+stage = "build"
+runs_on = "ubuntu-latest"
+timeout_minutes = 40
+if = "github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')"
+steps = [
+    { uses = "actions/checkout@v4" },
+    { uses = "dtolnay/rust-toolchain@stable" },
+    { uses = "Swatinem/rust-cache@v2" },
+    { name = "Build release binaries", run = "cargo build --release --all-features" },
+    { name = "Strip binaries", run = "strip target/release/aether" },
+    { name = "Create tarball", run = "tar -czf aether-${{ github.ref_name }}-linux-x86_64.tar.gz -C target/release aether" },
+    { uses = "actions/upload-artifact@v4", with = { name = "release-binary-linux", path = "aether-${{ github.ref_name }}-linux-x86_64.tar.gz" } }
+]
+
+[jobs.unit-tests]
+stage = "test"
+runs_on = "${{ matrix.os }}"
+timeout_minutes = 30
+strategy = { fail_fast = false, matrix = { os = ["ubuntu-latest", "macos-latest", "windows-latest"], rust = ["stable"] } }
+steps = [
+    { uses = "actions/checkout@v4" },
+    { uses = "dtolnay/rust-toolchain@stable" },
+    { uses = "Swatinem/rust-cache@v2" },
+    { uses = "taiki-e/install-action@nextest" },
+    { run = "cargo nextest run --all-features --workspace --profile ci" },
+    { uses = "actions/upload-artifact@v4", with = { name = "junit-${{ matrix.os }}", path = "target/nextest/ci/junit.xml" }, if = "always()" }
+]
+
+[jobs.integration-tests]
+stage = "test"
+runs_on = "ubuntu-latest"
+timeout_minutes = 45
+steps = [
+    { uses = "actions/checkout@v4" },
+    { uses = "dtolnay/rust-toolchain@stable" },
+    { uses = "Swatinem/rust-cache@v2" },
+    { uses = "taiki-e/install-action@nextest" },
+    { run = "cargo nextest run --all-features --workspace --profile ci --test-threads=1 -- run-integration" },
+    { uses = "actions/upload-artifact@v4", with = { name = "integration-junit", path = "target/nextest/ci/junit.xml" }, if = "always()" }
+]
+
+[jobs.security-tests]
+stage = "test"
+runs_on = "ubuntu-latest"
+timeout_minutes = 30
+steps = [
+    { uses = "actions/checkout@v4" },
+    { uses = "dtolnay/rust-toolchain@stable" },
+    { uses = "Swatinem/rust-cache@v2" },
+    { uses = "taiki-e/install-action@nextest" },
+    { run = "cargo nextest run --all-features --profile ci -- run-security" },
+    { uses = "actions/upload-artifact@v4", with = { name = "security-junit", path = "target/nextest/ci/junit.xml" }, if = "always()" }
+]
+
+[jobs.performance-tests]
+stage = "test"
+runs_on = "ubuntu-latest"
+timeout_minutes = 60
+steps = [
+    { uses = "actions/checkout@v4" },
+    { uses = "dtolnay/rust-toolchain@stable" },
+    { uses = "Swatinem/rust-cache@v2" },
+    { run = "cargo test --release --all-features -- run_performance --test-threads=1" }
+]
+
+[jobs.dependency-audit]
+stage = "security"
+runs_on = "ubuntu-latest"
+timeout_minutes = 15
+steps = [
+    { uses = "actions/checkout@v4" },
+    { uses = "dtolnay/rust-toolchain@stable" },
+    { uses = "Swatinem/rust-cache@v2" },
+    { uses = "rustsec/audit-check@v2", with = { token = "${{ secrets.GITHUB_TOKEN }}" } }
+]
+
+[jobs.secret-scan]
+stage = "security"
+runs_on = "ubuntu-latest"
+timeout_minutes = 10
+steps = [
+    { uses = "actions/checkout@v4" },
+    { uses = "trufflesecurity/trufflehog@main", with = { path = "./", base = "${{ github.event.repository.default_branch }}", extra_args = "--only-verified" } }
+]
+
+[jobs.codeql-analysis]
+stage = "security"
+runs_on = "ubuntu-latest"
+timeout_minutes = 30
+permissions = { actions = "read", contents = "read", security-events = "write" }
+steps = [
+    { uses = "actions/checkout@v4" },
+    { uses = "github/codeql-action/init@v3", with = { languages = "rust" } },
+    { uses = "github/codeql-action/analyze@v3" }
+]
+
+[jobs.sbom-generation]
+stage = "security"
+runs_on = "ubuntu-latest"
+timeout_minutes = 15
+steps = [
+    { uses = "actions/checkout@v4" },
+    { uses = "dtolnay/rust-toolchain@stable" },
+    { uses = "Swatinem/rust-cache@v2" },
+    { run = "cargo install cargo-sbom --locked" },
+    { run = "cargo sbom > sbom.spdx.json" },
+    { uses = "actions/upload-artifact@v4", with = { name = "sbom", path = "sbom.spdx.json" } }
+]
+
+[jobs.coverage-report]
+stage = "coverage"
+runs_on = "ubuntu-latest"
+timeout_minutes = 45
+steps = [
+    { uses = "actions/checkout@v4" },
+    { uses = "dtolnay/rust-toolchain@stable", with = { components = "llvm-tools-preview" } },
+    { uses = "Swatinem/rust-cache@v2" },
+    { run = "cargo install cargo-llvm-cov --locked" },
+    { run = "cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info" },
+    { uses = "codecov/codecov-action@v4", with = { token = "${{ secrets.CODECOV_TOKEN }}", files = "lcov.info" } },
+    { run = "cargo llvm-cov --all-features --workspace --summary-only" },
+    { uses = "actions/upload-artifact@v4", with = { name = "coverage-report", path = "lcov.info" } }
+]
+
+[jobs.mutation-tests]
+stage = "mutation"
+runs_on = "ubuntu-latest"
+timeout_minutes = 120
+if = "github.event_name == 'pull_request'"
+steps = [
+    { uses = "actions/checkout@v4" },
+    { uses = "dtolnay/rust-toolchain@stable" },
+    { uses = "Swatinem/rust-cache@v2" },
+    { run = "cargo install cargo-mutants --locked" },
+    { run = "cargo mutants --in-place --timeout 300 --jobs 4" },
+    { uses = "actions/upload-artifact@v4", with = { name = "mutation-report", path = "mutants.out/" } }
+]
+
+[jobs.benchmark-suite]
+stage = "benchmark"
+runs_on = "ubuntu-latest"
+timeout_minutes = 60
+steps = [
+    { uses = "actions/checkout@v4" },
+    { uses = "dtolnay/rust-toolchain@stable" },
+    { uses = "Swatinem/rust-cache@v2" },
+    { run = "cargo bench --no-run" },
+    { run = "cargo bench -- --save-baseline ${{ github.sha }}" },
+    { uses = "actions/upload-artifact@v4", with = { name = "benchmark-results", path = "target/criterion/" } }
+]
+
+[jobs.package-binaries]
+stage = "package"
+runs_on = "${{ matrix.os }}"
+timeout_minutes = 30
+strategy = { matrix = { os = ["ubuntu-latest", "macos-latest", "windows-latest"], include = [
+    { os = "ubuntu-latest", target = "x86_64-unknown-linux-gnu", suffix = "" },
+    { os = "macos-latest", target = "x86_64-apple-darwin", suffix = "" },
+    { os = "windows-latest", target = "x86_64-pc-windows-msvc", suffix = ".exe" }
+] }
+if = "github.event_name == 'push' && github.ref == 'refs/heads/main'"
+steps = [
+    { uses = "actions/checkout@v4" },
+    { uses = "dtolnay/rust-toolchain@stable", with = { targets = "${{ matrix.target }}" } },
+    { uses = "Swatinem/rust-cache@v2" },
+    { run = "cargo build --release --target ${{ matrix.target }}" },
+    { uses = "actions/upload-artifact@v4", with = { name = "aether-${{ matrix.target }}", path = "target/${{ matrix.target }}/release/aether${{ matrix.suffix }}" } }
+]
+
+[jobs.package-docs]
+stage = "package"
+runs_on = "ubuntu-latest"
+timeout_minutes = 20
+if = "github.event_name == 'push' && github.ref == 'refs/heads/main'"
+steps = [
+    { uses = "actions/checkout@v4" },
+    { uses = "dtolnay/rust-toolchain@stable" },
+    { uses = "Swatinem/rust-cache@v2" },
+    { run = "cargo doc --no-deps --all-features" },
+    { uses = "actions/upload-artifact@v4", with = { name = "documentation", path = "target/doc" } }
+]
+
+[jobs.package-wasm]
+stage = "package"
+runs_on = "ubuntu-latest"
+timeout_minutes = 20
+if = "github.event_name == 'push' && github.ref == 'refs/heads/main'"
+steps = [
+    { uses = "actions/checkout@v4" },
+    { uses = "dtolnay/rust-toolchain@stable", with = { targets = "wasm32-wasip1" } },
+    { uses = "Swatinem/rust-cache@v2" },
+    { run = "cargo build --release --target wasm32-wasip1" },
+    { uses = "actions/upload-artifact@v4", with = { name = "wasm-package", path = "target/wasm32-wasip1/release/*.wasm" } }
+]
+
+[jobs.deploy-staging]
+stage = "deploy"
+runs_on = "ubuntu-latest"
+timeout_minutes = 20
+environment = { name = "staging", url = "https://staging.aether.dev" }
+if = "github.event_name == 'push' && github.ref == 'refs/heads/main'"
+steps = [
+    { uses = "actions/checkout@v4" },
+    { uses = "actions/download-artifact@v4", with = { name = "aether-x86_64-unknown-linux-gnu" } },
+    { name = "Deploy to staging", run = "echo 'Deploying to staging environment...'" }
+]
+
+[jobs.deploy-production]
+stage = "release"
+runs_on = "ubuntu-latest"
+timeout_minutes = 20
+environment = { name = "production", url = "https://aether.dev" }
+if = "github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')"
+steps = [
+    { uses = "actions/checkout@v4" },
+    { uses = "actions/download-artifact@v4" },
+    { name = "Deploy to production", run = "echo 'Deploying to production environment...'" }
+]
+
+[jobs.create-release]
+stage = "release"
+runs_on = "ubuntu-latest"
+timeout_minutes = 15
+if = "github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')"
+steps = [
+    { uses = "actions/checkout@v4" },
+    { uses = "actions/download-artifact@v4" },
+    { uses = "softprops/action-gh-release@v1", with = { files = "aether-*-linux-x86_64.tar.gz", generate_release_notes = true }, env = { GITHUB_TOKEN = "${{ secrets.GITHUB_TOKEN }}" } }
+]
+
+[caching]
+enabled = true
+backend = "github-actions"
+shared_key = "aether-cache"
+paths = [
+    "~/.cargo/registry",
+    "~/.cargo/git",
+    "target"
+]
+
+[caching.key]
+prefix = "v1-rust"
+hash_files = ["Cargo.lock", "Cargo.toml"]
+
+[notifications]
+on_success = "change"
+on_failure = "always"
+channels = ["slack", "email"]
+
+[notifications.slack]
+webhook_secret = "SLACK_WEBHOOK_URL"
+channel = "#ci-notifications"
+
+[notifications.email]
+recipients = ["dev-team@aether.dev"]
+on_severity = ["critical", "high"]
+
+[quality_gates]
+fail_on_coverage_regression = true
+fail_on_performance_regression = true
+fail_on_security_vulnerability = true
+block_deployment_on_failure = true
+
+[quality_gates.coverage]
+minimum_overall = 80.0
+minimum_critical_modules = 95.0
+target_overall = 85.0
+delta_threshold = -5.0
+
+[quality_gates.performance]
+benchmark_threshold_percent = 5.0
+critical_path_threshold_percent = 2.0
+latency_threshold_ms = 100
+
+[quality_gates.security]
+block_on_critical = true
+block_on_high = false
+max_age_days = 30
+allowed_advisories = []
+
+[quality_gates.mutation]
+minimum_score = 85.0
+target_score = 90.0
+timeout_multiplier = 3.0
+
+[artifacts]
+retention_days = 90
+compression = "gzip"
+include_symbols = true
+include_source_maps = false
+
+[deployment]
+strategy = "blue-green"
+health_check_interval_seconds = 10
+health_check_timeout_seconds = 300
+rollback_on_failure = true
+deployment_timeout_minutes = 10
+
+[deployment.blue_green]
+active_color = "blue"
+inactive_color = "green"
+traffic_shift_percentage = 100
+validation_time_seconds = 60
+
+[deployment.canary]
+initial_percentage = 5
+increment_percentage = 10
+increment_interval_seconds = 60
+metrics_threshold = 0.95
+
+[deployment.rolling]
+max_unavailable = 1
+max_surge = 1
+batch_size = 1
+
+[rollback]
+automatic = true
+trigger_on_health_check_failure = true
+trigger_on_error_rate_threshold = 0.05
+trigger_on_latency_threshold_ms = 500
+timeout_minutes = 5

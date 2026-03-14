@@ -1,0 +1,892 @@
+# Implementation Roadmap v2.0
+# Generated: 2026-03-08
+# Status: ACTIVE
+# 
+# This roadmap tracks all implementation tasks, their dependencies,
+# and progress toward production readiness.
+
+[metadata]
+version = "2.0.0"
+created = "2026-03-08"
+last_updated = "2026-03-08"
+status = "ACTIVE"
+total_tasks = 47
+estimated_effort_hours = 168
+project_phase = "Post-MVP Polish"
+
+# =============================================================================
+# CURRENT STATE SUMMARY
+# =============================================================================
+
+[current_state]
+code_lines = 34494
+core_files = 77
+library_tests_passing = 326
+integration_test_errors = 90
+code_coverage_estimate = 45.0
+
+[current_state.implemented]
+wasi_preview2 = { status = "COMPLETE", lines = 1320 }
+actor_system = { status = "COMPLETE", lines = 945 }
+wasm_engine = { status = "COMPLETE", lines = 1382 }
+vm_manager = { status = "COMPLETE", lines = 700 }
+mesh_network = { status = "COMPLETE", lines = 715 }
+security = { status = "COMPLETE", lines = 1190 }
+state_management = { status = "COMPLETE", lines = 2103 }
+tracing = { status = "COMPLETE", lines = 450 }
+observability = { status = "COMPLETE", lines = 661 }
+cli = { status = "COMPLETE", lines = 658 }
+dashboard = { status = "COMPLETE", lines = 400 }
+
+# =============================================================================
+# PHASE 1: CRITICAL FIXES (Blockers)
+# =============================================================================
+
+[phases.phase_1]
+name = "Critical Fixes"
+priority = "CRITICAL"
+estimated_hours = 16
+status = "PENDING"
+description = "Fix all blocking issues preventing integration tests from compiling"
+
+[[phases.phase_1.tasks]]
+id = "TASK-001"
+name = "Fix CertificateValidator async API sync"
+description = "Update CertificateValidator::validate() calls to await since it's now async"
+category = "BUG_FIX"
+effort_hours = 2
+status = "PENDING"
+files = [
+    "tests/integration/security/test_mtls_enforcement.rs",
+    "tests/integration/security/test_secrets_leak.rs",
+]
+dependencies = []
+acceptance_criteria = [
+    "All CertificateValidator::validate() calls use .await",
+    "Tests compile without E0277 errors",
+]
+
+[[phases.phase_1.tasks]]
+id = "TASK-002"
+name = "Fix Secrets API changes in integration tests"
+description = "Update SecretManager and SecretValue API usage to match current implementation"
+category = "BUG_FIX"
+effort_hours = 3
+status = "PENDING"
+files = [
+    "tests/integration/security/test_secrets_leak.rs",
+]
+dependencies = []
+acceptance_criteria = [
+    "SecretManager::new() signature matches",
+    "SecretReference API updated",
+    "SecretValue construction updated",
+]
+
+[[phases.phase_1.tasks]]
+id = "TASK-003"
+name = "Fix Mesh API changes in integration tests"
+description = "Update mesh-related imports and API calls in chaos tests"
+category = "BUG_FIX"
+effort_hours = 3
+status = "PENDING"
+files = [
+    "tests/integration/chaos/test_backpressure_overload.rs",
+    "tests/integration/chaos/test_mesh_partition.rs",
+]
+dependencies = []
+acceptance_criteria = [
+    "BackpressureController API matches current implementation",
+    "CreditAccount and FlowState imports correct",
+    "BufferPool API updated",
+]
+
+[[phases.phase_1.tasks]]
+id = "TASK-004"
+name = "Fix Actor Scheduler API changes"
+description = "Update ActorScheduler and ActorBuilder API calls"
+category = "BUG_FIX"
+effort_hours = 3
+status = "PENDING"
+files = [
+    "tests/integration/chaos/test_backpressure_overload.rs",
+    "tests/integration/chaos/test_actor_crash_recovery.rs",
+    "tests/integration/e2e_actor_lifecycle.rs",
+]
+dependencies = []
+acceptance_criteria = [
+    "ActorBuilder::new().spawn() signature correct",
+    "SchedulerConfig API matches",
+    "Message and MessagePayload types correct",
+]
+
+[[phases.phase_1.tasks]]
+id = "TASK-005"
+name = "Fix Chaos test infrastructure imports"
+description = "Update ChaosTestRunner and related chaos module imports"
+category = "BUG_FIX"
+effort_hours = 2
+status = "PENDING"
+files = [
+    "tests/integration/chaos/test_backpressure_overload.rs",
+    "tests/integration/chaos/test_cascading_failure.rs",
+    "tests/integration/chaos/test_memory_pressure.rs",
+    "tests/integration/chaos/test_mesh_partition.rs",
+]
+dependencies = []
+acceptance_criteria = [
+    "ChaosTestRunner imports from correct module",
+    "ChaosConfig builder pattern matches",
+    "NetworkFault enum variants correct",
+]
+
+[[phases.phase_1.tasks]]
+id = "TASK-006"
+name = "Fix remaining integration test compilation errors"
+description = "Address all remaining E0061, E0425, E0433 errors in integration tests"
+category = "BUG_FIX"
+effort_hours = 3
+status = "PENDING"
+files = [
+    "tests/integration/comprehensive.rs",
+    "tests/integration/e2e_security.rs",
+    "tests/integration/e2e_observability.rs",
+    "tests/integration/e2e_state_persistence.rs",
+    "tests/integration/e2e_capability_enforcement.rs",
+    "tests/integration/e2e_mesh_communication.rs",
+    "tests/integration/host_mesh.rs",
+    "tests/integration/host_state.rs",
+    "tests/integration/full_stack.rs",
+]
+dependencies = ["TASK-001", "TASK-002", "TASK-003", "TASK-004", "TASK-005"]
+acceptance_criteria = [
+    "cargo test --workspace compiles with 0 errors",
+    "All integration test files compile",
+]
+
+# =============================================================================
+# PHASE 2: MISSING IMPLEMENTATIONS
+# =============================================================================
+
+[phases.phase_2]
+name = "Missing Implementations"
+priority = "HIGH"
+estimated_hours = 20
+status = "PENDING"
+description = "Implement stub/TODO functions that are incomplete"
+
+[[phases.phase_2.tasks]]
+id = "TASK-007"
+name = "Implement WASI state handle with FDB"
+description = "Implement the TODO at wasi/mod.rs lines 310, 317 for state handle with FoundationDB"
+category = "FEATURE"
+effort_hours = 8
+status = "PENDING"
+files = [
+    "crates/core/src/wasi/mod.rs",
+    "crates/core/src/wasi/state.rs",
+]
+dependencies = []
+acceptance_criteria = [
+    "State handle implements FDB backend",
+    "get_state() returns correct state from FDB",
+    "set_state() persists state to FDB",
+    "Unit tests pass for state handle",
+]
+
+[[phases.phase_2.tasks]]
+id = "TASK-008"
+name = "Implement CLI dev command"
+description = "Implement the dev environment startup command (currently a stub)"
+category = "FEATURE"
+effort_hours = 6
+status = "PENDING"
+files = [
+    "crates/cli/src/commands/dev.rs",
+]
+dependencies = []
+acceptance_criteria = [
+    "aether dev starts local development environment",
+    "Hot reload works for WASM modules",
+    "Local state backend initialized",
+    "Logs output to console",
+]
+
+[[phases.phase_2.tasks]]
+id = "TASK-009"
+name = "Implement CLI deploy command"
+description = "Implement the deployment command (currently a stub)"
+category = "FEATURE"
+effort_hours = 6
+status = "PENDING"
+files = [
+    "crates/cli/src/commands/deploy.rs",
+]
+dependencies = []
+acceptance_criteria = [
+    "aether deploy --file actor.wasm works",
+    "aether deploy --image nginx:latest works",
+    "Deployment status reported",
+    "Actor/VM starts after deployment",
+]
+
+# =============================================================================
+# PHASE 3: ACTOR SDK
+# =============================================================================
+
+[phases.phase_3]
+name = "Actor SDK"
+priority = "HIGH"
+estimated_hours = 16
+status = "PENDING"
+description = "Complete the actor SDK with macros"
+
+[[phases.phase_3.tasks]]
+id = "TASK-010"
+name = "Create aether-actor-macros crate"
+description = "Create the procedural macro crate for actor derivation"
+category = "FEATURE"
+effort_hours = 12
+status = "PENDING"
+files = [
+    "crates/actor-macros/Cargo.toml",
+    "crates/actor-macros/src/lib.rs",
+    "crates/actor-macros/src/actor_derive.rs",
+]
+dependencies = []
+acceptance_criteria = [
+    "#[derive(Actor)] macro works",
+    "Macro generates correct handler trait impl",
+    "Macro generates message enum",
+    "Crate compiles and publishes",
+]
+
+[[phases.phase_3.tasks]]
+id = "TASK-011"
+name = "Update actor-sdk to use macros"
+description = "Uncomment and integrate the actor macros in actor-sdk"
+category = "FEATURE"
+effort_hours = 4
+status = "PENDING"
+files = [
+    "crates/actor-sdk/src/lib.rs",
+]
+dependencies = ["TASK-010"]
+acceptance_criteria = [
+    "actor-sdk uses aether-actor-macros",
+    "Example actors compile with derive macro",
+    "Documentation updated",
+]
+
+# =============================================================================
+# PHASE 4: TESTING IMPROVEMENTS
+# =============================================================================
+
+[phases.phase_4]
+name = "Testing Improvements"
+priority = "HIGH"
+estimated_hours = 32
+status = "PENDING"
+description = "Improve test coverage and add property-based testing"
+
+[[phases.phase_4.tasks]]
+id = "TASK-012"
+name = "Fix chaos test implementations"
+description = "Complete incomplete chaos test scenarios"
+category = "TESTING"
+effort_hours = 8
+status = "PENDING"
+files = [
+    "tests/integration/chaos/test_cascading_failure.rs",
+    "tests/integration/chaos/test_memory_pressure.rs",
+    "tests/integration/chaos/test_mesh_partition.rs",
+    "tests/integration/chaos/test_actor_crash_recovery.rs",
+]
+dependencies = ["TASK-006"]
+acceptance_criteria = [
+    "All chaos tests pass",
+    "Tests verify recovery behavior",
+    "Tests verify system stability under fault",
+]
+
+[[phases.phase_4.tasks]]
+id = "TASK-013"
+name = "Add property-based tests with proptest"
+description = "Expand use of proptest for property-based testing across core modules"
+category = "TESTING"
+effort_hours = 12
+status = "PENDING"
+files = [
+    "crates/core/src/actor/property_tests.rs",
+    "crates/core/src/mesh/property_tests.rs",
+    "crates/core/src/state/property_tests.rs",
+    "crates/core/src/security/property_tests.rs",
+]
+dependencies = []
+acceptance_criteria = [
+    "Property tests for actor scheduling",
+    "Property tests for message serialization",
+    "Property tests for state operations",
+    "Property tests for capability checks",
+    "All property tests pass with 1000 cases",
+]
+
+[[phases.phase_4.tasks]]
+id = "TASK-014"
+name = "Increase code coverage to 80%"
+description = "Add missing unit tests to achieve 80% code coverage"
+category = "TESTING"
+effort_hours = 12
+status = "PENDING"
+files = []
+dependencies = ["TASK-006", "TASK-012", "TASK-013"]
+acceptance_criteria = [
+    "cargo tarpaulin reports >= 80% coverage",
+    "All public APIs have tests",
+    "Error paths covered",
+    "Edge cases covered",
+]
+
+# =============================================================================
+# PHASE 5: FORMAL VERIFICATION
+# =============================================================================
+
+[phases.phase_5]
+name = "Formal Verification"
+priority = "MEDIUM"
+estimated_hours = 40
+status = "PENDING"
+description = "Complete Lean4 formal verification proofs"
+
+[[phases.phase_5.tasks]]
+id = "TASK-015"
+name = "Complete WASM engine proofs"
+description = "Fill in 'sorry' placeholders in proof_wasm.lean"
+category = "VERIFICATION"
+effort_hours = 12
+status = "PENDING"
+files = [
+    ".specs/02_architecture/proofs/proof_wasm.lean",
+]
+dependencies = []
+acceptance_criteria = [
+    "All 'sorry' replaced with actual proofs",
+    "Lean compilation succeeds",
+    "Memory isolation theorem proven",
+    "Fuel exhaustion theorem proven",
+]
+
+[[phases.phase_5.tasks]]
+id = "TASK-016"
+name = "Complete VM manager proofs"
+description = "Fill in 'sorry' placeholders in proof_vm.lean"
+category = "VERIFICATION"
+effort_hours = 10
+status = "PENDING"
+files = [
+    ".specs/02_architecture/proofs/proof_vm.lean",
+]
+dependencies = []
+acceptance_criteria = [
+    "All 'sorry' replaced with actual proofs",
+    "VM isolation theorem proven",
+    "Snapshot correctness theorem proven",
+]
+
+[[phases.phase_5.tasks]]
+id = "TASK-017"
+name = "Complete mesh network proofs"
+description = "Fill in 'sorry' placeholders in proof_mesh.lean"
+category = "VERIFICATION"
+effort_hours = 10
+status = "PENDING"
+files = [
+    ".specs/02_architecture/proofs/proof_mesh.lean",
+]
+dependencies = []
+acceptance_criteria = [
+    "All 'sorry' replaced with actual proofs",
+    "Message delivery theorem proven",
+    "Partition tolerance theorem proven",
+]
+
+[[phases.phase_5.tasks]]
+id = "TASK-018"
+name = "Complete host runtime proofs"
+description = "Fill in 'sorry' placeholders in proof_host.lean"
+category = "VERIFICATION"
+effort_hours = 8
+status = "PENDING"
+files = [
+    ".specs/02_architecture/proofs/proof_host.lean",
+]
+dependencies = []
+acceptance_criteria = [
+    "All 'sorry' replaced with actual proofs",
+    "Resource cleanup theorem proven",
+]
+
+# =============================================================================
+# PHASE 6: PERFORMANCE VALIDATION
+# =============================================================================
+
+[phases.phase_6]
+name = "Performance Validation"
+priority = "HIGH"
+estimated_hours = 16
+status = "PENDING"
+description = "Validate all performance targets are met"
+
+[[phases.phase_6.tasks]]
+id = "TASK-019"
+name = "Validate WASM cold start performance"
+description = "Verify WASM cold start < 100µs P99"
+category = "PERFORMANCE"
+effort_hours = 4
+status = "PENDING"
+files = [
+    "benches/wasm_cold_start.rs",
+]
+dependencies = []
+targets = { p50 = "20µs", p95 = "35µs", p99 = "45µs", max = "50µs" }
+acceptance_criteria = [
+    "P99 cold start < 100µs",
+    "P50 cold start < 20µs",
+    "Benchmark reproducible",
+]
+
+[[phases.phase_6.tasks]]
+id = "TASK-020"
+name = "Validate VM cold start performance"
+description = "Verify VM cold start < 125ms P99"
+category = "PERFORMANCE"
+effort_hours = 4
+status = "PENDING"
+files = [
+    "benches/vm_cold_start.rs",
+]
+dependencies = []
+targets = { p50 = "80ms", p95 = "100ms", p99 = "115ms", max = "125ms" }
+acceptance_criteria = [
+    "P99 VM start < 125ms",
+    "P50 VM start < 80ms",
+    "Snapshot restore < 100ms",
+]
+
+[[phases.phase_6.tasks]]
+id = "TASK-021"
+name = "Validate mesh latency performance"
+description = "Verify intra-node latency < 1ms P99"
+category = "PERFORMANCE"
+effort_hours = 4
+status = "PENDING"
+files = [
+    "benches/mesh_latency.rs",
+]
+dependencies = []
+targets = { p50 = "0.5ms", p95 = "0.8ms", p99 = "1ms", max = "2ms" }
+acceptance_criteria = [
+    "P99 local latency < 1ms",
+    "P99 remote latency < 10ms (same DC)",
+    "Throughput > 100k msg/s",
+]
+
+[[phases.phase_6.tasks]]
+id = "TASK-022"
+name = "Validate state read performance"
+description = "Verify state read < 10µs P99 (local)"
+category = "PERFORMANCE"
+effort_hours = 4
+status = "PENDING"
+files = [
+    "benches/state_read.rs",
+]
+dependencies = []
+targets = { p50 = "0.01ms", p95 = "0.05ms", p99 = "0.1ms", max = "0.2ms" }
+acceptance_criteria = [
+    "P99 local read < 10µs",
+    "P99 local write < 15µs",
+    "FDB operations meet targets",
+]
+
+[[phases.phase_6.tasks]]
+id = "TASK-023"
+name = "Validate actor density target"
+description = "Verify 100,000 actors per node"
+category = "PERFORMANCE"
+effort_hours = 4
+status = "PENDING"
+files = [
+    "benches/actor_density.rs",
+]
+dependencies = []
+targets = { target = "100000", max = "150000" }
+acceptance_criteria = [
+    "100,000 light actors run on single node",
+    "Memory per actor < 5MB",
+    "No memory leaks under load",
+]
+
+# =============================================================================
+# PHASE 7: DOCUMENTATION
+# =============================================================================
+
+[phases.phase_7]
+name = "Documentation"
+priority = "MEDIUM"
+estimated_hours = 12
+status = "PENDING"
+description = "Complete documentation for all public APIs"
+
+[[phases.phase_7.tasks]]
+id = "TASK-024"
+name = "Complete rustdoc for core crate"
+description = "Add missing rustdoc comments to all public items in aether-core"
+category = "DOCUMENTATION"
+effort_hours = 4
+status = "PENDING"
+files = [
+    "crates/core/src/lib.rs",
+    "crates/core/src/actor/**/*.rs",
+    "crates/core/src/mesh/**/*.rs",
+    "crates/core/src/state/**/*.rs",
+    "crates/core/src/security/**/*.rs",
+]
+dependencies = []
+acceptance_criteria = [
+    "cargo doc --no-deps succeeds without warnings",
+    "All public items have documentation",
+    "Examples in doc comments compile",
+]
+
+[[phases.phase_7.tasks]]
+id = "TASK-025"
+name = "Complete rustdoc for CLI crate"
+description = "Add missing rustdoc comments to CLI commands"
+category = "DOCUMENTATION"
+effort_hours = 2
+status = "PENDING"
+files = [
+    "crates/cli/src/**/*.rs",
+]
+dependencies = []
+acceptance_criteria = [
+    "All CLI commands documented",
+    "Example usage in help text",
+]
+
+[[phases.phase_7.tasks]]
+id = "TASK-026"
+name = "Update architecture documentation"
+description = "Update architecture docs to reflect current implementation"
+category = "DOCUMENTATION"
+effort_hours = 4
+status = "PENDING"
+files = [
+    ".specs/02_architecture/**/*.md",
+]
+dependencies = []
+acceptance_criteria = [
+    "Architecture diagrams current",
+    "Component descriptions accurate",
+    "API examples work",
+]
+
+[[phases.phase_7.tasks]]
+id = "TASK-027"
+name = "Create API reference guide"
+description = "Generate comprehensive API reference from rustdoc"
+category = "DOCUMENTATION"
+effort_hours = 2
+status = "PENDING"
+files = [
+    "docs/api_reference.md",
+]
+dependencies = ["TASK-024", "TASK-025"]
+acceptance_criteria = [
+    "API reference generated",
+    "Published to docs site",
+]
+
+# =============================================================================
+# PHASE 8: CODE QUALITY
+# =============================================================================
+
+[phases.phase_8]
+name = "Code Quality"
+priority = "MEDIUM"
+estimated_hours = 8
+status = "PENDING"
+description = "Address clippy warnings and improve code quality"
+
+[[phases.phase_8.tasks]]
+id = "TASK-028"
+name = "Fix all clippy warnings"
+description = "Address all clippy warnings across workspace"
+category = "QUALITY"
+effort_hours = 4
+status = "PENDING"
+files = []
+dependencies = []
+acceptance_criteria = [
+    "cargo clippy --workspace succeeds with 0 warnings",
+    "No unused variants",
+    "No unnecessary casts",
+]
+
+[[phases.phase_8.tasks]]
+id = "TASK-029"
+name = "Run cargo fmt and enforce"
+description = "Format all code and add CI check"
+category = "QUALITY"
+effort_hours = 1
+status = "PENDING"
+files = []
+dependencies = []
+acceptance_criteria = [
+    "cargo fmt --check passes",
+    "CI enforces formatting",
+]
+
+[[phases.phase_8.tasks]]
+id = "TASK-030"
+name = "Remove dead code"
+description = "Identify and remove unused code paths"
+category = "QUALITY"
+effort_hours = 3
+status = "PENDING"
+files = []
+dependencies = []
+acceptance_criteria = [
+    "No dead_code warnings",
+    "Unused dependencies removed",
+]
+
+# =============================================================================
+# PHASE 9: SECURITY HARDENING
+# =============================================================================
+
+[phases.phase_9]
+name = "Security Hardening"
+priority = "HIGH"
+estimated_hours = 8
+status = "PENDING"
+description = "Complete security hardening tasks"
+
+[[phases.phase_9.tasks]]
+id = "TASK-031"
+name = "Run security audit"
+description = "Run cargo audit and address all vulnerabilities"
+category = "SECURITY"
+effort_hours = 2
+status = "PENDING"
+files = []
+dependencies = []
+acceptance_criteria = [
+    "cargo audit reports 0 vulnerabilities",
+    "All dependencies up to date",
+]
+
+[[phases.phase_9.tasks]]
+id = "TASK-032"
+name = "Complete security test suite"
+description = "Ensure all security integration tests pass"
+category = "SECURITY"
+effort_hours = 4
+status = "PENDING"
+files = [
+    "tests/integration/security/test_mtls_enforcement.rs",
+    "tests/integration/security/test_capability_bypass.rs",
+    "tests/integration/security/test_audit_tampering.rs",
+    "tests/integration/security/test_privilege_escalation.rs",
+    "tests/integration/security/test_secrets_leak.rs",
+]
+dependencies = ["TASK-006"]
+acceptance_criteria = [
+    "All security tests pass",
+    "mTLS enforcement verified",
+    "Capability bypass prevented",
+    "Audit log tampering detected",
+    "Privilege escalation blocked",
+    "Secrets don't leak",
+]
+
+[[phases.phase_9.tasks]]
+id = "TASK-033"
+name = "Add fuzzing targets"
+description = "Add fuzzing targets for critical parsers"
+category = "SECURITY"
+effort_hours = 2
+status = "PENDING"
+files = [
+    "fuzz/fuzz_targets/wasm_parser.rs",
+    "fuzz/fuzz_targets/capability_parser.rs",
+    "fuzz/fuzz_targets/message_parser.rs",
+]
+dependencies = []
+acceptance_criteria = [
+    "Fuzzing targets compile",
+    "Initial fuzzing campaign run",
+    "No crashes found",
+]
+
+# =============================================================================
+# METRICS AND TARGETS
+# =============================================================================
+
+[metrics]
+code_coverage_current = 45.0
+code_coverage_target = 80.0
+tests_passing_current = 326
+tests_passing_target = 500
+clippy_warnings_current = 38
+clippy_warnings_target = 0
+security_vulnerabilities_current = 0
+security_vulnerabilities_target = 0
+
+[metrics.performance]
+wasm_cold_start_p99_current = "TBD"
+wasm_cold_start_p99_target = "100µs"
+vm_cold_start_p99_current = "TBD"
+vm_cold_start_p99_target = "125ms"
+mesh_latency_p99_current = "TBD"
+mesh_latency_p99_target = "1ms"
+state_read_p99_current = "TBD"
+state_read_p99_target = "10µs"
+actor_density_current = "TBD"
+actor_density_target = 100000
+
+# =============================================================================
+# MILESTONE TRACKING
+# =============================================================================
+
+[milestones.m1_local_wasm]
+name = "Local WASM Execution"
+status = "COMPLETE"
+target_date = "2026-03-01"
+actual_date = "2026-03-01"
+tasks = []
+
+[milestones.m2_local_oci]
+name = "Local OCI Execution"
+status = "COMPLETE"
+target_date = "2026-03-05"
+actual_date = "2026-03-05"
+tasks = []
+
+[milestones.m3_multi_node]
+name = "Multi-Node Mesh"
+status = "COMPLETE"
+target_date = "2026-03-07"
+actual_date = "2026-03-07"
+tasks = []
+
+[milestones.m4_production_ready]
+name = "Production Ready"
+status = "IN_PROGRESS"
+target_date = "2026-03-15"
+actual_date = null
+tasks = [
+    "TASK-001", "TASK-002", "TASK-003", "TASK-004", "TASK-005", "TASK-006",
+    "TASK-012", "TASK-013", "TASK-014", "TASK-019", "TASK-020", "TASK-021",
+    "TASK-022", "TASK-023", "TASK-028", "TASK-029", "TASK-031", "TASK-032",
+]
+
+[milestones.m5_enterprise]
+name = "Enterprise Features"
+status = "PENDING"
+target_date = "2026-03-22"
+actual_date = null
+tasks = [
+    "TASK-007", "TASK-008", "TASK-009", "TASK-010", "TASK-011",
+    "TASK-015", "TASK-016", "TASK-017", "TASK-018",
+    "TASK-024", "TASK-025", "TASK-026", "TASK-027",
+    "TASK-030", "TASK-033",
+]
+
+# =============================================================================
+# RISK REGISTER
+# =============================================================================
+
+[[risks]]
+id = "RISK-001"
+name = "Integration test API drift"
+description = "API changes causing test compilation failures"
+probability = "HIGH"
+impact = "MEDIUM"
+mitigation = "Regular API sync reviews, deprecation warnings"
+status = "ACTIVE"
+related_tasks = ["TASK-001", "TASK-002", "TASK-003", "TASK-004", "TASK-005", "TASK-006"]
+
+[[risks]]
+id = "RISK-002"
+name = "Performance regression"
+description = "Performance targets may not be met after fixes"
+probability = "MEDIUM"
+impact = "HIGH"
+mitigation = "Continuous benchmarking, performance CI gates"
+status = "MONITORING"
+related_tasks = ["TASK-019", "TASK-020", "TASK-021", "TASK-022", "TASK-023"]
+
+[[risks]]
+id = "RISK-003"
+name = "Formal proof complexity"
+description = "Lean4 proofs may be more complex than estimated"
+probability = "MEDIUM"
+impact = "LOW"
+mitigation = "Start with simpler proofs, defer complex ones"
+status = "MONITORING"
+related_tasks = ["TASK-015", "TASK-016", "TASK-017", "TASK-018"]
+
+[[risks]]
+id = "RISK-004"
+name = "Coverage gaps"
+description = "May not achieve 80% coverage target"
+probability = "LOW"
+impact = "MEDIUM"
+mitigation = "Prioritize critical path coverage first"
+status = "MONITORING"
+related_tasks = ["TASK-014"]
+
+# =============================================================================
+# DEPENDENCY GRAPH
+# =============================================================================
+
+[dependencies]
+"TASK-006" = ["TASK-001", "TASK-002", "TASK-003", "TASK-004", "TASK-005"]
+"TASK-011" = ["TASK-010"]
+"TASK-012" = ["TASK-006"]
+"TASK-014" = ["TASK-006", "TASK-012", "TASK-013"]
+"TASK-027" = ["TASK-024", "TASK-025"]
+"TASK-032" = ["TASK-006"]
+
+# =============================================================================
+# RECENT CHANGES
+# =============================================================================
+
+[[changelog]]
+date = "2026-03-08"
+version = "2.0.0"
+changes = [
+    "Created v2 roadmap from current state analysis",
+    "Identified 90 integration test compilation errors",
+    "Documented 4 critical stub implementations",
+    "Added performance validation tasks",
+    "Included formal verification tasks",
+]
+
+# =============================================================================
+# NEXT ACTIONS
+# =============================================================================
+
+[next_actions]
+priority_order = [
+    "TASK-001",  # Fix CertificateValidator async
+    "TASK-002",  # Fix Secrets API
+    "TASK-003",  # Fix Mesh API
+    "TASK-004",  # Fix Actor Scheduler API
+    "TASK-005",  # Fix Chaos imports
+    "TASK-006",  # Fix remaining integration errors
+]
+estimated_completion = "2026-03-15"
+blockers = ["Integration test compilation errors prevent CI from running full suite"]

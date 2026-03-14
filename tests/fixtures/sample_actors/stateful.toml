@@ -1,0 +1,10 @@
+[[actor]]
+name = "db"
+kind = "oci"
+image = "postgres:15"
+
+[actor.capabilities]
+networking = "private"
+
+[actor.capabilities.volumes]
+data = { path = "/var/lib/postgresql/data", size = "10GB" }

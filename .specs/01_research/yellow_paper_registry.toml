@@ -1,0 +1,296 @@
+# Yellow Paper Registry
+# Phase 1: Epistemological Discovery
+
+[metadata]
+last_updated = "2026-03-05T00:00:00Z"
+total_papers = 5
+phase = 1
+status = "COMPLETE"
+
+# ==============================================================================
+# YP-WASM-RUNTIME-001: WebAssembly Runtime Execution
+# ==============================================================================
+
+[[yellow_paper]]
+id = "YP-WASM-RUNTIME-001"
+title = "WebAssembly Runtime Execution"
+status = "DRAFT"
+version = "1.0.0"
+created = "2026-03-05"
+author = "DeepThought"
+confidence_level = 0.95
+tqa_level = 4
+
+[yellow_paper.scope]
+domain = "Runtime Systems"
+subdomains = ["WebAssembly", "Sandboxing", "Capability Security"]
+applicable_standards = ["WASI Preview 2", "WebAssembly Component Model", "RFC 9000"]
+
+[yellow_paper.formal_elements]
+axioms = ["AX-WASM-001", "AX-WASM-002", "AX-WASM-003"]
+definitions = ["DEF-WASM-001", "DEF-WASM-002", "DEF-WASM-003", "DEF-WASM-004", "DEF-WASM-005"]
+theorems = ["THM-WASM-001", "THM-WASM-002", "THM-WASM-003", "THM-WASM-004"]
+algorithms = ["ALG-WASM-001", "ALG-WASM-002", "ALG-WASM-003", "ALG-WASM-004"]
+
+[yellow_paper.test_vectors]
+file = "test_vectors_wasm.toml"
+path = ".specs/01_research/test_vectors/test_vectors_wasm.toml"
+categories = ["Cold Start Timing", "Memory Isolation", "Fuel Exhaustion", "Capability Enforcement", "Memory Bounds"]
+
+[yellow_paper.constraints]
+file = "domain_constraints_wasm.toml"
+path = ".specs/01_research/domain_constraints/domain_constraints_wasm.toml"
+
+[yellow_paper.dependencies]
+axioms_from = []
+lemmas_from = []
+related_papers = ["YP-VIRT-KVM-001"]
+
+[yellow_paper.consumers]
+blue_papers = []  # To be filled in Phase 2
+green_papers = []  # To be filled in Phase 3
+
+[yellow_paper.performance_targets]
+cold_start_latency_us = 50
+capability_check_overhead_ns = 100
+fuel_check_overhead_ns = 50
+
+# ==============================================================================
+# YP-VIRT-KVM-001: Hardware Virtualization & KVM Isolation
+# ==============================================================================
+
+[[yellow_paper]]
+id = "YP-VIRT-KVM-001"
+title = "Hardware Virtualization & KVM Isolation"
+status = "DRAFT"
+version = "1.0.0"
+created = "2026-03-05"
+author = "DeepThought Research Team"
+confidence_level = 0.95
+tqa_level = 4
+
+[yellow_paper.scope]
+domain = "Virtualization"
+subdomains = ["KVM", "MicroVM", "Hardware Isolation", "Firecracker"]
+applicable_standards = ["Intel VMX", "AMD SVM", "Virtio 1.2", "NIST SP 800-125A"]
+
+[yellow_paper.formal_elements]
+axioms = ["AX-VIRT-001", "AX-VIRT-002"]
+definitions = []
+theorems = ["THM-VIRT-001", "THM-VIRT-002"]
+algorithms = ["ALG-VIRT-001", "ALG-VIRT-002", "ALG-VIRT-003"]
+
+[yellow_paper.test_vectors]
+file = "test_vectors_virt.toml"
+path = ".specs/01_research/test_vectors/test_vectors_virt.toml"
+categories = ["Boot Time", "Memory Isolation", "Rate Limiting", "Device Attachment", "Error Handling"]
+
+[yellow_paper.constraints]
+file = "domain_constraints_virt.toml"
+path = ".specs/01_research/domain_constraints/domain_constraints_virt.toml"
+
+[yellow_paper.dependencies]
+axioms_from = []
+lemmas_from = []
+related_papers = ["YP-WASM-RUNTIME-001", "YP-ASYNC-IOURING-001"]
+
+[yellow_paper.consumers]
+blue_papers = []
+green_papers = []
+
+[yellow_paper.performance_targets]
+boot_time_ms = 125
+vm_exit_overhead_ns = 500
+memory_overhead_percent = 5
+
+# ==============================================================================
+# YP-NETWORK-MESH-001: QUIC-Based Mesh Networking
+# ==============================================================================
+
+[[yellow_paper]]
+id = "YP-NETWORK-MESH-001"
+title = "QUIC-Based Mesh Networking, Distributed State, and Consensus"
+status = "DRAFT"
+version = "1.0.0"
+created = "2026-03-05"
+author = "DeepThought"
+confidence_level = 0.94
+tqa_level = 4
+
+[yellow_paper.scope]
+domain = "Distributed Systems"
+subdomains = ["QUIC Transport", "Mesh Networking", "Backpressure", "Actor Addressing"]
+applicable_standards = ["RFC 9000", "RFC 9001", "RFC 9002"]
+
+[yellow_paper.formal_elements]
+axioms = ["AX-NET-001", "AX-NET-002"]
+definitions = []
+theorems = ["THM-NET-001", "THM-NET-002"]
+algorithms = ["ALG-NET-001", "ALG-NET-002", "ALG-NET-003", "ALG-NET-004"]
+
+[yellow_paper.test_vectors]
+file = "test_vectors_mesh.toml"
+path = ".specs/01_research/test_vectors/test_vectors_mesh.toml"
+categories = ["Address Resolution", "Connection Pooling", "Backpressure", "Message Delivery", "Flow Control"]
+
+[yellow_paper.constraints]
+file = "domain_constraints_mesh.toml"
+path = ".specs/01_research/domain_constraints/domain_constraints_mesh.toml"
+
+[yellow_paper.dependencies]
+axioms_from = []
+lemmas_from = []
+related_papers = ["YP-ASYNC-IOURING-001", "YP-SERIAL-RKYV-001"]
+
+[yellow_paper.consumers]
+blue_papers = []
+green_papers = []
+
+[yellow_paper.performance_targets]
+connection_setup_ms = 100
+0rtt_handshake_ms = 0
+max_hops = 10
+backpressure_propagation_factor = 1.0
+
+# ==============================================================================
+# YP-SERIAL-RKYV-001: Zero-Copy Serialization with rkyv
+# ==============================================================================
+
+[[yellow_paper]]
+id = "YP-SERIAL-RKYV-001"
+title = "Zero-Copy Serialization with rkyv"
+status = "DRAFT"
+version = "1.0.0"
+created = "2026-03-05"
+author = "DeepThought"
+confidence_level = 0.94
+tqa_level = 4
+
+[yellow_paper.scope]
+domain = "Serialization"
+subdomains = ["Zero-Copy", "State Hydration", "Actor Migration", "Checkpointing"]
+applicable_standards = ["rkyv 0.7", "FoundationDB", "CAP Theorem"]
+
+[yellow_paper.formal_elements]
+axioms = ["AX-SER-001", "AX-SER-002"]
+definitions = []
+theorems = ["THM-SER-001", "THM-SER-002", "THM-SER-003"]
+algorithms = ["ALG-SER-001", "ALG-SER-002", "ALG-SER-003", "ALG-SER-004"]
+
+[yellow_paper.test_vectors]
+file = "test_vectors_serial.toml"
+path = ".specs/01_research/test_vectors/test_vectors_serial.toml"
+categories = ["Basic Types", "Compound Types", "Nested Types", "Large State", "Edge Cases", "Corruption"]
+
+[yellow_paper.constraints]
+file = "domain_constraints_serial.toml"
+path = ".specs/01_research/domain_constraints/domain_constraints_serial.toml"
+
+[yellow_paper.dependencies]
+axioms_from = []
+lemmas_from = []
+related_papers = ["YP-NETWORK-MESH-001", "YP-WASM-RUNTIME-001"]
+
+[yellow_paper.consumers]
+blue_papers = []
+green_papers = []
+
+[yellow_paper.performance_targets]
+hydration_time_ms = 50
+validation_time_ms = 5
+archive_overhead_percent = 15
+checksum_overhead_percent = 1
+
+# ==============================================================================
+# YP-ASYNC-IOURING-001: Async I/O with io_uring and Monoio
+# ==============================================================================
+
+[[yellow_paper]]
+id = "YP-ASYNC-IOURING-001"
+title = "Async I/O with io_uring and Monoio"
+status = "DRAFT"
+version = "1.0.0"
+created = "2026-03-05"
+author = "DeepThought"
+confidence_level = 0.94
+tqa_level = 4
+
+[yellow_paper.scope]
+domain = "Async I/O"
+subdomains = ["io_uring", "Zero-Copy I/O", "Thread-Per-Core", "Proactor Pattern"]
+applicable_standards = ["Linux io_uring", "Monoio Runtime", "RFC 9000"]
+
+[yellow_paper.formal_elements]
+axioms = ["AX-ASYNC-001", "AX-ASYNC-002", "AX-ASYNC-003", "AX-ASYNC-004"]
+definitions = ["DEF-ASYNC-001", "DEF-ASYNC-002", "DEF-ASYNC-003", "DEF-ASYNC-004", "DEF-ASYNC-005"]
+theorems = ["THM-ASYNC-001", "THM-ASYNC-002", "THM-ASYNC-003", "THM-ASYNC-004"]
+algorithms = ["ALG-ASYNC-001", "ALG-ASYNC-002", "ALG-ASYNC-003", "ALG-ASYNC-004", "ALG-ASYNC-005"]
+
+[yellow_paper.test_vectors]
+file = "test_vectors_async.toml"
+path = ".specs/01_research/test_vectors/test_vectors_async.toml"
+categories = ["Ring Buffer Operations", "Submission/Completion Semantics", "Zero-Copy I/O", "Backpressure", "Thread-Per-Core Scaling", "Error Handling"]
+
+[yellow_paper.constraints]
+file = "domain_constraints_async.toml"
+path = ".specs/01_research/domain_constraints/domain_constraints_async.toml"
+
+[yellow_paper.dependencies]
+axioms_from = []
+lemmas_from = []
+related_papers = ["YP-NETWORK-MESH-001", "YP-VIRT-KVM-001"]
+
+[yellow_paper.consumers]
+blue_papers = []
+green_papers = []
+
+[yellow_paper.performance_targets]
+io_overhead_ns = 1000
+submit_latency_ns = 100
+batch_size_max = 256
+scalability_factor = 1.0
+
+# ==============================================================================
+# Cross-Paper Dependency Graph
+# ==============================================================================
+
+[dependency_graph]
+description = "Formal dependencies between Yellow Papers"
+
+[[dependency_graph.edge]]
+from = "YP-ASYNC-IOURING-001"
+to = "YP-NETWORK-MESH-001"
+relationship = "enables"
+description = "io_uring provides async I/O foundation for QUIC networking"
+
+[[dependency_graph.edge]]
+from = "YP-SERIAL-RKYV-001"
+to = "YP-NETWORK-MESH-001"
+relationship = "enables"
+description = "Zero-copy serialization enables actor migration across mesh"
+
+[[dependency_graph.edge]]
+from = "YP-VIRT-KVM-001"
+to = "YP-WASM-RUNTIME-001"
+relationship = "supports"
+description = "MicroVM isolation provides additional sandboxing layer for WASM"
+
+[[dependency_graph.edge]]
+from = "YP-ASYNC-IOURING-001"
+to = "YP-VIRT-KVM-001"
+relationship = "supports"
+description = "Async I/O used for MicroVM device emulation"
+
+# ==============================================================================
+# Statistics
+# ==============================================================================
+
+[statistics]
+total_axioms = 11
+total_definitions = 10
+total_theorems = 15
+total_algorithms = 20
+total_test_vector_files = 5
+total_constraint_files = 5
+average_confidence = 0.944
+average_tqa_level = 4.0

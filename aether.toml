@@ -1,0 +1,43 @@
+# Aether Sample Configuration
+# This demonstrates all available configuration options
+
+[project]
+name = "aether-dev"
+version = "0.1.0"
+
+# WASM Actor Example
+[[actor]]
+name = "api-gateway"
+kind = "wasm"
+image = "examples/hello-actor/target/wasm32-wasip1/release/hello_actor.wasm"
+instances = "autoscaling"
+
+[actor.capabilities]
+networking = "public"
+env = true
+
+# Stateful Actor Example
+[[actor]]
+name = "stateful-service"
+kind = "wasm"
+image = "examples/stateful-actor/target/wasm32-wasip1/release/stateful_actor.wasm"
+instances = 1
+
+[actor.capabilities]
+networking = "private"
+
+[actor.capabilities.volumes]
+state = { path = "/state", size = "100MB" }
+
+# Legacy OCI Container Example
+[[actor]]
+name = "postgres"
+kind = "oci"
+image = "postgres:15-alpine"
+instances = 1
+
+[actor.capabilities]
+networking = "private"
+
+[actor.capabilities.volumes]
+data = { path = "/var/lib/postgresql/data", size = "1GB" }

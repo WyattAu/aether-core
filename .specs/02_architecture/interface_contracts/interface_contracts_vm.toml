@@ -1,0 +1,397 @@
+# Interface Contracts for Firecracker MicroVM Manager
+# BP-FIRECRACKER-MANAGER-001 BP-5
+
+[meta]
+version = "1.0.0"
+last_updated = "2026-03-05"
+blue_paper = "BP-FIRECRACKER-MANAGER-001"
+
+# =============================================================================
+# IF-VM-001: VM Creation
+# =============================================================================
+
+[interfaces.IF-VM-001]
+name = "create_vm"
+description = "Creates a new Firecracker MicroVM with specified configuration"
+type = "async_function"
+visibility = "public"
+module = "vm_lifecycle"
+
+[interfaces.IF-VM-001.signature]
+return_type = "Result<VmHandle, VmError>"
+parameters = [
+    { name = "config", type = "VmConfig", traits = ["Validate", "Serialize"] },
+    { name = "ctx", type = "&VmContext", traits = ["HasKvmAccess", "HasStateStore"] },
+]
+
+[interfaces.IF-VM-001.preconditions]
+list = [
+    "config.vm_id is globally unique and valid UTF-8",
+    "config.memory_mb >= 128 && <= host_available_memory",
+    "config.vcpu_count >= 1 && <= host_vcpu_count",
+    "config.kernel_image_path exists and is readable",
+    "config.root_drive block device exists and is accessible",
+    "Caller has CAP_SYS_ADMIN or /dev/kvm access",
+]
+
+[interfaces.IF-VM-001.postconditions]
+list = [
+    "VM process is running in isolated jailer environment",
+    "All block devices attached via virtio-block",
+    "Network tap configured and connected",
+    "Resource limits enforced via cgroups",
+    "VM state persisted in state store",
+    "Returns Ok(vm_handle) with valid VM identifier",
+]
+
+[interfaces.IF-VM-001.errors]
+VmError_InvalidConfig = "Configuration violates preconditions"
+VmError_ResourceExhausted = "Insufficient host resources"
+VmError_KernelError = "KVM initialization failed"
+VmError_JailerError = "Jailer setup failed"
+
+[interfaces.IF-VM-001.timing]
+p99_max_ms = 125
+reference = "YP-VIRT-KVM-001 Thm 3.1"
+
+[interfaces.IF-VM-001.examples]
+success = """
+let config = VmConfig {
+    vm_id: "vm-12345".to_string(),
+    memory_mb: 512,
+    vcpu_count: 2,
+    kernel_image_path: PathBuf::from("/var/lib/firecracker/vmlinux"),
+    kernel_cmdline: KernelCmdline::default(),
+    root_drive: DriveSpec {
+        path: PathBuf::from("/var/lib/vms/vm-12345/rootfs.ext4"),
+        read_only: false,
+    },
+    ..Default::default()
+};
+
+let handle = create_vm(config, &ctx).await?;
+assert!(handle.vm_id == "vm-12345");
+"""
+
+# =============================================================================
+# IF-VM-002: VM Destruction
+# =============================================================================
+
+[interfaces.IF-VM-002]
+name = "destroy_vm"
+description = "Destroys a running Firecracker MicroVM and cleans up all resources"
+type = "async_function"
+visibility = "public"
+module = "vm_lifecycle"
+
+[interfaces.IF-VM-002.signature]
+return_type = "Result<DestructionReport, VmError>"
+parameters = [
+    { name = "vm_id", type = "VmId" },
+    { name = "ctx", type = "&VmContext", traits = ["HasStateStore", "HasProcessControl"] },
+    { name = "force", type = "bool", default = "false" },
+]
+
+[interfaces.IF-VM-002.preconditions]
+list = [
+    "vm_id corresponds to an existing, running VM",
+    "Caller has permission to destroy this VM",
+    "No pending operations on this VM (unless force=true)",
+]
+
+[interfaces.IF-VM-002.postconditions]
+list = [
+    "VM process terminated (SIGKILL if graceful shutdown fails)",
+    "All block devices detached and released",
+    "Network tap device deleted",
+    "cgroups removed",
+    "Jailer directory cleaned up",
+    "VM state removed from state store",
+    "Returns Ok(()) on successful cleanup",
+]
+
+[interfaces.IF-VM-002.errors]
+VmError_NotFound = "VM does not exist"
+VmError_CleanupFailed = "Partial cleanup occurred (logged, retried)"
+
+[interfaces.IF-VM-002.timing]
+p99_max_ms = 50
+reference = "Resource cleanup SLA"
+
+[interfaces.IF-VM-002.guarantees]
+cleanup = "All resources released per YP-VIRT-KVM-001 Thm 4.1"
+idempotent = "Multiple calls safe"
+atomic = "Cleanup succeeds completely or fails completely"
+
+# =============================================================================
+# IF-VM-003: Volume Attachment
+# =============================================================================
+
+[interfaces.IF-VM-003]
+name = "attach_volume"
+description = "Attaches a block device to a running VM"
+type = "async_function"
+visibility = "public"
+module = "block_device_manager"
+
+[interfaces.IF-VM-003.signature]
+return_type = "Result<DevicePath, VolumeError>"
+parameters = [
+    { name = "vm_id", type = "VmId" },
+    { name = "volume_spec", type = "VolumeSpec", traits = ["Validate"] },
+    { name = "ctx", type = "&VmContext", traits = ["HasFirecrackerApi"] },
+]
+
+[interfaces.IF-VM-003.preconditions]
+list = [
+    "vm_id corresponds to a running VM",
+    "volume_spec.device_id is unique within this VM",
+    "volume_spec.path exists and is accessible",
+    "volume_spec.read_only flag is respected by underlying device",
+    "VM has available virtio-block slots (max 8)",
+]
+
+[interfaces.IF-VM-003.postconditions]
+list = [
+    "Block device visible inside VM at /dev/vd{a-h}",
+    "Device accessible per read_only specification",
+    "Volume attachment recorded in VM state",
+    "Returns Ok(device_path) with guest-visible path",
+]
+
+[interfaces.IF-VM-003.errors]
+VolumeError_VmNotFound = "VM does not exist"
+VolumeError_DeviceNotFound = "Volume path invalid"
+VolumeError_SlotExhausted = "Maximum devices already attached"
+VolumeError_AttachFailed = "Virtio negotiation failed"
+
+[interfaces.IF-VM-003.timing]
+p99_max_ms = 30
+reference = "Hot-plug latency requirement"
+
+# =============================================================================
+# IF-VM-004: Network Configuration
+# =============================================================================
+
+[interfaces.IF-VM-004]
+name = "configure_network"
+description = "Configures network tap device for a VM"
+type = "async_function"
+visibility = "public"
+module = "network_tap_manager"
+
+[interfaces.IF-VM-004.signature]
+return_type = "Result<TapFd, NetworkError>"
+parameters = [
+    { name = "vm_id", type = "VmId" },
+    { name = "net_spec", type = "NetworkSpec", traits = ["Validate"] },
+    { name = "ctx", type = "&VmContext", traits = ["HasNetworkNamespace"] },
+]
+
+[interfaces.IF-VM-004.preconditions]
+list = [
+    "vm_id corresponds to a running VM (or about to start)",
+    "net_spec.tap_name is unique system-wide",
+    "net_spec.ip_config does not conflict with existing taps",
+    "Caller has NET_ADMIN capability",
+]
+
+[interfaces.IF-VM-004.postconditions]
+list = [
+    "TAP device created with specified name",
+    "TAP connected to VM via virtio-net",
+    "IP address configured on TAP device",
+    "Network namespace isolated per jailer config",
+    "Returns Ok(tap_fd) with TAP file descriptor",
+]
+
+[interfaces.IF-VM-004.errors]
+NetworkError_TapExists = "TAP name already in use"
+NetworkError_IpConflict = "IP address already assigned"
+NetworkError_PermissionDenied = "Lacking NET_ADMIN capability"
+NetworkError_VirtioFailed = "Virtio-net initialization failed"
+
+[interfaces.IF-VM-004.timing]
+p99_max_ms = 20
+reference = "Network setup latency"
+
+# =============================================================================
+# Data Structures
+# =============================================================================
+
+[types.VmId]
+description = "Unique identifier for a VM instance"
+type = "String"
+constraints = ["length(min=1, max=64)", "regex='^[a-z0-9-]+$'"]
+
+[types.VmHandle]
+description = "Handle to a created VM"
+fields = [
+    { name = "vm_id", type = "VmId" },
+    { name = "pid", type = "u32" },
+    { name = "created_at", type = "DateTime<Utc>" },
+    { name = "socket_path", type = "PathBuf" },
+]
+
+[types.VmConfig]
+description = "Complete configuration for a Firecracker MicroVM"
+fields = [
+    { name = "vm_id", type = "String", validate = "length(min=1, max=64)" },
+    { name = "memory_mb", type = "u32", validate = "range(min=128, max=16384)" },
+    { name = "vcpu_count", type = "u8", validate = "range(min=1, max=32)" },
+    { name = "kernel_image_path", type = "PathBuf", validate = "length(min=1)" },
+    { name = "kernel_cmdline", type = "KernelCmdline" },
+    { name = "root_drive", type = "DriveSpec" },
+    { name = "additional_drives", type = "Vec<DriveSpec>", validate = "length(max=7)" },
+    { name = "network_interfaces", type = "Vec<NetworkInterfaceSpec>", validate = "length(max=4)" },
+    { name = "limits", type = "ResourceLimits" },
+    { name = "jailer", type = "JailerConfig" },
+]
+
+[types.VolumeSpec]
+description = "Block device specification for VM attachment"
+fields = [
+    { name = "device_id", type = "String", validate = "length(min=1, max=32)" },
+    { name = "path", type = "PathBuf", validate = "length(min=1)" },
+    { name = "read_only", type = "bool" },
+    { name = "cache_mode", type = "CacheMode" },
+    { name = "io_engine", type = "IoEngine" },
+]
+
+[types.NetworkSpec]
+description = "Network interface specification for VM"
+fields = [
+    { name = "tap_name", type = "String", validate = "length(min=1, max=15)" },
+    { name = "iface", type = "InterfaceConfig" },
+    { name = "rx_rate_limiter", type = "Option<RateLimiterConfig>" },
+    { name = "tx_rate_limiter", type = "Option<RateLimiterConfig>" },
+]
+
+# =============================================================================
+# Error Types
+# =============================================================================
+
+[errors.VmError]
+variants = [
+    { name = "InvalidConfig", fields = ["field: String", "reason: String"] },
+    { name = "ResourceExhausted", fields = ["resource: String", "requested: u64", "available: u64"] },
+    { name = "KernelError", fields = ["errno: i32", "message: String"] },
+    { name = "JailerError", fields = ["step: String", "cause: String"] },
+    { name = "NotFound", fields = ["vm_id: VmId"] },
+    { name = "CleanupFailed", fields = ["vm_id: VmId", "failed_resources: Vec<String>"] },
+]
+
+[errors.VolumeError]
+variants = [
+    { name = "VmNotFound", fields = ["vm_id: VmId"] },
+    { name = "DeviceNotFound", fields = ["path: PathBuf"] },
+    { name = "SlotExhausted", fields = ["vm_id: VmId", "max_slots: u8"] },
+    { name = "AttachFailed", fields = ["device_id: String", "reason: String"] },
+]
+
+[errors.NetworkError]
+variants = [
+    { name = "TapExists", fields = ["tap_name: String"] },
+    { name = "IpConflict", fields = ["ip: IpAddr"] },
+    { name = "PermissionDenied", fields = ["capability: String"] },
+    { name = "VirtioFailed", fields = ["reason: String"] },
+]
+
+# =============================================================================
+# Invariants
+# =============================================================================
+
+[invariants.global]
+list = [
+    "Each VM has exactly one Firecracker process",
+    "Each VM has exactly one jailer chroot directory",
+    "Each VM has exactly one cgroup subtree",
+    "VM IDs are globally unique across all time",
+    "All file descriptors are closed on VM destruction",
+    "All child processes are reaped on VM destruction",
+]
+
+[invariants.isolation]
+list = [
+    "VMs cannot access each other's filesystems",
+    "VMs cannot access each other's network namespaces",
+    "VMs cannot signal each other's processes",
+    "VMs cannot exceed configured resource limits",
+]
+
+[invariants.cleanup]
+list = [
+    "destroy_vm is idempotent",
+    "destroy_vm releases all resources atomically",
+    "Partial cleanup is logged and retryable",
+    "State store is updated only after successful cleanup",
+]
+
+# =============================================================================
+# Performance Contracts
+# =============================================================================
+
+[performance.boot]
+operation = "create_vm"
+p50_ms = 85
+p95_ms = 110
+p99_ms = 125
+p999_ms = 150
+
+[performance.destroy]
+operation = "destroy_vm"
+p50_ms = 25
+p95_ms = 40
+p99_ms = 50
+p999_ms = 75
+
+[performance.attach]
+operation = "attach_volume"
+p50_ms = 15
+p95_ms = 25
+p99_ms = 30
+p999_ms = 50
+
+[performance.network]
+operation = "configure_network"
+p50_ms = 10
+p95_ms = 15
+p99_ms = 20
+p999_ms = 35
+
+# =============================================================================
+# Testing Requirements
+# =============================================================================
+
+[testing.unit]
+required = true
+coverage_min = 80
+
+[testing.integration]
+required = true
+scenarios = [
+    "VM lifecycle (create -> destroy)",
+    "Volume hot-plug",
+    "Network configuration",
+    "Resource exhaustion",
+    "Error recovery",
+    "Concurrent VM creation",
+]
+
+[testing.chaos]
+required = true
+scenarios = [
+    "Kill Firecracker process mid-boot",
+    "Network partition during setup",
+    "Disk I/O errors during attachment",
+    "Memory pressure",
+]
+
+[testing.property]
+required = true
+properties = [
+    "VM IDs are unique",
+    "Cleanup is complete",
+    "Isolation is maintained",
+    "Timing bounds are respected",
+]

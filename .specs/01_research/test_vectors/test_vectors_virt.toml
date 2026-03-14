@@ -1,0 +1,498 @@
+[aether]
+project = "aether-core"
+domain = "virtualization"
+document_ref = "YP-VIRT-KVM-001"
+version = "1.0.0"
+
+[metadata]
+purpose = "Test vectors for hardware virtualization and KVM isolation properties"
+created = "2026-03-05"
+classification = "Technical Specification"
+
+[test_vectors.boot_time]
+description = "MicroVM boot time validation vectors"
+
+[[test_vectors.boot_time.cases]]
+id = "TV-BOOT-001"
+name = "minimal_boot_time"
+description = "Boot time for minimal MicroVM configuration"
+category = "performance"
+input = { vcpu_count = 1, mem_size_mib = 128, has_network = false, kernel_size_kb = 8192 }
+expected_output = { boot_time_ms_max = 125, boot_time_ms_typical = 80 }
+validation = "boot_time_ms ≤ boot_time_ms_max"
+axiom_ref = "ALG-VIRT-001"
+
+[[test_vectors.boot_time.cases]]
+id = "TV-BOOT-002"
+name = "standard_boot_time"
+description = "Boot time for standard MicroVM configuration"
+category = "performance"
+input = { vcpu_count = 2, mem_size_mib = 512, has_network = true, kernel_size_kb = 12288 }
+expected_output = { boot_time_ms_max = 125, boot_time_ms_typical = 95 }
+validation = "boot_time_ms ≤ boot_time_ms_max"
+axiom_ref = "ALG-VIRT-001"
+
+[[test_vectors.boot_time.cases]]
+id = "TV-BOOT-003"
+name = "large_memory_boot"
+description = "Boot time with large memory allocation"
+category = "performance"
+input = { vcpu_count = 4, mem_size_mib = 4096, has_network = true, kernel_size_kb = 16384 }
+expected_output = { boot_time_ms_max = 150, boot_time_ms_typical = 110 }
+validation = "boot_time_ms ≤ boot_time_ms_max"
+notes = "Large memory may exceed 125ms target due to page zeroing"
+axiom_ref = "ALG-VIRT-001"
+
+[[test_vectors.boot_time.cases]]
+id = "TV-BOOT-004"
+name = "boot_failure_invalid_kernel"
+description = "Boot failure with invalid kernel image"
+category = "error_handling"
+input = { vcpu_count = 1, mem_size_mib = 128, kernel_path = "/nonexistent/vmlinux" }
+expected_output = { error = "KernelNotFound", phase = "Validation" }
+validation = "error.type == 'KernelNotFound'"
+axiom_ref = "ALG-VIRT-001"
+
+[[test_vectors.boot_time.cases]]
+id = "TV-BOOT-005"
+name = "boot_failure_insufficient_memory"
+description = "Boot failure when requesting more memory than available"
+category = "error_handling"
+input = { vcpu_count = 1, mem_size_mib = 1048576, available_host_memory_mib = 32768 }
+expected_output = { error = "InsufficientMemory", phase = "Validation" }
+validation = "error.type == 'InsufficientMemory'"
+axiom_ref = "ALG-VIRT-001"
+
+[test_vectors.memory_isolation]
+description = "Memory isolation property validation vectors"
+
+[[test_vectors.memory_isolation.cases]]
+id = "TV-MEM-001"
+name = "ept_isolation"
+description = "Guest cannot access host physical memory via EPT"
+category = "security"
+input = { guest_operation = "read_memory", guest_physical_addr = "0xDEADBEEF000" }
+precondition = "GPA not mapped in EPT"
+expected_output = { result = "VMExit", exit_reason = "EPT_VIOLATION" }
+validation = "exit_reason == 'EPT_VIOLATION' AND host_memory_unchanged == true"
+theorem_ref = "THM-VIRT-001"
+
+[[test_vectors.memory_isolation.cases]]
+id = "TV-MEM-002"
+name = "guest_physical_limit"
+description = "Guest cannot access beyond allocated physical memory"
+category = "security"
+input = { guest_operation = "read_memory", guest_physical_addr = "mem_size + 4096" }
+precondition = "Address beyond guest physical memory range"
+expected_output = { result = "VMExit", exit_reason = "EPT_VIOLATION" }
+validation = "exit_reason == 'EPT_VIOLATION'"
+theorem_ref = "THM-VIRT-001"
+
+[[test_vectors.memory_isolation.cases]]
+id = "TV-MEM-003"
+name = "dma_protection"
+description = "IOMMU prevents DMA to host memory"
+category = "security"
+input = { device_passthrough = true, dma_operation = "write", target_host_addr = "0xFFFF800000000000" }
+precondition = "IOMMU enabled and configured"
+expected_output = { result = "DMABlocked", iommu_fault = true }
+validation = "iommu_fault == true AND host_memory_unchanged == true"
+theorem_ref = "THM-VIRT-001"
+
+[[test_vectors.memory_isolation.cases]]
+id = "TV-MEM-004"
+name = "memory_overcommit_protection"
+description = "Multiple VMs have isolated memory spaces"
+category = "security"
+input = { vm1_write_addr = "0x1000", vm1_write_value = "0xAAAAAAAA", vm2_read_addr = "0x1000" }
+precondition = "VM1 and VM2 running on same host"
+expected_output = { vm2_read_value = "NOT_0xAAAAAAAA" }
+validation = "vm2.memory[0x1000] != 0xAAAAAAAA"
+theorem_ref = "THM-VIRT-001"
+
+[test_vectors.vm_exit]
+description = "VM exit determinism validation vectors"
+
+[[test_vectors.vm_exit.cases]]
+id = "TV-EXIT-001"
+name = "cpuid_exit"
+description = "CPUID instruction triggers deterministic VM exit"
+category = "determinism"
+input = { instruction = "CPUID", eax_in = 0x01 }
+expected_output = { exit_reason = "CPUID", deterministic = true }
+validation = "exit_reason == 'CPUID' AND instruction_pointer_preserved == true"
+axiom_ref = "AX-VIRT-002"
+
+[[test_vectors.vm_exit.cases]]
+id = "TV-EXIT-002"
+name = "io_port_exit"
+description = "I/O port access triggers VM exit"
+category = "determinism"
+input = { instruction = "OUT", port = 0x60, value = 0x42 }
+expected_output = { exit_reason = "IO_INSTRUCTION", qualification = "OUT" }
+validation = "exit_reason == 'IO_INSTRUCTION'"
+axiom_ref = "AX-VIRT-002"
+
+[[test_vectors.vm_exit.cases]]
+id = "TV-EXIT-003"
+name = "msr_read_exit"
+description = "MSR read triggers VM exit"
+category = "determinism"
+input = { instruction = "RDMSR", ecx_in = 0xC0000080 }
+expected_output = { exit_reason = "MSR_READ" }
+validation = "exit_reason == 'MSR_READ'"
+axiom_ref = "AX-VIRT-002"
+
+[[test_vectors.vm_exit.cases]]
+id = "TV-EXIT-004"
+name = "mmio_exit"
+description = "MMIO access triggers EPT violation converted to MMIO"
+category = "determinism"
+input = { operation = "read", address = "MMIO_REGION_START" }
+precondition = "Address in MMIO range, not backed by RAM"
+expected_output = { exit_reason = "EPT_VIOLATION", mmio_handler_invoked = true }
+validation = "mmio_handler_invoked == true"
+axiom_ref = "AX-VIRT-002"
+
+[[test_vectors.vm_exit.cases]]
+id = "TV-EXIT-005"
+name = "hlt_exit"
+description = "HLT instruction triggers VM exit for scheduling"
+category = "scheduling"
+input = { instruction = "HLT" }
+expected_output = { exit_reason = "HLT" }
+validation = "exit_reason == 'HLT'"
+axiom_ref = "AX-VIRT-002"
+
+[test_vectors.rate_limiting]
+description = "I/O rate limiting validation vectors"
+
+[[test_vectors.rate_limiting.cases]]
+id = "TV-RATE-001"
+name = "block_read_rate_limit"
+description = "Block device read rate limiting enforcement"
+category = "resource_confinement"
+input = { operation = "read", bytes_requested = 104857600, rate_limit_bps = 10485760 }
+expected_output = { actual_time_seconds_min = 10.0, burst_allowed = true }
+validation = "actual_time_seconds >= (bytes_requested / rate_limit_bps)"
+theorem_ref = "THM-VIRT-002"
+
+[[test_vectors.rate_limiting.cases]]
+id = "TV-RATE-002"
+name = "block_write_rate_limit"
+description = "Block device write rate limiting enforcement"
+category = "resource_confinement"
+input = { operation = "write", bytes_requested = 52428800, rate_limit_bps = 5242880 }
+expected_output = { actual_time_seconds_min = 10.0 }
+validation = "actual_time_seconds >= (bytes_requested / rate_limit_bps)"
+theorem_ref = "THM-VIRT-002"
+
+[[test_vectors.rate_limiting.cases]]
+id = "TV-RATE-003"
+name = "network_tx_rate_limit"
+description = "Network TX rate limiting enforcement"
+category = "resource_confinement"
+input = { packets_count = 10000, packet_size = 1500, rate_limit_bps = 15000000 }
+expected_output = { actual_time_seconds_min = 8.0 }
+validation = "actual_time_seconds >= (packets_count * packet_size * 8 / rate_limit_bps)"
+theorem_ref = "THM-VIRT-002"
+
+[[test_vectors.rate_limiting.cases]]
+id = "TV-RATE-004"
+name = "network_rx_rate_limit"
+description = "Network RX rate limiting enforcement"
+category = "resource_confinement"
+input = { incoming_packets_count = 5000, packet_size = 1500, rate_limit_bps = 7500000 }
+expected_output = { packets_dropped = true, actual_rate ≤ rate_limit_bps }
+validation = "effective_rate <= rate_limit_bps"
+theorem_ref = "THM-VIRT-002"
+
+[[test_vectors.rate_limiting.cases]]
+id = "TV-RATE-005"
+name = "iops_rate_limit"
+description = "IOPS rate limiting enforcement"
+category = "resource_confinement"
+input = { operations_count = 10000, iops_limit = 1000 }
+expected_output = { actual_time_seconds_min = 10.0 }
+validation = "actual_time_seconds >= (operations_count / iops_limit)"
+theorem_ref = "THM-VIRT-002"
+
+[[test_vectors.rate_limiting.cases]]
+id = "TV-RATE-006"
+name = "burst_handling"
+description = "Token bucket burst allowance"
+category = "resource_confinement"
+input = { burst_size_bytes = 1048576, sustained_rate_bps = 1048576, request_size = 524288 }
+precondition = "Bucket full after idle period"
+expected_output = { immediate_completion = true }
+validation = "request_size <= burst_size_bytes"
+theorem_ref = "THM-VIRT-002"
+
+[test_vectors.block_device]
+description = "Block device attachment validation vectors"
+
+[[test_vectors.block_device.cases]]
+id = "TV-BLK-001"
+name = "root_device_attach"
+description = "Root block device attachment"
+category = "device_management"
+input = { drive_id = "rootfs", path = "/var/lib/aether/rootfs.ext4", is_root = true, read_only = false }
+expected_output = { device_visible = true, guest_path = "/dev/vda", bootable = true }
+validation = "device_attached == true AND guest_sees_device == true"
+algorithm_ref = "ALG-VIRT-002"
+
+[[test_vectors.block_device.cases]]
+id = "TV-BLK-002"
+name = "secondary_device_attach"
+description = "Secondary block device attachment to running VM"
+category = "device_management"
+input = { drive_id = "data", path = "/var/lib/aether/data.ext4", is_root = false, read_only = true }
+precondition = "VM state == Running"
+expected_output = { device_visible = true, guest_path = "/dev/vdb", read_only = true }
+validation = "device_attached == true AND write_blocked == true"
+algorithm_ref = "ALG-VIRT-002"
+
+[[test_vectors.block_device.cases]]
+id = "TV-BLK-003"
+name = "device_detach"
+description = "Block device detachment"
+category = "device_management"
+input = { drive_id = "data", action = "detach" }
+precondition = "Device attached and not in use"
+expected_output = { device_removed = true }
+validation = "device_attached == false"
+algorithm_ref = "ALG-VIRT-002"
+
+[[test_vectors.block_device.cases]]
+id = "TV-BLK-004"
+name = "device_detach_in_use"
+description = "Block device detachment while in use"
+category = "error_handling"
+input = { drive_id = "data", action = "detach" }
+precondition = "Device has open file handles in guest"
+expected_output = { error = "DeviceInUse", device_attached = true }
+validation = "error.type == 'DeviceInUse'"
+algorithm_ref = "ALG-VIRT-002"
+
+[[test_vectors.block_device.cases]]
+id = "TV-BLK-005"
+name = "invalid_device_path"
+description = "Attachment with invalid path"
+category = "error_handling"
+input = { drive_id = "invalid", path = "/nonexistent/device.img" }
+expected_output = { error = "DeviceNotFound" }
+validation = "error.type == 'DeviceNotFound'"
+algorithm_ref = "ALG-VIRT-002"
+
+[test_vectors.network_tap]
+description = "Network TAP configuration validation vectors"
+
+[[test_vectors.network_tap.cases]]
+id = "TV-NET-001"
+name = "tap_creation"
+description = "TAP device creation"
+category = "device_management"
+input = { iface_id = "eth0", guest_mac = "02:FC:00:00:00:01", host_dev_name = "tap0" }
+expected_output = { tap_created = true, interface_up = true, mac_configured = true }
+validation = "tap_exists == true AND interface_state == 'UP'"
+algorithm_ref = "ALG-VIRT-003"
+
+[[test_vectors.network_tap.cases]]
+id = "TV-NET-002"
+name = "packet_tx"
+description = "Packet transmission from guest to network"
+category = "data_transfer"
+input = { direction = "tx", packet_size = 1500, packet_count = 100 }
+precondition = "TAP device configured and up"
+expected_output = { packets_delivered = 100, host_received = 100 }
+validation = "tx_count == host_rx_count"
+algorithm_ref = "ALG-VIRT-003"
+
+[[test_vectors.network_tap.cases]]
+id = "TV-NET-003"
+name = "packet_rx"
+description = "Packet reception from network to guest"
+category = "data_transfer"
+input = { direction = "rx", packet_size = 1500, packet_count = 100 }
+precondition = "TAP device configured and up"
+expected_output = { packets_delivered = 100, guest_received = 100 }
+validation = "rx_count == guest_rx_count"
+algorithm_ref = "ALG-VIRT-003"
+
+[[test_vectors.network_tap.cases]]
+id = "TV-NET-004"
+name = "mmds_access"
+description = "MicroVM Metadata Service access"
+category = "metadata"
+input = { mmds_enabled = true, request_url = "http://169.254.169.254/latest/meta-data/" }
+precondition = "MMDS configured"
+expected_output = { response_code = 200, content = "metadata_response" }
+validation = "response_code == 200"
+algorithm_ref = "ALG-VIRT-003"
+
+[[test_vectors.network_tap.cases]]
+id = "TV-NET-005"
+name = "mmds_disabled"
+description = "MMDS access when disabled"
+category = "security"
+input = { mmds_enabled = false, request_url = "http://169.254.169.254/latest/meta-data/" }
+precondition = "MMDS not configured"
+expected_output = { response_code = "timeout_or_connection_refused" }
+validation = "response_code != 200"
+algorithm_ref = "ALG-VIRT-003"
+
+[[test_vectors.network_tap.cases]]
+id = "TV-NET-006"
+name = "mac_address_validation"
+description = "Invalid MAC address rejection"
+category = "error_handling"
+input = { guest_mac = "01:00:5E:00:00:01" }
+precondition = "MAC is multicast address"
+expected_output = { error = "InvalidMacAddress", reason = "multicast_not_allowed" }
+validation = "error.type == 'InvalidMacAddress'"
+algorithm_ref = "ALG-VIRT-003"
+
+[test_vectors.resource_confinement]
+description = "Resource confinement validation vectors"
+
+[[test_vectors.resource_confinement.cases]]
+id = "TV-RES-001"
+name = "vcpu_count_limit"
+description = "vCPU count cannot exceed allocation"
+category = "resource_limit"
+input = { allocated_vcpus = 2, attempted_vcpu_usage = 4 }
+expected_output = { actual_vcpus = 2, excess_blocked = true }
+validation = "active_vcpus <= allocated_vcpus"
+theorem_ref = "THM-VIRT-002"
+
+[[test_vectors.resource_confinement.cases]]
+id = "TV-RES-002"
+name = "memory_limit"
+description = "Memory usage cannot exceed allocation"
+category = "resource_limit"
+input = { allocated_memory_mib = 256, attempted_allocation_mib = 512 }
+expected_output = { actual_memory_mib = 256, oom_triggered = true }
+validation = "memory_used <= allocated_memory"
+theorem_ref = "THM-VIRT-002"
+
+[[test_vectors.resource_confinement.cases]]
+id = "TV-RES-003"
+name = "cpu_time_quota"
+description = "CPU time quota enforcement"
+category = "resource_limit"
+input = { cpu_quota_micros = 50000, cpu_period_micros = 100000, wall_time_seconds = 10 }
+expected_output = { cpu_time_used_seconds_max = 5.0 }
+validation = "cpu_time_used <= (cpu_quota / cpu_period) * wall_time"
+theorem_ref = "THM-VIRT-002"
+
+[[test_vectors.resource_confinement.cases]]
+id = "TV-RES-004"
+name = "no_swap_allowed"
+description = "Swap is disabled for MicroVMs"
+category = "resource_limit"
+input = { memory_pressure = "high", swap_enabled_host = true }
+expected_output = { vm_swap_usage = 0, oom_kill_possible = true }
+validation = "swap_usage == 0"
+theorem_ref = "THM-VIRT-002"
+
+[test_vectors.security_properties]
+description = "Security property validation vectors"
+
+[[test_vectors.security_properties.cases]]
+id = "TV-SEC-001"
+name = "privileged_instruction_intercept"
+description = "Privileged instructions are intercepted"
+category = "security"
+input = { instruction = "CLI" }
+precondition = "Running in guest mode"
+expected_output = { exit_reason = "PRIVILEGED_INSTRUCTION" }
+validation = "intercepted == true AND host_interrupts_unchanged == true"
+axiom_ref = "AX-VIRT-001"
+
+[[test_vectors.security_properties.cases]]
+id = "TV-SEC-002"
+name = "debug_register_isolation"
+description = "Debug registers isolated between VMs"
+category = "security"
+input = { vm1_set_dr0 = "0x12345678", vm2_read_dr0 = true }
+precondition = "VMs running concurrently"
+expected_output = { vm2_dr0 = "NOT_0x12345678" }
+validation = "vm2.dr0 != vm1.dr0"
+axiom_ref = "AX-VIRT-001"
+
+[[test_vectors.security_properties.cases]]
+id = "TV-SEC-003"
+name = "msr_filtering"
+description = "Sensitive MSRs are filtered"
+category = "security"
+input = { msr = "IA32_FEATURE_CONTROL", operation = "write" }
+precondition = "MSR in deny list"
+expected_output = { exit_reason = "MSR_WRITE", write_blocked = true }
+validation = "write_blocked == true"
+axiom_ref = "AX-VIRT-002"
+
+[[test_vectors.security_properties.cases]]
+id = "TV-SEC-004"
+name = "cpuid_masking"
+description = "CPUID features are masked"
+category = "security"
+input = { leaf = "0x01", host_has_feature = "VMX", guest_query = true }
+precondition = "VMX hidden from guest"
+expected_output = { guest_ecx_bit_5 = 0 }
+validation = "guest_ecx.VMX_bit == 0"
+axiom_ref = "AX-VIRT-002"
+
+[test_vectors.edge_cases]
+description = "Edge case validation vectors"
+
+[[test_vectors.edge_cases.cases]]
+id = "TV-EDGE-001"
+name = "zero_byte_transfer"
+description = "Zero byte I/O request handling"
+category = "edge_case"
+input = { operation = "read", bytes_requested = 0 }
+expected_output = { bytes_transferred = 0, error = "none" }
+validation = "bytes_transferred == 0"
+
+[[test_vectors.edge_cases.cases]]
+id = "TV-EDGE-002"
+name = "max_packet_size"
+description = "Maximum packet size handling"
+category = "edge_case"
+input = { packet_size = 65535, direction = "tx" }
+expected_output = { packet_delivered = true }
+validation = "packet_delivered == true"
+
+[[test_vectors.edge_cases.cases]]
+id = "TV-EDGE-003"
+name = "concurrent_device_attach"
+description = "Concurrent device attachment attempts"
+category = "concurrency"
+input = { concurrent_requests = 2, drive_id = "same_id" }
+expected_output = { one_succeeded = true, one_failed = true, error = "DeviceExists" }
+validation = "exactly_one_succeeded == true"
+
+[[test_vectors.edge_cases.cases]]
+id = "TV-EDGE-004"
+name = "vcpu_hotplug_not_supported"
+description = "vCPU hotplug rejection"
+category = "edge_case"
+input = { action = "add_vcpu", current_count = 2, target_count = 3 }
+precondition = "Firecracker doesn't support vCPU hotplug"
+expected_output = { error = "VcpuHotplugNotSupported" }
+validation = "error.type == 'VcpuHotplugNotSupported'"
+
+[[test_vectors.edge_cases.cases]]
+id = "TV-EDGE-005"
+name = "memory_hotplug_not_supported"
+description = "Memory hotplug rejection"
+category = "edge_case"
+input = { action = "add_memory", current_mib = 256, target_mib = 512 }
+precondition = "Firecracker doesn't support memory hotplug"
+expected_output = { error = "MemoryHotplugNotSupported" }
+validation = "error.type == 'MemoryHotplugNotSupported'"
+
+[validation_schema]
+boot_time = { type = "object", required = ["boot_time_ms"], properties = { boot_time_ms = { type = "number", maximum = 150 } } }
+memory_isolation = { type = "object", required = ["host_memory_unchanged"], properties = { host_memory_unchanged = { type = "boolean", const = true } } }
+rate_limiting = { type = "object", required = ["actual_rate"], properties = { actual_rate = { type = "number" } } }

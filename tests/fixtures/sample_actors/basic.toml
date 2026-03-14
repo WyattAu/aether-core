@@ -1,0 +1,4 @@
+[[actor]]
+name = "basic"
+kind = "wasm"
+image = "basic.wasm"

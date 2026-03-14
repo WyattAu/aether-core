@@ -1,0 +1,22 @@
+syntax = "proto3";
+package aether.mesh;
+
+// The envelope for all inter-actor communication
+message ActorPacket {
+    string source_actor_id = 1;
+    string target_actor_id = 2;
+    uint64 trace_id = 3;
+    bytes payload = 4;
+}
+
+message Handshake {
+    string node_id = 1;
+    bytes public_key = 2;
+    uint32 protocol_version = 3;
+}
+
+message FlowControl {
+    enum Action { PAUSE = 0; RESUME = 1; }
+    Action action = 1;
+    uint64 buffer_remaining = 2;
+}

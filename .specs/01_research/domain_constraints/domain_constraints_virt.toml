@@ -1,0 +1,302 @@
+[aether]
+project = "aether-core"
+domain = "virtualization"
+document_ref = "YP-VIRT-KVM-001"
+version = "1.0.0"
+
+[metadata]
+purpose = "Domain constraints for hardware virtualization and KVM isolation"
+created = "2026-03-05"
+classification = "Technical Specification"
+
+[hardware_requirements]
+description = "Minimum hardware requirements for virtualization support"
+
+[hardware_requirements.cpu]
+min_cores = 2
+recommended_cores = 8
+virtualization_extensions = ["vmx", "svm"]
+features_required = [
+    "ept",
+    "vpid",
+    "unrestricted_guest",
+    "ple",
+]
+features_recommended = [
+    "vpids",
+    "tpr_shadow",
+    "virtual_apic",
+    "posted_interrupts",
+]
+
+[hardware_requirements.memory]
+min_host_memory_mib = 4096
+recommended_host_memory_mib = 32768
+min_guest_memory_mib = 128
+max_guest_memory_mib = 16384
+huge_pages_supported = [2048, 1048576]
+huge_pages_recommended = 2048
+
+[hardware_requirements.iommu]
+required = true
+purpose = "DMA protection for device passthrough"
+types_supported = ["intel_vt_d", "amd_vi"]
+
+[hardware_requirements.nested_virtualization]
+supported = false
+reason = "Firecracker does not support nested virtualization"
+
+[performance_constraints]
+description = "Performance bounds and targets for virtualization operations"
+
+[performance_constraints.boot]
+target_boot_time_ms = 125
+max_boot_time_ms = 150
+measurement_point = "VM start to guest init complete"
+factors = [
+    "kernel_size",
+    "memory_size",
+    "device_count",
+    "host_load",
+]
+
+[performance_constraints.latency]
+vm_exit_latency_ns_max = 1000
+vm_entry_latency_ns_max = 1000
+mmio_emulation_latency_ns_max = 5000
+io_emulation_latency_ns_max = 10000
+
+[performance_constraints.throughput]
+block_io_max_iops = 100000
+network_max_pps = 1000000
+network_max_bandwidth_gbps = 10
+
+[performance_constraints.overhead]
+virtualization_overhead_percent_max = 5
+memory_overhead_mib_per_vm = 8
+cpu_overhead_percent_per_vcpu = 2
+
+[security_constraints]
+description = "Security requirements and constraints"
+
+[security_constraints.isolation]
+memory_isolation = "hardware_enforced"
+ept_required = true
+iommu_required_for_passthrough = true
+smt_isolation = "recommended"
+
+[security_constraints.attack_surface]
+minimized_device_model = true
+no_bios_uefi = true
+no_vga = true
+no_usb = true
+no_floppy = true
+minimal_pci_devices = true
+
+[security_constraints.mitigations]
+spectre_v1 = "required"
+spectre_v2 = "required"
+meltdown = "required"
+l1tf = "required"
+mds = "required"
+taa = "required"
+implementation = "host_kernel_mitigations"
+
+[security_constraints.credentials]
+no_hardcoded_secrets = true
+metadata_service_only = true
+credential_rotation_supported = true
+
+[resource_limits]
+description = "Resource allocation limits"
+
+[resource_limits.vcpu]
+min_count = 1
+max_count = 32
+default_count = 1
+hotplug_supported = false
+
+[resource_limits.memory]
+min_mib = 128
+max_mib = 16384
+default_mib = 512
+hotplug_supported = false
+swap_allowed = false
+overcommit_allowed = false
+
+[resource_limits.block_devices]
+min_count = 1
+max_count = 8
+default_count = 1
+max_size_gib = 1024
+supported_formats = ["raw", "qcow2", "ext4"]
+direct_io_required = true
+
+[resource_limits.network]
+min_interfaces = 0
+max_interfaces = 4
+default_interfaces = 1
+supported_models = ["virtio-net"]
+max_rate_limit_gbps = 10
+
+[resource_limits.rate_limiting]
+bandwidth_min_bps = 1
+bandwidth_max_bps = 10000000000
+ops_min = 1
+ops_max = 100000
+burst_size_max_bytes = 1073741824
+
+[compatibility_constraints]
+description = "Compatibility requirements"
+
+[compatibility_constraints.kernel]
+min_version = "4.14"
+recommended_version = "6.1"
+required_config_options = [
+    "CONFIG_KVM",
+    "CONFIG_KVM_INTEL",
+    "CONFIG_KVM_AMD",
+    "CONFIG_VHOST",
+    "CONFIG_VHOST_NET",
+    "CONFIG_TUN",
+    "CONFIG_BRIDGE",
+    "CONFIG_NETFILTER",
+    "CONFIG_NF_NAT",
+]
+
+[compatibility_constraints.firecracker]
+min_version = "1.9.0"
+recommended_version = "1.9.0"
+api_version = "1"
+
+[compatibility_constraints.guest_os]
+supported_kernels = ["linux"]
+min_kernel_version = "4.14"
+required_kernel_config = [
+    "CONFIG_VIRTIO",
+    "CONFIG_VIRTIO_PCI",
+    "CONFIG_VIRTIO_BLK",
+    "CONFIG_VIRTIO_NET",
+    "CONFIG_DEVTMPFS",
+    "CONFIG_DEVTMPFS_MOUNT",
+]
+unsupported_features = [
+    "graphics",
+    "sound",
+    "usb",
+]
+
+[compatibility_constraints.host_os]
+supported = ["linux"]
+min_kernel_version = "5.10"
+recommended_kernel_version = "6.1"
+
+[operational_constraints]
+description = "Operational constraints and requirements"
+
+[operational_constraints.lifecycle]
+max_running_vms_per_host = 500
+max_concurrent_boots = 50
+graceful_shutdown_timeout_seconds = 30
+force_kill_timeout_seconds = 10
+
+[operational_constraints.monitoring]
+metrics_required = [
+    "boot_time",
+    "cpu_usage",
+    "memory_usage",
+    "io_ops",
+    "network_bytes",
+    "vm_exits",
+]
+log_level = "info"
+audit_events = [
+    "vm_create",
+    "vm_start",
+    "vm_stop",
+    "vm_delete",
+    "device_attach",
+    "device_detach",
+]
+
+[operational_constraints.updates]
+live_migration_supported = false
+snapshot_supported = false
+reason = "Firecracker design philosophy prioritizes fast creation over migration"
+
+[temporal_constraints]
+description = "Timing constraints"
+
+[temporal_constraints.boot]
+phase_validation_max_ms = 5
+phase_allocation_max_ms = 20
+phase_device_config_max_ms = 40
+phase_vcpu_setup_max_ms = 60
+phase_hardware_enable_max_ms = 80
+phase_kernel_boot_max_ms = 125
+
+[temporal_constraints.io]
+request_timeout_ms = 30000
+queue_depth_max = 256
+completion_poll_interval_us = 10
+
+[temporal_constraints.network]
+packet_timeout_ms = 1000
+connection_timeout_ms = 5000
+keepalive_interval_seconds = 30
+
+[constraint_validation]
+description = "How constraints are validated"
+
+runtime_checks = [
+    "vcpu_count_bounds",
+    "memory_size_bounds",
+    "device_count_bounds",
+    "rate_limiter_configuration",
+]
+
+boot_time_checks = [
+    "kernel_image_valid",
+    "rootfs_valid",
+    "hardware_features_available",
+    "resource_availability",
+]
+
+continuous_checks = [
+    "memory_usage",
+    "cpu_usage",
+    "io_rate_limits",
+    "network_rate_limits",
+]
+
+[constraint_violations]
+description = "Behavior on constraint violations"
+
+[constraint_violations.hard_limits]
+action = "reject"
+examples = [
+    "vcpu_count > max",
+    "memory_size > max",
+    "invalid_mac_address",
+]
+
+[constraint_violations.soft_limits]
+action = "throttle_or_warn"
+examples = [
+    "io_rate_exceeded",
+    "network_rate_exceeded",
+]
+
+[constraint_violations.runtime]
+action = "terminate_or_throttle"
+examples = [
+    "memory_exhaustion",
+    "cpu_starvation",
+    "unresponsive_guest",
+]
+
+[references]
+axioms = ["AX-VIRT-001", "AX-VIRT-002"]
+theorems = ["THM-VIRT-001", "THM-VIRT-002"]
+algorithms = ["ALG-VIRT-001", "ALG-VIRT-002", "ALG-VIRT-003"]
+test_vectors_file = "test_vectors_virt.toml"

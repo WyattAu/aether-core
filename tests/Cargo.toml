@@ -1,0 +1,38 @@
+[package]
+name = "aether-tests"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+name = "aether_tests"
+path = "lib.rs"
+
+[dependencies]
+aether-core = { path = "../crates/core", features = ["mesh", "wasm", "chaos"] }
+tokio = { workspace = true }
+wat = "1.220"
+blake3 = "1.5"
+rcgen = "0.13"
+rustls = "0.23"
+rand = "0.9"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+reqwest = { version = "0.12", features = ["json"] }
+tempfile = "3.10"
+thiserror = "1.0"
+uuid = { workspace = true }
+
+[features]
+integration-tests = []
+
+[lints]
+workspace = true
+
+[[test]]
+name = "integration"
+path = "integration/mod.rs"
+
+[[test]]
+name = "e2e"
+path = "e2e/mod.rs"
+required-features = ["integration-tests"]

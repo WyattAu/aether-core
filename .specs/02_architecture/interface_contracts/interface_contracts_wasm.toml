@@ -1,0 +1,617 @@
+# Interface Contracts for WASM Execution Engine (BP-WASM-ENGINE-001)
+# IEEE 1016-2009 Compliant Interface Specifications
+
+version = "1.0.0"
+document_id = "BP-WASM-ENGINE-001"
+standard = "IEEE-1016-2009"
+created = "2026-03-05"
+last_modified = "2026-03-05"
+yellow_paper_refs = ["YP-WASM-RUNTIME-001", "YP-SERIAL-RKYV-001"]
+
+# ============================================================================
+# IF-WASM-001: Module Compilation
+# ============================================================================
+
+[interfaces.IF-WASM-001]
+name = "Module Compilation"
+id = "IF-WASM-001"
+provider = "COMP-WASM-001"
+consumer = ["Actor Runtime"]
+protocol = "Internal API"
+purpose = "Compile WASM binary to AOT-compiled module"
+
+[interfaces.IF-WASM-001.signature]
+language = "rust"
+definition = """
+fn compile_module(
+    wasm_bytes: &[u8],
+    config: CompileConfig
+) -> Result<CompiledModule, CompileError>
+"""
+
+[interfaces.IF-WASM-001.parameters]
+wasm_bytes = { type = "&[u8]", description = "Raw WASM binary", max_size = "100MB" }
+
+[interfaces.IF-WASM-001.parameters.config]
+type = "CompileConfig"
+description = "Compilation options"
+fields = [
+    { name = "optimization_level", type = "OptLevel", default = "Speed", values = ["None", "Speed", "SpeedAndSize"] },
+    { name = "target_features", type = "Vec<Feature>", default = "[]", description = "Target CPU features" },
+    { name = "validate", type = "bool", default = "true", description = "Validate WASM before compilation" },
+    { name = "cache_key", type = "Option<[u8; 32]>", default = "None", description = "Optional cache key" }
+]
+
+[interfaces.IF-WASM-001.returns]
+type = "Result<CompiledModule, CompileError>"
+
+[interfaces.IF-WASM-001.returns.success]
+type = "CompiledModule"
+description = "AOT-compiled module ready for instantiation"
+fields = [
+    { name = "module_hash", type = "[u8; 32]", description = "SHA-256 hash of source" },
+    { name = "memory_spec", type = "MemorySpec", description = "Memory requirements" },
+    { name = "exports", type = "HashMap<String, Export>", description = "Exported functions" }
+]
+
+[interfaces.IF-WASM-001.returns.errors]
+types = [
+    { name = "ValidationFailed", description = "Invalid WASM binary format", recoverable = false },
+    { name = "UnsupportedFeature", description = "Uses unsupported WASM feature", recoverable = false },
+    { name = "OutOfMemory", description = "Insufficient memory for compilation", recoverable = true },
+    { name = "CacheError", description = "Failed to cache compiled module", recoverable = true }
+]
+
+[interfaces.IF-WASM-001.preconditions]
+items = [
+    "wasm_bytes is valid WASM binary format",
+    "Sufficient memory for compilation (typically 10x binary size)",
+    "Target architecture supported"
+]
+
+[interfaces.IF-WASM-001.postconditions]
+on_success = [
+    "Compiled module cached by module_hash",
+    "Module passes all validation checks",
+    "Module is ready for instantiation"
+]
+on_error = [
+    "No module cached",
+    "Error returned with diagnostic information"
+]
+
+[interfaces.IF-WASM-001.behavior]
+idempotent = true
+blocking = true
+timeout = "compilation time (varies by module size)"
+concurrency = "thread-safe"
+
+[interfaces.IF-WASM-001.performance]
+small_module_compile = "<10ms"
+medium_module_compile = "<100ms"
+large_module_compile = "<1s"
+cache_hit_latency = "<1ms"
+
+# ============================================================================
+# IF-WASM-002: Instance Creation
+# ============================================================================
+
+[interfaces.IF-WASM-002]
+name = "Instance Creation"
+id = "IF-WASM-002"
+provider = "COMP-WASM-002"
+consumer = ["Actor Runtime"]
+protocol = "Internal API"
+purpose = "Create a new WASM instance with cold start optimization"
+yellow_paper_ref = "ALG-WASM-001"
+
+[interfaces.IF-WASM-002.signature]
+language = "rust"
+definition = """
+fn create_instance(
+    module: &CompiledModule,
+    config: InstanceConfig
+) -> Result<Instance, InstanceError>
+"""
+
+[interfaces.IF-WASM-002.parameters.module]
+type = "&CompiledModule"
+description = "AOT-compiled module"
+
+[interfaces.IF-WASM-002.parameters.config]
+type = "InstanceConfig"
+description = "Instance configuration"
+fields = [
+    { name = "memory_limit_pages", type = "u32", default = "256", description = "Maximum memory pages" },
+    { name = "fuel_limit", type = "u64", default = "10000000", description = "Initial fuel budget" },
+    { name = "capabilities", type = "CapabilitySet", default = "[]", description = "Granted capabilities" },
+    { name = "timeout", type = "Duration", default = "50µs", description = "Cold start timeout" }
+]
+
+[interfaces.IF-WASM-002.returns]
+type = "Result<Instance, InstanceError>"
+
+[interfaces.IF-WASM-002.returns.success]
+type = "Instance"
+description = "Ready-to-execute WASM instance"
+properties = [
+    "Instance memory is isolated",
+    "Fuel initialized to config.fuel_limit",
+    "Capabilities bound per config.capabilities",
+    "Cold start completed in <50µs"
+]
+
+[interfaces.IF-WASM-002.returns.errors]
+types = [
+    { name = "MemoryAllocationFailed", description = "Cannot allocate linear memory", recoverable = true },
+    { name = "StartFailed", description = "Start function trapped", recoverable = false },
+    { name = "TimeoutExceeded", description = "Cold start exceeded 50µs", recoverable = true },
+    { name = "ResourceExhausted", description = "System resources exhausted", recoverable = true }
+]
+
+[interfaces.IF-WASM-002.preconditions]
+items = [
+    "Module is valid and compiled",
+    "Sufficient system resources available",
+    "Capability set is subset of allowed capabilities"
+]
+
+[interfaces.IF-WASM-002.postconditions]
+on_success = [
+    "Instance memory isolated from all other instances",
+    "Fuel counter initialized",
+    "Capability bitmap set",
+    "Instance registered with runtime",
+    "Cold start time logged"
+]
+on_error = [
+    "No resources allocated",
+    "Error returned with diagnostic"
+]
+
+[interfaces.IF-WASM-002.behavior]
+idempotent = false
+blocking = true
+timeout = "50µs target, 100µs hard limit"
+concurrency = "thread-safe, instances independent"
+
+[interfaces.IF-WASM-002.performance]
+cold_start_p50 = "<30µs"
+cold_start_p99 = "<50µs"
+cold_start_p999 = "<100µs"
+
+[interfaces.IF-WASM-002.cold_start_phases]
+allocation = { target = "<10µs", description = "Instance struct allocation" }
+memory_setup = { target = "<15µs", description = "Linear memory allocation" }
+data_segments = { target = "<10µs", description = "Data segment initialization" }
+table_init = { target = "<5µs", description = "Table initialization" }
+globals = { target = "<5µs", description = "Global initialization" }
+capability_bind = { target = "<3µs", description = "Capability binding" }
+start_func = { target = "<2µs", description = "Start function (if trivial)" }
+
+# ============================================================================
+# IF-WASM-003: Function Invocation
+# ============================================================================
+
+[interfaces.IF-WASM-003]
+name = "Function Invocation"
+id = "IF-WASM-003"
+provider = "COMP-WASM-002"
+consumer = ["Actor Runtime"]
+protocol = "Internal API"
+purpose = "Invoke exported WASM function with fuel management"
+yellow_paper_ref = "ALG-WASM-003"
+
+[interfaces.IF-WASM-003.signature]
+language = "rust"
+definition = """
+fn invoke_function(
+    instance: &mut Instance,
+    func_name: &str,
+    args: &[Value],
+    fuel_limit: u64
+) -> Result<Vec<Value>, InvokeError>
+"""
+
+[interfaces.IF-WASM-003.parameters]
+instance = { type = "&mut Instance", description = "Target instance" }
+func_name = { type = "&str", description = "Exported function name" }
+args = { type = "&[Value]", description = "Function arguments", max_len = "100" }
+fuel_limit = { type = "u64", description = "Maximum fuel for this invocation" }
+
+[interfaces.IF-WASM-003.returns]
+type = "Result<Vec<Value>, InvokeError>"
+
+[interfaces.IF-WASM-003.returns.success]
+type = "Vec<Value>"
+description = "Return values from function"
+max_len = "100"
+
+[interfaces.IF-WASM-003.returns.errors]
+types = [
+    { name = "OutOfFuel", description = "Fuel exhausted during execution", recoverable = false },
+    { name = "Trap", description = "Runtime trap (e.g., division by zero)", recoverable = false },
+    { name = "CapabilityDenied", description = "Missing capability for WASI call", recoverable = false },
+    { name = "FunctionNotFound", description = "Function not exported", recoverable = false },
+    { name = "TypeMismatch", description = "Argument types don't match signature", recoverable = false },
+    { name = "InstanceDestroyed", description = "Instance has been destroyed", recoverable = false }
+]
+
+[interfaces.IF-WASM-003.preconditions]
+items = [
+    "Instance is valid and not destroyed",
+    "Function is exported by module",
+    "Argument types match function signature",
+    "fuel_limit <= remaining instance fuel"
+]
+
+[interfaces.IF-WASM-003.postconditions]
+on_success = [
+    "Fuel consumed from instance budget",
+    "Instance state modified per function semantics",
+    "Return values match signature"
+]
+on_error = [
+    "Instance may be in inconsistent state if trap occurred",
+    "Fuel consumed up to trap point",
+    "Error returned with trap details"
+]
+
+[interfaces.IF-WASM-003.behavior]
+idempotent = false
+blocking = true
+timeout = "depends on function and fuel_limit"
+concurrency = "single-threaded per instance, instances independent"
+
+[interfaces.IF-WASM-003.performance]
+call_overhead = "<100ns"
+fuel_check_overhead = "<10ns per instruction"
+trap_handling = "<1µs"
+
+# ============================================================================
+# IF-WASM-004: Memory Access
+# ============================================================================
+
+[interfaces.IF-WASM-004]
+name = "Memory Access"
+id = "IF-WASM-004"
+provider = "COMP-WASM-004"
+consumer = ["Actor Runtime", "COMP-WASM-005"]
+protocol = "Internal API"
+purpose = "Read/write instance linear memory"
+yellow_paper_ref = "ALG-WASM-004"
+
+[interfaces.IF-WASM-004.signature]
+language = "rust"
+definition = """
+fn read_memory(
+    instance: &Instance,
+    offset: u32,
+    len: u32
+) -> Result<Vec<u8>, MemoryError>
+
+fn write_memory(
+    instance: &mut Instance,
+    offset: u32,
+    data: &[u8]
+) -> Result<(), MemoryError>
+"""
+
+[interfaces.IF-WASM-004.parameters]
+instance = { type = "&Instance / &mut Instance", description = "Target instance" }
+offset = { type = "u32", description = "Memory offset", max = "memory.size - 1" }
+len = { type = "u32", description = "Bytes to read", max = "memory.size - offset" }
+data = { type = "&[u8]", description = "Data to write", max_len = "memory.size - offset" }
+
+[interfaces.IF-WASM-004.returns]
+type = "Result<Vec<u8>, MemoryError> / Result<(), MemoryError>"
+
+[interfaces.IF-WASM-004.returns.errors]
+types = [
+    { name = "OutOfBounds", description = "Access outside memory bounds", recoverable = false },
+    { name = "InstanceDestroyed", description = "Instance has been destroyed", recoverable = false }
+]
+
+[interfaces.IF-WASM-004.preconditions]
+items = [
+    "Instance is valid",
+    "offset + len <= memory.size (for read)",
+    "offset + data.len() <= memory.size (for write)"
+]
+
+[interfaces.IF-WASM-004.postconditions]
+on_success = [
+    "Memory contents read/written",
+    "No side effects on instance execution state"
+]
+on_error = [
+    "No memory modification",
+    "Error returned"
+]
+
+[interfaces.IF-WASM-004.behavior]
+idempotent = true
+blocking = false
+timeout = "immediate"
+concurrency = "thread-safe"
+
+[interfaces.IF-WASM-004.performance]
+read_latency = "<50ns"
+write_latency = "<50ns"
+bounds_check = "<10ns"
+
+# ============================================================================
+# IF-WASM-005: State Hydration
+# ============================================================================
+
+[interfaces.IF-WASM-005]
+name = "State Hydration"
+id = "IF-WASM-005"
+provider = "COMP-WASM-002"
+consumer = ["Actor Runtime"]
+protocol = "Internal API"
+purpose = "Reconstruct instance state from rkyv archive"
+yellow_paper_ref = "YP-SERIAL-RKYV-001 / ALG-SER-002"
+
+[interfaces.IF-WASM-005.signature]
+language = "rust"
+definition = """
+fn hydrate_state(
+    archive: &[u8],
+    module: &CompiledModule,
+    config: HydrationConfig
+) -> Result<Instance, HydrationError>
+"""
+
+[interfaces.IF-WASM-005.parameters]
+archive = { type = "&[u8]", description = "rkyv-serialized actor state", max_size = "1GB" }
+
+[interfaces.IF-WASM-005.parameters.module]
+type = "&CompiledModule"
+description = "Module to instantiate (must match archived state)"
+
+[interfaces.IF-WASM-005.parameters.config]
+type = "HydrationConfig"
+description = "Hydration options"
+fields = [
+    { name = "timeout", type = "Duration", default = "50ms", description = "Maximum hydration time" },
+    { name = "validate_checksum", type = "bool", default = "true", description = "Validate archive checksum" },
+    { name = "remap_resources", type = "bool", default = "true", description = "Remap external resources" }
+]
+
+[interfaces.IF-WASM-005.returns]
+type = "Result<Instance, HydrationError>"
+
+[interfaces.IF-WASM-005.returns.success]
+type = "Instance"
+description = "Hydrated instance with state equivalent to archived state"
+properties = [
+    "Instance state semantically equivalent to archived state",
+    "Hydration completed within 50ms",
+    "External resources remapped correctly"
+]
+
+[interfaces.IF-WASM-005.returns.errors]
+types = [
+    { name = "ChecksumMismatch", description = "Archive checksum validation failed", recoverable = false },
+    { name = "ValidationFailed", description = "Invalid archive structure", recoverable = false },
+    { name = "Timeout", description = "Hydration exceeded 50ms budget", recoverable = true },
+    { name = "ModuleMismatch", description = "Module doesn't match archived state", recoverable = false },
+    { name = "ResourceRemapFailed", description = "Failed to remap external resource", recoverable = true }
+]
+
+[interfaces.IF-WASM-005.preconditions]
+items = [
+    "Archive is valid rkyv format",
+    "Module matches archived state (same module_hash)",
+    "Sufficient memory for hydrated state"
+]
+
+[interfaces.IF-WASM-005.postconditions]
+on_success = [
+    "Instance state equivalent to archived state",
+    "External resources remapped to host equivalents",
+    "Hydration time logged"
+]
+on_error = [
+    "No resources allocated",
+    "Error returned with diagnostic"
+]
+
+[interfaces.IF-WASM-005.behavior]
+idempotent = true
+blocking = true
+timeout = "50ms target, 100ms hard limit"
+concurrency = "thread-safe"
+
+[interfaces.IF-WASM-005.performance]
+validation_time = "<5ms"
+hydration_time_p50 = "<20ms"
+hydration_time_p99 = "<50ms"
+small_state_hydration = "<1ms"
+
+# ============================================================================
+# Component Interface Mapping
+# ============================================================================
+
+[component_interfaces]
+COMP-WASM-001 = ["IF-WASM-001"]
+COMP-WASM-002 = ["IF-WASM-002", "IF-WASM-003", "IF-WASM-005"]
+COMP-WASM-003 = []  # Internal: fuel consumed via IF-WASM-003
+COMP-WASM-004 = ["IF-WASM-004"]
+COMP-WASM-005 = []  # Internal: WASI calls via IF-WASM-003
+COMP-WASM-006 = []  # Internal: capabilities checked via IF-WASM-003
+
+# ============================================================================
+# Capability Definitions
+# ============================================================================
+
+[capabilities]
+total_slots = 64
+
+[capabilities.slots]
+fd_read = { slot = 0, description = "Read from file descriptor" }
+fd_write = { slot = 1, description = "Write to file descriptor" }
+fd_seek = { slot = 2, description = "Seek in file descriptor" }
+fd_close = { slot = 3, description = "Close file descriptor" }
+fd_stat = { slot = 4, description = "Get file descriptor metadata" }
+path_open = { slot = 5, description = "Open file by path" }
+path_stat = { slot = 6, description = "Get file metadata by path" }
+sock_create = { slot = 7, description = "Create socket" }
+sock_connect = { slot = 8, description = "Connect socket" }
+sock_bind = { slot = 9, description = "Bind socket" }
+sock_listen = { slot = 10, description = "Listen on socket" }
+sock_accept = { slot = 11, description = "Accept connection" }
+sock_send = { slot = 12, description = "Send data on socket" }
+sock_recv = { slot = 13, description = "Receive data on socket" }
+random = { slot = 14, description = "Get random bytes" }
+clock_get = { slot = 15, description = "Get clock time" }
+sched_yield = { slot = 16, description = "Yield execution" }
+proc_exit = { slot = 17, description = "Exit process" }
+proc_raise = { slot = 18, description = "Raise signal" }
+
+# ============================================================================
+# Fuel Cost Table
+# ============================================================================
+
+[fuel_costs]
+description = "Fuel cost per WASM opcode (from YP-WASM-RUNTIME-001)"
+
+[fuel_costs.control]
+nop = 1
+block = 2
+loop = 2
+if = 3
+else = 1
+end = 1
+br = 5
+br_if = 6
+br_table = 10
+return = 3
+call = 5
+call_indirect = 10
+
+[fuel_costs.memory]
+load = 3
+store = 3
+memory_size = 2
+memory_grow = 100
+
+[fuel_costs.numeric]
+add = 1
+sub = 1
+mul = 2
+div = 4
+rem = 4
+and = 1
+or = 1
+xor = 1
+shl = 1
+shr = 1
+
+[fuel_costs.comparison]
+eq = 1
+ne = 1
+lt = 1
+gt = 1
+le = 1
+ge = 1
+
+[fuel_costs.variable]
+local_get = 2
+local_set = 2
+local_tee = 2
+global_get = 3
+global_set = 3
+
+# ============================================================================
+# Error Code Registry
+# ============================================================================
+
+[error_codes]
+range = "0x0000-0xFFFF"
+categories = [
+    { prefix = "0x10", name = "Compilation Errors", range = "0x1000-0x10FF" },
+    { prefix = "0x11", name = "Instance Errors", range = "0x1100-0x11FF" },
+    { prefix = "0x12", name = "Invocation Errors", range = "0x1200-0x12FF" },
+    { prefix = "0x13", name = "Memory Errors", range = "0x1300-0x13FF" },
+    { prefix = "0x14", name = "Hydration Errors", range = "0x1400-0x14FF" },
+    { prefix = "0x15", name = "Capability Errors", range = "0x1500-0x15FF" }
+]
+
+[error_codes.compilation]
+ValidationFailed = 0x1001
+UnsupportedFeature = 0x1002
+OutOfMemory = 0x1003
+CacheError = 0x1004
+
+[error_codes.instance]
+MemoryAllocationFailed = 0x1101
+StartFailed = 0x1102
+TimeoutExceeded = 0x1103
+ResourceExhausted = 0x1104
+
+[error_codes.invocation]
+OutOfFuel = 0x1201
+Trap = 0x1202
+CapabilityDenied = 0x1203
+FunctionNotFound = 0x1204
+TypeMismatch = 0x1205
+InstanceDestroyed = 0x1206
+
+[error_codes.memory]
+OutOfBounds = 0x1301
+GrowFailed = 0x1302
+
+[error_codes.hydration]
+ChecksumMismatch = 0x1401
+ValidationFailed = 0x1402
+Timeout = 0x1403
+ModuleMismatch = 0x1404
+ResourceRemapFailed = 0x1405
+
+[error_codes.capability]
+Denied = 0x1501
+NotFound = 0x1502
+InvalidCapability = 0x1503
+
+# ============================================================================
+# Versioning
+# ============================================================================
+
+[versioning]
+current_version = "1.0.0"
+compatibility = "semantic versioning"
+stability_guarantee = "Interfaces are stable within major version"
+
+[versioning.deprecation_policy]
+notice_period = "6 months"
+support_period = "12 months after deprecation"
+
+# ============================================================================
+# Compliance
+# ============================================================================
+
+[compliance]
+ieee_1016_2009 = true
+rust_api_guidelines = true
+documentation_coverage = "100%"
+
+[compliance.testing]
+unit_tests = "required for all interfaces"
+integration_tests = "required for cross-component interfaces"
+contract_tests = "required for public APIs"
+property_tests = "required for fuel and memory invariants"
+
+[compliance.yellow_paper_traceability]
+IF-WASM-002 = "ALG-WASM-001 (Cold Start)"
+IF-WASM-003 = "ALG-WASM-003 (Fuel Management)"
+IF-WASM-004 = "ALG-WASM-004 (Memory Bounds)"
+IF-WASM-005 = "ALG-SER-002 (State Hydration)"
+
+# ============================================================================
+# Document History
+# ============================================================================
+
+[history]
+1_0_0 = { date = "2026-03-05", author = "Construct", changes = "Initial creation" }

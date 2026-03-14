@@ -1,0 +1,177 @@
+# Blue Paper Registry
+# Project Aether - Phase 2: Architectural Specification
+# IEEE 1016-2009 Compliant Design Specifications
+
+[metadata]
+last_updated = "2026-03-05T00:00:00Z"
+total_papers = 5
+total_size_kb = 234.0
+average_size_kb = 46.8
+phase = 2
+status = "APPROVED"
+ieee_1016_compliant = true
+total_components = 75
+total_interfaces = 15
+total_proofs = 5
+
+[[blue_paper]]
+id = "BP-HOST-RUNTIME-001"
+title = "Host Runtime Component"
+status = "APPROVED"
+version = "1.0.0"
+ieee_1016_compliant = true
+created = "2026-03-05"
+author = "Construct"
+file_path = ".specs/02_architecture/BP-HOST-RUNTIME-001.md"
+file_size_kb = 41.8
+
+[blue_paper.scope]
+component_id = "COMP-HOST-001"
+component_type = "Daemon"
+description = "Main orchestrator daemon coordinating all Aether subsystems"
+interfaces = ["IF-HOST-001", "IF-HOST-002", "IF-HOST-003"]
+
+[blue_paper.dependencies]
+yellow_papers = ["YP-WASM-RUNTIME-001", "YP-ASYNC-IOURING-001", "YP-VIRT-KVM-001"]
+blue_papers = ["BP-WASM-ENGINE-001", "BP-FIRECRACKER-MANAGER-001", "BP-MESH-NETWORK-001", "BP-STATE-MANAGER-001"]
+external_libs = ["tokio-1.42", "monoio-0.2", "wasmtime-25.0.0", "serde-1.0", "toml-0.8"]
+
+[blue_paper.verification]
+proof_file = "proof_host.lean"
+proof_status = "SKELETON"
+test_coverage_critical = 0.0
+test_coverage_overall = 0.0
+theorems_proven = 0
+theorems_total = 8
+
+[[blue_paper]]
+id = "BP-WASM-ENGINE-001"
+title = "WASM Execution Engine"
+status = "APPROVED"
+version = "1.0.0"
+ieee_1016_compliant = true
+created = "2026-03-05"
+author = "Construct"
+file_path = ".specs/02_architecture/BP-WASM-ENGINE-001.md"
+file_size_kb = 44.0
+
+[blue_paper.scope]
+component_id = "COMP-WASM-001"
+component_type = "ExecutionEngine"
+description = "WebAssembly runtime with wasmtime, capability enforcement, and fuel metering"
+interfaces = ["IF-WASM-001", "IF-WASM-002", "IF-WASM-003"]
+
+[blue_paper.dependencies]
+yellow_papers = ["YP-WASM-RUNTIME-001"]
+blue_papers = ["BP-HOST-RUNTIME-001"]
+external_libs = ["wasmtime-25.0.0", "wiggle-25.0.0", "rkyv-0.8", "serde-1.0"]
+
+[blue_paper.verification]
+proof_file = "proof_wasm.lean"
+proof_status = "SKELETON"
+test_coverage_critical = 0.0
+test_coverage_overall = 0.0
+theorems_proven = 0
+theorems_total = 10
+
+[[blue_paper]]
+id = "BP-FIRECRACKER-MANAGER-001"
+title = "Firecracker MicroVM Manager"
+status = "APPROVED"
+version = "1.0.0"
+ieee_1016_compliant = true
+created = "2026-03-05"
+author = "Construct"
+file_path = ".specs/02_architecture/BP-FIRECRACKER-MANAGER-001.md"
+file_size_kb = 33.0
+
+[blue_paper.scope]
+component_id = "COMP-VIRT-001"
+component_type = "MicroVMManager"
+description = "Firecracker microVM orchestration with jailer, resource limits, and snapshot/restore"
+interfaces = ["IF-FC-001", "IF-FC-002", "IF-FC-003"]
+
+[blue_paper.dependencies]
+yellow_papers = ["YP-VIRT-KVM-001"]
+blue_papers = ["BP-HOST-RUNTIME-001", "BP-STATE-MANAGER-001"]
+external_libs = ["firecracker-1.10", "jailer-1.10", "nix-0.29", "libc-0.2"]
+
+[blue_paper.verification]
+proof_file = "proof_firecracker.lean"
+proof_status = "SKELETON"
+test_coverage_critical = 0.0
+test_coverage_overall = 0.0
+theorems_proven = 0
+theorems_total = 7
+
+[[blue_paper]]
+id = "BP-MESH-NETWORK-001"
+title = "QUIC Mesh Network"
+status = "APPROVED"
+version = "1.0.0"
+ieee_1016_compliant = true
+created = "2026-03-05"
+author = "Construct"
+file_path = ".specs/02_architecture/BP-MESH-NETWORK-001.md"
+file_size_kb = 56.0
+
+[blue_paper.scope]
+component_id = "COMP-NET-001"
+component_type = "NetworkMesh"
+description = "QUIC-based mesh networking with actor addressing, connection pooling, and TCP proxying"
+interfaces = ["IF-NET-001", "IF-NET-002", "IF-NET-003"]
+
+[blue_paper.dependencies]
+yellow_papers = ["YP-NETWORK-MESH-001", "YP-ASYNC-IOURING-001"]
+blue_papers = ["BP-HOST-RUNTIME-001", "BP-STATE-MANAGER-001"]
+external_libs = ["quinn-0.11", "h3-0.0.7", "rustls-0.23", "monoio-0.2", "tokio-1.42"]
+
+[blue_paper.verification]
+proof_file = "proof_mesh.lean"
+proof_status = "SKELETON"
+test_coverage_critical = 0.0
+test_coverage_overall = 0.0
+theorems_proven = 0
+theorems_total = 9
+
+[[blue_paper]]
+id = "BP-STATE-MANAGER-001"
+title = "Distributed State Manager"
+status = "APPROVED"
+version = "1.0.0"
+ieee_1016_compliant = true
+created = "2026-03-05"
+author = "Construct"
+file_path = ".specs/02_architecture/BP-STATE-MANAGER-001.md"
+file_size_kb = 59.2
+
+[blue_paper.scope]
+component_id = "COMP-STATE-001"
+component_type = "StateManager"
+description = "FoundationDB-backed distributed state with rkyv serialization, checkpointing, and actor migration"
+interfaces = ["IF-STATE-001", "IF-STATE-002", "IF-STATE-003"]
+
+[blue_paper.dependencies]
+yellow_papers = ["YP-SERIAL-RKYV-001", "YP-ASYNC-IOURING-001"]
+blue_papers = ["BP-HOST-RUNTIME-001", "BP-WASM-ENGINE-001", "BP-FIRECRACKER-MANAGER-001"]
+external_libs = ["foundationdb-0.9", "rkyv-0.8", "monoio-0.2", "tokio-1.42", "serde-1.0"]
+
+[blue_paper.verification]
+proof_file = "proof_state.lean"
+proof_status = "SKELETON"
+test_coverage_critical = 0.0
+test_coverage_overall = 0.0
+theorems_proven = 0
+theorems_total = 11
+
+[statistics]
+total_interfaces = 15
+total_theorems_skeleton = 45
+total_algorithms = 25
+total_design_patterns = 12
+total_stakeholders = 8
+total_viewpoints = 35
+average_interfaces_per_paper = 3.0
+component_dependency_depth = 3
+cross_paper_dependencies = 8
+external_library_count = 15

@@ -1,0 +1,11 @@
+[project]
+name = "stateful-example"
+
+[[actor]]
+name = "stateful"
+kind = "wasm"
+image = "target/wasm32-wasip1/release/stateful_actor.wasm"
+
+[actor.capabilities]
+[actor.capabilities.volumes]
+state = { path = "/state", size = "100MB" }

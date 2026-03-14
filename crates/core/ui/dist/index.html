@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aether Dashboard</title>
+    <link rel="stylesheet" href="/assets/dashboard.css">
+</head>
+<body>
+    <div id="app">
+        <header>
+            <h1>Aether Dashboard</h1>
+            <div id="status-badge" class="status-unknown">Connecting...</div>
+        </header>
+        <main>
+            <section id="runtime-status">
+                <h2>Runtime Status</h2>
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <span class="metric-label">Version</span>
+                        <span id="version" class="metric-value">-</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-label">Uptime</span>
+                        <span id="uptime" class="metric-value">-</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-label">Actors</span>
+                        <span id="actors" class="metric-value">-</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-label">Messages</span>
+                        <span id="messages" class="metric-value">-</span>
+                    </div>
+                </div>
+            </section>
+            <section id="actors-list">
+                <h2>Actors</h2>
+                <table id="actors-table">
+                    <thead>
+                        <tr><th>ID</th><th>Name</th><th>State</th><th>Messages</th><th>Errors</th></tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </section>
+        </main>
+    </div>
+    <script src="/assets/dashboard.js"></script>
+</body>
+</html>

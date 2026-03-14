@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  aether:
+    build: .
+    container_name: aether-runtime
+    ports:
+      - "9000:9000/udp"  # QUIC mesh
+      - "9001:9001/tcp"  # HTTP API
+    volumes:
+      - aether-data:/var/lib/aether
+      - aether-logs:/var/log/aether
+    environment:
+      - AETHER_NODE_ID=node-1
+      - RUST_LOG=info
+    restart: unless-stopped
+    privileged: true  # Required for KVM/Firecracker
+    
+  # Optional: FoundationDB for distributed state
+  fdb:
+    image: foundationdb/foundationdb:7.3
+    container_name: aether-fdb
+    ports:
+      - "4500:4500"
+    volumes:
+      - fdb-data:/var/lib/foundationdb
+    profiles:
+      - distributed
+      
+  # Optional: Monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: aether-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    profiles:
+      - monitoring
+
+volumes:
+  aether-data:
+  aether-logs:
+  fdb-data:

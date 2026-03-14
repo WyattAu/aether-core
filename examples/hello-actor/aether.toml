@@ -1,0 +1,11 @@
+[project]
+name = "hello-example"
+version = "0.1.0"
+
+[[actor]]
+name = "hello"
+kind = "wasm"
+image = "target/wasm32-wasip1/release/hello_actor.wasm"
+
+[actor.capabilities]
+networking = "none"

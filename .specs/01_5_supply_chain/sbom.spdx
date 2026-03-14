@@ -1,0 +1,517 @@
+SPDXVersion: SPDX-2.3
+DataLicense: CC0-1.0
+SPDXID: SPDXRef-DOCUMENT
+DocumentName: Aether-Core-SBOM
+DocumentNamespace: https://aether.dev/sbom/aether-core-20260305
+Creator: Tool: cargo-sbom-v0.9.0
+Creator: Organization: Aether Project
+Creator: Person: Construct (Systems Architect)
+Created: 2026-03-05T00:00:00Z
+
+##### Package: Aether Core
+
+PackageName: aether-core
+SPDXID: SPDXRef-Package-aether-core
+PackageVersion: 0.2.0-alpha
+PackageDownloadLocation: https://forgejo.wyattau.com/Aether/aether-core
+FilesAnalyzed: false
+PackageLicenseConcluded: Apache-2.0
+PackageLicenseDeclared: Apache-2.0
+PackageCopyrightText: NOASSERTION
+PackageSummary: <text>Distributed actor runtime with WASM sandboxing and MicroVM isolation</text>
+
+##### Runtime Dependencies
+
+PackageName: wasmtime
+SPDXID: SPDXRef-Package-wasmtime
+PackageVersion: 25.0.0
+PackageDownloadLocation: https://crates.io/crates/wasmtime/25.0.0
+FilesAnalyzed: false
+PackageLicenseConcluded: Apache-2.0
+PackageLicenseDeclared: Apache-2.0
+PackageCopyrightText: <text>Copyright (c) The Wasmtime Project Developers</text>
+PackageSummary: <text>WebAssembly runtime with ahead-of-time compilation</text>
+ExternalRef: SECURITY cpe23Type cpe:2.3:a:bytecodealliance:wasmtime:25.0.0:*:*:*:*:rust:*:*
+
+PackageName: wasmtime-wasi
+SPDXID: SPDXRef-Package-wasmtime-wasi
+PackageVersion: 25.0.0
+PackageDownloadLocation: https://crates.io/crates/wasmtime-wasi/25.0.0
+FilesAnalyzed: false
+PackageLicenseConcluded: Apache-2.0
+PackageLicenseDeclared: Apache-2.0
+PackageCopyrightText: <text>Copyright (c) The Wasmtime Project Developers</text>
+PackageSummary: <text>WASI Preview 2 host implementation</text>
+
+PackageName: wasmtime-component-util
+SPDXID: SPDXRef-Package-wasmtime-component-util
+PackageVersion: 25.0.0
+PackageDownloadLocation: https://crates.io/crates/wasmtime-component-util/25.0.0
+FilesAnalyzed: false
+PackageLicenseConcluded: Apache-2.0
+PackageLicenseDeclared: Apache-2.0
+PackageCopyrightText: <text>Copyright (c) The Wasmtime Project Developers</text>
+PackageSummary: <text>WebAssembly Component Model utilities</text>
+
+##### Virtualization Dependencies
+
+PackageName: firecracker
+SPDXID: SPDXRef-Package-firecracker
+PackageVersion: 1.9.0
+PackageDownloadLocation: https://github.com/firecracker-microvm/firecracker/releases/download/v1.9.0
+FilesAnalyzed: false
+PackageLicenseConcluded: Apache-2.0
+PackageLicenseDeclared: Apache-2.0
+PackageCopyrightText: <text>Copyright (c) Amazon.com, Inc. or its affiliates. All Rights Reserved.</text>
+PackageSummary: <text>Secure and fast microVM for serverless computing</text>
+ExternalRef: SECURITY cpe23Type cpe:2.3:a:amazon:firecracker:1.9.0:*:*:*:*:*:*:*
+
+PackageName: kvm-bindings
+SPDXID: SPDXRef-Package-kvm-bindings
+PackageVersion: 0.10.0
+PackageDownloadLocation: https://crates.io/crates/kvm-bindings/0.10.0
+FilesAnalyzed: false
+PackageLicenseConcluded: Apache-2.0
+PackageLicenseDeclared: Apache-2.0
+PackageCopyrightText: <text>Copyright (c) Amazon.com, Inc.</text>
+PackageSummary: <text>KVM API bindings for Rust</text>
+
+PackageName: kvm-ioctls
+SPDXID: SPDXRef-Package-kvm-ioctls
+PackageVersion: 0.19.0
+PackageDownloadLocation: https://crates.io/crates/kvm-ioctls/0.19.0
+FilesAnalyzed: false
+PackageLicenseConcluded: Apache-2.0 OR MIT
+PackageLicenseDeclared: Apache-2.0 OR MIT
+PackageCopyrightText: <text>Copyright (c) Amazon.com, Inc.</text>
+PackageSummary: <text>Safe wrappers for KVM ioctls</text>
+
+##### Distributed State Dependencies
+
+PackageName: foundationdb
+SPDXID: SPDXRef-Package-foundationdb
+PackageVersion: 0.9.0
+PackageDownloadLocation: https://crates.io/crates/foundationdb/0.9.0
+FilesAnalyzed: false
+PackageLicenseConcluded: Apache-2.0 OR MIT
+PackageLicenseDeclared: Apache-2.0 OR MIT
+PackageCopyrightText: <text>Copyright (c) FoundationDB project authors</text>
+PackageSummary: <text>FoundationDB client bindings</text>
+
+PackageName: foundationdb-sys
+SPDXID: SPDXRef-Package-foundationdb-sys
+PackageVersion: 0.9.0
+PackageDownloadLocation: https://crates.io/crates/foundationdb-sys/0.9.0
+FilesAnalyzed: false
+PackageLicenseConcluded: Apache-2.0 OR MIT
+PackageLicenseDeclared: Apache-2.0 OR MIT
+PackageCopyrightText: <text>Copyright (c) FoundationDB project authors</text>
+PackageSummary: <text>FoundationDB FFI bindings</text>
+
+##### Networking Dependencies
+
+PackageName: quinn
+SPDXID: SPDXRef-Package-quinn
+PackageVersion: 0.11.6
+PackageDownloadLocation: https://crates.io/crates/quinn/0.11.6
+FilesAnalyzed: false
+PackageLicenseConcluded: Apache-2.0 OR MIT
+PackageLicenseDeclared: Apache-2.0 OR MIT
+PackageCopyrightText: <text>Copyright (c) The quinn developers</text>
+PackageSummary: <text>QUIC protocol implementation</text>
+ExternalRef: SECURITY cpe23Type cpe:2.3:a:quinn:quinn:0.11.6:*:*:*:*:rust:*:*
+
+PackageName: quinn-proto
+SPDXID: SPDXRef-Package-quinn-proto
+PackageVersion: 0.11.9
+PackageDownloadLocation: https://crates.io/crates/quinn-proto/0.11.9
+FilesAnalyzed: false
+PackageLicenseConcluded: Apache-2.0 OR MIT
+PackageLicenseDeclared: Apache-2.0 OR MIT
+PackageCopyrightText: <text>Copyright (c) The quinn developers</text>
+PackageSummary: <text>QUIC protocol state machine</text>
+
+PackageName: h3
+SPDXID: SPDXRef-Package-h3
+PackageVersion: 0.0.6
+PackageDownloadLocation: https://crates.io/crates/h3/0.0.6
+FilesAnalyzed: false
+PackageLicenseConcluded: MIT
+PackageLicenseDeclared: MIT
+PackageCopyrightText: <text>Copyright (c) The h3 developers</text>
+PackageSummary: <text>HTTP/3 protocol implementation</text>
+
+PackageName: h3-quinn
+SPDXID: SPDXRef-Package-h3-quinn
+PackageVersion: 0.0.7
+PackageDownloadLocation: https://crates.io/crates/h3-quinn/0.0.7
+FilesAnalyzed: false
+PackageLicenseConcluded: MIT
+PackageLicenseDeclared: MIT
+PackageCopyrightText: <text>Copyright (c) The h3 developers</text>
+PackageSummary: <text>HTTP/3 over QUIC integration</text>
+
+##### Async Runtime Dependencies
+
+PackageName: tokio
+SPDXID: SPDXRef-Package-tokio
+PackageVersion: 1.42.0
+PackageDownloadLocation: https://crates.io/crates/tokio/1.42.0
+FilesAnalyzed: false
+PackageLicenseConcluded: MIT
+PackageLicenseDeclared: MIT
+PackageCopyrightText: <text>Copyright (c) Tokio Contributors</text>
+PackageSummary: <text>Async runtime for Rust</text>
+ExternalRef: SECURITY cpe23Type cpe:2.3:a:tokio:tokio:1.42.0:*:*:*:*:rust:*:*
+
+PackageName: monoio
+SPDXID: SPDXRef-Package-monoio
+PackageVersion: 0.2.4
+PackageDownloadLocation: https://crates.io/crates/monoio/0.2.4
+FilesAnalyzed: false
+PackageLicenseConcluded: Apache-2.0 OR MIT
+PackageLicenseDeclared: Apache-2.0 OR MIT
+PackageCopyrightText: <text>Copyright (c) monoio contributors</text>
+PackageSummary: <text>io_uring-based async runtime</text>
+
+PackageName: io-uring
+SPDXID: SPDXRef-Package-io-uring
+PackageVersion: 0.7.4
+PackageDownloadLocation: https://crates.io/crates/io-uring/0.7.4
+FilesAnalyzed: false
+PackageLicenseConcluded: Apache-2.0 OR MIT
+PackageLicenseDeclared: Apache-2.0 OR MIT
+PackageCopyrightText: <text>Copyright (c) io-uring contributors</text>
+PackageSummary: <text>Low-level io_uring bindings</text>
+
+##### Serialization Dependencies
+
+PackageName: rkyv
+SPDXID: SPDXRef-Package-rkyv
+PackageVersion: 0.8.9
+PackageDownloadLocation: https://crates.io/crates/rkyv/0.8.9
+FilesAnalyzed: false
+PackageLicenseConcluded: MIT
+PackageLicenseDeclared: MIT
+PackageCopyrightText: <text>Copyright (c) David Koloski</text>
+PackageSummary: <text>Zero-copy deserialization framework</text>
+
+PackageName: rkyv_derive
+SPDXID: SPDXRef-Package-rkyv-derive
+PackageVersion: 0.8.9
+PackageDownloadLocation: https://crates.io/crates/rkyv_derive/0.8.9
+FilesAnalyzed: false
+PackageLicenseConcluded: MIT
+PackageLicenseDeclared: MIT
+PackageCopyrightText: <text>Copyright (c) David Koloski</text>
+PackageSummary: <text>Derive macros for rkyv</text>
+
+PackageName: bytecheck
+SPDXID: SPDXRef-Package-bytecheck
+PackageVersion: 0.8.1
+PackageDownloadLocation: https://crates.io/crates/bytecheck/0.8.1
+FilesAnalyzed: false
+PackageLicenseConcluded: MIT
+PackageLicenseDeclared: MIT
+PackageCopyrightText: <text>Copyright (c) David Koloski</text>
+PackageSummary: <text>Byte validation for rkyv archives</text>
+
+PackageName: serde
+SPDXID: SPDXRef-Package-serde
+PackageVersion: 1.0.217
+PackageDownloadLocation: https://crates.io/crates/serde/1.0.217
+FilesAnalyzed: false
+PackageLicenseConcluded: Apache-2.0 OR MIT
+PackageLicenseDeclared: Apache-2.0 OR MIT
+PackageCopyrightText: <text>Copyright (c) The serde developers</text>
+PackageSummary: <text>Serialization framework</text>
+
+##### CLI Dependencies
+
+PackageName: clap
+SPDXID: SPDXRef-Package-clap
+PackageVersion: 4.5.23
+PackageDownloadLocation: https://crates.io/crates/clap/4.5.23
+FilesAnalyzed: false
+PackageLicenseConcluded: Apache-2.0 OR MIT
+PackageLicenseDeclared: Apache-2.0 OR MIT
+PackageCopyrightText: <text>Copyright (c) clap developers</text>
+PackageSummary: <text>Command line argument parser</text>
+
+PackageName: ratatui
+SPDXID: SPDXRef-Package-ratatui
+PackageVersion: 0.29.0
+PackageDownloadLocation: https://crates.io/crates/ratatui/0.29.0
+FilesAnalyzed: false
+PackageLicenseConcluded: MIT
+PackageLicenseDeclared: MIT
+PackageCopyrightText: <text>Copyright (c) ratatui contributors</text>
+PackageSummary: <text>Terminal UI framework</text>
+
+PackageName: crossterm
+SPDXID: SPDXRef-Package-crossterm
+PackageVersion: 0.28.1
+PackageDownloadLocation: https://crates.io/crates/crossterm/0.28.1
+FilesAnalyzed: false
+PackageLicenseConcluded: MIT
+PackageLicenseDeclared: MIT
+PackageCopyrightText: <text>Copyright (c) crossterm contributors</text>
+PackageSummary: <text>Cross-platform terminal library</text>
+
+##### Web Framework Dependencies
+
+PackageName: leptos
+SPDXID: SPDXRef-Package-leptos
+PackageVersion: 0.7.8
+PackageDownloadLocation: https://crates.io/crates/leptos/0.7.8
+FilesAnalyzed: false
+PackageLicenseConcluded: MIT
+PackageLicenseDeclared: MIT
+PackageCopyrightText: <text>Copyright (c) Greg Johnston</text>
+PackageSummary: <text>Reactive web framework</text>
+
+PackageName: leptos_axum
+SPDXID: SPDXRef-Package-leptos-axum
+PackageVersion: 0.7.8
+PackageDownloadLocation: https://crates.io/crates/leptos_axum/0.7.8
+FilesAnalyzed: false
+PackageLicenseConcluded: MIT
+PackageLicenseDeclared: MIT
+PackageCopyrightText: <text>Copyright (c) Greg Johnston</text>
+PackageSummary: <text>Leptos integration with Axum</text>
+
+PackageName: axum
+SPDXID: SPDXRef-Package-axum
+PackageVersion: 0.8.1
+PackageDownloadLocation: https://crates.io/crates/axum/0.8.1
+FilesAnalyzed: false
+PackageLicenseConcluded: MIT
+PackageLicenseDeclared: MIT
+PackageCopyrightText: <text>Copyright (c) axum contributors</text>
+PackageSummary: <text>HTTP server framework</text>
+
+##### Memory Dependencies
+
+PackageName: mimalloc
+SPDXID: SPDXRef-Package-mimalloc
+PackageVersion: 0.1.43
+PackageDownloadLocation: https://crates.io/crates/mimalloc/0.1.43
+FilesAnalyzed: false
+PackageLicenseConcluded: MIT
+PackageLicenseDeclared: MIT
+PackageCopyrightText: <text>Copyright (c) Microsoft Corporation</text>
+PackageSummary: <text>High-performance memory allocator</text>
+
+PackageName: bytes
+SPDXID: SPDXRef-Package-bytes
+PackageVersion: 1.9.0
+PackageDownloadLocation: https://crates.io/crates/bytes/1.9.0
+FilesAnalyzed: false
+PackageLicenseConcluded: MIT
+PackageLicenseDeclared: MIT
+PackageCopyrightText: <text>Copyright (c) bytes contributors</text>
+PackageSummary: <text>Byte buffer utilities</text>
+
+##### Cryptography Dependencies
+
+PackageName: ring
+SPDXID: SPDXRef-Package-ring
+PackageVersion: 0.17.8
+PackageDownloadLocation: https://crates.io/crates/ring/0.17.8
+FilesAnalyzed: false
+PackageLicenseConcluded: ISC AND OpenSSL AND MIT
+PackageLicenseDeclared: ISC AND OpenSSL AND MIT
+PackageCopyrightText: <text>Copyright (c) Brian Smith</text>
+PackageSummary: <text>Cryptography primitives</text>
+
+PackageName: rustls
+SPDXID: SPDXRef-Package-rustls
+PackageVersion: 0.23.20
+PackageDownloadLocation: https://crates.io/crates/rustls/0.23.20
+FilesAnalyzed: false
+PackageLicenseConcluded: Apache-2.0 OR ISC OR MIT
+PackageLicenseDeclared: Apache-2.0 OR ISC OR MIT
+PackageCopyrightText: <text>Copyright (c) rustls contributors</text>
+PackageSummary: <text>TLS implementation</text>
+
+PackageName: ed25519-dalek
+SPDXID: SPDXRef-Package-ed25519-dalek
+PackageVersion: 2.1.1
+PackageDownloadLocation: https://crates.io/crates/ed25519-dalek/2.1.1
+FilesAnalyzed: false
+PackageLicenseConcluded: Apache-2.0 OR MIT
+PackageLicenseDeclared: Apache-2.0 OR MIT
+PackageCopyrightText: <text>Copyright (c) isis agora lovecruft</text>
+PackageSummary: <text>Ed25519 signatures</text>
+
+PackageName: sha2
+SPDXID: SPDXRef-Package-sha2
+PackageVersion: 0.10.8
+PackageDownloadLocation: https://crates.io/crates/sha2/0.10.8
+FilesAnalyzed: false
+PackageLicenseConcluded: Apache-2.0 OR MIT
+PackageLicenseDeclared: Apache-2.0 OR MIT
+PackageCopyrightText: <text>Copyright (c) RustCrypto Developers</text>
+PackageSummary: <text>SHA-2 hash functions</text>
+
+##### Logging Dependencies
+
+PackageName: tracing
+SPDXID: SPDXRef-Package-tracing
+PackageVersion: 0.1.41
+PackageDownloadLocation: https://crates.io/crates/tracing/0.1.41
+FilesAnalyzed: false
+PackageLicenseConcluded: MIT
+PackageLicenseDeclared: MIT
+PackageCopyrightText: <text>Copyright (c) tracing contributors</text>
+PackageSummary: <text>Structured logging</text>
+
+PackageName: tracing-subscriber
+SPDXID: SPDXRef-Package-tracing-subscriber
+PackageVersion: 0.3.19
+PackageDownloadLocation: https://crates.io/crates/tracing-subscriber/0.3.19
+FilesAnalyzed: false
+PackageLicenseConcluded: MIT
+PackageLicenseDeclared: MIT
+PackageCopyrightText: <text>Copyright (c) tracing contributors</text>
+PackageSummary: <text>Tracing subscriber utilities</text>
+
+##### Utility Dependencies
+
+PackageName: thiserror
+SPDXID: SPDXRef-Package-thiserror
+PackageVersion: 2.0.9
+PackageDownloadLocation: https://crates.io/crates/thiserror/2.0.9
+FilesAnalyzed: false
+PackageLicenseConcluded: Apache-2.0 OR MIT
+PackageLicenseDeclared: Apache-2.0 OR MIT
+PackageCopyrightText: <text>Copyright (c) David Tolnay</text>
+PackageSummary: <text>Error handling derive</text>
+
+PackageName: anyhow
+SPDXID: SPDXRef-Package-anyhow
+PackageVersion: 1.0.95
+PackageDownloadLocation: https://crates.io/crates/anyhow/1.0.95
+FilesAnalyzed: false
+PackageLicenseConcluded: Apache-2.0 OR MIT
+PackageLicenseDeclared: Apache-2.0 OR MIT
+PackageCopyrightText: <text>Copyright (c) David Tolnay</text>
+PackageSummary: <text>Flexible error handling</text>
+
+PackageName: uuid
+SPDXID: SPDXRef-Package-uuid
+PackageVersion: 1.11.0
+PackageDownloadLocation: https://crates.io/crates/uuid/1.11.0
+FilesAnalyzed: false
+PackageLicenseConcluded: Apache-2.0 OR MIT
+PackageLicenseDeclared: Apache-2.0 OR MIT
+PackageCopyrightText: <text>Copyright (c) uuid contributors</text>
+PackageSummary: <text>UUID generation</text>
+
+PackageName: parking_lot
+SPDXID: SPDXRef-Package-parking-lot
+PackageVersion: 0.12.3
+PackageDownloadLocation: https://crates.io/crates/parking_lot/0.12.3
+FilesAnalyzed: false
+PackageLicenseConcluded: Apache-2.0 OR MIT
+PackageLicenseDeclared: Apache-2.0 OR MIT
+PackageCopyrightText: <text>Copyright (c) Amanieu d'Antras</text>
+PackageSummary: <text>Synchronization primitives</text>
+
+PackageName: dashmap
+SPDXID: SPDXRef-Package-dashmap
+PackageVersion: 6.1.0
+PackageDownloadLocation: https://crates.io/crates/dashmap/6.1.0
+FilesAnalyzed: false
+PackageLicenseConcluded: MIT
+PackageLicenseDeclared: MIT
+PackageCopyrightText: <text>Copyright (c) dashmap contributors</text>
+PackageSummary: <text>Concurrent hash map</text>
+
+PackageName: once_cell
+SPDXID: SPDXRef-Package-once-cell
+PackageVersion: 1.20.2
+PackageDownloadLocation: https://crates.io/crates/once_cell/1.20.2
+FilesAnalyzed: false
+PackageLicenseConcluded: Apache-2.0 OR MIT
+PackageLicenseDeclared: Apache-2.0 OR MIT
+PackageCopyrightText: <text>Copyright (c) Paul Dicker</text>
+PackageSummary: <text>Lazy static initialization</text>
+
+##### Dev Dependencies
+
+PackageName: criterion
+SPDXID: SPDXRef-Package-criterion
+PackageVersion: 0.5.1
+PackageDownloadLocation: https://crates.io/crates/criterion/0.5.1
+FilesAnalyzed: false
+PackageLicenseConcluded: Apache-2.0 OR MIT
+PackageLicenseDeclared: Apache-2.0 OR MIT
+PackageCopyrightText: <text>Copyright (c) criterion contributors</text>
+PackageSummary: <text>Benchmarking framework</text>
+
+PackageName: proptest
+SPDXID: SPDXRef-Package-proptest
+PackageVersion: 1.6.0
+PackageDownloadLocation: https://crates.io/crates/proptest/1.6.0
+FilesAnalyzed: false
+PackageLicenseConcluded: Apache-2.0 OR MIT
+PackageLicenseDeclared: Apache-2.0 OR MIT
+PackageCopyrightText: <text>Copyright (c) proptest contributors</text>
+PackageSummary: <text>Property-based testing</text>
+
+PackageName: tempfile
+SPDXID: SPDXRef-Package-tempfile
+PackageVersion: 3.15.0
+PackageDownloadLocation: https://crates.io/crates/tempfile/3.15.0
+FilesAnalyzed: false
+PackageLicenseConcluded: Apache-2.0 OR MIT
+PackageLicenseDeclared: Apache-2.0 OR MIT
+PackageCopyrightText: <text>Copyright (c) Steven Allen</text>
+PackageSummary: <text>Temporary file handling</text>
+
+##### Relationships
+
+Relationship: SPDXRef-DOCUMENT DESCRIBES SPDXRef-Package-aether-core
+Relationship: SPDXRef-Package-aether-core DEPENDS_ON SPDXRef-Package-wasmtime
+Relationship: SPDXRef-Package-aether-core DEPENDS_ON SPDXRef-Package-wasmtime-wasi
+Relationship: SPDXRef-Package-aether-core DEPENDS_ON SPDXRef-Package-wasmtime-component-util
+Relationship: SPDXRef-Package-aether-core DEPENDS_ON SPDXRef-Package-firecracker
+Relationship: SPDXRef-Package-aether-core DEPENDS_ON SPDXRef-Package-kvm-bindings
+Relationship: SPDXRef-Package-aether-core DEPENDS_ON SPDXRef-Package-kvm-ioctls
+Relationship: SPDXRef-Package-aether-core DEPENDS_ON SPDXRef-Package-foundationdb
+Relationship: SPDXRef-Package-aether-core DEPENDS_ON SPDXRef-Package-foundationdb-sys
+Relationship: SPDXRef-Package-aether-core DEPENDS_ON SPDXRef-Package-quinn
+Relationship: SPDXRef-Package-aether-core DEPENDS_ON SPDXRef-Package-quinn-proto
+Relationship: SPDXRef-Package-aether-core DEPENDS_ON SPDXRef-Package-h3
+Relationship: SPDXRef-Package-aether-core DEPENDS_ON SPDXRef-Package-h3-quinn
+Relationship: SPDXRef-Package-aether-core DEPENDS_ON SPDXRef-Package-tokio
+Relationship: SPDXRef-Package-aether-core DEPENDS_ON SPDXRef-Package-monoio
+Relationship: SPDXRef-Package-aether-core DEPENDS_ON SPDXRef-Package-io-uring
+Relationship: SPDXRef-Package-aether-core DEPENDS_ON SPDXRef-Package-rkyv
+Relationship: SPDXRef-Package-aether-core DEPENDS_ON SPDXRef-Package-rkyv-derive
+Relationship: SPDXRef-Package-aether-core DEPENDS_ON SPDXRef-Package-bytecheck
+Relationship: SPDXRef-Package-aether-core DEPENDS_ON SPDXRef-Package-serde
+Relationship: SPDXRef-Package-aether-core DEPENDS_ON SPDXRef-Package-clap
+Relationship: SPDXRef-Package-aether-core DEPENDS_ON SPDXRef-Package-ratatui
+Relationship: SPDXRef-Package-aether-core DEPENDS_ON SPDXRef-Package-crossterm
+Relationship: SPDXRef-Package-aether-core DEPENDS_ON SPDXRef-Package-leptos
+Relationship: SPDXRef-Package-aether-core DEPENDS_ON SPDXRef-Package-leptos-axum
+Relationship: SPDXRef-Package-aether-core DEPENDS_ON SPDXRef-Package-axum
+Relationship: SPDXRef-Package-aether-core DEPENDS_ON SPDXRef-Package-mimalloc
+Relationship: SPDXRef-Package-aether-core DEPENDS_ON SPDXRef-Package-bytes
+Relationship: SPDXRef-Package-aether-core DEPENDS_ON SPDXRef-Package-ring
+Relationship: SPDXRef-Package-aether-core DEPENDS_ON SPDXRef-Package-rustls
+Relationship: SPDXRef-Package-aether-core DEPENDS_ON SPDXRef-Package-ed25519-dalek
+Relationship: SPDXRef-Package-aether-core DEPENDS_ON SPDXRef-Package-sha2
+Relationship: SPDXRef-Package-aether-core DEPENDS_ON SPDXRef-Package-tracing
+Relationship: SPDXRef-Package-aether-core DEPENDS_ON SPDXRef-Package-tracing-subscriber
+Relationship: SPDXRef-Package-aether-core DEPENDS_ON SPDXRef-Package-thiserror
+Relationship: SPDXRef-Package-aether-core DEPENDS_ON SPDXRef-Package-anyhow
+Relationship: SPDXRef-Package-aether-core DEPENDS_ON SPDXRef-Package-uuid
+Relationship: SPDXRef-Package-aether-core DEPENDS_ON SPDXRef-Package-parking-lot
+Relationship: SPDXRef-Package-aether-core DEPENDS_ON SPDXRef-Package-dashmap
+Relationship: SPDXRef-Package-aether-core DEPENDS_ON SPDXRef-Package-once-cell
+Relationship: SPDXRef-Package-aether-core BUILD_DEPENDS_ON SPDXRef-Package-criterion
+Relationship: SPDXRef-Package-aether-core BUILD_DEPENDS_ON SPDXRef-Package-proptest
+Relationship: SPDXRef-Package-aether-core BUILD_DEPENDS_ON SPDXRef-Package-tempfile
