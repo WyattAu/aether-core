@@ -274,7 +274,7 @@ pub struct ProviderConfig {
 }
 
 /// Supported provider types
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ProviderType {
     Openai,

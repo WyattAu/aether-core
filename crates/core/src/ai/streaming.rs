@@ -307,6 +307,7 @@ pub async fn collect_stream_full(stream: CompletionStream) -> Result<StreamAccum
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Arc;
 
     #[test]
     fn test_accumulator_content() {
