@@ -611,7 +611,8 @@ impl AiProvider for AnthropicProvider {
             .map_err(|e| Error::internal(format!("Failed to parse response: {}", e)))?;
 
         // Parse Anthropic response format
-        let content_blocks = json["content"].as_array().unwrap_or(&Vec::new());
+        let empty_vec = Vec::new();
+        let content_blocks = json["content"].as_array().unwrap_or(&empty_vec);
         
         let mut text_content = String::new();
         let mut tool_calls = Vec::new();

@@ -245,12 +245,6 @@ pub use security::{
 /// Provides the host interface for WASM actors with deterministic execution support.
 pub use wasi::{DefaultWasiHost, HostContext, LogLevel, StateHandle, WasiHost};
 
-/// AI integration types
-///
-/// Provides multi-provider AI support (Openai, Anthropic, Ollama),
-/// actor-to-actor AI delegation, and streaming responses.
-pub mod ai;
-
 /// Enterprise features (multi-tenancy, resource quotas)
 /// Enable with the `enterprise` feature flag.
 #[cfg(feature = "enterprise")]

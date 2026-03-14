@@ -5,15 +5,12 @@
 //! - Callback-based streaming
 //! - Chunk accumulation
 
-use std::pin::Pin;
-use std::sync::Arc;
-
-use futures::{Stream, StreamExt};
+use futures::{pin_mut, StreamExt};
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast;
 
-use crate::error::{Error, Result};
+use crate::error::Result;
 
 use super::providers::{CompletionStream, FinishReason, StreamChunk, ToolCallDelta};
 

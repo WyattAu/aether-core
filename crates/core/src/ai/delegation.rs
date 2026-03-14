@@ -12,11 +12,10 @@ use std::sync::Arc;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 
-use crate::actor::{ActorId, Message as ActorMessage, MessagePayload};
-use crate::capability::CapabilitySet;
+use crate::actor::ActorId;
 use crate::error::{Error, Result};
 
-use super::providers::{AiProvider, CompletionRequest, CompletionResponse, Message};
+use super::providers::{AiProvider, CompletionRequest, Message};
 
 /// Delegation request from one actor to another
 #[derive(Debug, Clone, Serialize, Deserialize)]
