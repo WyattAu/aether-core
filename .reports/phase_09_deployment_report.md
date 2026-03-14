@@ -6,6 +6,48 @@
 
 ---
 
+## 0. Deployment Philosophy
+
+### 0.1 Native vs Kubernetes Deployment
+
+Aether supports two deployment models to accommodate different organizational needs:
+
+| Model | Purpose | Production Ready |
+|------|---------|------------------|
+| **Native** | Primary production deployment | ✅ Yes |
+| **Kubernetes** | Transitional/adoption layer | ⚠️ Limited |
+
+**Native Deployment (Recommended):**
+- Direct on bare-metal or VM
+- Maximum performance (~30µs cold start)
+- Minimal attack surface
+- Full hardware access (GPU, io_uring, KVM)
+- `aether.toml` configuration
+
+**Kubernetes Deployment (Transitional):**
+- For evaluation and migration phases
+- Leverages existing K8s infrastructure
+- ~10-15% performance overhead
+- Additional network hop
+- Limited hardware access
+- **Not recommended for production AI workloads**
+
+> ⚠️ **Important:** Kubernetes deployment is provided for organizations that need to evaluate Aether on existing infrastructure. Plan migration to native deployment for production workloads. See [Deployment Guide](../.docs/deployment_guide.md) for detailed migration instructions.
+
+### 0.2 When to Use Each Model
+
+| Scenario | Recommendation |
+|----------|----------------|
+| New production deployment | Native |
+| Maximum performance required | Native |
+| AI/ML workloads | Native (direct GPU access) |
+| Edge deployment | Native (resource constrained) |
+| Existing K8s investment | K8s → Plan native migration |
+| Evaluation/POC | K8s acceptable |
+| Development environment | K8s acceptable |
+
+---
+
 ## 1. Deployment Strategy
 
 ### 1.1 Container Deployment

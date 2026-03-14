@@ -1,0 +1,92 @@
+# Aether Kubernetes Deployment (Transitional/Adoption Layer)
+#
+# PURPOSE: This deployment allows organizations to run Aether on existing
+# Kubernetes infrastructure during evaluation and migration phases.
+#
+# RECOMMENDED FOR:
+#   - Initial evaluation and testing
+#   - Organizations with existing K8s investment
+#   - Gradual migration from K8s to native Aether
+#
+# NOT RECOMMENDED FOR:
+#   - Production workloads (use native bare-metal deployment)
+#   - Maximum performance scenarios
+#   - Minimal attack surface requirements
+#
+# LIMITATIONS:
+#   - Additional network hop through K8s networking layer
+#   - Resource overhead from container runtime
+#   - Reduced access to hardware features (io_uring, KVM)
+#
+# For native deployment, see: .docs/deployment_guide.md
+#
+# ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aether
+  labels:
+    app: aether
+    deployment.model: transitional
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: aether
+  template:
+    metadata:
+      labels:
+        app: aether
+    spec:
+      containers:
+      - name: aether
+        image: aether:latest
+        ports:
+        - containerPort: 9000
+          protocol: UDP
+          name: quic
+        - containerPort: 9001
+          protocol: TCP
+          name: http
+        env:
+        - name: AETHER_NODE_ID
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        resources:
+          limits:
+            memory: "2Gi"
+            cpu: "2"
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/aether
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 9001
+          initialDelaySeconds: 10
+          periodSeconds: 30
+      volumes:
+      - name: data
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aether
+spec:
+  selector:
+    app: aether
+  ports:
+  - port: 9000
+    targetPort: 9000
+    protocol: UDP
+    name: quic
+  - port: 9001
+    targetPort: 9001
+    protocol: TCP
+    name: http
+  type: LoadBalancer

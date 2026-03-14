@@ -1,5 +1,28 @@
-# Aether AI Integration Kubernetes Configuration
+# Aether AI Integration Kubernetes Configuration (Transitional/Adoption Layer)
 # Version: 1.1.0-alpha
+#
+# PURPOSE: This deployment allows organizations to run Aether with AI features
+# on existing Kubernetes infrastructure during evaluation and migration phases.
+#
+# RECOMMENDED FOR:
+#   - Initial AI feature evaluation
+#   - Organizations with existing K8s investment
+#   - Development and testing environments
+#
+# NOT RECOMMENDED FOR:
+#   - Production AI workloads (use native bare-metal deployment)
+#   - Low-latency AI inference requirements
+#   - Maximum AI throughput scenarios
+#
+# NATIVE DEPLOYMENT BENEFITS:
+#   - Direct hardware access for AI acceleration (GPU, TPU)
+#   - Reduced latency for AI inference
+#   - No container networking overhead for memory operations
+#   - Full control over memory persistence layer
+#
+# For native deployment, see: .docs/deployment_guide.md
+#
+# ---
 
 ---
 ## AI-Specific Resources
