@@ -7,6 +7,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.0-alpha] - 2026-03-14
+
+### Added - Multi-Provider AI Support
+
+#### AI Module (`crates/core/src/ai/`)
+- **Multi-Provider Architecture**: Unified `AiProvider` trait for OpenAI, Anthropic, and Ollama
+- **OpenAI Provider**: GPT-4, GPT-3.5 support with streaming
+- **Anthropic Provider**: Claude 3 support with tool calling
+- **Ollama Provider**: Local LLM support (Llama 2, Mistral, etc.)
+- **Provider Manager**: Registry for multiple AI providers with default selection
+
+#### Streaming Support
+- `CompletionStream` - Async stream for chunked responses
+- `StreamAccumulator` - Collects streaming chunks into complete response
+- `StreamManager` - Manages multiple concurrent streams with callbacks
+- `StreamEvent` - Events for chunk, complete, error states
+
+#### Actor-to-Actor AI Delegation
+- `AiDelegationManager` - Routes AI tasks to specialized actors
+- `DelegationRequest` - Request structure with priority and constraints
+- `DelegationResponse` - Response with processing metrics
+- `AiActorProcessor` - Trait for actors to handle AI tasks
+
+### Added - Infrastructure
+
+#### Container Publishing (`.github/workflows/container.yml`)
+- Multi-platform builds (amd64, arm64)
+- GitHub Container Registry (ghcr.io) publishing
+- Trivy security scanning
+- Integration tests in container environment
+- Automated tagging (latest, version, commit SHA)
+
+### Added - Documentation
+
+#### New Documentation Files
+- `.docs/getting_started.md` - 15-minute quick start guide
+- `.docs/code_examples.md` - Common patterns for actors, AI, mesh, state
+- `.docs/community.md` - Community guide with Discord structure
+
+#### Updated Documentation
+- `CONTRIBUTING.md` - Comprehensive development guidelines
+  - Error handling patterns
+  - Capability check requirements
+  - Metadata access patterns
+  - Testing guidelines
+  - PR process
+
+### Added - Community
+
+#### GitHub Templates
+- `.github/ISSUE_TEMPLATE/bug_report.md` - Bug report template
+- `.github/ISSUE_TEMPLATE/feature_request.md` - Feature request template
+- `.github/ISSUE_TEMPLATE/actor_development.md` - Actor dev questions
+- `.github/pull_request_template.md` - PR checklist template
+
+### Changed
+
+- Removed duplicate `pub mod ai` declaration in `lib.rs`
+- Fixed `pin_mut!` macro import in streaming.rs
+- Fixed temporary value borrow in providers.rs
+
+---
+
 ## [1.1.0-alpha] - 2026-03-14
 
 ### Added - AI Integration Features

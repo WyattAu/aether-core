@@ -1,14 +1,36 @@
 # Project Aether Version Tracking
 
-current_phase: 13
-current_version: 1.1.0-alpha
-status: Released - All R&D Artifacts Committed
-last_updated: 2026-03-14T13:30:00Z
+current_phase: 17
+current_version: 1.2.0-alpha
+status: In Progress - Features, Documentation, Community
+last_updated: 2026-03-14T14:00:00Z
 error_level: null
-rollback_checkpoint: v1.1.0-alpha
+rollback_checkpoint: v1.2.0-alpha-wip
 recovery_time_estimate: null
 actual_recovery_time: null
 capability_matrix_status: complete
+
+## Phase 17: Community (In Progress)
+
+### Completed
+- [x] Issue templates (bug report, feature request, actor development)
+- [x] Pull request template
+- [x] Community guide with Discord structure
+
+### Phase 16: Documentation (Completed)
+- [x] Getting started guide (`.docs/getting_started.md`)
+- [x] Code examples (`.docs/code_examples.md`)
+- [x] Updated CONTRIBUTING.md with comprehensive guidelines
+
+### Phase 15: Features (Completed)
+- [x] AI module with multi-provider support (OpenAI, Anthropic, Ollama)
+- [x] Streaming response handling
+- [x] Actor-to-actor AI delegation
+- [x] Container publishing workflow (ghcr.io)
+
+### Phase 14: Infrastructure (Completed)
+- [x] Reviewed existing CI/CD workflows
+- [x] Added container.yml for multi-platform builds
 
 ## Phase 10: Project Closure (Completed 2026-03-14)
 
