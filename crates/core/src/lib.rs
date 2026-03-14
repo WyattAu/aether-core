@@ -189,6 +189,7 @@
 #![doc(html_root_url = "https://docs.rs/aether-core/0.1.0")]
 
 pub mod actor;
+pub mod ai;
 pub mod capability;
 pub mod chaos;
 pub mod config;
@@ -244,9 +245,13 @@ pub use security::{
 /// Provides the host interface for WASM actors with deterministic execution support.
 pub use wasi::{DefaultWasiHost, HostContext, LogLevel, StateHandle, WasiHost};
 
-/// Enterprise features (multi-tenancy, resource quotas)
+/// AI integration types
 ///
-/// Provides multi-tenancy support with isolated environments and resource tracking.
+/// Provides multi-provider AI support (Openai, Anthropic, Ollama),
+/// actor-to-actor AI delegation, and streaming responses.
+pub mod ai;
+
+/// Enterprise features (multi-tenancy, resource quotas)
 /// Enable with the `enterprise` feature flag.
 #[cfg(feature = "enterprise")]
 pub use enterprise::{
