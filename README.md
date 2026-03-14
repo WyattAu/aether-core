@@ -140,4 +140,31 @@ See [CONTRIBUTING.md](CONTRIBUTING.md)
 
 ---
 
+## 👥 Community
+
+| Platform | Purpose |
+|----------|---------|
+| [Discord](https://discord.gg/aether) | Real-time chat, help, announcements |
+| [GitHub Discussions](https://github.com/WyattAu/aether-core/discussions) | Long-form discussions, Q&A |
+| [GitHub Issues](https://github.com/WyattAu/aether-core/issues) | Bug reports, feature requests |
+
+### Good First Issues
+
+New to the project? Look for [`good first issue`](https://github.com/WyattAu/aether-core/issues?q=is%3Aopen+label%3A%22good+first+issue%22) labels to get started!
+
+---
+
+## 🆕 What's New
+
+### v1.2.0-alpha (Latest)
+
+- **Multi-Provider AI Support**: OpenAI, Anthropic, Ollama with streaming
+- **Actor-to-Actor AI Delegation**: Route AI tasks to specialized actors
+- **Container Publishing**: Multi-platform images on ghcr.io
+- **Enhanced Documentation**: Getting started guide, code examples
+
+See [CHANGELOG.md](CHANGELOG.md) for full release history.
+
+---
+
 *© 2026 Project Aether. Built for the era of Liquid Compute.*
