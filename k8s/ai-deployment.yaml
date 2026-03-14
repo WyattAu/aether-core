@@ -1,0 +1,229 @@
+# Aether AI Integration Kubernetes Configuration
+# Version: 1.1.0-alpha
+
+---
+## AI-Specific Resources
+#
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aether-ai-config
+  labels:
+    app: aether
+    component: ai
+data:
+  # Memory persistence configuration
+  memory.enabled: "true"
+  memory.path: "/var/lib/aether/memory"
+  memory.max_size_mb: "500"
+  memory.ttl_seconds: "604800"  # 7 days
+  
+  # Session configuration
+  session.enabled: "true"
+  session.path: "/var/lib/aether/sessions"
+  session.max_checkpoints: "100"
+  session.max_branches: "50"
+  
+  # MCP Server configuration
+  mcp.enabled: "true"
+  mcp.port: "9002"
+  mcp.timeout_ms: "30000"
+  
+  # Capability defaults
+  capabilities.default_deny: "true"
+  capabilities.ai_use_enabled: "true"
+  capabilities.session_access_enabled: "true"
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: aether-ai-pvc
+  labels:
+    app: aether
+    component: ai
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: standard  # Adjust based on cluster
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aether-ai
+  labels:
+    app: aether
+    component: ai
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: aether
+      component: ai
+  template:
+    metadata:
+      labels:
+        app: aether
+        component: ai
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9001"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+      - name: aether
+        image: aether:1.1.0-alpha
+        ports:
+        - containerPort: 9000
+          protocol: UDP
+          name: quic
+        - containerPort: 9001
+          protocol: TCP
+          name: http
+        - containerPort: 9002
+          protocol: TCP
+          name: mcp
+        env:
+        - name: AETHER_NODE_ID
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: AETHER_AI_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              name: aether-ai-config
+              key: memory.enabled
+        - name: AETHER_MEMORY_PATH
+          valueFrom:
+            configMapKeyRef:
+              name: aether-ai-config
+              key: memory.path
+        - name: AETHER_SESSION_PATH
+          valueFrom:
+            configMapKeyRef:
+              name: aether-ai-config
+              key: session.path
+        resources:
+          limits:
+            memory: "2Gi"
+            cpu: "2"
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+        volumeMounts:
+        - name: ai-data
+          mountPath: /var/lib/aether
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 9001
+          initialDelaySeconds: 10
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /health/ai
+            port: 9001
+          initialDelaySeconds: 5
+          periodSeconds: 10
+      volumes:
+      - name: ai-data
+        persistentVolumeClaim:
+          claimName: aether-ai-pvc
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aether-ai
+  labels:
+    app: aether
+    component: ai
+spec:
+  selector:
+    app: aether
+    component: ai
+  ports:
+  - port: 9000
+    targetPort: 9000
+    protocol: UDP
+    name: quic
+  - port: 9001
+    targetPort: 9001
+    protocol: TCP
+    name: http
+  - port: 9002
+    targetPort: 9002
+    protocol: TCP
+    name: mcp
+  type: ClusterIP
+
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: aether-ai
+  labels:
+    app: aether
+    component: ai
+spec:
+  selector:
+    matchLabels:
+      app: aether
+      component: ai
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 30s
+
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: aether-ai-rules
+  labels:
+    app: aether
+    component: ai
+spec:
+  groups:
+  - name: aether-ai
+    rules:
+    - alert: AetherAIHighErrorRate
+      expr: rate(aether_ai_errors_total[5m]) > 0.1
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: High AI error rate detected
+        description: "AI error rate is {{ $value }} errors/s"
+        
+    - alert: AetherMemoryStoreHigh
+      expr: aether_memory_size_bytes > 450000000
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: Memory store size approaching limit
+        description: "Memory store is {{ $value }} bytes"
+        
+    - alert: AetherSessionStoreFull
+      expr: aether_session_count / aether_session_max > 0.9
+      for: 5m
+      labels:
+        severity: critical
+      annotations:
+        summary: Session store near capacity
+        description: "Session store is at {{ $value }}% capacity"
+        
+    - alert: AetherAIRequestSlow
+      expr: histogram_quantile(aether_ai_requests_duration_seconds_bucket{le="0.5"}, 0.5) > 0.3
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: AI request latency high
+        description: "P50 latency is {{ $value }}s"
