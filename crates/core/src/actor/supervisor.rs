@@ -475,7 +475,7 @@ impl Supervisor {
     }
 
     /// Stop a child actor gracefully.
-    pub async fn stop_child(&mut self, name: &str) -> Result<()> {
+    pub fn stop_child(&mut self, name: &str) -> Result<()> {
         let child = self
             .children
             .get_mut(name)
@@ -492,7 +492,7 @@ impl Supervisor {
     }
 
     /// Terminate a child actor with a specific reason.
-    pub async fn terminate_child(&mut self, name: &str, reason: ExitReason) -> Result<()> {
+    pub fn terminate_child(&mut self, name: &str, reason: ExitReason) -> Result<()> {
         let child = self
             .children
             .get_mut(name)
@@ -922,7 +922,7 @@ impl SupervisorTree {
 
                 for name in child_names {
                     if let Some(sup) = self.supervisors.get_mut(id) {
-                        let _ = sup.terminate_child(&name, ExitReason::Shutdown).await;
+                        let _ = sup.terminate_child(&name, ExitReason::Shutdown);
                     }
                 }
             }
@@ -1051,13 +1051,8 @@ impl SupervisorHandle {
     }
 
     /// Stop a child actor.
-    pub async fn stop_child(&self, name: &str) -> Result<()> {
-        // Perform the state transition synchronously, then drop the lock before any potential await
-        {
-            let mut inner = self.inner.write();
-            inner.stop_child(name).await?;
-        }
-        Ok(())
+    pub fn stop_child(&self, name: &str) -> Result<()> {
+        self.inner.write().stop_child(name)
     }
 
     /// Get child statistics.
@@ -1166,7 +1161,7 @@ mod tests {
         let mut supervisor = Supervisor::new(SupervisionStrategy::default());
 
         supervisor.start_child(ChildSpec::new("child-1")).unwrap();
-        supervisor.stop_child("child-1").await.unwrap();
+        supervisor.stop_child("child-1").unwrap();
 
         let child = supervisor.get_child("child-1").unwrap();
         matches!(
@@ -1182,7 +1177,6 @@ mod tests {
         supervisor.start_child(ChildSpec::new("child-1")).unwrap();
         supervisor
             .terminate_child("child-1", ExitReason::Error("test error".to_string()))
-            .await
             .unwrap();
 
         let child = supervisor.get_child("child-1").unwrap();

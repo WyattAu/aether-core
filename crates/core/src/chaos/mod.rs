@@ -190,25 +190,31 @@ impl ChaosTestRunner {
 
         let result = loop {
             if start.elapsed() > self.config.max_duration {
-                break scenario
-                    .complete(ScenarioStats {
+                // Read metrics before await to avoid holding lock across await point
+                let stats = {
+                    let metrics = self.metrics.read();
+                    ScenarioStats {
                         duration: start.elapsed(),
-                        faults_injected: self.metrics.read().faults_injected,
-                        failures_observed: self.metrics.read().failures_observed,
-                        recoveries: self.metrics.read().recoveries,
-                    })
-                    .await;
+                        faults_injected: metrics.faults_injected,
+                        failures_observed: metrics.failures_observed,
+                        recoveries: metrics.recoveries,
+                    }
+                };
+                break scenario.complete(stats).await;
             }
 
             if !*self.running.read() {
-                break scenario
-                    .complete(ScenarioStats {
+                // Read metrics before await to avoid holding lock across await point
+                let stats = {
+                    let metrics = self.metrics.read();
+                    ScenarioStats {
                         duration: start.elapsed(),
-                        faults_injected: self.metrics.read().faults_injected,
-                        failures_observed: self.metrics.read().failures_observed,
-                        recoveries: self.metrics.read().recoveries,
-                    })
-                    .await;
+                        faults_injected: metrics.faults_injected,
+                        failures_observed: metrics.failures_observed,
+                        recoveries: metrics.recoveries,
+                    }
+                };
+                break scenario.complete(stats).await;
             }
 
             scenario.step(self).await?;
