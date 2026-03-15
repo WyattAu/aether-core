@@ -1,5 +1,11 @@
 # 🚀 Project Aether
 
+[![CI](https://github.com/WyattAu/aether-core/actions/workflows/ci.yml/badge.svg)](https://github.com/WyattAu/aether-core/actions/workflows/ci.yml)
+[![Release](https://github.com/WyattAu/aether-core/actions/workflows/release.yml/badge.svg)](https://github.com/WyattAu/aether-core/actions/workflows/release.yml)
+[![Security](https://github.com/WyattAu/aether-core/actions/workflows/security.yml/badge.svg)](https://github.com/WyattAu/aether-core/actions/workflows/security.yml)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+[![Discord](https://img.shields.io/discord/aether.svg?label=Discord)](https://discord.gg/aether)
+
 **The Post-Container Application Operating System.**
 
 Aether is a distributed runtime that deprecates the Kubernetes/Docker stack by treating the datacenter as a single, vertically integrated compiler target. It enables **"Liquid Compute,"** where business logic (Actors) moves transparently across hardware boundaries.

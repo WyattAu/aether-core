@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::SystemTime;
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 
 use crate::security::secret_reference::{SecretMetadata, SecretProvider, SecretReference};
 
@@ -403,14 +403,18 @@ pub struct VaultSecretStore {
     address: String,
     token: Option<String>,
     audit_log: Arc<SecretAuditLog>,
+    client: reqwest::Client,
+    mount_path: String,
 }
 
 impl VaultSecretStore {
     pub fn new(address: &str) -> Self {
         Self {
-            address: address.to_string(),
+            address: address.trim_end_matches('/').to_string(),
             token: None,
             audit_log: Arc::new(SecretAuditLog::new(10000)),
+            client: reqwest::Client::new(),
+            mount_path: "secret".to_string(),
         }
     }
 
@@ -423,6 +427,143 @@ impl VaultSecretStore {
         self.audit_log = audit_log;
         self
     }
+
+    /// Set the KV mount path (default: "secret")
+    pub fn with_mount_path(mut self, path: &str) -> Self {
+        self.mount_path = path.to_string();
+        self
+    }
+
+    /// Build the Vault API URL for KV v2 read/write
+    fn kv_url(&self, path: &str) -> String {
+        format!("{}/v1/{}/data/{}", self.address, self.mount_path, path)
+    }
+
+    /// Build the Vault API URL for KV v2 delete
+    fn kv_delete_url(&self, path: &str) -> String {
+        format!("{}/v1/{}/metadata/{}", self.address, self.mount_path, path)
+    }
+
+    /// Build the Vault API URL for listing
+    fn kv_list_url(&self, path: &str) -> String {
+        format!("{}/v1/{}/metadata/{}", self.address, self.mount_path, path)
+    }
+
+    /// Check if the token is configured
+    fn check_token(&self) -> Result<&str> {
+        self.token
+            .as_deref()
+            .ok_or_else(|| Error::security("Vault token not configured"))
+    }
+
+    /// Make a GET request to Vault
+    async fn vault_get(&self, url: &str) -> Result<serde_json::Value> {
+        let token = self.check_token()?;
+        
+        let response = self.client
+            .get(url)
+            .header("X-Vault-Token", token)
+            .header("X-Vault-Request", "true")
+            .send()
+            .await
+            .map_err(|e| Error::internal(format!("Vault request failed: {}", e)))?;
+
+        let status = response.status();
+        if status.is_success() {
+            response.json()
+                .await
+                .map_err(|e| Error::internal(format!("Failed to parse Vault response: {}", e)))
+        } else if status.as_u16() == 404 {
+            Err(Error::security("Secret not found in Vault"))
+        } else {
+            let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+            Err(Error::internal(format!("Vault error ({}): {}", status, error_text)))
+        }
+    }
+
+    /// Make a POST request to Vault
+    async fn vault_post(&self, url: &str, body: &serde_json::Value) -> Result<()> {
+        let token = self.check_token()?;
+        
+        let response = self.client
+            .post(url)
+            .header("X-Vault-Token", token)
+            .header("X-Vault-Request", "true")
+            .json(body)
+            .send()
+            .await
+            .map_err(|e| Error::internal(format!("Vault request failed: {}", e)))?;
+
+        let status = response.status();
+        if status.is_success() {
+            Ok(())
+        } else {
+            let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+            Err(Error::internal(format!("Vault error ({}): {}", status, error_text)))
+        }
+    }
+
+    /// Make a DELETE request to Vault
+    async fn vault_delete(&self, url: &str) -> Result<bool> {
+        let token = self.check_token()?;
+        
+        let response = self.client
+            .delete(url)
+            .header("X-Vault-Token", token)
+            .header("X-Vault-Request", "true")
+            .send()
+            .await
+            .map_err(|e| Error::internal(format!("Vault request failed: {}", e)))?;
+
+        let status = response.status();
+        if status.is_success() {
+            Ok(true)
+        } else if status.as_u16() == 404 {
+            Ok(false)
+        } else {
+            let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+            Err(Error::internal(format!("Vault error ({}): {}", status, error_text)))
+        }
+    }
+
+    /// Make a LIST request to Vault
+    async fn vault_list(&self, url: &str) -> Result<Vec<String>> {
+        let token = self.check_token()?;
+        
+        let response = self.client
+            .request(reqwest::Method::from_bytes(b"LIST").unwrap(), url)
+            .header("X-Vault-Token", token)
+            .header("X-Vault-Request", "true")
+            .send()
+            .await
+            .map_err(|e| Error::internal(format!("Vault request failed: {}", e)))?;
+
+        let status = response.status();
+        if status.is_success() {
+            let json: serde_json::Value = response.json()
+                .await
+                .map_err(|e| Error::internal(format!("Failed to parse Vault response: {}", e)))?;
+            
+            // Parse the keys from Vault's LIST response
+            let keys = json
+                .get("data")
+                .and_then(|d| d.get("keys"))
+                .and_then(|k| k.as_array())
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|v| v.as_str().map(String::from))
+                        .collect()
+                })
+                .unwrap_or_default();
+            
+            Ok(keys)
+        } else if status.as_u16() == 404 {
+            Ok(Vec::new())
+        } else {
+            let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+            Err(Error::internal(format!("Vault error ({}): {}", status, error_text)))
+        }
+    }
 }
 
 #[async_trait]
@@ -431,40 +572,124 @@ impl SecretStore for VaultSecretStore {
         self.audit_log
             .log(reference.clone(), "system", SecretAction::Read);
 
-        warn!("VaultSecretStore is a stub - returning error");
-        Err(Error::security("Vault integration not implemented"))
+        let full_path = reference.full_path();
+        let url = self.kv_url(&full_path);
+        
+        debug!("Reading secret from Vault: {}", full_path);
+        
+        let json = self.vault_get(&url).await?;
+        
+        // Parse Vault KV v2 response structure
+        let data = json
+            .get("data")
+            .and_then(|d| d.get("data"))
+            .ok_or_else(|| Error::internal("Invalid Vault response: missing data"))?;
+        
+        // Try to get the specific key, or the whole data object
+        let value_data = if reference.key().is_empty() {
+            data.clone()
+        } else {
+            data.get(reference.key())
+                .cloned()
+                .ok_or_else(|| Error::security(format!("Key '{}' not found in secret", reference.key())))?
+        };
+        
+        // Convert to bytes
+        let bytes = match value_data {
+            serde_json::Value::String(s) => s.into_bytes(),
+            serde_json::Value::Number(n) => n.to_string().into_bytes(),
+            serde_json::Value::Bool(b) => b.to_string().into_bytes(),
+            other => serde_json::to_vec(&other)
+                .map_err(|e| Error::serialization(format!("Failed to serialize secret: {}", e)))?,
+        };
+        
+        Ok(SecretValue::new(bytes, reference.clone())
+            .with_content_type("application/json"))
     }
 
-    async fn set(&self, reference: &SecretReference, _value: SecretValue) -> Result<()> {
+    async fn set(&self, reference: &SecretReference, value: SecretValue) -> Result<()> {
         self.audit_log
             .log(reference.clone(), "system", SecretAction::Write);
 
-        warn!("VaultSecretStore is a stub - returning error");
-        Err(Error::security("Vault integration not implemented"))
+        let full_path = reference.full_path();
+        let url = self.kv_url(&full_path);
+        
+        debug!("Writing secret to Vault: {}", full_path);
+        
+        // Build the Vault KV v2 request body
+        let value_json: serde_json::Value = if value.content_type() == "application/json" {
+            serde_json::from_slice(value.data())
+                .unwrap_or_else(|_| serde_json::Value::String(value.to_string_lossy()))
+        } else {
+            serde_json::Value::String(value.to_string_lossy())
+        };
+        
+        let body = serde_json::json!({
+            "data": {
+                reference.key(): value_json
+            }
+        });
+        
+        self.vault_post(&url, &body).await?;
+        
+        info!("Secret written to Vault: {}", full_path);
+        Ok(())
     }
 
     async fn delete(&self, reference: &SecretReference) -> Result<bool> {
         self.audit_log
             .log(reference.clone(), "system", SecretAction::Delete);
 
-        warn!("VaultSecretStore is a stub - returning error");
-        Err(Error::security("Vault integration not implemented"))
+        let full_path = reference.full_path();
+        let url = self.kv_delete_url(&full_path);
+        
+        debug!("Deleting secret from Vault: {}", full_path);
+        
+        let deleted = self.vault_delete(&url).await?;
+        
+        if deleted {
+            info!("Secret deleted from Vault: {}", full_path);
+        }
+        
+        Ok(deleted)
     }
 
-    async fn exists(&self, _reference: &SecretReference) -> bool {
-        false
+    async fn exists(&self, reference: &SecretReference) -> bool {
+        let full_path = reference.full_path();
+        let url = self.kv_url(&full_path);
+        
+        self.vault_get(&url).await.is_ok()
     }
 
-    async fn list(&self, _path_prefix: &str) -> Result<Vec<SecretReference>> {
-        Ok(Vec::new())
+    async fn list(&self, path_prefix: &str) -> Result<Vec<SecretReference>> {
+        let url = self.kv_list_url(path_prefix);
+        
+        debug!("Listing secrets in Vault: {}", path_prefix);
+        
+        let keys = self.vault_list(&url).await?;
+        
+        let refs: Vec<SecretReference> = keys
+            .into_iter()
+            .map(|key| SecretReference::vault(path_prefix, &key))
+            .collect();
+        
+        Ok(refs)
     }
 
     async fn rotate(&self, reference: &SecretReference) -> Result<SecretValue> {
         self.audit_log
             .log(reference.clone(), "system", SecretAction::Rotate);
 
-        warn!("VaultSecretStore is a stub - returning error");
-        Err(Error::security("Vault integration not implemented"))
+        // Generate a new random secret
+        let new_value = generate_random_secret(32);
+        let secret_value = SecretValue::new(new_value.clone(), reference.clone())
+            .with_content_type("application/octet-stream");
+        
+        // Write the new value
+        self.set(reference, secret_value.clone()).await?;
+        
+        info!("Secret rotated in Vault: {}", reference.full_path());
+        Ok(secret_value)
     }
 }
 

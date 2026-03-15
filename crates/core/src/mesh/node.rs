@@ -12,6 +12,9 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
+/// Type alias for local request handler
+type LocalRequestHandler = Arc<dyn Fn(MeshMessage) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<MeshMessage>> + Send>> + Send + Sync>;
+
 pub struct MeshNode {
     node_id: String,
     namespace: String,
@@ -21,6 +24,8 @@ pub struct MeshNode {
     resolver: Arc<ActorResolver>,
     backpressure: Arc<BackpressureController>,
     running: Arc<RwLock<bool>>,
+    /// Handler for local requests (when target actor is on this node)
+    local_request_handler: RwLock<Option<LocalRequestHandler>>,
 }
 
 impl MeshNode {
@@ -64,6 +69,7 @@ impl MeshNode {
             resolver,
             backpressure,
             running: Arc::new(RwLock::new(false)),
+            local_request_handler: RwLock::new(None),
         })
     }
 
@@ -93,6 +99,19 @@ impl MeshNode {
 
     pub fn endpoint(&self) -> &Arc<QuicEndpoint> {
         &self.endpoint
+    }
+
+    /// Set the local request handler for processing requests to local actors.
+    /// 
+    /// The handler is called when a request targets an actor on this node.
+    /// It should process the message and return a response.
+    pub async fn set_local_request_handler<F, Fut>(&self, handler: F)
+    where
+        F: Fn(MeshMessage) -> Fut + Send + Sync + 'static,
+        Fut: std::future::Future<Output = Result<MeshMessage>> + Send + 'static,
+    {
+        let handler: LocalRequestHandler = Arc::new(move |msg| Box::pin(handler(msg)));
+        *self.local_request_handler.write().await = Some(handler);
     }
 
     pub async fn register_actor(&self, actor_name: &str, instance_id: &str) -> Result<String> {
@@ -152,8 +171,35 @@ impl MeshNode {
         Ok(())
     }
 
-    async fn send_local(&self, _packet: &MeshMessage) -> Result<()> {
+    async fn send_local(&self, packet: &MeshMessage) -> Result<()> {
+        // Fire-and-forget local delivery
+        // In a full implementation, this would push to a local actor's mailbox
+        tracing::trace!(
+            source = %packet.source,
+            target = %packet.target,
+            "Local send (fire-and-forget)"
+        );
         Ok(())
+    }
+
+    /// Handle a request to a local actor.
+    async fn request_local(&self, packet: &MeshMessage) -> Result<MeshMessage> {
+        let handler = self.local_request_handler.read().await;
+        
+        if let Some(handler) = handler.as_ref() {
+            tracing::trace!(
+                source = %packet.source,
+                target = %packet.target,
+                "Routing request to local handler"
+            );
+            handler(packet.clone()).await
+        } else {
+            // No handler registered - return an error
+            Err(Error::actor(format!(
+                "Local request handler not configured for actor: {}",
+                packet.target.to_uri()
+            )))
+        }
     }
 
     pub async fn request(&self, packet: &MeshMessage) -> Result<MeshMessage> {
@@ -166,7 +212,7 @@ impl MeshNode {
             .ok_or_else(|| Error::actor(format!("Actor not found: {}", target_id)))?;
 
         if location.is_local(&self.node_id) {
-            return Err(Error::actor("Local request not implemented"));
+            return self.request_local(packet).await;
         }
 
         let node_id = location.node_id.clone();

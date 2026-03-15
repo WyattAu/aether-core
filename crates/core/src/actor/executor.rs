@@ -279,7 +279,16 @@ impl ActorExecutor for WasmActorExecutor {
 #[cfg(feature = "wasm")]
 impl Default for WasmActorExecutor {
     fn default() -> Self {
-        Self::new().expect("Failed to create WasmActorExecutor")
+        // Use a simple default configuration - this should not panic
+        // Create engine with default config, fallback to basic engine if config fails
+        let engine =
+            crate::engine::module::create_engine().unwrap_or_else(|_| wasmtime::Engine::default());
+        Self {
+            engine,
+            modules: parking_lot::RwLock::new(Vec::new()),
+            fuel_tracker: parking_lot::RwLock::new(Vec::new()),
+            default_fuel: 1_000_000,
+        }
     }
 }
 

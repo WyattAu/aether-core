@@ -192,9 +192,9 @@ impl ActorScheduler {
     }
 
     /// Start the scheduler.
-    pub fn start(&self) {
+    pub fn start(&self) -> Result<(), Error> {
         if self.running.swap(true, Ordering::SeqCst) {
-            return;
+            return Ok(());
         }
 
         let mut handles = self.worker_handles.lock();
@@ -229,11 +229,18 @@ impl ActorScheduler {
                         stealer_registry,
                         executor.as_ref(),
                     );
-                })
-                .expect("failed to spawn worker thread");
+                });
 
-            handles.push(handle);
+            match handle {
+                Ok(h) => handles.push(h),
+                Err(e) => {
+                    tracing::error!("Failed to spawn worker thread {}: {}", id, e);
+                    return Err(Error::internal(format!("Failed to spawn worker thread {}: {}", id, e)));
+                }
+            }
         }
+
+        Ok(())
     }
 
     /// Stop the scheduler.
