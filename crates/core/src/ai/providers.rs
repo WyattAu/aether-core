@@ -332,13 +332,16 @@ impl OpenAiProvider {
         let mut headers = reqwest::header::HeaderMap::new();
         headers.insert(
             reqwest::header::AUTHORIZATION,
-            format!("Bearer {}", api_key).parse().unwrap(),
+            format!("Bearer {}", api_key)
+                .parse()
+                .map_err(|e| Error::internal(format!("Invalid authorization header: {}", e)))?,
         );
         
         if let Some(org) = &config.organization {
             headers.insert(
                 "OpenAI-Organization",
-                org.parse().unwrap(),
+                org.parse()
+                    .map_err(|e| Error::internal(format!("Invalid organization header: {}", e)))?,
             );
         }
 
@@ -376,21 +379,25 @@ impl AiProvider for OpenAiProvider {
     async fn complete(&self, request: CompletionRequest) -> Result<CompletionResponse> {
         let url = format!("{}/chat/completions", self.api_url());
         
+        // Pre-serialize tool calls to avoid unwrap in closure
+        let messages: Vec<serde_json::Value> = request.messages.iter().map(|m| {
+            let mut msg = serde_json::json!({
+                "role": m.role.to_string(),
+                "content": m.content,
+            });
+            if !m.tool_calls.is_empty() {
+                msg["tool_calls"] = serde_json::to_value(&m.tool_calls)
+                    .unwrap_or_else(|_| serde_json::json!([]));
+            }
+            if let Some(id) = &m.tool_call_id {
+                msg["tool_call_id"] = serde_json::json!(id);
+            }
+            msg
+        }).collect();
+        
         let body = serde_json::json!({
             "model": request.model,
-            "messages": request.messages.iter().map(|m| {
-                let mut msg = serde_json::json!({
-                    "role": m.role.to_string(),
-                    "content": m.content,
-                });
-                if !m.tool_calls.is_empty() {
-                    msg["tool_calls"] = serde_json::to_value(&m.tool_calls).unwrap();
-                }
-                if let Some(id) = &m.tool_call_id {
-                    msg["tool_call_id"] = serde_json::json!(id);
-                }
-                msg
-            }).collect::<Vec<_>>(),
+            "messages": messages,
             "max_tokens": request.max_tokens.or(self.config.max_tokens),
             "temperature": request.temperature.or(self.config.temperature),
             "stream": false,
@@ -488,15 +495,18 @@ impl AnthropicProvider {
         let mut headers = reqwest::header::HeaderMap::new();
         headers.insert(
             "x-api-key",
-            api_key.parse().unwrap(),
+            api_key.parse()
+                .map_err(|e| Error::internal(format!("Invalid API key header: {}", e)))?,
         );
         headers.insert(
             "anthropic-version",
-            "2023-06-01".parse().unwrap(),
+            "2023-06-01".parse()
+                .map_err(|e| Error::internal(format!("Invalid version header: {}", e)))?,
         );
         headers.insert(
             reqwest::header::CONTENT_TYPE,
-            "application/json".parse().unwrap(),
+            "application/json".parse()
+                .map_err(|e| Error::internal(format!("Invalid content-type header: {}", e)))?,
         );
 
         let client = reqwest::Client::builder()
@@ -590,7 +600,8 @@ impl AiProvider for AnthropicProvider {
 
         // Add tools if present
         if !request.tools.is_empty() {
-            body["tools"] = serde_json::to_value(&request.tools).unwrap();
+            body["tools"] = serde_json::to_value(&request.tools)
+                .map_err(|e| Error::internal(format!("Failed to serialize tools: {}", e)))?;
         }
 
         let response = self.client

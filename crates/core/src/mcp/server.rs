@@ -61,23 +61,23 @@ pub struct PromptMessage {
     pub content: String,
 }
 
-/// Boxed tool executor
-pub type BoxedToolExecutor = Box<dyn ToolExecutor>;
+/// Arc-wrapped tool executor
+pub type ArcToolExecutor = Arc<dyn ToolExecutor>;
 
-/// Boxed resource provider
-pub type BoxedResourceProvider = Box<dyn ResourceProvider>;
+/// Arc-wrapped resource provider
+pub type ArcResourceProvider = Arc<dyn ResourceProvider>;
 
-/// Boxed prompt provider
-pub type BoxedPromptProvider = Box<dyn PromptProvider>;
+/// Arc-wrapped prompt provider
+pub type ArcPromptProvider = Arc<dyn PromptProvider>;
 
 /// MCP Server
 pub struct McpServer {
     name: String,
     version: String,
     instructions: Option<String>,
-    tools: Arc<RwLock<HashMap<String, BoxedToolExecutor>>>,
-    resources: Arc<RwLock<HashMap<String, BoxedResourceProvider>>>,
-    prompts: Arc<RwLock<HashMap<String, BoxedPromptProvider>>>,
+    tools: Arc<RwLock<HashMap<String, ArcToolExecutor>>>,
+    resources: Arc<RwLock<HashMap<String, ArcResourceProvider>>>,
+    prompts: Arc<RwLock<HashMap<String, ArcPromptProvider>>>,
 }
 
 impl McpServer {
@@ -100,18 +100,18 @@ impl McpServer {
     }
 
     /// Register a tool
-    pub fn register_tool(&mut self, tool: BoxedToolExecutor) {
+    pub fn register_tool(&mut self, tool: ArcToolExecutor) {
         let def = tool.definition();
         self.tools.write().insert(def.name, tool);
     }
 
     /// Register a resource provider
-    pub fn register_resource(&mut self, name: impl Into<String>, provider: BoxedResourceProvider) {
+    pub fn register_resource(&mut self, name: impl Into<String>, provider: ArcResourceProvider) {
         self.resources.write().insert(name.into(), provider);
     }
 
     /// Register a prompt provider
-    pub fn register_prompt(&mut self, name: impl Into<String>, provider: BoxedPromptProvider) {
+    pub fn register_prompt(&mut self, name: impl Into<String>, provider: ArcPromptProvider) {
         self.prompts.write().insert(name.into(), provider);
     }
 
@@ -242,7 +242,11 @@ impl McpServer {
     async fn handle_resources_list(&self, request: JsonRpcRequest) -> JsonRpcResponse {
         let mut resources = Vec::new();
 
-        for provider in self.resources.read().values() {
+        // Collect providers into a Vec to avoid holding lock across await
+        let providers: Vec<Arc<dyn ResourceProvider>> = 
+            self.resources.read().values().map(Arc::clone).collect();
+
+        for provider in providers {
             if let Ok(list) = provider.list().await {
                 resources.extend(list);
             }
@@ -266,8 +270,12 @@ impl McpServer {
             }
         };
 
+        // Clone providers to avoid holding lock across await
+        let providers: Vec<Arc<dyn ResourceProvider>> =
+            self.resources.read().values().map(Arc::clone).collect();
+
         // Find resource
-        for provider in self.resources.read().values() {
+        for provider in providers {
             if let Ok(Some(contents)) = provider.read(uri).await {
                 return JsonRpcResponse::success(
                     request.id,
@@ -285,7 +293,11 @@ impl McpServer {
     async fn handle_prompts_list(&self, request: JsonRpcRequest) -> JsonRpcResponse {
         let mut prompts = Vec::new();
 
-        for provider in self.prompts.read().values() {
+        // Clone providers to avoid holding lock across await
+        let providers: Vec<Arc<dyn PromptProvider>> = 
+            self.prompts.read().values().map(Arc::clone).collect();
+
+        for provider in providers {
             if let Ok(list) = provider.list().await {
                 prompts.extend(list);
             }
@@ -315,8 +327,12 @@ impl McpServer {
             .and_then(|a| serde_json::from_value(a.clone()).ok())
             .unwrap_or_default();
 
+        // Clone providers to avoid holding lock across await
+        let providers: Vec<Arc<dyn PromptProvider>> = 
+            self.prompts.read().values().map(Arc::clone).collect();
+
         // Find prompt
-        for provider in self.prompts.read().values() {
+        for provider in providers {
             if let Ok(result) = provider.get(name, args.clone()).await {
                 let messages: Vec<super::types::PromptMessage> = result
                     .messages

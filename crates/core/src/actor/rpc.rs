@@ -500,6 +500,9 @@ trait ErasedHandler: Send + Sync {
     ) -> std::pin::Pin<
         Box<dyn std::future::Future<Output = Result<Vec<u8>, RpcError>> + Send + 'static>,
     >;
+    
+    /// Clone the handler into a boxed trait object
+    fn clone_boxed(&self) -> Box<dyn ErasedHandler>;
 }
 
 /// Wrapper to type-erase handlers.
@@ -546,6 +549,13 @@ where
             response.to_bytes()
         })
     }
+    
+    fn clone_boxed(&self) -> Box<dyn ErasedHandler> {
+        Box::new(Self {
+            handler: Arc::clone(&self.handler),
+            _phantom: std::marker::PhantomData,
+        })
+    }
 }
 
 /// Type name to handler mapping.
@@ -589,11 +599,15 @@ impl RpcRegistry {
 
     /// Dispatch a request to the appropriate handler.
     pub async fn dispatch(&self, type_name: &str, payload: &[u8]) -> Result<Vec<u8>, RpcError> {
-        let handlers = self.handlers.read();
-
-        let handler = handlers.get(type_name).ok_or_else(|| {
-            RpcError::InternalError(format!("No handler registered for type: {}", type_name))
-        })?;
+        // Clone the handler to avoid holding the lock across await
+        let handler = {
+            let handlers = self.handlers.read();
+            let handler = handlers.get(type_name).ok_or_else(|| {
+                RpcError::InternalError(format!("No handler registered for type: {}", type_name))
+            })?;
+            // Clone the boxed handler (Arc-like semantics via Box clone)
+            handler.clone_boxed()
+        };
 
         handler.handle(payload.to_vec()).await
     }

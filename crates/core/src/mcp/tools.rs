@@ -1,6 +1,7 @@
 //! Built-in MCP Tools
 
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use async_trait::async_trait;
 use tokio::fs;
@@ -15,12 +16,12 @@ use super::types::{Tool, ToolResult};
 /// Register built-in tools with the MCP server
 pub fn register_builtin_tools(server: &mut super::server::McpServer, capabilities: CapabilitySet) {
     // File system tools
-    server.register_tool(Box::new(ReadFileTool::new(capabilities)));
-    server.register_tool(Box::new(WriteFileTool::new(capabilities)));
-    server.register_tool(Box::new(EditFileTool::new(capabilities)));
-    server.register_tool(Box::new(GlobTool::new(capabilities)));
-    server.register_tool(Box::new(GrepTool::new(capabilities)));
-    server.register_tool(Box::new(BashTool::new(capabilities)));
+    server.register_tool(Arc::new(ReadFileTool::new(capabilities)));
+    server.register_tool(Arc::new(WriteFileTool::new(capabilities)));
+    server.register_tool(Arc::new(EditFileTool::new(capabilities)));
+    server.register_tool(Arc::new(GlobTool::new(capabilities)));
+    server.register_tool(Arc::new(GrepTool::new(capabilities)));
+    server.register_tool(Arc::new(BashTool::new(capabilities)));
 }
 
 /// Read file tool

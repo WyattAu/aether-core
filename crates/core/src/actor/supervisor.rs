@@ -1052,7 +1052,12 @@ impl SupervisorHandle {
 
     /// Stop a child actor.
     pub async fn stop_child(&self, name: &str) -> Result<()> {
-        self.inner.write().stop_child(name).await
+        // Perform the state transition synchronously, then drop the lock before any potential await
+        {
+            let mut inner = self.inner.write();
+            inner.stop_child(name).await?;
+        }
+        Ok(())
     }
 
     /// Get child statistics.
