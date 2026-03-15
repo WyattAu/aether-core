@@ -498,3 +498,513 @@ impl ToolExecutor for BashTool {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use super::super::types::ToolContent;
+    use tempfile::TempDir;
+
+    fn get_text_content(result: &ToolResult) -> Option<&str> {
+        result.content.first().and_then(|c| {
+            if let ToolContent::Text { text, .. } = c {
+                Some(text.as_str())
+            } else {
+                None
+            }
+        })
+    }
+
+    fn assert_is_error(result: &ToolResult) {
+        assert_eq!(result.is_error, Some(true), "Expected error result");
+    }
+
+    fn assert_not_error(result: &ToolResult) {
+        assert_eq!(result.is_error, Some(false), "Expected success result");
+    }
+
+    // ============================================================================
+    // ReadFileTool Tests
+    // ============================================================================
+
+    #[tokio::test]
+    async fn test_read_file_success() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.txt");
+        std::fs::write(&file_path, "Hello, World!").unwrap();
+
+        let caps = CapabilitySet::FS_READ;
+        let tool = ReadFileTool::new(caps);
+        
+        let result = tool.execute(serde_json::json!({
+            "path": file_path.to_str().unwrap()
+        })).await.unwrap();
+
+        assert_not_error(&result);
+        let text = get_text_content(&result).unwrap();
+        assert_eq!(text, "Hello, World!");
+    }
+
+    #[tokio::test]
+    async fn test_read_file_missing_path() {
+        let caps = CapabilitySet::FS_READ;
+        let tool = ReadFileTool::new(caps);
+        
+        let result = tool.execute(serde_json::json!({})).await.unwrap();
+        assert_is_error(&result);
+        let text = get_text_content(&result).unwrap();
+        assert!(text.contains("Missing path parameter"));
+    }
+
+    #[tokio::test]
+    async fn test_read_file_permission_denied() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.txt");
+        std::fs::write(&file_path, "content").unwrap();
+
+        let caps = CapabilitySet::empty(); // No FS_READ
+        let tool = ReadFileTool::new(caps);
+        
+        let result = tool.execute(serde_json::json!({
+            "path": file_path.to_str().unwrap()
+        })).await.unwrap();
+
+        assert_is_error(&result);
+        let text = get_text_content(&result).unwrap();
+        assert!(text.contains("Permission denied"));
+    }
+
+    #[tokio::test]
+    async fn test_read_file_not_found() {
+        let caps = CapabilitySet::FS_READ;
+        let tool = ReadFileTool::new(caps);
+        
+        let result = tool.execute(serde_json::json!({
+            "path": "/nonexistent/path/file.txt"
+        })).await.unwrap();
+
+        assert_is_error(&result);
+        let text = get_text_content(&result).unwrap();
+        assert!(text.contains("Failed to read file"));
+    }
+
+    #[tokio::test]
+    async fn test_read_file_definition() {
+        let tool = ReadFileTool::new(CapabilitySet::empty());
+        let def = tool.definition();
+        assert_eq!(def.name, "read_file");
+        assert!(def.description.contains("Read"));
+    }
+
+    // ============================================================================
+    // WriteFileTool Tests
+    // ============================================================================
+
+    #[tokio::test]
+    async fn test_write_file_success() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("output.txt");
+
+        let caps = CapabilitySet::FS_WRITE;
+        let tool = WriteFileTool::new(caps);
+        
+        let result = tool.execute(serde_json::json!({
+            "path": file_path.to_str().unwrap(),
+            "content": "Test content"
+        })).await.unwrap();
+
+        assert_not_error(&result);
+        let text = get_text_content(&result).unwrap();
+        assert!(text.contains("Successfully wrote"));
+
+        let content = std::fs::read_to_string(&file_path).unwrap();
+        assert_eq!(content, "Test content");
+    }
+
+    #[tokio::test]
+    async fn test_write_file_creates_parent_dirs() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("subdir/nested/output.txt");
+
+        let caps = CapabilitySet::FS_WRITE;
+        let tool = WriteFileTool::new(caps);
+        
+        let result = tool.execute(serde_json::json!({
+            "path": file_path.to_str().unwrap(),
+            "content": "nested content"
+        })).await.unwrap();
+
+        assert_not_error(&result);
+        assert!(file_path.exists());
+    }
+
+    #[tokio::test]
+    async fn test_write_file_missing_content() {
+        let caps = CapabilitySet::FS_WRITE;
+        let tool = WriteFileTool::new(caps);
+        
+        let result = tool.execute(serde_json::json!({
+            "path": "/tmp/test.txt"
+        })).await.unwrap();
+
+        assert_is_error(&result);
+        let text = get_text_content(&result).unwrap();
+        assert!(text.contains("Missing content parameter"));
+    }
+
+    #[tokio::test]
+    async fn test_write_file_permission_denied() {
+        let temp_dir = TempDir::new().unwrap();
+
+        let caps = CapabilitySet::empty(); // No FS_WRITE
+        let tool = WriteFileTool::new(caps);
+        
+        let result = tool.execute(serde_json::json!({
+            "path": temp_dir.path().join("test.txt").to_str().unwrap(),
+            "content": "test"
+        })).await.unwrap();
+
+        assert_is_error(&result);
+        let text = get_text_content(&result).unwrap();
+        assert!(text.contains("Permission denied"));
+    }
+
+    // ============================================================================
+    // EditFileTool Tests
+    // ============================================================================
+
+    #[tokio::test]
+    async fn test_edit_file_single_replacement() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("edit.txt");
+        std::fs::write(&file_path, "Hello World! Hello!").unwrap();
+
+        let caps = CapabilitySet::FS_READ | CapabilitySet::FS_WRITE;
+        let tool = EditFileTool::new(caps);
+        
+        let result = tool.execute(serde_json::json!({
+            "path": file_path.to_str().unwrap(),
+            "old_string": "Hello",
+            "new_string": "Goodbye"
+        })).await.unwrap();
+
+        assert_not_error(&result);
+        let text = get_text_content(&result).unwrap();
+        assert!(text.contains("Successfully replaced"));
+
+        let content = std::fs::read_to_string(&file_path).unwrap();
+        assert_eq!(content, "Goodbye World! Hello!");
+    }
+
+    #[tokio::test]
+    async fn test_edit_file_replace_all() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("edit.txt");
+        std::fs::write(&file_path, "foo bar foo baz foo").unwrap();
+
+        let caps = CapabilitySet::FS_READ | CapabilitySet::FS_WRITE;
+        let tool = EditFileTool::new(caps);
+        
+        let result = tool.execute(serde_json::json!({
+            "path": file_path.to_str().unwrap(),
+            "old_string": "foo",
+            "new_string": "qux",
+            "replace_all": true
+        })).await.unwrap();
+
+        assert_not_error(&result);
+        let content = std::fs::read_to_string(&file_path).unwrap();
+        assert_eq!(content, "qux bar qux baz qux");
+    }
+
+    #[tokio::test]
+    async fn test_edit_file_text_not_found() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("edit.txt");
+        std::fs::write(&file_path, "Hello World!").unwrap();
+
+        let caps = CapabilitySet::FS_READ | CapabilitySet::FS_WRITE;
+        let tool = EditFileTool::new(caps);
+        
+        let result = tool.execute(serde_json::json!({
+            "path": file_path.to_str().unwrap(),
+            "old_string": "NonExistent",
+            "new_string": "Replacement"
+        })).await.unwrap();
+
+        assert_is_error(&result);
+        let text = get_text_content(&result).unwrap();
+        assert!(text.contains("Text not found"));
+    }
+
+    #[tokio::test]
+    async fn test_edit_file_permission_denied() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("edit.txt");
+        std::fs::write(&file_path, "content").unwrap();
+
+        let caps = CapabilitySet::FS_READ; // No FS_WRITE
+        let tool = EditFileTool::new(caps);
+        
+        let result = tool.execute(serde_json::json!({
+            "path": file_path.to_str().unwrap(),
+            "old_string": "content",
+            "new_string": "new"
+        })).await.unwrap();
+
+        assert_is_error(&result);
+        let text = get_text_content(&result).unwrap();
+        assert!(text.contains("Permission denied"));
+    }
+
+    // ============================================================================
+    // GlobTool Tests
+    // ============================================================================
+
+    #[tokio::test]
+    async fn test_glob_find_files() {
+        let temp_dir = TempDir::new().unwrap();
+        std::fs::write(temp_dir.path().join("file1.rs"), "").unwrap();
+        std::fs::write(temp_dir.path().join("file2.rs"), "").unwrap();
+        std::fs::write(temp_dir.path().join("file3.txt"), "").unwrap();
+
+        let caps = CapabilitySet::FS_READ;
+        let tool = GlobTool::new(caps);
+        
+        let result = tool.execute(serde_json::json!({
+            "pattern": "*.rs",
+            "path": temp_dir.path().to_str().unwrap()
+        })).await.unwrap();
+
+        assert_not_error(&result);
+        let text = get_text_content(&result).unwrap();
+        assert!(text.contains("file1.rs"));
+        assert!(text.contains("file2.rs"));
+        assert!(!text.contains("file3.txt"));
+    }
+
+    #[tokio::test]
+    async fn test_glob_no_matches() {
+        let temp_dir = TempDir::new().unwrap();
+
+        let caps = CapabilitySet::FS_READ;
+        let tool = GlobTool::new(caps);
+        
+        let result = tool.execute(serde_json::json!({
+            "pattern": "*.nonexistent",
+            "path": temp_dir.path().to_str().unwrap()
+        })).await.unwrap();
+
+        assert_not_error(&result);
+        let text = get_text_content(&result).unwrap();
+        assert!(text.contains("No files found"));
+    }
+
+    #[tokio::test]
+    async fn test_glob_permission_denied() {
+        let caps = CapabilitySet::empty();
+        let tool = GlobTool::new(caps);
+        
+        let result = tool.execute(serde_json::json!({
+            "pattern": "*.rs"
+        })).await.unwrap();
+
+        assert_is_error(&result);
+        let text = get_text_content(&result).unwrap();
+        assert!(text.contains("Permission denied"));
+    }
+
+    // ============================================================================
+    // GrepTool Tests
+    // ============================================================================
+
+    #[tokio::test]
+    async fn test_grep_find_pattern() {
+        let temp_dir = TempDir::new().unwrap();
+        std::fs::write(
+            temp_dir.path().join("test.txt"),
+            "Hello World\nRust is great\nGoodbye World"
+        ).unwrap();
+
+        let caps = CapabilitySet::FS_READ;
+        let tool = GrepTool::new(caps);
+        
+        let result = tool.execute(serde_json::json!({
+            "pattern": "World",
+            "path": temp_dir.path().to_str().unwrap()
+        })).await.unwrap();
+
+        assert_not_error(&result);
+        let text = get_text_content(&result).unwrap();
+        assert!(text.contains("World"));
+    }
+
+    #[tokio::test]
+    async fn test_grep_regex_pattern() {
+        let temp_dir = TempDir::new().unwrap();
+        std::fs::write(
+            temp_dir.path().join("test.txt"),
+            "fn main() {}\nfn test() {}\nconst X: i32 = 1;"
+        ).unwrap();
+
+        let caps = CapabilitySet::FS_READ;
+        let tool = GrepTool::new(caps);
+        
+        let result = tool.execute(serde_json::json!({
+            "pattern": "fn \\w+",
+            "path": temp_dir.path().join("test.txt").to_str().unwrap()
+        })).await.unwrap();
+
+        assert_not_error(&result);
+        let text = get_text_content(&result).unwrap();
+        assert!(text.contains("fn main"));
+        assert!(text.contains("fn test"));
+    }
+
+    #[tokio::test]
+    async fn test_grep_no_matches() {
+        let temp_dir = TempDir::new().unwrap();
+        std::fs::write(temp_dir.path().join("test.txt"), "Hello World").unwrap();
+
+        let caps = CapabilitySet::FS_READ;
+        let tool = GrepTool::new(caps);
+        
+        let result = tool.execute(serde_json::json!({
+            "pattern": "NonExistent",
+            "path": temp_dir.path().to_str().unwrap()
+        })).await.unwrap();
+
+        assert_not_error(&result);
+        let text = get_text_content(&result).unwrap();
+        assert!(text.contains("No matches found"));
+    }
+
+    #[tokio::test]
+    async fn test_grep_invalid_regex() {
+        let caps = CapabilitySet::FS_READ;
+        let tool = GrepTool::new(caps);
+        
+        let result = tool.execute(serde_json::json!({
+            "pattern": "[invalid(regex"
+        })).await;
+
+        // Should return an error from the Result, not a ToolResult error
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_grep_permission_denied() {
+        let caps = CapabilitySet::empty();
+        let tool = GrepTool::new(caps);
+        
+        let result = tool.execute(serde_json::json!({
+            "pattern": "test"
+        })).await.unwrap();
+
+        assert_is_error(&result);
+        let text = get_text_content(&result).unwrap();
+        assert!(text.contains("Permission denied"));
+    }
+
+    // ============================================================================
+    // BashTool Tests
+    // ============================================================================
+
+    #[tokio::test]
+    async fn test_bash_echo_command() {
+        let caps = CapabilitySet::PROCESS_SPAWN;
+        let tool = BashTool::new(caps);
+        
+        let result = tool.execute(serde_json::json!({
+            "command": "echo 'Hello from bash'"
+        })).await.unwrap();
+
+        assert_not_error(&result);
+        let text = get_text_content(&result).unwrap();
+        assert!(text.contains("Hello from bash"));
+    }
+
+    #[tokio::test]
+    async fn test_bash_with_workdir() {
+        let temp_dir = TempDir::new().unwrap();
+        
+        let caps = CapabilitySet::PROCESS_SPAWN;
+        let tool = BashTool::new(caps);
+        
+        let result = tool.execute(serde_json::json!({
+            "command": "pwd",
+            "workdir": temp_dir.path().to_str().unwrap()
+        })).await.unwrap();
+
+        assert_not_error(&result);
+        let text = get_text_content(&result).unwrap();
+        assert!(text.contains(temp_dir.path().to_str().unwrap()));
+    }
+
+    #[tokio::test]
+    async fn test_bash_missing_command() {
+        let caps = CapabilitySet::PROCESS_SPAWN;
+        let tool = BashTool::new(caps);
+        
+        let result = tool.execute(serde_json::json!({})).await.unwrap();
+
+        assert_is_error(&result);
+        let text = get_text_content(&result).unwrap();
+        assert!(text.contains("Missing command parameter"));
+    }
+
+    #[tokio::test]
+    async fn test_bash_permission_denied() {
+        let caps = CapabilitySet::empty();
+        let tool = BashTool::new(caps);
+        
+        let result = tool.execute(serde_json::json!({
+            "command": "echo test"
+        })).await.unwrap();
+
+        assert_is_error(&result);
+        let text = get_text_content(&result).unwrap();
+        assert!(text.contains("Permission denied"));
+    }
+
+    #[tokio::test]
+    async fn test_bash_failed_command() {
+        let caps = CapabilitySet::PROCESS_SPAWN;
+        let tool = BashTool::new(caps);
+        
+        let result = tool.execute(serde_json::json!({
+            "command": "exit 1"
+        })).await.unwrap();
+
+        // Command ran but failed, so result contains exit code
+        let text = get_text_content(&result).unwrap();
+        assert!(text.contains("Exit code: 1"));
+    }
+
+    // ============================================================================
+    // Tool Definition Tests
+    // ============================================================================
+
+    #[test]
+    fn test_all_tool_definitions() {
+        let caps = CapabilitySet::all();
+        
+        let read_tool = ReadFileTool::new(caps);
+        assert_eq!(read_tool.definition().name, "read_file");
+
+        let write_tool = WriteFileTool::new(caps);
+        assert_eq!(write_tool.definition().name, "write_file");
+
+        let edit_tool = EditFileTool::new(caps);
+        assert_eq!(edit_tool.definition().name, "edit_file");
+
+        let glob_tool = GlobTool::new(caps);
+        assert_eq!(glob_tool.definition().name, "glob");
+
+        let grep_tool = GrepTool::new(caps);
+        assert_eq!(grep_tool.definition().name, "grep");
+
+        let bash_tool = BashTool::new(caps);
+        assert_eq!(bash_tool.definition().name, "bash");
+    }
+}
