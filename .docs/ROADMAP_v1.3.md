@@ -192,12 +192,13 @@ Implemented but not exposed:
 
 | Feature | Priority | Status |
 |---------|----------|--------|
-| WASM execution fix | Critical | Pending |
-| Local mesh fix | Critical | Pending |
-| Vault secrets fix | Critical | Pending |
-| Panic elimination | Critical | Pending |
-| Deadlock fixes | High | Pending |
-| Test coverage | High | Pending |
+| WASM execution fix | Critical | ✅ Done |
+| Local mesh fix | Critical | ✅ Done |
+| Vault secrets fix | Critical | ✅ Done |
+| Panic elimination | Critical | ✅ Done |
+| Deadlock fixes | High | ✅ Done |
+| Test coverage (MCP tools) | High | ✅ Done |
+| Python SDK | High | ✅ Done |
 | Dashboard fixes | High | Pending |
 
 ### v1.4.0 (SDK Release)
