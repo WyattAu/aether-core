@@ -1,3 +1,4 @@
+from typing import Optional
 from aether_sdk import Actor, Message, MessageType, Capability, HttpClient
 
 
@@ -9,7 +10,7 @@ class HttpActor(Actor):
     def __init__(self):
         super().__init__()
         self.require(Capability.NETWORK_OUTBOUND)
-        self._http_client: HttpClient = None
+        self._http_client: Optional[HttpClient] = None
     
     async def on_start(self) -> None:
         self._http_client = HttpClient(self._capabilities)
@@ -18,11 +19,11 @@ class HttpActor(Actor):
         if self._http_client:
             await self._http_client.close()
     
-    async def handle_message(self, sender: str, message: Message) -> Message:
+    async def handle_message(self, sender: str, message: Message) -> Optional[Message]:
         if message.type == MessageType.CUSTOM:
             action = message.payload.get("action")
             
-            if action == "fetch":
+            if action == "fetch" and self._http_client:
                 url = message.payload.get("url")
                 response = await self._http_client.get(url)
                 data = await response.text()

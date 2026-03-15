@@ -1,3 +1,4 @@
+from typing import Optional
 from aether_sdk import Actor, Message, MessageType, Capability
 
 
@@ -15,7 +16,7 @@ class StatefulActor(Actor):
         if count is None:
             await self.state.set_json("counter", 0)
     
-    async def handle_message(self, sender: str, message: Message) -> Message:
+    async def handle_message(self, sender: str, message: Message) -> Optional[Message]:
         if message.type == MessageType.CUSTOM:
             action = message.payload.get("action")
             
