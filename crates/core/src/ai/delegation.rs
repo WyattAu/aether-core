@@ -185,7 +185,7 @@ impl AiDelegationManager {
     pub fn register(&self, capability: ActorAiCapability) {
         self.capabilities
             .write()
-            .insert(capability.actor_id.clone(), capability);
+            .insert(capability.actor_id, capability);
     }
 
     /// Unregister an actor
@@ -199,7 +199,7 @@ impl AiDelegationManager {
 
         // Find a suitable actor if not specified
         let target = if let Some(target) = &request.target_actor {
-            target.clone()
+            *target
         } else {
             self.find_best_actor(&request.task_type)
                 .ok_or_else(|| Error::internal("No available AI actor for task"))?
@@ -225,7 +225,7 @@ impl AiDelegationManager {
                 let b_score = b.load as u32 * 100 + b.current_tasks as u32;
                 a_score.cmp(&b_score)
             })
-            .map(|c| c.actor_id.clone())
+            .map(|c| c.actor_id)
     }
 
     /// Complete a delegation
@@ -332,7 +332,7 @@ impl AiActorProcessor {
             let response = match result {
                 Ok(completion) => DelegationResponse {
                     request_id: request.id.clone(),
-                    processor_actor: self.actor_id.clone(),
+                    processor_actor: self.actor_id,
                     content: completion.content,
                     success: true,
                     error: None,
@@ -340,7 +340,7 @@ impl AiActorProcessor {
                 },
                 Err(e) => DelegationResponse {
                     request_id: request.id.clone(),
-                    processor_actor: self.actor_id.clone(),
+                    processor_actor: self.actor_id,
                     content: String::new(),
                     success: false,
                     error: Some(e.to_string()),
@@ -384,7 +384,7 @@ mod tests {
     fn test_actor_ai_capability() {
         let actor = ActorId::new();
         let cap = ActorAiCapability {
-            actor_id: actor.clone(),
+            actor_id: actor,
             task_types: vec![AiTaskType::Code, AiTaskType::Analysis],
             load: 30,
             max_concurrent: 5,
@@ -404,7 +404,7 @@ mod tests {
         let actor = ActorId::new();
 
         let cap = ActorAiCapability {
-            actor_id: actor.clone(),
+            actor_id: actor,
             task_types: vec![AiTaskType::General],
             load: 0,
             max_concurrent: 5,
@@ -425,7 +425,7 @@ mod tests {
         // Register two actors
         let actor1 = ActorId::new();
         let cap1 = ActorAiCapability {
-            actor_id: actor1.clone(),
+            actor_id: actor1,
             task_types: vec![AiTaskType::Code],
             load: 50,
             max_concurrent: 5,
@@ -435,7 +435,7 @@ mod tests {
 
         let actor2 = ActorId::new();
         let cap2 = ActorAiCapability {
-            actor_id: actor2.clone(),
+            actor_id: actor2,
             task_types: vec![AiTaskType::Code],
             load: 20,
             max_concurrent: 5,
@@ -458,7 +458,7 @@ mod tests {
 
         // Register actor
         let cap = ActorAiCapability {
-            actor_id: actor.clone(),
+            actor_id: actor,
             task_types: vec![AiTaskType::General],
             load: 0,
             max_concurrent: 5,
@@ -469,7 +469,7 @@ mod tests {
 
         // Create delegation request
         let source = ActorId::new();
-        let request = DelegationRequest::new(source, "Test task").to(actor.clone());
+        let request = DelegationRequest::new(source, "Test task").to(actor);
 
         let request_id = manager.delegate(request).unwrap();
 
@@ -480,7 +480,7 @@ mod tests {
         // Complete delegation
         let response = DelegationResponse {
             request_id: request_id.clone(),
-            processor_actor: actor.clone(),
+            processor_actor: actor,
             content: "Task completed".to_string(),
             success: true,
             error: None,
@@ -501,7 +501,7 @@ mod tests {
         let actor = ActorId::new();
 
         let cap = ActorAiCapability {
-            actor_id: actor.clone(),
+            actor_id: actor,
             task_types: vec![AiTaskType::General],
             load: 0,
             max_concurrent: 3,
@@ -511,7 +511,7 @@ mod tests {
         manager.register(cap);
 
         // Submit delegation
-        let request = DelegationRequest::new(ActorId::new(), "Task 1").to(actor.clone());
+        let request = DelegationRequest::new(ActorId::new(), "Task 1").to(actor);
         manager.delegate(request).unwrap();
 
         // Check load increased
