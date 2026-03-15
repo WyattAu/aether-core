@@ -798,7 +798,7 @@ impl AiProvider for OllamaProvider {
     }
 
     async fn complete_stream(&self, request: CompletionRequest) -> Result<CompletionStream> {
-        let url = format!("{}/chat", self.api_url());
+        let _url = format!("{}/chat", self.api_url());
         
         let messages: Vec<serde_json::Value> = request.messages.iter().map(|m| {
             serde_json::json!({
@@ -807,7 +807,7 @@ impl AiProvider for OllamaProvider {
             })
         }).collect();
 
-        let body = serde_json::json!({
+        let _body = serde_json::json!({
             "model": request.model,
             "messages": messages,
             "stream": true,

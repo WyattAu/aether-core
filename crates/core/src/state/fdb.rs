@@ -15,7 +15,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 use tokio::sync::{Mutex, RwLock, Semaphore, broadcast};
-use tracing::{debug, info, warn};
+use tracing::{info, warn};
 
 #[cfg(feature = "fdb")]
 use foundationdb::{Database, RangeOption};

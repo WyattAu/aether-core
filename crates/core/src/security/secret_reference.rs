@@ -361,7 +361,7 @@ mod tests {
 
     #[test]
     fn test_secret_metadata_rotation() {
-        let mut metadata = SecretMetadata::new(
+        let metadata = SecretMetadata::new(
             SecretReference::memory("test", "key")
                 .with_rotation_policy(RotationPolicy::new(Duration::from_secs(0))),
         );

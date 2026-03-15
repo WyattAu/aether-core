@@ -7,12 +7,11 @@ use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::Error;
 use crate::actor::{ActorId, Mailbox, MailboxConfig};
+use crate::Error;
 
 /// State of an actor.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum ActorState {
     /// Actor is being created
     #[default]
@@ -26,7 +25,6 @@ pub enum ActorState {
     /// Actor failed with an error
     Failed,
 }
-
 
 /// Entry in the actor registry.
 struct ActorEntry {
@@ -286,7 +284,7 @@ mod tests {
         let registry = ActorRegistry::new();
         let id = ActorId::new();
 
-        let mailbox = registry.register(id).unwrap();
+        let _mailbox = registry.register(id).unwrap();
         assert_eq!(registry.len(), 1);
         assert_eq!(registry.get_state(&id), Some(ActorState::Creating));
 

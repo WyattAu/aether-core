@@ -265,7 +265,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_cached_provider_caches_values() {
-        let mock = Arc::new(MockProvider::new());
+        let _mock = Arc::new(MockProvider::new());
         let cached =
             CachedSecretProvider::new(Box::new(MockProvider::new()), Duration::from_secs(60));
 

@@ -1006,7 +1006,7 @@ mod tests {
 
     #[test]
     fn test_serializable_message_conversion() {
-        use crate::actor::{MessagePayload, Priority, Signal};
+        use crate::actor::{MessagePayload, Priority};
 
         let msg = Message {
             sender: Some(create_test_actor_id()),
