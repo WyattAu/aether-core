@@ -197,9 +197,14 @@ Implemented but not exposed:
 | Vault secrets fix | Critical | ✅ Done |
 | Panic elimination | Critical | ✅ Done |
 | Deadlock fixes | High | ✅ Done |
+| MutexGuard across await | High | ✅ Done |
 | Test coverage (MCP tools) | High | ✅ Done |
-| Python SDK | High | ✅ Done |
+| Python SDK | High | ✅ Enhanced |
+| JavaScript SDK | High | ✅ Tests added |
 | Dashboard fixes | High | Pending |
+| Unused code cleanup | Low | Pending |
+
+| Missing documentation | Low | Pending |
 
 ### v1.4.0 (SDK Release)
 **Target:** 8 weeks  
@@ -207,12 +212,36 @@ Implemented but not exposed:
 
 | Feature | Priority | Status |
 |---------|----------|--------|
-| Python SDK | High | Not Started |
-| JavaScript SDK | High | Not Started |
+| Python SDK | High | ✅ Enhanced |
+| JavaScript SDK | High | ✅ Tests added |
 | Go SDK | Medium | Not Started |
 | CLI improvements | Medium | Partial |
 | Examples library | Medium | Partial |
 | Documentation site | Medium | Partial |
+
+### v1.5.0 (Scale Release)
+**Target:** 12 weeks  
+**Theme:** Production Scale
+
+| Feature | Priority | Status |
+|---------|----------|--------|
+| Horizontal scaling | High | Design |
+| Auto-scaling actors | High | Design |
+| Global mesh routing | Medium | Design |
+| Multi-region support | Medium | Design |
+| Federation | Low | Research |
+
+### v2.0.0 (Platform Release)
+**Target:** 6 months  
+**Theme:** Complete Platform
+
+| Feature | Priority | Status |
+|---------|----------|--------|
+| Web dashboard | High | Design |
+| Visual actor designer | Medium | Research |
+| Marketplace/registry | Medium | Research |
+| Enterprise features | Medium | Partial |
+| Certification program | Low | Planning |
 
 ### v1.5.0 (Scale Release)
 **Target:** 12 weeks  
