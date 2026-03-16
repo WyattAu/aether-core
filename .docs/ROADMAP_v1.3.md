@@ -201,10 +201,9 @@ Implemented but not exposed:
 | Test coverage (MCP tools) | High | ✅ Done |
 | Python SDK | High | ✅ Enhanced |
 | JavaScript SDK | High | ✅ Tests added |
-| Dashboard fixes | High | Pending |
-| Unused code cleanup | Low | Pending |
-
-| Missing documentation | Low | Pending |
+| Dashboard fixes | High | ✅ Done |
+| Unused code cleanup | Low | ✅ Done |
+| Missing documentation | Low | In Progress |
 
 ### v1.4.0 (SDK Release)
 **Target:** 8 weeks  
@@ -218,30 +217,6 @@ Implemented but not exposed:
 | CLI improvements | Medium | Partial |
 | Examples library | Medium | Partial |
 | Documentation site | Medium | Partial |
-
-### v1.5.0 (Scale Release)
-**Target:** 12 weeks  
-**Theme:** Production Scale
-
-| Feature | Priority | Status |
-|---------|----------|--------|
-| Horizontal scaling | High | Design |
-| Auto-scaling actors | High | Design |
-| Global mesh routing | Medium | Design |
-| Multi-region support | Medium | Design |
-| Federation | Low | Research |
-
-### v2.0.0 (Platform Release)
-**Target:** 6 months  
-**Theme:** Complete Platform
-
-| Feature | Priority | Status |
-|---------|----------|--------|
-| Web dashboard | High | Design |
-| Visual actor designer | Medium | Research |
-| Marketplace/registry | Medium | Research |
-| Enterprise features | Medium | Partial |
-| Certification program | Low | Planning |
 
 ### v1.5.0 (Scale Release)
 **Target:** 12 weeks  
@@ -381,5 +356,14 @@ Target: Enhanced security:
 
 ---
 
-*Last Updated: 2026-03-14*  
-*Next Review: 2026-03-21*
+*Last Updated: 2026-03-16*  
+*Next Review: 2026-03-23*
+
+## Changelog
+
+### 2026-03-16
+- **Dashboard Module**: Fixed panic patterns (unwrap/expect) in server.rs, static_files.rs
+- **Documentation**: Added comprehensive docs to dashboard module (handlers, server, ws, static_files)
+- **Dead Code**: Addressed all dead code warnings with #[allow(dead_code)] for reserved APIs
+- **MutexGuard**: Fixed remaining MutexGuard across await in mcp/server.rs and secrets/registry.rs
+- **Clippy Warnings**: Reduced from ~2280 to ~2045 (mostly documentation)
