@@ -89,7 +89,8 @@ Multiple `expect()` and `unwrap()` calls in production paths can cause runtime p
 ### 2.1 Deadlock Prevention - MutexGuard Across Await
 **Files:** `actor/rpc.rs`, `actor/supervisor.rs`, `chaos/mod.rs`, `mcp/server.rs`  
 **Priority:** 🟠 High  
-**Effort:** Medium (2-3 days)
+**Effort:** Medium (2-3 days)  
+**Status:** ✅ Done
 
 Multiple locations hold `MutexGuard` across `.await` points, which can cause deadlocks.
 
@@ -111,17 +112,19 @@ some_async_op(data).await;
 ### 2.2 Complete Actor SDK (Currently 50%)
 **Priority:** 🟠 High  
 **Effort:** High (1-2 weeks)
+**Status:** 🔄 In Progress
 
 Missing SDK components:
 - [ ] Full API coverage for all actor operations
-- [ ] Python SDK
-- [ ] JavaScript/TypeScript SDK
+- [x] Python SDK (enhanced)
+- [x] JavaScript/TypeScript SDK (tests added)
 - [ ] Go SDK
 - [ ] Comprehensive examples
 
 ### 2.3 Test Coverage Gaps
 **Priority:** 🟠 High  
 **Effort:** Medium (1 week)
+**Status:** ✅ Done
 
 Files without test modules:
 - `mcp/server.rs`, `mcp/tools.rs`, `mcp/actor_tools.rs`
@@ -131,6 +134,7 @@ Files without test modules:
 ### 2.4 Dashboard Module Issues
 **Priority:** 🟠 High  
 **Effort:** Medium (1 week)
+**Status:** ✅ Done
 
 - Axum version conflict (0.7.9 from tonic vs 0.8.8)
 - Missing `ui/dist` folder for static files
@@ -140,8 +144,20 @@ Files without test modules:
 **File:** `crates/core/src/wasi/mod.rs:381`  
 **Priority:** 🟡 Medium  
 **Effort:** Low (1 hour)
+**Status:** ✅ Done
 
 Using deprecated `timestamp_ns` instead of `wall_time_ns`.
+
+### 2.6 Clippy Warning Cleanup
+**Priority:** 🟡 Medium  
+**Effort:** Low (1 day)
+**Status:** ✅ Done
+
+Fixed:
+- Identical blocks in conditionals
+- Complex type definitions (type aliases)
+- Field reassignment with Default
+- Vec init then push pattern
 
 ---
 
@@ -361,7 +377,14 @@ Target: Enhanced security:
 
 ## Changelog
 
-### 2026-03-16
+### 2026-03-16 (Session 2)
+- **Deprecated Field**: Replaced `timestamp_ns` with `wall_time_ns` in WasiHost trait
+- **Clippy Warnings**: Fixed identical blocks, complex types, field reassignment patterns
+- **Type Aliases**: Added `WorkerStealer` type alias in scheduler.rs
+- **Code Quality**: Converted Vec::new() + push to vec![] macro in health.rs
+- **Test Code**: Fixed field assignment patterns in test code
+
+### 2026-03-16 (Session 1)
 - **Dashboard Module**: Fixed panic patterns (unwrap/expect) in server.rs, static_files.rs
 - **Documentation**: Added comprehensive docs to dashboard module (handlers, server, ws, static_files)
 - **Dead Code**: Addressed all dead code warnings with #[allow(dead_code)] for reserved APIs
