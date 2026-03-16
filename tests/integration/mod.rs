@@ -37,3 +37,6 @@ mod firecracker_test;
 pub mod fixtures;
 mod mesh_cluster_test;
 mod state_replication_test;
+
+// SDK Integration Tests
+pub mod sdk;

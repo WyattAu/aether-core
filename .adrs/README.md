@@ -25,6 +25,10 @@ Each ADR follows this structure:
 | [ADR-003](ADR-003-panic-abort.md) | Panic Abort Policy | Accepted | 2026-03-05 |
 | [ADR-004](ADR-004-wasmtime-selection.md) | Wasmtime WASM Runtime Selection | Accepted | 2026-03-05 |
 | [ADR-005](ADR-005-firecracker-selection.md) | Firecracker VMM Selection | Accepted | 2026-03-05 |
+| [ADR-006](ADR-006-multi-language-sdk.md) | Multi-Language SDK Strategy | Accepted | 2026-03-16 |
+| [ADR-007](ADR-007-mkdocs-documentation.md) | MkDocs Documentation Site | Accepted | 2026-03-16 |
+| [ADR-006](ADR-006-multi-language-sdk.md) | Multi-Language SDK Strategy | Accepted | 2026-03-16 |
+| [ADR-007](ADR-007-mkdocs-documentation.md) | MkDocs Documentation Site | Accepted | 2026-03-16 |
 
 ## Decision Categories
 
