@@ -378,7 +378,7 @@ pub trait WasiHost {
     /// Get current timestamp (injected by host)
     fn timestamp(&self) -> Instant {
         let ctx = self.get_context();
-        let duration = Duration::from_nanos(ctx.timestamp_ns);
+        let duration = Duration::from_nanos(ctx.wall_time_ns);
         Instant::now() - duration
     }
 }

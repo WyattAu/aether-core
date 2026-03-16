@@ -17,10 +17,13 @@ use crate::actor::{
     ActorId, ActorRegistry, ActorState, MailboxConfig, Message, MessagePayload, Priority,
 };
 
+/// Type alias for worker stealer entry (worker_id, stealer)
+type WorkerStealer = (usize, crossbeam_deque::Stealer<Task>);
+
 /// Shared stealer registry for work stealing between workers.
 #[derive(Clone)]
 struct StealerRegistry {
-    stealers: Arc<RwLock<Vec<(usize, crossbeam_deque::Stealer<Task>)>>>,
+    stealers: Arc<RwLock<Vec<WorkerStealer>>>,
     version: Arc<AtomicU64>,
 }
 

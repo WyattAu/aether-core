@@ -453,8 +453,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_cache_expiration() {
-        let mut config = ResolverConfig::default();
-        config.cache_ttl = Duration::from_millis(10);
+        let config = ResolverConfig {
+            cache_ttl: Duration::from_millis(10),
+            ..Default::default()
+        };
 
         let resolver = ActorResolver::with_config("node-1", "default", config);
 

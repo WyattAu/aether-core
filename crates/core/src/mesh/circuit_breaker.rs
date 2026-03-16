@@ -656,10 +656,12 @@ mod tests {
 
     #[test]
     fn test_stats_success_rate() {
-        let mut stats = CircuitStats::default();
-        stats.total_calls = 100;
-        stats.successful_calls = 80;
-        stats.failed_calls = 20;
+        let stats = CircuitStats {
+            total_calls: 100,
+            successful_calls: 80,
+            failed_calls: 20,
+            ..Default::default()
+        };
 
         assert!((stats.success_rate() - 80.0).abs() < 0.01);
         assert!((stats.failure_rate() - 20.0).abs() < 0.01);

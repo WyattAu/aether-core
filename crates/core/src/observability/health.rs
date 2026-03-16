@@ -77,22 +77,13 @@ impl HealthChecker {
     pub fn run_checks(&self) -> Vec<HealthCheckResult> {
         let start = Instant::now();
 
-        let mut results = Vec::new();
-
-        // Check WASM engine
-        results.push(self.check_wasm_engine());
-
-        // Check VM manager
-        results.push(self.check_vm_manager());
-
-        // Check mesh network
-        results.push(self.check_mesh_network());
-
-        // Check state manager
-        results.push(self.check_state_manager());
-
-        // Check memory
-        results.push(self.check_memory());
+        let results = vec![
+            self.check_wasm_engine(),
+            self.check_vm_manager(),
+            self.check_mesh_network(),
+            self.check_state_manager(),
+            self.check_memory(),
+        ];
 
         // Store results
         if let Ok(mut stored) = self.results.lock() {

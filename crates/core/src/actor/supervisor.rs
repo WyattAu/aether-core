@@ -512,20 +512,26 @@ impl Supervisor {
 
     /// Get statistics about the supervisor.
     pub fn count_children(&self) -> SupervisorStats {
-        let mut stats = SupervisorStats::default();
-        stats.total = self.children.len();
-        stats.total_restarts = self.total_restarts;
+        let mut running = 0;
+        let mut stopped = 0;
+        let mut restarting = 0;
 
         for child in self.children.values() {
             match &child.state {
-                ChildState::Running => stats.running += 1,
-                ChildState::Stopped { .. } => stats.stopped += 1,
-                ChildState::Restarting { .. } => stats.restarting += 1,
-                ChildState::Stopping => stats.stopped += 1,
+                ChildState::Running => running += 1,
+                ChildState::Stopped { .. } => stopped += 1,
+                ChildState::Restarting { .. } => restarting += 1,
+                ChildState::Stopping => stopped += 1,
             }
         }
 
-        stats
+        SupervisorStats {
+            total: self.children.len(),
+            running,
+            stopped,
+            restarting,
+            total_restarts: self.total_restarts,
+        }
     }
 
     /// Handle a child exit event.
@@ -978,19 +984,29 @@ impl SupervisorTree {
 
     /// Get statistics for the entire tree.
     pub fn tree_stats(&self) -> SupervisorTreeStats {
-        let mut stats = SupervisorTreeStats::default();
-        stats.supervisor_count = self.supervisors.len();
+        let mut total_children = 0;
+        let mut running_children = 0;
+        let mut stopped_children = 0;
+        let mut restarting_children = 0;
+        let mut total_restarts = 0;
 
         for supervisor in self.supervisors.values() {
             let sup_stats = supervisor.count_children();
-            stats.total_children += sup_stats.total;
-            stats.running_children += sup_stats.running;
-            stats.stopped_children += sup_stats.stopped;
-            stats.restarting_children += sup_stats.restarting;
-            stats.total_restarts += sup_stats.total_restarts;
+            total_children += sup_stats.total;
+            running_children += sup_stats.running;
+            stopped_children += sup_stats.stopped;
+            restarting_children += sup_stats.restarting;
+            total_restarts += sup_stats.total_restarts;
         }
 
-        stats
+        SupervisorTreeStats {
+            supervisor_count: self.supervisors.len(),
+            total_children,
+            running_children,
+            stopped_children,
+            restarting_children,
+            total_restarts,
+        }
     }
 
     /// Get the depth of the tree.

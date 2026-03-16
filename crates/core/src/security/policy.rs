@@ -149,7 +149,6 @@ pub enum PolicyEffect {
     Deny,
 }
 
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PolicyEvaluationResult {
     Allowed,
@@ -248,9 +247,8 @@ impl PolicyDocument {
 
         if allow {
             PolicyEvaluationResult::Allowed
-        } else if matched {
-            PolicyEvaluationResult::NoMatch
         } else {
+            // Both "matched but not allowed" and "no match" result in NoMatch
             PolicyEvaluationResult::NoMatch
         }
     }
@@ -323,9 +321,13 @@ pub struct PolicyEvaluator {
 }
 
 impl PolicyEvaluator {
+    /// Default cache size if invalid size provided
+    const DEFAULT_CACHE_SIZE: usize = 1000;
+
     pub fn new(cache_size: usize, cache_ttl: Duration) -> Self {
         let cache = LruCache::new(
-            NonZeroUsize::new(cache_size).unwrap_or(NonZeroUsize::new(1000).unwrap()),
+            NonZeroUsize::new(cache_size.max(1))
+                .unwrap_or_else(|| NonZeroUsize::new(Self::DEFAULT_CACHE_SIZE).unwrap()),
         );
 
         Self {
@@ -508,10 +510,7 @@ impl PolicyEvaluator {
             if let Ok(content) = std::fs::read_to_string(path) {
                 let policy = if path.extension().is_some_and(|e| e == "json") {
                     PolicyDocument::from_json(&content)
-                } else if path
-                    .extension()
-                    .is_some_and(|e| e == "yaml" || e == "yml")
-                {
+                } else if path.extension().is_some_and(|e| e == "yaml" || e == "yml") {
                     PolicyDocument::from_yaml(&content)
                 } else {
                     continue;
