@@ -16,54 +16,86 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::broadcast;
 
+/// WebSocket message types for real-time dashboard updates.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum WebSocketMessage {
+    /// Periodic metrics update with runtime statistics
     MetricsUpdate {
+        /// Number of currently running actors
         actors_running: u64,
+        /// Total messages processed
         messages_total: u64,
+        /// 50th percentile cold start latency in microseconds
         cold_start_p50_us: u64,
+        /// 99th percentile cold start latency in microseconds
         cold_start_p99_us: u64,
+        /// 50th percentile message latency in microseconds
         message_latency_p50_us: u64,
+        /// 99th percentile message latency in microseconds
         message_latency_p99_us: u64,
     },
+    /// Actor lifecycle event notification
     ActorEvent {
+        /// Actor identifier
         actor_id: String,
+        /// Type of event
         event: ActorEventType,
+        /// Unix timestamp of the event
         timestamp: i64,
     },
+    /// Component health status update
     HealthUpdate {
+        /// Component name
         component: String,
+        /// Health status string
         status: String,
+        /// Optional message with details
         message: Option<String>,
     },
+    /// Mesh topology change notification
     MeshUpdate {
+        /// Node identifier
         node_id: String,
+        /// Type of mesh event
         event: MeshEventType,
     },
+    /// Connection keepalive heartbeat
     Heartbeat {
+        /// Unix timestamp of the heartbeat
         timestamp: i64,
     },
 }
 
+/// Actor lifecycle event types.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ActorEventType {
+    /// Actor was started
     Started,
+    /// Actor was stopped
     Stopped,
+    /// Actor encountered an error
     Error,
+    /// Actor cold start occurred
     ColdStart,
 }
 
+/// Mesh topology event types.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum MeshEventType {
+    /// Node joined the mesh
     NodeJoined,
+    /// Node left the mesh
     NodeLeft,
+    /// Connection to another node established
     ConnectionEstablished,
+    /// Connection to another node lost
     ConnectionLost,
 }
 
+/// WebSocket message broadcaster for real-time updates.
 #[derive(Clone)]
 pub struct WebSocketBroadcaster {
     tx: broadcast::Sender<WebSocketMessage>,
@@ -71,24 +103,29 @@ pub struct WebSocketBroadcaster {
 }
 
 impl WebSocketBroadcaster {
+    /// Creates a new broadcaster with the given shutdown channel.
     pub fn new(shutdown: broadcast::Sender<()>) -> Self {
         let (tx, _) = broadcast::channel(256);
         Self { tx, shutdown }
     }
 
+    /// Broadcasts a message to all connected WebSocket clients.
     pub fn broadcast(&self, msg: WebSocketMessage) {
         let _ = self.tx.send(msg);
     }
 
+    /// Subscribes to the broadcast channel.
     pub fn subscribe(&self) -> broadcast::Receiver<WebSocketMessage> {
         self.tx.subscribe()
     }
 
+    /// Returns a receiver for shutdown signals.
     pub fn shutdown_rx(&self) -> broadcast::Receiver<()> {
         self.shutdown.subscribe()
     }
 }
 
+/// Handles WebSocket upgrade requests.
 pub async fn ws_handler(
     ws: WebSocketUpgrade,
     State(state): State<Arc<DashboardState>>,
@@ -193,12 +230,14 @@ enum ClientCommand {
     GetHealth,
 }
 
+/// Background task that periodically broadcasts metrics to WebSocket clients.
 pub struct MetricsBroadcaster {
     tx: broadcast::Sender<WebSocketMessage>,
     interval: Duration,
 }
 
 impl MetricsBroadcaster {
+    /// Creates a new metrics broadcaster with the specified update interval.
     pub fn new(broadcaster: WebSocketBroadcaster, interval: Duration) -> Self {
         Self {
             tx: broadcaster.tx.clone(),
@@ -206,6 +245,9 @@ impl MetricsBroadcaster {
         }
     }
 
+    /// Spawns a background task that periodically broadcasts metrics.
+    ///
+    /// Returns a `JoinHandle` that can be used to abort the task.
     pub fn spawn(
         self,
         metrics: Arc<crate::observability::MetricsCollector>,

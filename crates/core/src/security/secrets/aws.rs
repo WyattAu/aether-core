@@ -133,12 +133,18 @@ struct SecretMetadata {
     description: Option<String>,
 }
 
+/// Response from AWS Secrets Manager batch get operation
+/// Note: Reserved for future batch operations.
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 struct BatchGetSecretValueResponse {
     secret_values: Vec<SecretValueEntry>,
     errors: Vec<BatchSecretError>,
 }
 
+/// Secret value entry from batch response
+/// Note: Reserved for future batch operations.
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 struct SecretValueEntry {
     name: String,
@@ -147,12 +153,18 @@ struct SecretValueEntry {
     version_id: Option<String>,
 }
 
+/// Error from batch secret operation
+/// Note: Reserved for future batch operations.
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 struct BatchSecretError {
     secret_id: String,
     message: String,
 }
 
+/// Response from describe secret operation
+/// Note: Reserved for future secret metadata operations.
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 struct DescribeSecretResponse {
     name: String,

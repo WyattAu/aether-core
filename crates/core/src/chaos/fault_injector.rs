@@ -405,6 +405,8 @@ impl NetworkFaultInjector {
     }
 
     /// Get current latency (simulated)
+    /// Note: Public API for diagnostic/testing use.
+    #[allow(dead_code)]
     pub fn get_latency(&self) -> Duration {
         if let Some(config) = self.latency_config.read().as_ref() {
             let range = config.max_ms.saturating_sub(config.min_ms);
@@ -416,6 +418,8 @@ impl NetworkFaultInjector {
     }
 
     /// Check if packet should be dropped (simulated)
+    /// Note: Public API for diagnostic/testing use.
+    #[allow(dead_code)]
     pub fn should_drop_packet(&self) -> bool {
         let rate = *self.packet_loss_rate.read();
         if rate <= 0.0 {
@@ -425,6 +429,8 @@ impl NetworkFaultInjector {
     }
 
     /// Check if partition is active
+    /// Note: Public API for diagnostic/testing use.
+    #[allow(dead_code)]
     pub fn is_partitioned(&self) -> bool {
         self.partition_active.load(Ordering::Acquire)
     }
@@ -555,11 +561,15 @@ impl MemoryFaultInjector {
     }
 
     /// Check if memory pressure is active
+    /// Note: Public API for diagnostic/testing use.
+    #[allow(dead_code)]
     pub fn is_pressure_active(&self) -> bool {
         self.pressure_active.load(Ordering::Acquire)
     }
 
     /// Get target pressure percentage
+    /// Note: Public API for diagnostic/testing use.
+    #[allow(dead_code)]
     pub fn pressure_target(&self) -> f64 {
         *self.pressure_target.read()
     }
@@ -661,6 +671,8 @@ impl CpuFaultInjector {
     }
 
     /// Check if CPU starvation is active
+    /// Note: Public API for diagnostic/testing use.
+    #[allow(dead_code)]
     pub fn is_starvation_active(&self) -> bool {
         self.starvation_active.load(Ordering::Acquire)
     }
@@ -751,6 +763,8 @@ impl DiskFaultInjector {
     }
 
     /// Get read latency
+    /// Note: Public API for diagnostic/testing use.
+    #[allow(dead_code)]
     pub fn read_latency(&self) -> Duration {
         self.latency_config
             .read()
@@ -760,6 +774,8 @@ impl DiskFaultInjector {
     }
 
     /// Get write latency
+    /// Note: Public API for diagnostic/testing use.
+    #[allow(dead_code)]
     pub fn write_latency(&self) -> Duration {
         self.latency_config
             .read()
@@ -769,6 +785,8 @@ impl DiskFaultInjector {
     }
 
     /// Check if should inject error
+    /// Note: Public API for diagnostic/testing use.
+    #[allow(dead_code)]
     pub fn should_inject_error(&self) -> bool {
         let rate = *self.error_rate.read();
         rate > 0.0 && rand::random::<f64>() < rate
@@ -863,6 +881,8 @@ impl ProcessFaultInjector {
     }
 
     /// Check if a process is hung
+    /// Note: Public API for diagnostic/testing use.
+    #[allow(dead_code)]
     pub fn is_hung(&self, pattern: &str) -> bool {
         self.hung_processes.read().iter().any(|p| p == pattern)
     }

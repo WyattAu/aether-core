@@ -1,5 +1,9 @@
 //! MCP Transport Layer
 
+// Allow dead code for trait methods that are part of the interface
+// but may not be called in current implementation
+#![allow(dead_code)]
+
 use std::io;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -20,6 +24,8 @@ pub trait Transport: Send + Sync {
 }
 
 /// Boxed transport
+/// Note: Reserved for future dynamic dispatch use.
+#[allow(dead_code)]
 pub type BoxedTransport = Box<dyn Transport>;
 
 /// Stdio transport for local MCP servers
@@ -55,6 +61,8 @@ impl Default for StdioTransport {
     }
 }
 
+/// Transport implementation for stdio
+#[allow(dead_code)]
 #[async_trait]
 impl Transport for StdioTransport {
     async fn send(&self, message: &str) -> Result<()> {

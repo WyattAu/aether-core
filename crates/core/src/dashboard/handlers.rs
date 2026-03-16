@@ -26,23 +26,37 @@ pub type DashboardResult<T> = std::result::Result<T, DashboardError>;
 /// Dashboard error types
 #[derive(Debug, thiserror::Error)]
 pub enum DashboardError {
+    /// HTTP protocol error
     #[error("HTTP error: {0}")]
     Http(#[from] axum::http::Error),
+    /// JSON serialization/deserialization error
     #[error("JSON error: {0}")]
     Json(#[from] serde_json::Error),
+    /// I/O error
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
+    /// Channel communication error
     #[error("Channel error: {0}")]
     Channel(String),
 }
 
+/// Shared state for dashboard handlers
 #[derive(Clone)]
 pub struct DashboardState {
+    /// Observability and metrics collector
     pub observability: Arc<Observability>,
+    /// WebSocket broadcaster for real-time updates
     pub broadcaster: WebSocketBroadcaster,
+    /// Shutdown signal broadcaster
     pub shutdown: broadcast::Sender<()>,
 }
 
+/// Creates the main router with all dashboard routes.
+///
+/// Routes include:
+/// - `/api/v1/*` - REST API endpoints
+/// - `/ws` - WebSocket endpoint
+/// - `/healthz`, `/readyz` - Health check endpoints
 pub fn create_router(state: Arc<DashboardState>) -> Router {
     let api_routes = Router::new()
         .route("/status", get(get_status))

@@ -130,13 +130,18 @@ impl SecretsProviderRegistry {
         )))
     }
 
+    /// Run health checks on all registered providers
     pub async fn health_check_all(&self) -> HashMap<String, Result<()>> {
-        let mut results = HashMap::new();
-        let providers = self.providers.read();
+        // Collect providers to check before releasing the lock
+        let providers_to_check: Vec<(String, Arc<dyn SecretsProvider>)> = {
+            let providers = self.providers.read();
+            providers.iter().map(|(k, v)| (k.clone(), Arc::clone(v))).collect()
+        }; // Guard dropped here
 
-        for (name, provider) in providers.iter() {
+        let mut results = HashMap::new();
+        for (name, provider) in providers_to_check {
             let result = provider.health_check().await;
-            results.insert(name.clone(), result);
+            results.insert(name, result);
         }
 
         results

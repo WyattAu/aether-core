@@ -13,19 +13,26 @@ use tokio::sync::broadcast;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
 
+/// Configuration for the dashboard HTTP server.
 #[derive(Debug, Clone)]
 pub struct DashboardConfig {
+    /// Address to bind the server to
     pub bind_addr: SocketAddr,
+    /// Whether to enable CORS headers
     pub enable_cors: bool,
+    /// Optional directory for static files
     pub static_dir: Option<String>,
+    /// WebSocket heartbeat interval in seconds
     pub ws_heartbeat_interval_secs: u64,
+    /// Metrics update interval in seconds
     pub metrics_update_interval_secs: u64,
 }
 
 impl Default for DashboardConfig {
     fn default() -> Self {
         Self {
-            bind_addr: "0.0.0.0:8080".parse().unwrap(),
+            // Use infallible SocketAddr construction for default
+            bind_addr: SocketAddr::from(([0, 0, 0, 0], 8080)),
             enable_cors: true,
             static_dir: None,
             ws_heartbeat_interval_secs: 30,
@@ -35,6 +42,7 @@ impl Default for DashboardConfig {
 }
 
 impl DashboardConfig {
+    /// Creates a new config with the specified bind address.
     pub fn new(bind_addr: SocketAddr) -> Self {
         Self {
             bind_addr,
@@ -42,17 +50,20 @@ impl DashboardConfig {
         }
     }
 
+    /// Sets the static files directory.
     pub fn with_static_dir(mut self, dir: impl Into<String>) -> Self {
         self.static_dir = Some(dir.into());
         self
     }
 
+    /// Enables or disables CORS.
     pub fn with_cors(mut self, enable: bool) -> Self {
         self.enable_cors = enable;
         self
     }
 }
 
+/// Dashboard HTTP server with WebSocket support.
 pub struct DashboardServer {
     config: DashboardConfig,
     state: Arc<DashboardState>,
@@ -60,6 +71,7 @@ pub struct DashboardServer {
 }
 
 impl DashboardServer {
+    /// Creates a new dashboard server with the given configuration.
     pub fn new(config: DashboardConfig, observability: Arc<Observability>) -> Self {
         let (shutdown_tx, _) = broadcast::channel(16);
         let broadcaster = WebSocketBroadcaster::new(shutdown_tx.clone());
@@ -77,6 +89,7 @@ impl DashboardServer {
         }
     }
 
+    /// Starts the HTTP server and blocks until shutdown.
     pub async fn serve(self) -> Result<()> {
         let mut cors_layer = CorsLayer::new()
             .allow_origin(Any)
@@ -109,6 +122,7 @@ impl DashboardServer {
         Ok(())
     }
 
+    /// Initiates a graceful shutdown of the server.
     pub fn shutdown(&self) {
         let _ = self.shutdown_tx.send(());
     }
@@ -116,17 +130,19 @@ impl DashboardServer {
 
 async fn shutdown_signal(mut rx: broadcast::Receiver<()>) {
     let ctrl_c = async {
-        signal::ctrl_c()
-            .await
-            .expect("Failed to install Ctrl+C handler");
+        if signal::ctrl_c().await.is_err() {
+            tracing::warn!("Failed to install Ctrl+C handler, graceful shutdown via Ctrl+C unavailable");
+        }
     };
 
     #[cfg(unix)]
     let terminate = async {
-        signal::unix::signal(signal::unix::SignalKind::terminate())
-            .expect("Failed to install signal handler")
-            .recv()
-            .await;
+        match signal::unix::signal(signal::unix::SignalKind::terminate()) {
+            Ok(mut sig) => { sig.recv().await; }
+            Err(_) => {
+                tracing::warn!("Failed to install terminate signal handler");
+            }
+        }
     };
 
     #[cfg(not(unix))]
@@ -158,7 +174,7 @@ mod tests {
 
     #[test]
     fn test_config_builder() {
-        let config = DashboardConfig::new("127.0.0.1:9090".parse().unwrap())
+        let config = DashboardConfig::new(SocketAddr::from(([127, 0, 0, 1], 9090)))
             .with_static_dir("/var/www")
             .with_cors(false);
 

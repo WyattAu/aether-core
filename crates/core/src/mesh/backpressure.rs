@@ -9,7 +9,13 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::sync::Notify;
 
 const DEFAULT_CREDITS: u64 = 1024 * 1024;
+/// Credit threshold for requesting more credits
+/// Note: Reserved for future adaptive flow control.
+#[allow(dead_code)]
 const CREDIT_THRESHOLD: u64 = 64 * 1024;
+/// Maximum buffer size for backpressure
+/// Note: Reserved for future buffer limiting.
+#[allow(dead_code)]
 const MAX_BUFFER_SIZE: usize = 16 * 1024 * 1024;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

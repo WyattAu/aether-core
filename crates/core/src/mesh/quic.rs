@@ -15,6 +15,9 @@ use tokio::sync::Mutex;
 use super::connection::{ConnectionPool, ConnectionState, ReconnectConfig};
 use super::message::{MeshMessage, frame_message, parse_frame};
 
+/// Default timeout for stream operations
+/// Note: Reserved for future stream timeout configuration.
+#[allow(dead_code)]
 const DEFAULT_STREAM_TIMEOUT: Duration = Duration::from_secs(30);
 const DEFAULT_IDLE_TIMEOUT: Duration = Duration::from_secs(60);
 const MAX_INCOMING_MESSAGE_SIZE: usize = 16 * 1024 * 1024;

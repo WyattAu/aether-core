@@ -205,17 +205,19 @@ impl McpServer {
             }
         };
 
-        // Get tool
-        let tools = self.tools.read();
-        let tool = match tools.get(name) {
-            Some(t) => t,
-            None => {
-                return JsonRpcResponse::error_response(
-                    Some(request.id),
-                    JsonRpcError::invalid_params(format!("Tool not found: {}", name)),
-                )
+        // Get tool - extract Arc before await to avoid holding lock
+        let tool = {
+            let tools = self.tools.read();
+            match tools.get(name) {
+                Some(t) => Arc::clone(t),
+                None => {
+                    return JsonRpcResponse::error_response(
+                        Some(request.id),
+                        JsonRpcError::invalid_params(format!("Tool not found: {}", name)),
+                    )
+                }
             }
-        };
+        }; // Guard dropped here
 
         // Get arguments
         let args = params
@@ -368,6 +370,8 @@ impl McpServer {
 }
 
 /// Run the MCP server on stdio
+/// Note: Public API for running MCP server. Currently unused but kept for future CLI use.
+#[allow(dead_code)]
 pub async fn run_stdio(server: McpServer) -> Result<()> {
     let mut transport = StdioTransport::new();
 
