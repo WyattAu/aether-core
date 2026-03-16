@@ -17,7 +17,11 @@ capability_matrix_status: complete
 - [x] Go SDK examples (hello_actor, counter_actor, ai_actor, mesh_actor, chat_app)
 - [x] Python SDK examples (hello_actor, counter_actor, mesh_actor, ai_actor, chat_app)
 - [x] JavaScript SDK examples (hello_actor, counter_actor, mesh_actor, ai_actor, chat_app)
+- [x] JavaScript SDK package.json and tsconfig.json for npm publishing
 - [x] MkDocs documentation site structure
+- [x] SDK documentation (Go, Python, JavaScript, Rust)
+- [x] Architecture documentation (mesh networking)
+- [x] Example documentation (hello-world, counter, ai-actor, mesh, chat-app)
 - [x] SDK CI workflow (`.github/workflows/sdk-ci.yml`)
 - [x] Docs deployment workflow (`.github/workflows/docs.yml` with MkDocs)
 - [x] Architecture documentation (overview, actor-model, security)
@@ -28,8 +32,8 @@ capability_matrix_status: complete
 - [x] Security audit documentation
 - [x] SDK integration tests (Go, Python, JavaScript)
 
-### In Progress
-- [ ] Documentation site deployment
+### Remaining
+- [ ] Documentation site deployment (GitHub Pages)
 - [ ] SDK package publishing (npm, PyPI, Go modules)
 
 ## Phase 17: Community (Completed)
