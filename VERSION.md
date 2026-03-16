@@ -1,16 +1,40 @@
 # Project Aether Version Tracking
 
-current_phase: 18
+current_phase: 19
 current_version: 1.3.0
-status: In Progress - SDK & Documentation
-last_updated: 2026-03-16T12:00:00Z
+status: In Progress - v1.4.0 Planning & Enterprise Features
+last_updated: 2026-03-16T18:00:00Z
 error_level: null
 rollback_checkpoint: v1.2.0-alpha-wip
 recovery_time_estimate: null
 actual_recovery_time: null
 capability_matrix_status: complete
 
-## Phase 18: SDK & Documentation (In Progress)
+## Phase 19: v1.4.0 Planning & Enterprise Features (In Progress)
+
+### Completed
+- [x] SDK publishing workflow (`.github/workflows/sdk-publish.yml`)
+- [x] Additional SDK examples (workflow_actor, scheduler_actor, cache_actor)
+- [x] v1.4.0 roadmap document (`.docs/ROADMAP_v1.4.md`)
+- [x] Tutorial documentation (docs-site/docs/getting-started/tutorial.md)
+- [x] Best practices guide (docs-site/docs/getting-started/best-practices.md)
+
+### Planned - v1.4.0 "Resilience"
+- [ ] Circuit breaker pattern for actor communication
+- [ ] Retry with exponential backoff
+- [ ] Bulkhead pattern for resource isolation
+- [ ] Health check endpoints
+- [ ] OpenTelemetry distributed tracing
+- [ ] Prometheus metrics export
+- [ ] Structured JSON logging
+- [ ] Rate limiting per actor/capability
+- [ ] Schema-based message validation
+- [ ] Message compression
+- [ ] Connection pooling optimization
+- [ ] SDK v0.2.0 releases (Go, Python, JavaScript)
+- [ ] Java SDK v0.1.0
+
+## Phase 18: SDK & Documentation (Completed)
 
 ### Completed
 - [x] Go SDK v0.1.0 with full API (actor, message, capabilities, state, errors)
@@ -18,11 +42,15 @@ capability_matrix_status: complete
 - [x] Python SDK examples (hello_actor, counter_actor, mesh_actor, ai_actor, chat_app)
 - [x] JavaScript SDK examples (hello_actor, counter_actor, mesh_actor, ai_actor, chat_app)
 - [x] JavaScript SDK package.json and tsconfig.json for npm publishing
+- [x] Additional JS examples (workflow_actor, scheduler_actor, cache_actor)
 - [x] MkDocs documentation site structure
 - [x] SDK documentation (Go, Python, JavaScript, Rust)
 - [x] Architecture documentation (mesh networking)
 - [x] Example documentation (hello-world, counter, ai-actor, mesh, chat-app)
+- [x] Tutorial documentation
+- [x] Best practices guide
 - [x] SDK CI workflow (`.github/workflows/sdk-ci.yml`)
+- [x] SDK publish workflow (`.github/workflows/sdk-publish.yml`)
 - [x] Docs deployment workflow (`.github/workflows/docs.yml` with MkDocs)
 - [x] Architecture documentation (overview, actor-model, security)
 - [x] Performance tuning guide
@@ -31,10 +59,7 @@ capability_matrix_status: complete
 - [x] ADR-006 (Multi-Language SDK Strategy) and ADR-007 (MkDocs Documentation)
 - [x] Security audit documentation
 - [x] SDK integration tests (Go, Python, JavaScript)
-
-### Remaining
-- [ ] Documentation site deployment (GitHub Pages)
-- [ ] SDK package publishing (npm, PyPI, Go modules)
+- [x] v1.4.0 roadmap (`.docs/ROADMAP_v1.4.md`)
 
 ## Phase 17: Community (Completed)
 

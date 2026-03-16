@@ -7,6 +7,132 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.0] - Planned
+
+### Added - Reliability Patterns
+
+#### Circuit Breaker
+- Circuit breaker pattern for actor-to-actor communication
+- Configurable failure threshold and reset timeout
+- Half-open state for gradual recovery
+
+#### Retry & Backoff
+- Exponential backoff retry policy
+- Configurable max attempts and delays
+- Jitter support for distributed systems
+
+#### Bulkhead
+- Resource isolation per actor
+- Configurable pool sizes
+- Queue-based execution
+
+### Added - Observability
+
+#### Distributed Tracing
+- OpenTelemetry integration
+- Trace context propagation
+- Span creation for message handling
+
+#### Metrics Export
+- Prometheus metrics endpoint
+- Standard metrics (messages, latency, errors)
+- Custom metrics support
+
+#### Health Checks
+- `/health` endpoint for all actors
+- Kubernetes liveness/readiness probes
+- Dependency health tracking
+
+### Added - Security
+
+#### Rate Limiting
+- Per-actor rate limits
+- Sliding window algorithm
+- Burst support
+
+#### Input Validation
+- Schema-based message validation
+- Type coercion
+- Custom validators
+
+### Added - SDK Improvements
+
+#### JavaScript SDK v0.2.0
+- Zod schema integration
+- EventEmitter support
+- React hooks for actor state
+
+#### Python SDK v0.2.0
+- Pydantic v2 integration
+- Async context managers
+- Decorator-based actors
+
+#### Go SDK v0.2.0
+- Generic message types
+- Context propagation
+- Middleware support
+
+#### Java SDK v0.1.0 (New)
+- Basic actor implementation
+- Spring Boot integration
+- Reactive streams support
+
+### Added - Documentation
+
+#### Tutorials
+- Interactive getting started tutorial
+- Multi-actor application walkthrough
+- Testing guide
+
+#### Best Practices
+- Actor design patterns
+- State management guidelines
+- Error handling strategies
+
+### Added - CI/CD
+
+#### SDK Publishing
+- Automated npm publishing workflow
+- Automated PyPI publishing workflow
+- Go module verification
+
+---
+
+## [1.3.1] - 2026-03-16
+
+### Added - SDK Publishing
+
+#### Publishing Workflow (`.github/workflows/sdk-publish.yml`)
+- npm publishing for JavaScript SDK
+- PyPI publishing for Python SDK
+- Go module verification
+- Manual dispatch with SDK selection
+
+### Added - SDK Examples
+
+#### JavaScript SDK
+- `workflow_actor.ts` - Workflow orchestration with step execution
+- `scheduler_actor.ts` - Scheduled task execution with cron patterns
+- `cache_actor.ts` - In-memory cache with TTL and LRU eviction
+
+### Added - Documentation
+
+#### Roadmap
+- `.docs/ROADMAP_v1.4.md` - Comprehensive v1.4.0 planning document
+- Feature categories: Reliability, Observability, Security, Performance, SDKs
+- Milestone breakdown (M1-M4)
+- API previews for new features
+
+#### Tutorials
+- `docs-site/docs/getting-started/tutorial.md` - Step-by-step actor development
+- Multi-part tutorial covering basic to advanced patterns
+
+#### Best Practices
+- `docs-site/docs/getting-started/best-practices.md` - Comprehensive best practices guide
+- Actor design, state management, error handling, testing, security
+
+---
+
 ## [1.3.0] - 2026-03-16
 
 ### Added - Multi-Language SDKs
