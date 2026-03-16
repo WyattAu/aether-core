@@ -229,7 +229,7 @@ Implemented but not exposed:
 |---------|----------|--------|
 | Python SDK | High | ✅ Enhanced |
 | JavaScript SDK | High | ✅ Tests added |
-| Go SDK | Medium | Not Started |
+| Go SDK | High | ✅ Done |
 | CLI improvements | Medium | Partial |
 | Examples library | Medium | Partial |
 | Documentation site | Medium | Partial |
@@ -314,18 +314,19 @@ Target: Enhanced security:
 ## 7. Community & Ecosystem
 
 ### 7.1 Documentation
-- [ ] API reference documentation (auto-generated)
+- [x] MkDocs documentation site (docs-site/)
+- [x] API reference documentation (in README files)
 - [ ] Architecture decision records (ADRs)
 - [ ] Runbook for operations
 - [ ] Security documentation
 - [ ] Performance tuning guide
 
 ### 7.2 Examples
-- [ ] Hello World actor (5 languages)
-- [ ] Stateful counter actor
-- [ ] AI-powered actor
-- [ ] Mesh communication actor
-- [ ] Full application example
+- [x] Hello World actor (5 languages)
+- [x] Stateful counter actor
+- [x] AI-powered actor
+- [x] Mesh communication actor
+- [x] Full application example
 
 ### 7.3 Tooling
 - [ ] VS Code extension
@@ -376,6 +377,19 @@ Target: Enhanced security:
 *Next Review: 2026-03-23*
 
 ## Changelog
+
+### 2026-03-16 (Session 3)
+- **Go SDK v0.1.0**: Complete implementation with comprehensive examples
+  - Created stateful counter actor example
+  - Created AI-powered actor example
+  - Created mesh communication actor example
+  - Created chat application example (multi-actor)
+- **Documentation**: Created MkDocs documentation site structure
+  - Getting started guide (introduction, installation, quickstart, concepts)
+  - SDKs overview and language-specific guides
+  - Examples overview with learning path
+  - Architecture documentation stubs
+- **README**: Fixed and expanded Go SDK README with full API reference
 
 ### 2026-03-16 (Session 2)
 - **Deprecated Field**: Replaced `timestamp_ns` with `wall_time_ns` in WasiHost trait

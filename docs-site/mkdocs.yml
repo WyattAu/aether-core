@@ -1,0 +1,93 @@
+site_name: Project Aether Documentation
+site_description: Distributed actor framework for building scalable, resilient applications
+site_url: https://aether.dev
+repo_url: https://github.com/WyattAu/aether-core
+repo_name: WyattAu/aether-core
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - Introduction: getting-started/introduction.md
+    - Installation: getting-started/installation.md
+    - Quick Start: getting-started/quickstart.md
+    - Core Concepts: getting-started/concepts.md
+  - SDKs:
+    - Overview: sdks/overview.md
+    - Go SDK: sdks/go.md
+    - Python SDK: sdks/python.md
+    - JavaScript SDK: sdks/javascript.md
+    - Rust SDK: sdks/rust.md
+  - Examples:
+    - Overview: examples/overview.md
+    - Hello World: examples/hello-world.md
+    - Stateful Counter: examples/counter.md
+    - AI Actor: examples/ai-actor.md
+    - Mesh Communication: examples/mesh.md
+    - Chat Application: examples/chat-app.md
+  - Architecture:
+    - Overview: architecture/overview.md
+    - Actor Model: architecture/actor-model.md
+    - Mesh Network: architecture/mesh.md
+    - Security: architecture/security.md
+  - API Reference: api-reference.md
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - admonition
+  - codehilite
+  - toc:
+      permalink: true
+  - attr_list
+  - def_list
+  - meta
+
+plugins:
+  - search
+  - git-revision-date-localized:
+      enable_creation_date: true
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/WyattAu/aether-core
+  version:
+    provider: mike
+
+copyright: Copyright &copy; 2026 Project Aether
