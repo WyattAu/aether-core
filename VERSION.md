@@ -1,16 +1,38 @@
 # Project Aether Version Tracking
 
-current_phase: 17
-current_version: 1.2.0-alpha
-status: In Progress - Features, Documentation, Community
-last_updated: 2026-03-14T14:00:00Z
+current_phase: 18
+current_version: 1.3.0
+status: In Progress - SDK & Documentation
+last_updated: 2026-03-16T12:00:00Z
 error_level: null
 rollback_checkpoint: v1.2.0-alpha-wip
 recovery_time_estimate: null
 actual_recovery_time: null
 capability_matrix_status: complete
 
-## Phase 17: Community (In Progress)
+## Phase 18: SDK & Documentation (In Progress)
+
+### Completed
+- [x] Go SDK v0.1.0 with full API (actor, message, capabilities, state, errors)
+- [x] Go SDK examples (hello_actor, counter_actor, ai_actor, mesh_actor, chat_app)
+- [x] Python SDK examples (hello_actor, counter_actor, mesh_actor, ai_actor, chat_app)
+- [x] JavaScript SDK examples (hello_actor, counter_actor, mesh_actor, ai_actor, chat_app)
+- [x] MkDocs documentation site structure
+- [x] SDK CI workflow (`.github/workflows/sdk-ci.yml`)
+- [x] Docs deployment workflow (`.github/workflows/docs.yml` with MkDocs)
+- [x] Architecture documentation (overview, actor-model, security)
+- [x] Performance tuning guide
+- [x] Operations runbook
+- [x] API reference documentation
+- [x] ADR-006 (Multi-Language SDK Strategy) and ADR-007 (MkDocs Documentation)
+- [x] Security audit documentation
+- [x] SDK integration tests (Go, Python, JavaScript)
+
+### In Progress
+- [ ] Documentation site deployment
+- [ ] SDK package publishing (npm, PyPI, Go modules)
+
+## Phase 17: Community (Completed)
 
 ### Completed
 - [x] Issue templates (bug report, feature request, actor development)

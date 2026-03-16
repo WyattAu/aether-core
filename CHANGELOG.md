@@ -7,6 +7,82 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.0] - 2026-03-16
+
+### Added - Multi-Language SDKs
+
+#### Go SDK (`sdks/go/`)
+- **Actor Framework**: Full `Actor` interface with lifecycle methods (OnStart, OnStop, HandleMessage)
+- **Message Types**: Request, Response, Event, RPC request/response with type-safe payloads
+- **Capabilities**: Complete capability system (STATE_READ, STATE_WRITE, NETWORK_OUTBOUND, etc.)
+- **State API**: Read, Write, Delete, ListKeys, Exists, Clear operations
+- **Error Handling**: Structured errors with Error::internal(), Error::storage_read(), etc.
+- **Helpers**: Message constructors (request, response, event, rpc)
+
+#### Python SDK (`sdks/python/`)
+- **Actor Framework**: Full `Actor` base class with async lifecycle support
+- **Message Types**: Request, Response, Event, RPC with MessageType enum
+- **Capabilities**: Capability enum and capability checking
+- **State API**: Async state management with State class
+- **Error Handling**: AetherError hierarchy with specific error types
+
+#### JavaScript SDK (`sdks/js/`)
+- **Actor Framework**: Full `Actor` class with async lifecycle
+- **Message Types**: MessageType enum, Message class with factory methods
+- **Capabilities**: Capability enum and require() method
+- **State API**: State class with async operations
+
+### Added - SDK Examples
+
+Each SDK includes 5 comprehensive examples:
+- **hello_actor**: Basic actor with greeting functionality
+- **counter_actor**: Stateful actor demonstrating state persistence
+- **ai_actor**: AI integration actor with text generation
+- **mesh_actor**: Mesh networking actor demonstrating distributed communication
+- **chat_app**: Full multi-actor chat application with rooms and sessions
+
+### Added - Documentation
+
+#### MkDocs Documentation Site (`docs-site/`)
+- **Getting Started**: Introduction, installation, quickstart, concepts
+- **API Reference**: Complete API documentation for all SDKs
+- **Architecture**: Overview, actor model, security architecture
+- **Performance**: Tuning guide and optimization strategies
+- **Operations**: Runbook for production deployments
+- **SDKs**: Overview of all SDKs with language-specific guides
+- **Examples**: Example applications and use cases
+
+#### Architecture Decision Records
+- **ADR-006**: Multi-Language SDK Strategy
+- **ADR-007**: MkDocs Documentation Site
+
+### Added - CI/CD
+
+#### SDK CI Workflow (`.github/workflows/sdk-ci.yml`)
+- Go SDK build and test
+- Python SDK lint and test
+- JavaScript SDK build and type check
+- Integration test execution
+
+#### Documentation Workflow (`.github/workflows/docs.yml`)
+- MkDocs build and deploy
+- GitHub Pages deployment
+
+### Added - Security
+
+#### Security Audit Documentation (`.docs/SECURITY_AUDIT.md`)
+- Comprehensive security audit checklist
+- STRIDE threat model
+- OWASP Top 10 compliance
+- Security controls documentation
+
+### Changed
+
+- VERSION.md updated to reflect Phase 18 (SDK & Documentation)
+- All SDKs use consistent API patterns across languages
+
+---
+
 ## [1.2.0-alpha] - 2026-03-14
 
 ### Added - Multi-Provider AI Support
@@ -740,6 +816,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date | Phase | Description |
 |---------|------|-------|-------------|
+| 1.3.0 | 2026-03-16 | 18 | Multi-Language SDKs & Documentation |
+| 1.2.0-alpha | 2026-03-14 | 17 | Multi-Provider AI Support |
+| 1.1.0-alpha | 2026-03-14 | 16 | AI Integration Features |
 | 1.0.0-alpha | 2026-03-06 | 8 | R&D Lifecycle Complete |
 | 0.7.0-alpha | 2026-03-06 | 7 | Documentation & Branding |
 | 0.6.0-alpha | 2026-03-06 | 6 | CI/CD Pipeline |
