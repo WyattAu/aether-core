@@ -116,9 +116,13 @@
 
 pub mod health;
 pub mod metrics;
+pub mod resilience_metrics;
 
 pub use health::HealthChecker;
 pub use metrics::MetricsCollector;
+pub use resilience_metrics::{
+    BulkheadMetrics, CircuitBreakerMetrics, RateLimiterMetrics, ResilienceMetrics, RetryMetrics,
+};
 
 pub use crate::tracing::{
     ActorSpan, MeshSpan, SpanAttributes, SpanKind, StateSpan, TraceContext, Tracing, TracingConfig,
