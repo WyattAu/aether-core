@@ -103,6 +103,21 @@ from .bulkhead import (
     strict_bulkhead,
 )
 
+# Tracing
+from .tracing import (
+    TRACING_AVAILABLE,
+    TracingContext,
+    get_tracer,
+    traced_circuit_breaker,
+    traced_retry,
+    traced_rate_limiter,
+    traced_bulkhead,
+    create_resilience_span,
+    record_resilience_event,
+    set_resilience_attribute,
+    ResilienceInstrumentation,
+)
+
 
 # ============================================
 # Resilient Executor
@@ -245,6 +260,19 @@ __all__ = [
     'api_bulkhead',
     'database_bulkhead',
     'strict_bulkhead',
+    
+    # Tracing
+    'TRACING_AVAILABLE',
+    'TracingContext',
+    'get_tracer',
+    'traced_circuit_breaker',
+    'traced_retry',
+    'traced_rate_limiter',
+    'traced_bulkhead',
+    'create_resilience_span',
+    'record_resilience_event',
+    'set_resilience_attribute',
+    'ResilienceInstrumentation',
     
     # Combined
     'ResilientExecutor',
