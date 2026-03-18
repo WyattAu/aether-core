@@ -1,38 +1,69 @@
 # Project Aether Version Tracking
 
-current_phase: 19
-current_version: 1.3.0
-status: In Progress - v1.4.0 Planning & Enterprise Features
-last_updated: 2026-03-16T18:00:00Z
+current_phase: 20
+current_version: 1.4.0
+status: Released - v1.4.0 "Resilience"
+last_updated: 2026-03-18T21:55:00Z
 error_level: null
-rollback_checkpoint: v1.2.0-alpha-wip
+rollback_checkpoint: v1.3.0
 recovery_time_estimate: null
 actual_recovery_time: null
 capability_matrix_status: complete
 
-## Phase 19: v1.4.0 Planning & Enterprise Features (In Progress)
+## Phase 20: v1.4.0 "Resilience" (Released 2026-03-18)
 
-### Completed
-- [x] SDK publishing workflow (`.github/workflows/sdk-publish.yml`)
-- [x] Additional SDK examples (workflow_actor, scheduler_actor, cache_actor)
-- [x] v1.4.0 roadmap document (`.docs/ROADMAP_v1.4.md`)
-- [x] Tutorial documentation (docs-site/docs/getting-started/tutorial.md)
-- [x] Best practices guide (docs-site/docs/getting-started/best-practices.md)
+### M1: Reliability Foundation ✅
+- [x] Circuit breaker pattern for actor communication (Python, Go, JavaScript, Java)
+- [x] Retry with exponential backoff (fixed, linear, exponential, exponential-jitter)
+- [x] Bulkhead pattern for resource isolation
+- [x] Health check endpoints (Kubernetes liveness/readiness/startup probes)
+- [x] Rate limiting per actor/capability (token bucket, sliding window, fixed window)
 
-### Planned - v1.4.0 "Resilience"
-- [ ] Circuit breaker pattern for actor communication
-- [ ] Retry with exponential backoff
-- [ ] Bulkhead pattern for resource isolation
-- [ ] Health check endpoints
-- [ ] OpenTelemetry distributed tracing
-- [ ] Prometheus metrics export
-- [ ] Structured JSON logging
-- [ ] Rate limiting per actor/capability
-- [ ] Schema-based message validation
-- [ ] Message compression
-- [ ] Connection pooling optimization
-- [ ] SDK v0.2.0 releases (Go, Python, JavaScript)
-- [ ] Java SDK v0.1.0
+### M2: Observability ✅
+- [x] OpenTelemetry distributed tracing
+- [x] Prometheus metrics export
+- [x] Grafana dashboard for resilience metrics
+
+### M3: Security Hardening ✅
+- [x] Schema-based message validation
+- [x] Input sanitization utilities (string, HTML, SQL, URL, JSON)
+- [x] Fluent validation API with common validators
+
+### M4: Performance & SDKs ✅
+- [x] Performance benchmarks (Python, Go)
+- [x] SDK v0.2.0 releases (Python, Go, JavaScript)
+- [x] Java SDK v0.2.0
+
+### Release Artifacts
+- Python SDK: `aether_sdk` v0.2.0
+- Go SDK: `github.com/aether-sdk/aether-go` v0.2.0
+- JavaScript SDK: `@aether/sdk` v0.2.0
+- Java SDK: `io.aether:aether-sdk` v0.2.0
+
+### New Module Structure (All SDKs)
+```
+resilience/
+├── circuit_breaker.py/go/ts/java  # Circuit breaker pattern
+├── retry.py/go/ts/java           # Retry with backoff
+├── rate_limiter.py/go/ts/java    # Rate limiting
+├── health_check.py/go/ts/java    # Health probes
+├── bulkhead.py/go/ts/java        # Resource isolation
+├── executor.py/go/ts/java        # Combined executor
+└── tracing.py/go/ts              # OpenTelemetry
+
+validation/
+├── __init__.py/Validator.java    # Fluent validation
+└── sanitize.py/Sanitizer.java    # Input sanitization
+```
+
+### Commits in This Release
+- `b1273c1` - feat: add resilience metrics, tests, and documentation for v1.4.0
+- `6af8d52` - feat(sdk/go): add complete resilience module
+- `2dd31c9` - feat(sdk/python): add complete resilience module
+- `e8949ea` - feat(sdk): add OpenTelemetry tracing and JavaScript resilience module
+- `25f29b7` - feat(sdk): add validation and sanitization modules
+- `bf90db8` - feat(sdk): release v0.2.0 with resilience, observability, and validation
+- `eeb47e4` - feat(sdk): add Java SDK v0.2.0
 
 ## Phase 18: SDK & Documentation (Completed)
 
