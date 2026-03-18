@@ -8,3 +8,6 @@ export type { ActorConfig, MessageHandler, RpcHandler } from './types';
 
 // Resilience Module
 export * from './resilience';
+
+// Validation Module
+export * from './validation';
