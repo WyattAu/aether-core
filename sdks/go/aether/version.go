@@ -3,7 +3,7 @@ package aether
 // Version information (set by build flags)
 var (
 	// Version is the SDK version.
-	Version = "0.1.0"
+	Version = "0.2.0"
 	// GitCommit is the git commit hash.
 	GitCommit = "unknown"
 	// BuildDate is the build date.
