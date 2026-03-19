@@ -1,14 +1,52 @@
 # Project Aether Version Tracking
 
-current_phase: 20
-current_version: 1.4.0
-status: Released - v1.4.0 "Resilience"
-last_updated: 2026-03-18T21:55:00Z
+current_phase: 21
+current_version: 1.5.0
+status: Planning - v1.5.0 "Flow"
+last_updated: 2026-03-19T00:00:00Z
 error_level: null
-rollback_checkpoint: v1.3.0
+rollback_checkpoint: v1.4.0
 recovery_time_estimate: null
 actual_recovery_time: null
 capability_matrix_status: complete
+
+## Phase 21: v1.5.0 "Flow" (Planning Started 2026-03-19)
+
+### Theme: Stream Processing & Event-Driven Architecture
+
+### M1: Streaming Foundation (In progress)
+- [x] Stream actor type for continuous data processing
+- [x] Windowing functions (tumbling, sliding, session)
+- [x] Backpressure handling with reactive streams
+- [ ] Stream joins for complex event processing (planned for M2/M3)
+
+### M2: Event System (Planned)
+- [ ] Pub/sub messaging with topic-based routing
+- [ ] Event sourcing for actor state
+- [ ] Guaranteed delivery semantics (at-least-once, exactly-once)
+- [ ] Event schema registry
+
+### M3: Workflow Engine (Planned)
+- [ ] Saga pattern for distributed transactions
+- [ ] Workflow state machine with visual definitions
+- [ ] Workflow persistence and checkpointing
+- [ ] Human task integration for approvals
+
+### M4: Performance & SDKs (Planned)
+- [ ] Zero-copy messaging for high throughput
+- [ ] Batch processing optimization
+- [ ] Partitioning for parallel processing
+- [ ] SDK v0.3.0 releases (Python, Go, JavaScript, Java)
+
+### Target Metrics
+| Metric | Target |
+|--------|--------|
+| Stream throughput | 500K events/s |
+| Event latency (P99) | <10ms |
+| Saga success rate | 99.9% |
+| Window accuracy | 99.99% |
+
+---
 
 ## Phase 20: v1.4.0 "Resilience" (Released 2026-03-18)
 

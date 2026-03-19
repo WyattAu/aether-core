@@ -11,6 +11,11 @@ class MessageType(Enum):
     RPC_REQUEST = "rpc_request"
     RPC_RESPONSE = "rpc_response"
     CUSTOM = "custom"
+    # Streaming message types
+    STREAM_EVENT = "stream_event"
+    WATERMARK = "watermark"
+    CHECKPOINT = "checkpoint"
+    CHECKPOINT_ACK = "checkpoint_ack"
 
 
 @dataclass
