@@ -110,6 +110,37 @@ from .stream_actor import (
     StreamActor,
 )
 
+# Zero-Copy Messaging (M4 Performance)
+from .zero_copy import (
+    BufferStats,
+    MemoryPool,
+    PooledBuffer,
+    ZeroCopyBuffer,
+    RingBuffer,
+    ZeroCopyEmitter,
+)
+
+# Batch Processing (M4 Performance)
+from .batch import (
+    BatchConfig,
+    BatchResult,
+    BatchStats,
+    BatchCollector,
+    BatchAggregator,
+    BatchEmitter,
+    BatchProcessor,
+)
+
+# Partitioning (M4 Performance)
+from .partition import (
+    PartitionStrategy,
+    PartitionConfig,
+    Partitioner,
+    PartitionProcessor,
+    CompositePartitioner,
+    KeyExtractor,
+)
+
 
 # ============================================
 # Module Exports
@@ -169,4 +200,28 @@ __all__ = [
     'StreamState',
     'StreamingStateHandle',
     'StreamActor',
+    
+    # Zero-Copy Messaging (M4 Performance)
+    'BufferStats',
+    'MemoryPool',
+    'PooledBuffer',
+    'ZeroCopyBuffer',
+    'RingBuffer',
+    'ZeroCopyEmitter',
+    
+    # Batch Processing (M4 Performance)
+    'BatchConfig',
+    'BatchResult',
+    'BatchStats',
+    'BatchCollector',
+    'BatchAggregator',
+    'BatchEmitter',
+    'BatchProcessor',
+    
+    # Partitioning (M4 Performance)
+    'PartitionStrategy',
+    'Partitioner',
+    'PartitionProcessor',
+    'CompositePartitioner',
+    'KeyExtractor',
 ]

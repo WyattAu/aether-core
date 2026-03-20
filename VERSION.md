@@ -2,7 +2,7 @@
 
 current_phase: 21
 current_version: 1.5.0
-status: In Progress - v1.5.0 "Flow" - M1 Complete
+status: In Progress - v1.5.0 "Flow" - M4 Python SDK Performance Modules Complete
 last_updated: 2026-03-20T00:00:00Z
 error_level: null
 rollback_checkpoint: v1.4.0
@@ -54,10 +54,14 @@ capability_matrix_status: complete
 - `72476d7` - feat(sdk): complete M3 workflow engine for all SDKs
 - `fa398ab` - test(sdk/python): add comprehensive tests for workflow module
 
-### M4: Performance & SDKs (Planned)
-- [ ] Zero-copy messaging for high throughput
-- [ ] Batch processing optimization
-- [ ] Partitioning for parallel processing
+### M4: Performance & SDKs (In Progress)
+- [x] Python SDK Performance Modules
+    - [x] Zero-copy messaging (MemoryPool, PooledBuffer, ZeroCopyBuffer, RingBuffer, ZeroCopyEmitter)
+    - [x] Batch processing optimization (BatchConfig, BatchCollector, BatchAggregator, BatchProcessor)
+    - [x] Partitioning for parallel processing (PartitionStrategy, Partitioner, PartitionProcessor, KeyExtractor)
+- [ ] Go SDK Performance Modules
+- [ ] JavaScript SDK Performance Modules
+- [ ] Java SDK Performance Modules
 - [ ] SDK v0.3.0 releases (Python, Go, JavaScript, Java)
 
 ### Target Metrics
