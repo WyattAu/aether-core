@@ -21,9 +21,9 @@ from abc import ABC, abstractmethod
 import asyncio
 import uuid
 
-from ..actor import Actor, ActorRef
+from ..actor import Actor
 from ..messaging import Message, MessageType
-from ..types import Error as AetherError
+from ..exceptions import AetherError
 
 
 @dataclass
@@ -88,9 +88,9 @@ class Subscription:
     """
     Represents a subscription to a topic or topic pattern.
     """
-    id: str = field(default_factory=lambda: str(uuid.uuid4()))
     topic_pattern: str  # Can include wildcards
     subscriber_id: str
+    id: str = field(default_factory=lambda: str(uuid.uuid4()))
     created_at: datetime = field(default_factory=datetime.utcnow)
     active: bool = True
     delivery_semantics: str = "at_least_once"  # at_most_once, at_least_once, exactly_once
@@ -106,10 +106,10 @@ class PubSubMessage:
     """
     A message in the pub/sub system.
     """
-    id: str = field(default_factory=lambda: str(uuid.uuid4()))
     topic: str
-    key: Optional[str] = None  # Partition key
     value: Any
+    id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    key: Optional[str] = None  # Partition key
     timestamp: datetime = field(default_factory=datetime.utcnow)
     headers: Dict[str, str] = field(default_factory=dict)
     partition: int = 0
@@ -118,15 +118,10 @@ class PubSubMessage:
     def to_actor_message(self) -> Message:
         """Convert to actor message for processing."""
         return Message(
-            message_type=MessageType.STREAM_EVENT,
+            type=MessageType.STREAM_EVENT,
             payload=self.value,
-            metadata={
-                "topic": self.topic,
-                "key": self.key,
-                "timestamp": self.timestamp.isoformat(),
-                "message_id": self.id,
-                **self.headers
-            }
+            sender=None,
+            correlation_id=None,
         )
 
 
@@ -282,9 +277,9 @@ class PubSubClient:
     High-level client for pub/sub operations with actor integration.
     """
     
-    def __init__(self, backend: Optional[Publisher & Subscriber] = None):
+    def __init__(self, backend: Optional[InMemoryPubSub] = None):
         self._backend = backend or InMemoryPubSub()
-        self._actor_handlers: Dict[str, ActorRef] = {}
+        self._actor_handlers: Dict[str, Actor] = {}
     
     async def create_topic(
         self,

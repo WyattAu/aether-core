@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Generic, List, Optional, TypeVar
 from collections import deque
 import asyncio
+import threading
 import time
 
 from .types import (
@@ -103,7 +104,7 @@ class BackpressureController(Generic[T]):
         self._stats = BackpressureStats()
         self._overflow_callback: Optional[Callable[[], None]] = None
         self._resume_callback: Optional[Callable[[], None]] = None
-        self._lock = asyncio.Lock()
+        self._lock = threading.Lock()
         
         # Set callbacks from config
         if self._config.on_overflow:
@@ -309,7 +310,7 @@ class MultiLevelBackpressure(Generic[T]):
         self._high: deque = deque()
         self._normal: deque = deque()
         self._low: deque = deque()
-        self._lock = asyncio.Lock()
+        self._lock = threading.Lock()
         self._stats = BackpressureStats()
     
     def push(self, event: StreamEvent[T], priority: int = Priority.NORMAL) -> bool:
