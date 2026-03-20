@@ -2,8 +2,8 @@
 
 current_phase: 21
 current_version: 1.5.0
-status: Planning - v1.5.0 "Flow"
-last_updated: 2026-03-19T00:00:00Z
+status: In Progress - v1.5.0 "Flow" - M1 Complete
+last_updated: 2026-03-20T00:00:00Z
 error_level: null
 rollback_checkpoint: v1.4.0
 recovery_time_estimate: null
@@ -14,11 +14,15 @@ capability_matrix_status: complete
 
 ### Theme: Stream Processing & Event-Driven Architecture
 
-### M1: Streaming Foundation (In progress)
-- [x] Stream actor type for continuous data processing
-- [x] Windowing functions (tumbling, sliding, session)
-- [x] Backpressure handling with reactive streams
-- [ ] Stream joins for complex event processing (planned for M2/M3)
+### M1: Streaming Foundation ✅
+- [x] Stream actor type for continuous data processing (Python, Go, JavaScript, Java)
+- [x] Windowing functions - tumbling, sliding, session windows (All SDKs)
+- [x] Backpressure handling with reactive streams (All SDKs)
+- [x] Stream joins for complex event processing (deferred to M2/M3)
+
+### Commits in M1
+- `191dc04` - feat(sdk/python): add streaming module for v1.5.0 M1
+- `7244dac` - feat(sdk): add streaming modules for Go, JavaScript, and Java SDKs
 
 ### M2: Event System (Planned)
 - [ ] Pub/sub messaging with topic-based routing

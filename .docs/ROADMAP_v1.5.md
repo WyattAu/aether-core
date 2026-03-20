@@ -379,11 +379,16 @@ public class OrderStreamActor {
 
 ## Milestones
 
-### M1: Streaming Foundation (Week 1-4)
-- Stream actor type
-- Basic backpressure
-- Stream configuration
-- Buffer management
+### M1: Streaming Foundation ✅ COMPLETE
+- [x] Stream actor type (Python, Go, JavaScript, Java SDKs)
+- [x] Windowing functions (tumbling, sliding, session)
+- [x] Backpressure handling with reactive streams
+- [x] Stream configuration and buffer management
+- [x] All SDK streaming modules implemented
+
+**Commits:**
+- `191dc04` - feat(sdk/python): add streaming module for v1.5.0 M1
+- `7244dac` - feat(sdk): add streaming modules for Go, JavaScript, and Java SDKs
 
 ### M2: Event System (Week 5-8)
 - Pub/sub messaging
