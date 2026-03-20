@@ -1,677 +1,622 @@
+// Package workflow provides workflow engine types for the Aether SDK.
+// This includes saga patterns, state machines, and human task integration.
 package workflow
 
 import (
+	"fmt"
 	"time"
 )
 
- "time"
-)
+// ============================================
+// Duration Type
+// ============================================
 
- type Timestamp struct {
-    Milliseconds int64
-}
-
-func Now() Timestamp {
-    return Timestamp{Milliseconds: time.Now().UnixMilli()}
-}
-
-func TimestampFromSeconds(seconds float64) Timestamp {
-    return Timestamp{Milliseconds: int64(seconds * 1000)}
-}
-
-func TimestampFromTime(t time.Time) Timestamp {
-    return Timestamp{Milliseconds: t.UnixMilli()}
-}
-func (ts Timestamp) ToTime() time.Time {
-    return time.UnixMilli(ts.Milliseconds)
- * 1000)
-}
-func (ts Timestamp) Add(d Duration) Timestamp {
-    return Timestamp{Milliseconds: ts.Milliseconds + d.Milliseconds}
-    }
-func (ts Timestamp) Sub(other Timestamp) Duration {
-    return Duration{Milliseconds: ts.Milliseconds - other.Milliseconds}
-}
-func (ts Timestamp) Before(other Timestamp) bool {
-    return ts.Milliseconds < other.Milliseconds
-    }
-func (ts Timestamp) After(other Timestamp) bool {
-    return ts.Milliseconds > other.Milliseconds
-    }
-func (ts Timestamp) Equal(other Timestamp) bool {
-    return ts.Milliseconds == other.Milliseconds
-    }
-func (ts Timestamp) String() string {
-    return fmt.Sprintf("Timestamp(%d)", ts)
-}
+// Duration represents a duration of time in milliseconds.
 type Duration struct {
-    Milliseconds int64
+	Milliseconds int64
 }
 
+// FromMillis creates a Duration from milliseconds.
 func FromMillis(ms int64) Duration {
-    return Duration{Milliseconds: ms}
+	return Duration{Milliseconds: ms}
 }
 
+// FromSeconds creates a Duration from seconds.
 func FromSeconds(s float64) Duration {
-    return Duration{Milliseconds: int64(s * 1000)}
+	return Duration{Milliseconds: int64(s * 1000)}
 }
 
- func FromMinutes(m float64) Duration {
-    return Duration{Milliseconds: int64(m * 60 * 1000)}
-        }
- func FromHours(h float64) Duration {
-    return Duration{Milliseconds: int64(h * 3600 * 1000)}
-        }
- func FromTimeDuration(d time.Duration) Duration {
-    return Duration{Milliseconds: d.Milliseconds()}
-    }
- type Duration struct {
-    Milliseconds int64
+// FromMinutes creates a Duration from minutes.
+func FromMinutes(m float64) Duration {
+	return Duration{Milliseconds: int64(m * 60 * 1000)}
 }
 
+// FromHours creates a Duration from hours.
+func FromHours(h float64) Duration {
+	return Duration{Milliseconds: int64(h * 3600 * 1000)}
+}
+
+// FromDays creates a Duration from days.
+func FromDays(d float64) Duration {
+	return Duration{Milliseconds: int64(d * 24 * 3600 * 1000)}
+}
+
+// FromTimeDuration creates a Duration from time.Duration.
+func FromTimeDuration(d time.Duration) Duration {
+	return Duration{Milliseconds: d.Milliseconds()}
+}
+
+// ToTimeDuration converts Duration to time.Duration.
 func (d Duration) ToTimeDuration() time.Duration {
-    return time.Duration(d.Milliseconds * time.Millisecond)
+	return time.Duration(d.Milliseconds) * time.Millisecond
 }
 
- type WindowType int
+// TotalSeconds returns the total duration in seconds.
+func (d Duration) TotalSeconds() float64 {
+	return float64(d.Milliseconds) / 1000
+}
+
+// Add adds another duration.
+func (d Duration) Add(other Duration) Duration {
+	return Duration{Milliseconds: d.Milliseconds + other.Milliseconds}
+}
+
+// Sub subtracts another duration.
+func (d Duration) Sub(other Duration) Duration {
+	return Duration{Milliseconds: d.Milliseconds - other.Milliseconds}
+}
+
+// ============================================
+// Enums
+// ============================================
+
+// SagaStatus represents the status of a saga execution.
+type SagaStatus int
 
 const (
-    WindowTypeTumbling WindowType = iota
-    WindowTypeSliding WindowType = iota
-    WindowTypeSession WindowType = iota
+	SagaStatusPending SagaStatus = iota
+	SagaStatusRunning
+	SagaStatusCompleted
+	SagaStatusCompensating
+	SagaStatusCompensated
+	SagaStatusFailed
 )
 
-func (wt WindowType) String() string {
-    switch wt {
-    case WindowTypeTumbling:
-        return "Tumbling"
-    case WindowTypeSliding:
-        return "Sliding"
-    case WindowTypeSession:
-        return "Session"
-    }
-    return ""
-    }
-    return "unknown"
-    }
+func (s SagaStatus) String() string {
+	switch s {
+	case SagaStatusPending:
+		return "pending"
+	case SagaStatusRunning:
+		return "running"
+	case SagaStatusCompleted:
+		return "completed"
+	case SagaStatusCompensating:
+		return "compensating"
+	case SagaStatusCompensated:
+		return "compensated"
+	case SagaStatusFailed:
+		return "failed"
+	default:
+		return "unknown"
+	}
 }
 
-type LateDataPolicy int
+// StepStatus represents the status of a saga step.
+type StepStatus int
 
 const (
-    LateDataPolicyDrop LateDataPolicy = iota
-    LateDataPolicySideOutput LateDataPolicyReprocess
-    }
+	StepStatusPending StepStatus = iota
+	StepStatusRunning
+	StepStatusCompleted
+	StepStatusCompensating
+	StepStatusCompensated
+	StepStatusFailed
+	StepStatusSkipped
 )
 
-type WatermarkStrategy int
+func (s StepStatus) String() string {
+	switch s {
+	case StepStatusPending:
+		return "pending"
+	case StepStatusRunning:
+		return "running"
+	case StepStatusCompleted:
+		return "completed"
+	case StepStatusCompensating:
+		return "compensating"
+	case StepStatusCompensated:
+		return "compensated"
+	case StepStatusFailed:
+		return "failed"
+	case StepStatusSkipped:
+		return "skipped"
+	default:
+		return "unknown"
+	}
+}
+
+// WorkflowStatus represents the status of a workflow execution.
+type WorkflowStatus int
 
 const (
-    WatermarkStrategyEventTime WatermarkStrategy = iota
-    WatermarkStrategyProcessingTime WatermarkStrategy = iota
-    WatermarkStrategyBoundedOutOfOrder WatermarkStrategy = iota
- }
-            case WatermarkStrategyProcessingTime:
-                return WatermarkStrategyProcessingTime
-            case WatermarkStrategyBoundedOutOfOrder:
-                return WatermarkStrategyBoundedOutOfOrder
-        }
-    }
-    
-    return WatermarkStrategy
+	WorkflowStatusCreated WorkflowStatus = iota
+	WorkflowStatusRunning
+	WorkflowStatusSuspended
+	WorkflowStatusCompleted
+	WorkflowStatusFailed
+	WorkflowStatusCancelled
+)
+
+func (s WorkflowStatus) String() string {
+	switch s {
+	case WorkflowStatusCreated:
+		return "created"
+	case WorkflowStatusRunning:
+		return "running"
+	case WorkflowStatusSuspended:
+		return "suspended"
+	case WorkflowStatusCompleted:
+		return "completed"
+	case WorkflowStatusFailed:
+		return "failed"
+	case WorkflowStatusCancelled:
+		return "cancelled"
+	default:
+		return "unknown"
+	}
 }
 
- }
-    return WatermarkStrategy
- }
+// TransitionStatus represents the status of a state transition.
+type TransitionStatus int
+
+const (
+	TransitionStatusPending TransitionStatus = iota
+	TransitionStatusSuccess
+	TransitionStatusFailed
+	TransitionStatusRolledBack
+)
+
+func (s TransitionStatus) String() string {
+	switch s {
+	case TransitionStatusPending:
+		return "pending"
+	case TransitionStatusSuccess:
+		return "success"
+	case TransitionStatusFailed:
+		return "failed"
+	case TransitionStatusRolledBack:
+		return "rolled_back"
+	default:
+		return "unknown"
+	}
 }
 
-    return nil,        watermarkStrategy: -1
-        watermark strategy = 0.0
-    }
-}
-    watermarkInterval = = time.Duration
- }
-}
+// HumanTaskStatus represents the status of a human task.
+type HumanTaskStatus int
 
-type WindowSpec struct {
-    Type           WindowType
-    Size           Duration
-    Slide          *Duration
-    Gap            *Duration
-    LateTolerance  Duration
-    AllowedLateness Duration
-}
+const (
+	HumanTaskStatusPending HumanTaskStatus = iota
+	HumanTaskStatusAssigned
+	HumanTaskStatusInProgress
+	HumanTaskStatusCompleted
+	HumanTaskStatusRejected
+	HumanTaskStatusTimeout
+	HumanTaskStatusEscalated
+)
 
-func NewTumblingWindowSpec(size Duration) WindowSpec {
-    return WindowSpec{
-        Type: WindowTypeTumbling,
-        Size: size,
-    }
-}
-
-func NewSlidingWindowSpec(size, slide Duration) WindowSpec {
-    return WindowSpec{
-        Type: WindowTypeSliding,
-        Size: size,
-        Slide: slide,
-    }
-}
-
-func NewSessionWindowSpec(gap Duration) WindowSpec {
-    return WindowSpec{
-        Type: WindowTypeSession,
-        Gap:  gap,
-    }
+func (s HumanTaskStatus) String() string {
+	switch s {
+	case HumanTaskStatusPending:
+		return "pending"
+	case HumanTaskStatusAssigned:
+		return "assigned"
+	case HumanTaskStatusInProgress:
+		return "in_progress"
+	case HumanTaskStatusCompleted:
+		return "completed"
+	case HumanTaskStatusRejected:
+		return "rejected"
+	case HumanTaskStatusTimeout:
+		return "timeout"
+	case HumanTaskStatusEscalated:
+		return "escalated"
+	default:
+		return "unknown"
+	}
 }
 
-func (s WindowSpec) Validate() error {
-    if s.Type == WindowTypeSliding && s.Slide == nil {
-        return &WindowSpecError{Message: "sliding window requires slide parameter"}
-    }
-    if s.Type == WindowTypeSession && s.Gap == nil {
-        return &WindowSpecError{Message: "session window requires gap parameter"}
-    }
-    return nil
+// RetryPolicy represents the retry policy for saga steps.
+type RetryPolicy int
+
+const (
+	RetryPolicyNone RetryPolicy = iota
+	RetryPolicyFixed
+	RetryPolicyExponential
+	RetryPolicyExponentialJitter
+)
+
+func (p RetryPolicy) String() string {
+	switch p {
+	case RetryPolicyNone:
+		return "none"
+	case RetryPolicyFixed:
+		return "fixed"
+	case RetryPolicyExponential:
+		return "exponential"
+	case RetryPolicyExponentialJitter:
+		return "exponential_jitter"
+	default:
+		return "unknown"
+	}
 }
 
-func (ws WindowSpec) Validate() error {
-    if ws.Gap == nil {
-        return &WindowSpecError{Message: "session window requires gap parameter"}
-    }
-    if ws.Slide == nil {
-        return &WindowSpecError{Message: "sliding window size cannot be negative"}
-    }
-    if ws.Gap == nil {
-        return &WindowSpecError{Message: "session window requires gap parameter"}
-    }
-    return nil
+// ============================================
+// Configuration Types
+// ============================================
+
+// RetryConfig represents configuration for retry behavior.
+type RetryConfig struct {
+	MaxAttempts   int
+	Policy        RetryPolicy
+	InitialDelay  Duration
+	MaxDelay      Duration
+	Multiplier    float64
+	Jitter        float64
 }
 
-func (s WindowSpec) String() string {
-    return s.String()
+// DefaultRetryConfig returns the default retry configuration.
+func DefaultRetryConfig() RetryConfig {
+	return RetryConfig{
+		MaxAttempts:   3,
+		Policy:        RetryPolicyExponential,
+		InitialDelay:  FromSeconds(1),
+		MaxDelay:      FromSeconds(60),
+		Multiplier:    2.0,
+		Jitter:        0.1,
+	}
 }
 
-type WindowState[K comparable, V any] struct {
-    mu           sync.RWMutex
-    events       []StreamEvent[V]
-    maxTimestamp Timestamp
-    isClosed     bool
+// ============================================
+// Context Types
+// ============================================
+
+// SagaContext represents the context passed through saga execution.
+type SagaContext struct {
+	SagaID         string
+	Input          interface{}
+	State          map[string]interface{}
+	CompletedSteps []string
+	FailedStep     string
+	Error          string
+	StartedAt      *time.Time
+	CompletedAt    *time.Time
+	Metadata       map[string]interface{}
 }
 
-func NewWindowState[K comparable, V any]() *WindowState[K, V] {
-    return &WindowState[K, V]{
-        events: make([]StreamEvent[V], 0),
-    }
-}
-}
-
-func (ws *WindowState[K, V]) AddEvent(event StreamEvent[V]) {
-    ws.mu.Lock()
-    defer ws.mu.Unlock()
-
-    ws.events = append(ws.events, event)
-    if event.Timestamp.After(ws.maxTimestamp) {
-        ws.maxTimestamp = event.Timestamp
-    }
+// NewSagaContext creates a new SagaContext.
+func NewSagaContext(input interface{}) *SagaContext {
+	now := time.Now()
+	return &SagaContext{
+		SagaID:         generateID(),
+		Input:          input,
+		State:          make(map[string]interface{}),
+		CompletedSteps: []string{},
+		Metadata:       make(map[string]interface{}),
+		StartedAt:      &now,
+	}
 }
 
-func (ws *WindowState[K, V]) Events() []StreamEvent[V] {
-    ws.mu.RLock()
-    defer ws.mu.RUnlock()
-
-    result := make([]StreamEvent[V], len(ws.events))
-    copy(result, ws.events)
+// SetState sets a state value.
+func (c *SagaContext) SetState(key string, value interface{}) {
+	c.State[key] = value
 }
 
- return result
+// GetState gets a state value.
+func (c *SagaContext) GetState(key string) interface{} {
+	return c.State[key]
 }
 
-func (ws *WindowState[K, V]) Count() int {
-    ws.mu.RLock()
-    defer ws.mu.RUnlock()
-    return len(ws.events)
+// GetStateDefault gets a state value with a default.
+func (c *SagaContext) GetStateDefault(key string, defaultValue interface{}) interface{} {
+	if v, ok := c.State[key]; ok {
+		return v
+	}
+	return defaultValue
 }
 
- func (ws *WindowState[K, V]) MaxTimestamp() Timestamp {
-    ws.mu.RLock()
-    defer ws.mu.Unlock()
-    return ws.maxTimestamp
+// MarkStepCompleted marks a step as completed.
+func (c *SagaContext) MarkStepCompleted(stepName string) {
+	for _, s := range c.CompletedSteps {
+		if s == stepName {
+			return
+		}
+	}
+	c.CompletedSteps = append(c.CompletedSteps, stepName)
 }
 
-func (ws *WindowState[K, V]) IsClosed() bool {
-    ws.mu.RLock()
-    defer ws.mu.Unlock()
-    return ws.isClosed
-    }
+// IsStepCompleted checks if a step has been completed.
+func (c *SagaContext) IsStepCompleted(stepName string) bool {
+	for _, s := range c.CompletedSteps {
+		if s == stepName {
+			return true
+		}
+	}
+	return false
 }
 
-func (ws *WindowState[K, V]) Close() {
-    ws.mu.Lock()
-    defer ws.mu.Unlock()
-    ws.isClosed = true
-    }
+// WorkflowContext represents the context passed through workflow execution.
+type WorkflowContext struct {
+	WorkflowID   string
+	WorkflowType string
+	CurrentState string
+	Input        interface{}
+	Variables    map[string]interface{}
+	History      []HistoryEvent
+	StartedAt    *time.Time
+	UpdatedAt    *time.Time
+	Metadata     map[string]interface{}
+	Status       WorkflowStatus
 }
 
-func (ws *WindowState[K, V]) Clear() {
-    ws.mu.Lock()
-    defer ws.mu.Unlock()
-    ws.events = make([]StreamEvent[V], 0)
-    ws.maxTimestamp = Timestamp{}
-    }
+// HistoryEvent represents an event in workflow history.
+type HistoryEvent struct {
+	Type      string
+	Timestamp time.Time
+	Details   map[string]interface{}
 }
 
-func (ws *WindowState[K, V]) Values() []V {
-    ws.mu.RLock()
-    defer ws.mu.RUnlock()
-
-    values := make([]V, len(ws.events))
-    for i, e := range ws.events {
-        values[i] = e.Value
-    }
-    return values
+// NewWorkflowContext creates a new WorkflowContext.
+func NewWorkflowContext(workflowType string, input interface{}) *WorkflowContext {
+	now := time.Now()
+	return &WorkflowContext{
+		WorkflowID:   generateID(),
+		WorkflowType: workflowType,
+		Input:        input,
+		Variables:    make(map[string]interface{}),
+		History:      []HistoryEvent{},
+		Metadata:     make(map[string]interface{}),
+		StartedAt:    &now,
+		UpdatedAt:    &now,
+		Status:       WorkflowStatusCreated,
+	}
 }
 
-type WindowAssigner[K comparable, V any] struct {
-    spec    WindowSpec
-    windows map[string]*WindowState[K, V]
-    mu      sync.RWMutex
+// SetVariable sets a workflow variable.
+func (c *WorkflowContext) SetVariable(key string, value interface{}) {
+	c.Variables[key] = value
 }
 
-func NewWindowAssigner[K comparable, V any](spec WindowSpec) (*WindowAssigner[K, V], error) {
-    if err := spec.Validate(); err != nil {
-        return nil, err
-    }
-    return &WindowAssigner[K, V]{
-        spec:    spec,
-        windows: make(map[string]*WindowState[K, V]),
-        mu:      sync.RWMutex,
-    }
-}
-    }
-    func (wa *WindowAssigner[K, V]) Assign(key K, event StreamEvent[V]) []string {
-    switch wa.spec.Type {
-    case WindowTypeTumbling:
-        return wa.assignTumbling(key, event)
-    case WindowTypeSliding:
-        return wa.assignSliding(key, event)
-    case WindowTypeSession:
-        return wa.assignSession(key, event)
-    default:
-        return nil
-    }
+// GetVariable gets a workflow variable.
+func (c *WorkflowContext) GetVariable(key string) interface{} {
+	return c.Variables[key]
 }
 
-    }
+// GetVariableDefault gets a workflow variable with a default.
+func (c *WorkflowContext) GetVariableDefault(key string, defaultValue interface{}) interface{} {
+	if v, ok := c.Variables[key]; ok {
+		return v
+	}
+	return defaultValue
 }
 
-    
-    func (wa *WindowAssigner[K, V]) assignTumbling(key K, event StreamEvent[V]) []string {
-    windowStart := wa.calculateWindowStart(event.Timestamp, wa.spec.Size)
-    windowID := wa.makeWindowID(key, windowStart)
-
-    
-    wa.mu.Lock()
-    defer wa.mu.Unlock()
-
-    if _, exists := wa.windows[windowID]; !exists {
-        wa.windows[windowID] = NewWindowState[K, V]()
-    }
-    wa.windows[windowID].AddEvent(event)
-    
-    return []string{windowID}
-}
- }
-
-    
-    func (wa *WindowAssigner[K, V]) assignSliding(key K, event StreamEvent[V]) []string {
-    if wa.spec.Slide == nil {
-        return nil
-    }
-    
-    var windowIDs []string
-    slideMs := wa.spec.Slide.Milliseconds
-    sizeMs := wa.spec.Size.Milliseconds
-
-    windowStart := wa.calculateWindowStart(event.Timestamp, *wa.spec.Slide)
-    for start := windowStart.Milliseconds; start > event.Timestamp.Milliseconds-sizeMs {
- start = {
-        windowStart := windowStart.Milliseconds
-        windowID := wa.makeWindowID(key, windowStart)
-        
-        wa.mu.Lock()
-        if _, exists := wa.windows[windowID]; !exists {
-            wa.windows[windowID] = NewWindowState[K, V]()
-        }
-        wa.windows[windowID].AddEvent(event)
-        
-        windowIDs = append(windowIDs, wid)
-        wa.mu.Unlock()
-    }
-    }
-    
-        return windowIDs
-    }
+// AddHistoryEvent adds an event to the history.
+func (c *WorkflowContext) AddHistoryEvent(eventType string, details map[string]interface{}) {
+	c.History = append(c.History, HistoryEvent{
+		Type:      eventType,
+		Timestamp: time.Now(),
+		Details:   details,
+	})
+	c.UpdatedAt = ptrTime(time.Now())
 }
 
-    }
-    
-    func (wa *WindowAssigner[K, V]) assignSession(key K, event StreamEvent[V]) []string {
-    if wa.spec.Gap == nil {
-        return nil
-    }
-    
-    wa.mu.Lock()
-    defer wa.mu.Unlock()
-    
-    var mergedWindow *WindowState[K, V]
-    var mergedID string
-    
-    // Check if there's already an window for this key
-    if ws == nil {
-        wa.windows[windowID] = NewWindowState[K, V]()
-        }
-        
-        mergedWindow = ws
- mergedWindow = ws
-        mergedWindow.AddEvent(event)
-        
-        return []string{mergedID}
-    }
-    
-    wa.mu.Lock()
-    defer wa.mu.Unlock()
-    return windowIDs
+// HumanTaskContext represents the context for a human task.
+type HumanTaskContext struct {
+	TaskID          string
+	TaskType        string
+	WorkflowID      string
+	StepName        string
+	Title           string
+	Description     string
+	Assignee        string
+	CandidateUsers  []string
+	CandidateGroups []string
+	Priority        int
+	DueDate         *time.Time
+	FormData        map[string]interface{}
+	Result          map[string]interface{}
+	Status          HumanTaskStatus
+	CreatedAt       time.Time
+	UpdatedAt       *time.Time
+	CompletedAt     *time.Time
+	CompletedBy     string
+	Metadata        map[string]interface{}
 }
 
-    // Check if there's already a window for this key
-    if mergedWindow == nil {
-        mergedWindow = NewWindowState[K, V]()
-        }
-        mergedWindow.addEvent(event)
-        return []string{mergedID}
-    }
-    
-    wa.mu.Lock()
-    defer wa.mu.Unlock()
-    delete(wa.windows[windowID)
-    wa.windows[windowID] = NewWindowState[K, V]()
-        }
-        mergedWindow.AddEvent(event)
-        
-        // Update timestamps
-        if mergedWindow.maxTimestamp.Before(event.Timestamp) {
-            mergedWindow.maxTimestamp = event.Timestamp
-        }
-    }
-    
-    wa.windows[mergedID] = mergedWindow
-    
-    return []string{mergedID}
+// NewHumanTaskContext creates a new HumanTaskContext.
+func NewHumanTaskContext(taskType, title string) *HumanTaskContext {
+	return &HumanTaskContext{
+		TaskID:     generateID(),
+		TaskType:   taskType,
+		Title:      title,
+		Priority:   5,
+		FormData:   make(map[string]interface{}),
+		Status:     HumanTaskStatusPending,
+		CreatedAt:  time.Now(),
+		Metadata:   make(map[string]interface{}),
+	}
 }
 
-    }
-    
-    func (wa *WindowAssigner[K, V]) calculateWindowStart(ts Timestamp, size Duration) Timestamp {
-    return Timestamp{Milliseconds: (ts.Milliseconds / size.Milliseconds) * size.Milliseconds)
-    }
-    
-    func (wa *WindowAssigner[K, V]) makeWindowID(key K, start Timestamp) string {
-    return fmt.Sprintf("%s|%v", window_start.Milliseconds, key)
-    }
+// ============================================
+// Result Types
+// ============================================
+
+// SagaResult represents the result of a saga execution.
+type SagaResult struct {
+	SagaID          string
+	Status          SagaStatus
+	Output          interface{}
+	Error           string
+	CompletedSteps  []string
+	CompensatedSteps []string
+	StartedAt       *time.Time
+	CompletedAt     *time.Time
+	DurationMs      int64
 }
 
-func (wa *WindowAssigner[K, V]) GetWindow(windowID string) *WindowState[K, V] {
-    wa.mu.RLock()
-    defer wa.mu.RUnlock()
-    return wa.windows[windowID]
+// WorkflowResult represents the result of a workflow execution.
+type WorkflowResult struct {
+	WorkflowID   string
+	Status       WorkflowStatus
+	Output       interface{}
+	Error        string
+	CurrentState string
+	History      []HistoryEvent
+	StartedAt    *time.Time
+	CompletedAt  *time.Time
+	DurationMs   int64
 }
 
-func (wa *WindowAssigner[K, V]) GetAllWindows() map[string]*WindowState[K, V] {
-    wa.mu.RLock()
-    defer wa.mu.RUnlock()
-    return dict(wa.windows)
+// TransitionResult represents the result of a state transition.
+type TransitionResult struct {
+	Success   bool
+	FromState string
+	ToState   string
+	Error     string
+	Timestamp time.Time
 }
 
- func (wa *WindowAssigner[K, V]) TriggerReady(watermark Timestamp) []WindowResult[K, V, V] {
-    ready := []string
-    for wid, range(wa.windows.keys()):
-        if ws.IsClosed() {
-            continue
-        }
-        
-        result := WindowResult[K, V, V]{
-            Key:       k,
-            values:    ws.Values(),
-            windowInfo: WindowInfo{
-                Start:         ws.Start,
-                End:           ws.End,
-                MaxTimestamp: ws.MaxTimestamp,
-                Pane:        PaneInfoOnTime,
-                WindowID:      wid,
-            },
-        }
-    }
-    return result
-    }
+// ============================================
+// State and Transition Definitions
+// ============================================
+
+// State represents a state in the workflow state machine.
+type State struct {
+	Name             string
+	IsInitial        bool
+	IsFinal          bool
+	Timeout          *Duration
+	TimeoutTransition string
+	Metadata         map[string]interface{}
 }
 
-    return nil
-            result = []WindowResult[K, V, V]{}
+// Transition represents a transition between states.
+type Transition struct {
+	Name      string
+	FromState string
+	ToState   string
+	Metadata  map[string]interface{}
 }
 
-    for wid, range(ws.windows.keys()):
-        if !ws.IsClosed() {
-            continue
-        }
-        
-        values := ws.Values()
-        if len(values) > 0 {
-            aggResult := aggFunc(k, values)
-            result = append(result, WindowResult[K, V, V]{
-                key:       k,
-                values:    values,
-                windowInfo: WindowInfo{
-                    Start:         ws.Start,
-                    End:           ws.End,
-                    MaxTimestamp: ws.MaxTimestamp,
-                    Pane:        PaneInfoOnTime,
-                    WindowID:      wid,
-                },
-            })
-        }
-    
-    return result
-
-
+// SagaStep represents a single step in a saga.
+type SagaStep struct {
+	Name        string
+	Status      StepStatus
+	Attempts    int
+	Error       string
+	StartedAt   *time.Time
+	CompletedAt *time.Time
+	Timeout     *Duration
+	RetryConfig *RetryConfig
 }
 
-    
-    func (wa *WindowAssigner[K, V]) CleanupClosedWindows(cutoffTime Timestamp) {
-    wa.mu.Lock()
-    defer wa.mu.Unlock()
-    
-    cutoff := cutoffTime.Sub(cutoffTime, Timestamp, 0)
-    
-    for wid := range(wa.windows.keys()):
-        window := wa.windows[wid]
-        if window.maxTimestamp.Before(cutoffTime) {
-            closedWindows = append(closedWindows, wid)
-        }
-    }
-    
-    for wid := range closedWindows {
-        delete(wa.windows, wid)
-    }
+// ============================================
+// Errors
+// ============================================
+
+// SagaError represents a saga-related error.
+type SagaError struct {
+	StepName string
+	Cause    error
 }
 
-func (wa *WindowAssigner[K, V]) GetWindow(windowID string) *WindowState[K, V] {
-    wa.mu.RLock()
-    defer wa.mu.RUnlock()
-    return wa.windows[windowID]
+func (e *SagaError) Error() string {
+	if e.Cause != nil {
+		return fmt.Sprintf("saga step '%s' failed: %v", e.StepName, e.Cause)
+	}
+	return fmt.Sprintf("saga step '%s' failed", e.StepName)
 }
 
-type WindowTrigger[K comparable, V any, struct {
-    assigner *WindowAssigner[K, V]
-    aggFunc func(K, []V) V
-    
-    results []WindowResult[K, V, V]
-    mu      sync.RWMutex
+// NewSagaError creates a new SagaError.
+func NewSagaError(stepName string, cause error) *SagaError {
+	return &SagaError{StepName: stepName, Cause: cause}
 }
 
-func NewWindowTrigger[K comparable, V any](
-    assigner *WindowAssigner[K, V],
-    aggFunc func(K, []V) V,
-) *WindowTrigger[K, V] {
-    return &WindowTrigger[K, V]{
-        assigner: assigner,
-        aggFunc: aggFunc,
-        results: make([]WindowResult[K, V, V], 0),
-    }
+// CompensationError represents a compensation failure.
+type CompensationError struct {
+	StepName string
+	Cause    error
 }
 
-func (t *WindowTrigger[K, V]) AddResult(result WindowResult[K, V, V]) {
-    t.mu.Lock()
-    defer t.mu.Unlock()
-    t.results = append(t.results, result)
+func (e *CompensationError) Error() string {
+	if e.Cause != nil {
+		return fmt.Sprintf("compensation for '%s' failed: %v", e.StepName, e.Cause)
+	}
+	return fmt.Sprintf("compensation for '%s' failed", e.StepName)
 }
 
-func (t *WindowTrigger[K, V]) Trigger(watermark Timestamp) *WindowResult[K, V, V] {
-    t.mu.Lock()
-    defer t.mu.Unlock()
-    
-    if len(t.results) > 0 {
-        result := t.results[0]
-        t.results = t.results[1:]
-        return result
-    }
-    return WindowResult[K, V]V{}
+// NewCompensationError creates a new CompensationError.
+func NewCompensationError(stepName string, cause error) *CompensationError {
+	return &CompensationError{StepName: stepName, Cause: cause}
 }
 
-func (t *WindowTrigger[K, V]) TriggerAll(watermark Timestamp) []WindowResult[K, V, V] {
-    t.mu.Lock()
-    defer t.mu.Unlock()
-    
-    results := t.results
-    t.results = make([]WindowResult[K, V, V], 0)
-    return results
+// WorkflowError represents a workflow-related error.
+type WorkflowError struct {
+	Message string
 }
 
-type TumblingWindow[K comparable, V any] struct {
-    assigner *WindowAssigner[K, V]
-    trigger  *WindowTrigger[K, V, V]
+func (e *WorkflowError) Error() string {
+	return e.Message
 }
 
-func NewTumblingWindow[K comparable, V any](size Duration) (*TumblingWindow[K, V], error) {
-    spec := NewTumblingWindowSpec(size)
-    assigner, err := NewWindowAssigner[K, V](spec)
-    if err != nil {
-        return nil, err
-    }
-    
-    trigger := NewWindowTrigger[K, V, V](assigner, func(k K, values []V) V {
-        if len(values) > 0 {
-            return values[len(values)-1]
-        }
-        return *new(V)
-    })
-    
-    return &TumblingWindow[K, V]{
-        assigner: assigner,
-        trigger:  trigger,
-    }, nil
+// NewWorkflowError creates a new WorkflowError.
+func NewWorkflowError(message string) *WorkflowError {
+	return &WorkflowError{Message: message}
 }
 
-func (tw *TumblingWindow[K, V]) Process(key K, event StreamEvent[V]) {
-    tw.assigner.Assign(key, event)
+// InvalidTransitionError represents an invalid state transition.
+type InvalidTransitionError struct {
+	FromState  string
+	ToState    string
+	WorkflowID string
 }
 
-func (tw *TumblingWindow[K, V]) Trigger(watermark Timestamp) []WindowResult[K, V, V] {
-    return tw.trigger.TriggerAll(watermark)
+func (e *InvalidTransitionError) Error() string {
+	return fmt.Sprintf("invalid transition from '%s' to '%s' in workflow %s", 
+		e.FromState, e.ToState, e.WorkflowID)
 }
 
-func (tw *TumblingWindow[K, V]) WithAggregation(aggFunc func(K, []V) V) *TumblingWindow[K, V] {
-    tw.trigger = NewWindowTrigger[K, V, V](tw.assigner, aggFunc)
-    return tw
+// NewInvalidTransitionError creates a new InvalidTransitionError.
+func NewInvalidTransitionError(fromState, toState, workflowID string) *InvalidTransitionError {
+	return &InvalidTransitionError{
+		FromState:  fromState,
+		ToState:    toState,
+		WorkflowID: workflowID,
+	}
 }
 
-type SlidingWindow[K comparable, V any] struct {
-    assigner *WindowAssigner[K, V]
-    trigger  *WindowTrigger[K, V, V]
+// HumanTaskError represents a human task-related error.
+type HumanTaskError struct {
+	TaskID  string
+	Message string
 }
 
-func NewSlidingWindow[K comparable, V any](size, slide Duration) (*SlidingWindow[K, V], error) {
-    spec := NewSlidingWindowSpec(size, slide)
-    assigner, err := NewWindowAssigner[K, V](spec)
-    if err != nil {
-        return nil, err
-    }
-    
-    trigger := NewWindowTrigger[K, V, V](assigner, func(k K, values []V) V {
-        if len(values) > 0 {
-            return values[len(values)-1]
-        }
-        return *new(V)
-    })
-    
-    return &SlidingWindow[K, V]{
-        assigner: assigner,
-        trigger:  trigger,
-    }, nil
+func (e *HumanTaskError) Error() string {
+	return fmt.Sprintf("human task %s: %s", e.TaskID, e.Message)
 }
 
-func (sw *SlidingWindow[K, V]) Process(key K, event StreamEvent[V]) {
-    sw.assigner.Assign(key, event)
+// NewHumanTaskError creates a new HumanTaskError.
+func NewHumanTaskError(taskID, message string) *HumanTaskError {
+	return &HumanTaskError{TaskID: taskID, Message: message}
 }
 
-func (sw *SlidingWindow[K, V]) Trigger(watermark Timestamp) []WindowResult[K, V, V] {
-    return sw.trigger.TriggerAll(watermark)
+// ============================================
+// Helper Functions
+// ============================================
+
+func generateID() string {
+	return fmt.Sprintf("%d", time.Now().UnixNano())
 }
 
-func (sw *SlidingWindow[K, V]) WithAggregation(aggFunc func(K, []V) V) *SlidingWindow[K, V] {
-    sw.trigger = NewWindowTrigger[K, V, V](sw.assigner, aggFunc)
-    return sw
-}
-
-type SessionWindow[K comparable, V any] struct {
-    assigner *WindowAssigner[K, V]
-    trigger  *WindowTrigger[K, V, V]
-}
-
-func NewSessionWindow[K comparable, V any](gap Duration) (*SessionWindow[K, V], error) {
-    spec := NewSessionWindowSpec(gap)
-    assigner, err := NewWindowAssigner[K, V](spec)
-    if err != nil {
-        return nil, err
-    }
-    
-    trigger := NewWindowTrigger[K, V, V](assigner, func(k K, values []V) V {
-        if len(values) > 0 {
-            return values[len(values)-1]
-        }
-        return *new(V)
-    })
-    
-    return &SessionWindow[K, V]{
-        assigner: assigner,
-        trigger:  trigger,
-    }, nil
-}
-
-func (sw *SessionWindow[K, V]) Process(key K, event StreamEvent[V]) {
-    sw.assigner.Assign(key, event)
-}
-
-func (sw *SessionWindow[K, V]) Trigger(watermark Timestamp) []WindowResult[K, V, V] {
-    return sw.trigger.TriggerAll(watermark)
-}
-
-func (sw *SessionWindow[K, V]) WithAggregation(aggFunc func(K, V) V) *SessionWindow[K, V] {
-    sw.trigger = NewWindowTrigger[K, V, V](sw.assigner, func(k K, values []V) V {
-        if len(values) > 0 {
-            return values[len(values)-1]
-        }
-        return *new(V)
-    })
-    return sw
+func ptrTime(t time.Time) *time.Time {
+	return &t
 }

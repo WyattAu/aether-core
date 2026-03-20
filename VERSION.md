@@ -30,11 +30,19 @@ capability_matrix_status: complete
 - [ ] Guaranteed delivery semantics (at-least-once, exactly-once)
 - [ ] Event schema registry
 
-### M3: Workflow Engine (Planned)
-- [ ] Saga pattern for distributed transactions
-- [ ] Workflow state machine with visual definitions
-- [ ] Workflow persistence and checkpointing
-- [ ] Human task integration for approvals
+### M3: Workflow Engine (Complete - Python SDK)
+    - [x] Saga pattern with compensation support backoff
+    - [x] Workflow state machine with transitions
+    - [x] Human task integration
+    - [x] Workflow persistence support
+- [x] Java SDK
+    - [x] Saga pattern ( types, executor, steps)
+    - [x] Workflow state machine ( builder, executor)
+    - [x] Human task integration ( creation, claiming, completion)
+- [x] JavaScript SDK
+    - [x] Saga pattern with full TypeScript implementation
+    - [x] Workflow state machine with visual definitions
+    - [x] Human task manager with task store
 
 ### M4: Performance & SDKs (Planned)
 - [ ] Zero-copy messaging for high throughput

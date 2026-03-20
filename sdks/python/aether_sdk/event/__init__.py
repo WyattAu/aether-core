@@ -1,86 +1,57 @@
 """
-Aether SDK Streaming Module
+Aether SDK Event Module
 
-Provides stream processing capabilities for building event-driven applications:
-- Event-time processing with watermarks
-- Windowed aggregations (tumbling, sliding, session)
-- Backpressure handling
-- Stream actors
+Provides event-driven architecture capabilities:
+- Pub/Sub messaging with topic-based routing
+- Event sourcing for state persistence
+- Message delivery guarantees (at-least-once, exactly-once)
+- Schema registry for event validation
+- Dead letter queues and retry handling
 
 Example:
-    from aether_sdk.streaming import (
-        StreamActor,
-        StreamEvent,
-        Duration,
-        Timestamp,
-        TumblingWindow,
-        SlidingWindow,
-        SessionWindow,
-        @tumbling,
-        @sliding,
-        @session,
+    from aether_sdk.event import (
+        PubSubClient,
+        Topic,
+        Subscription,
+        EventStore,
+        DeliveryGuarantee,
+        SchemaRegistry,
     )
     
-    # Create a simple stream processor
-    class MyProcessor(StreamActor[str, dict]):
-        @classmethod
-        def name(cls) -> str:
-            return "my_processor"
-        
-        async def process_event(self, event: StreamEvent[dict]) -> None:
-            data = event.value
-            # Process the data
-            result = transform(data)
-            await self.emit("output", result)
+    # Create a pub/sub client
+    client = PubSubClient()
     
-    # Or use windowing decorators
-    @tumbling(size=Duration.from_minutes(5))
-    def process_window(events: List[StreamEvent], info: WindowInfo) -> Result:
-        # Process batch of events in 5-minute windows
-        return Result(aggregate=...)
+    # Publish events
+    await client.publish("user.events", {"userId": 123, "action": "login"})
+    
+    # Subscribe to topics
+    async def handle_event(msg):
+        print(f"Received: {msg.value}")
+    
+    await client.subscribe("user.*", handle_event)
+    
+    # Use event sourcing
+    store = EventStore("orders")
+    await store.append("order-123", {"status": "created"})
 """
 
 from __future__ import annotations
 
-import asyncio
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    Generic,
-    List,
-    Optional,
-    TypeVar,
-    Awaitable,
-)
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from enum import Enum, auto
-import uuid
-import json
-from pathlib import Path
-
-from typing import Any
-
-from typing import Generic, TypeVar, Awaitable, List, Optional, Union
- Set, Dict, Callable
-
-
-(End of file - total 304 lines)
-    stream_actor.py
-)
-
-# Import event module components
+# Pub/Sub components
 from .pubsub import (
     PubSubClient,
     Topic,
     Subscription,
+    PubSubMessage,
     Publisher,
     Subscriber,
+    InMemoryPubSub,
     Event,
-    Subscribe,
+    subscribe,
     publish,
 )
+
+# Event sourcing components
 from .event_sourcing import (
     EventStore,
     EventSourcedActor,
@@ -88,19 +59,65 @@ from .event_sourcing import (
     EventVersion,
     Aggregate,
     apply_event,
+    Snapshot,
+    InMemoryEventStore,
 )
+
+# Delivery guarantee components
 from .delivery import (
     DeliveryGuarantee,
     InMemoryOutbox,
     DeadLetterQueue,
     DeliveryStats,
+    RetryPolicy,
+    OutboxEntry,
 )
- from .schema import (
+
+# Schema registry components
+from .schema import (
     SchemaRegistry,
     Schema,
     SchemaVersion,
     Compatibility,
     SchemaValidator,
+    InMemorySchemaRegistry,
+    SchemaError,
 )
 
-
+__all__ = [
+    # Pub/Sub
+    "PubSubClient",
+    "Topic",
+    "Subscription",
+    "PubSubMessage",
+    "Publisher",
+    "Subscriber",
+    "InMemoryPubSub",
+    "Event",
+    "subscribe",
+    "publish",
+    # Event Sourcing
+    "EventStore",
+    "EventSourcedActor",
+    "EventEnvelope",
+    "EventVersion",
+    "Aggregate",
+    "apply_event",
+    "Snapshot",
+    "InMemoryEventStore",
+    # Delivery
+    "DeliveryGuarantee",
+    "InMemoryOutbox",
+    "DeadLetterQueue",
+    "DeliveryStats",
+    "RetryPolicy",
+    "OutboxEntry",
+    # Schema
+    "SchemaRegistry",
+    "Schema",
+    "SchemaVersion",
+    "Compatibility",
+    "SchemaValidator",
+    "InMemorySchemaRegistry",
+    "SchemaError",
+]
