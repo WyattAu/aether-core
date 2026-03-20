@@ -404,11 +404,16 @@ public class OrderStreamActor {
     - `8844d26` - docs: update VERSION.md and ROADMAP_v1.5.md with M1 completion
     - Added commit references for M1 work
 
-### M3: Workflow Engine (Week 9-12)
-- Saga pattern implementation
-- Workflow state machine
-- Persistence and checkpointing
-- Human task integration
+### M3: Workflow Engine ✅ COMPLETE
+- [x] Saga pattern implementation (All SDKs)
+- [x] Workflow state machine with transitions (All SDKs)
+- [x] Persistence and checkpointing support
+- [x] Human task integration for approvals (All SDKs)
+
+**Commits:**
+- `4fcd4a8` - feat(sdk/python): add workflow module for v1.5.0 M3
+- `a3fcc93` - feat(sdk/go): add workflow types module
+- `72476d7` - feat(sdk): complete M3 workflow engine for all SDKs
 
 ### M4: Performance & SDKs (Week 13-16)
 - Windowing functions
