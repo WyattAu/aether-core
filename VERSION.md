@@ -2,58 +2,51 @@
 
 current_phase: 21
 current_version: 1.5.0
-status: In Progress - v1.5.0 "Flow" - M4 Performance Modules Complete (All SDKs)
+status: In Progress - v1.5.0 "Flow" - M4 Performance Modules complete (All SDKs)
+- LSP error fixes in Python SDK streaming modules
 last_updated: 2026-03-20T00:00:00Z
 error_level: null
 rollback_checkpoint: v1.4.0
 recovery_time_estimate: null
 actual_recovery_time: null
 capability_matrix_status: complete
-
-## Phase 21: v1.5.0 "Flow" (Planning Started 2026-03-19)
-
+## Phase 21: v1.4.0-alpha (Planning Started 2026-03-19)
 ### Theme: Stream Processing & Event-Driven Architecture
-
 ### M1: Streaming Foundation ✅
 - [x] Stream actor type for continuous data processing (Python, Go, JavaScript, Java)
 - [x] Windowing functions - tumbling, sliding, session windows (All SDKs)
 - [x] Backpressure handling with reactive streams (All SDKs)
 - [x] Stream joins for complex event processing (deferred to M2/M3)
-
 ### Commits in M1
-- `191dc04` - feat(sdk/python): add streaming module for v1.5.0 M1
-- `7244dac` - feat(sdk): add streaming modules for Go, JavaScript, and Java SDKs
-
-### M2: Event System (Planned)
+- `191dc04` - feat(sdk/python): add streaming module for v1.5.0 m1
+    - `7244dac` - feat(sdk): add streaming modules for Go, JavaScript, and Java SDKs
+### M2: Event System (planned)
 - [ ] Pub/sub messaging with topic-based routing
-- [ ] Event sourcing for actor state
-- [ ] Guaranteed delivery semantics (at-least-once, exactly-once)
-- [ ] Event schema registry
-
+    - [ ] Event sourcing for actor state
+    - [ ] Guaranteed delivery semantics (at-least-once, exactly-once)
+    - [ ] Event schema registry
 ### M3: Workflow Engine ✅ COMPLETE
 - [x] Python SDK
     - [x] Saga pattern with compensation and retry with backoff
     - [x] Workflow state machine with transitions
     - [x] Human task integration
     - [x] Workflow persistence support
-    - [x] Comprehensive unit tests
 - [x] Go SDK
     - [x] Workflow types (Duration, enums, contexts, results, errors)
-- [x] Java SDK
-    - [x] Saga pattern (types, executor, steps)
-    - [x] Workflow state machine (builder, executor)
-    - [x] Human task integration (creation, claiming, completion)
-- [x] JavaScript SDK
-    - [x] Saga pattern with full TypeScript implementation
-    - [x] Workflow state machine with visual definitions
-    - [x] Human task manager with task store
-
-**Commits:**
-- `4fcd4a8` - feat(sdk/python): add workflow module for v1.5.0 M3
+    - [x] Java SDK
+        - [x] Saga pattern (types, executor, steps)
+        - [x] Workflow state machine (builder, executor)
+        - [x] Human task integration
+    - [x] Workflow persistence support
+    - [x] JavaScript SDK
+        - [x] Saga pattern with full TypeScript implementation
+        - [x] Workflow state machine with visual definitions
+        - [x] Human task manager with task store
+### Commits:
+- `4fcd4a8` - feat(sdk/python): add workflow module for v1.5.0 m3
 - `a3fcc93` - feat(sdk/go): add workflow types module
 - `72476d7` - feat(sdk): complete M3 workflow engine for all SDKs
 - `fa398ab` - test(sdk/python): add comprehensive tests for workflow module
-
 ### M4: Performance & SDKs ✅ COMPLETE
 - [x] Python SDK Performance Modules
     - [x] Zero-copy messaging (MemoryPool, PooledBuffer, ZeroCopyBuffer, RingBuffer, ZeroCopyEmitter)
@@ -72,7 +65,12 @@ capability_matrix_status: complete
     - [x] Zero-copy (MemoryPool, PooledBuffer, RingBuffer, ZeroCopyEmitter)
     - [x] Batch (BatchConfig, BatchCollector, BatchProcessor, BatchEmitter)
     - [x] Partition (Partitioner, KeyExtractor, PartitionProcessor, CompositePartitioner)
-- [ ] SDK v0.3.0 releases (Python, Go, JavaScript, Java)
+- [x] LSP error fixes in Python SDK streaming modules (backpressure.py, pubsub.py)
+- [x] Fixed threading.Lock() vs asyncio.Lock() usage in synchronous methods
+- [x] Fixed Message constructor parameter (type vs message_type)
+- [x] Fixed dataclass field ordering for Subscription and PubSubMessage
+- [x] removed ActorRef usage, favor of Actor class
+- [x] fixed type hints for PubSubClient
 
 **Commits:**
 - `e8294a5` - feat(sdk/python): add M4 performance modules for streaming
