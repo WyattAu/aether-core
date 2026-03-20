@@ -390,11 +390,19 @@ public class OrderStreamActor {
 - `191dc04` - feat(sdk/python): add streaming module for v1.5.0 M1
 - `7244dac` - feat(sdk): add streaming modules for Go, JavaScript, and Java SDKs
 
-### M2: Event System (Week 5-8)
-- Pub/sub messaging
-- Event sourcing basics
-- Delivery guarantees
-- Schema registry
+### M2: Event System ✅ COMPLETE
+- [x] Pub/sub messaging with topic-based routing (Python, Go, JavaScript, Java)
+- [x] Event sourcing for actor state persistence (All SDKs)
+- [x] Guaranteed delivery semantics
+- [x] Event schema registry
+- [x] Stream joins for complex event processing
+- [x] SDK v0.3.0 releases (Python, Go, JavaScript, Java)
+
+### Commits in M2
+- `191dc04` - feat(sdk/python): add streaming module for v1.5.0 M1
+- `7244dac` - feat(sdk): add streaming modules for Go, JavaScript, and Java SDKs
+    - `8844d26` - docs: update VERSION.md and ROADMAP_v1.5.md with M1 completion
+    - Added commit references for M1 work
 
 ### M3: Workflow Engine (Week 9-12)
 - Saga pattern implementation
