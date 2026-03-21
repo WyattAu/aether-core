@@ -82,6 +82,7 @@ from .schema import (
     SchemaValidator,
     InMemorySchemaRegistry,
     SchemaError,
+    JsonSchemaValidator,
 )
 
 __all__ = [
