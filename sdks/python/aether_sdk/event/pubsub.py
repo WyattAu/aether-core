@@ -179,7 +179,7 @@ class InMemoryPubSub(PubSubBackend):
         if '*' in pattern:
             return True
         topic_parts = topic.split('.')
-        pattern_parts = pattern.replace('.', '').split('.')
+        pattern_parts = pattern.split('.')
         
         if len(topic_parts) != len(pattern_parts):
             return False

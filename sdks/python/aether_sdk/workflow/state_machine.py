@@ -535,4 +535,5 @@ __all__ = [
     "Transition",
     "Workflow",
     "WorkflowExecutor",
+    "workflow",  # Factory function
 ]
