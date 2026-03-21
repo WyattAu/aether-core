@@ -13,7 +13,8 @@ from aether_sdk.workflow.state_machine import (
     WorkflowExecutor,
     workflow,
 )
-from aether_sdk.workflow.types import (
+from aether_sdk.workflow.state_machine import (
+    # Types
     WorkflowStatus,
     TransitionStatus,
     WorkflowContext,
@@ -21,6 +22,13 @@ from aether_sdk.workflow.types import (
     InvalidTransitionError,
     WorkflowSuspendedError,
     Duration,
+    # State machine
+    State,
+    Transition,
+    Workflow,
+    WorkflowExecutor,
+    # Factory function
+    workflow,
 )
 
 

@@ -2,8 +2,9 @@
 
 current_phase: 22
 current_version: 1.5.0
-status: In Progress - v1.5.0 "Flow" - M2 Event System partially complete
+status: In Progress - v1.5.0 "Flow" - M2 Event System complete
  - All M4 tests passing (19 tests)
+ - All M2 tests passing (35 tests)
  - LSP errors fixed in Python SDK
 last_updated: 2026-03-21T02:00:00Z
 error_level: null
@@ -21,11 +22,12 @@ capability_matrix_status: complete
 ### Commits in M1
 - `191dc04` - feat(sdk/python): add streaming module for v1.5.0 m1
     - `7244dac` - feat(sdk): add streaming modules for Go, JavaScript, and Java SDKs
-### M2: Event System (planned)
-- [ ] Pub/sub messaging with topic-based routing
-    - [ ] Event sourcing for actor state
-    - [ ] Guaranteed delivery semantics (at-least-once, exactly-once)
-    - [ ] Event schema registry
+### M2: Event System ✅ COMPLETE
+- [x] Pub/sub messaging with topic-based routing
+- [x] Event sourcing for actor state
+- [x] Guaranteed delivery semantics (at-least-once, exactly-once)
+- [x] Event schema registry
+- [x] 35 comprehensive tests passing (Pub/Sub, Event Sourcing, Delivery, Schema)
 ### M3: Workflow Engine ✅ COMPLETE
 - [x] Python SDK
     - [x] Saga pattern with compensation and retry with backoff
