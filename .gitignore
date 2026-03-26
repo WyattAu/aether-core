@@ -23,3 +23,26 @@ target
 #  and can be added to the global gitignore or merged into this file.  For a more nuclear
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+*.so
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+
+# JavaScript / Node
+node_modules/
+coverage/
+.pnpm-store/
+
+# Docs build output (regenerate from source)
+sdks/python/docs/_build/
