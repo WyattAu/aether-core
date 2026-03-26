@@ -8,7 +8,8 @@ import { TracingConfig, TracingContext } from './types';
 
 // Check if OpenTelemetry is available
 let TRACING_AVAILABLE = false;
-let apiModule: typeof import('@opentelemetry/api') | null = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let apiModule: any = null;
 
 try {
   // Dynamic import check - will be undefined if not installed
@@ -20,14 +21,20 @@ try {
 }
 
 /**
- * Check if tracing is available.
+ * Check if OpenTelemetry tracing is available.
+ *
+ * @returns `true` if the `@opentelemetry/api` package is installed and loaded.
  */
 export function isTracingAvailable(): boolean {
   return TRACING_AVAILABLE;
 }
 
 /**
- * Get a tracer for resilience patterns.
+ * Get a tracer instance for resilience patterns.
+ *
+ * @param serviceName - The service name to report in traces
+ *                      (default: `'aether-resilience'`).
+ * @returns A tracer instance, or `null` if tracing is not available.
  */
 export function getTracer(serviceName = 'aether-resilience'): unknown {
   if (!TRACING_AVAILABLE || !apiModule) {
@@ -43,26 +50,36 @@ export function getTracer(serviceName = 'aether-resilience'): unknown {
 }
 
 /**
- * Minimal span interface.
+ * Minimal span interface for tracing operations.
+ *
+ * Provides attribute-setting, event-adding, and status-setting capabilities
+ * compatible with OpenTelemetry spans.
  */
 interface Span {
+  /** Set a key-value attribute on the span. */
   setAttribute(key: string, value: unknown): void;
+  /** Record an event with optional attributes. */
   addEvent(name: string, attributes?: Record<string, unknown>): void;
+  /** Set the span status. */
   setStatus(status: { code: number; message?: string }): void;
+  /** End the span. */
   end(): void;
 }
 
 /**
- * No-op span for when tracing is disabled.
+ * No-op span implementation used when tracing is disabled.
+ *
+ * All methods are safe no-ops that return `this` for chaining.
+ * @internal
  */
 class NoOpSpan implements Span {
-  setAttribute(): this {
+  setAttribute(_key: string, _value: unknown): this {
     return this;
   }
-  addEvent(): this {
+  addEvent(_name: string, _attributes?: Record<string, unknown>): this {
     return this;
   }
-  setStatus(): this {
+  setStatus(_status: { code: number; message?: string }): this {
     return this;
   }
   end(): void {}
@@ -71,11 +88,23 @@ class NoOpSpan implements Span {
 const noOpSpan = new NoOpSpan();
 
 /**
- * Execute a function with tracing.
+ * Execute a function within a tracing span.
  *
- * @param spanName - Name of the span
- * @param fn - Function to execute
- * @returns Result of the function
+ * If OpenTelemetry is available, creates a real span; otherwise uses a
+ * no-op span. The span status is set to OK on success or ERROR on failure.
+ *
+ * @typeParam T - The return type of the function.
+ * @param spanName - Name for the tracing span.
+ * @param fn       - Function receiving the span and returning a promise.
+ * @returns The function result.
+ *
+ * @example
+ * ```typescript
+ * const result = await withTracing('my_operation', async (span) => {
+ *   span.setAttribute('my.key', 'value');
+ *   return doWork();
+ * });
+ * ```
  */
 export async function withTracing<T>(
   spanName: string,
@@ -127,6 +156,12 @@ export async function withTracing<T>(
 
 /**
  * Wrap a circuit breaker operation with tracing.
+ *
+ * @typeParam T - The return type.
+ * @param name  - The circuit breaker name.
+ * @param state - The current circuit state.
+ * @param fn    - The async function to trace.
+ * @returns The function result.
  */
 export function tracedCircuitBreaker<T>(
   name: string,
@@ -150,6 +185,13 @@ export function tracedCircuitBreaker<T>(
 
 /**
  * Wrap a retry operation with tracing.
+ *
+ * @typeParam T - The return type.
+ * @param name       - The retry policy name.
+ * @param attempt    - The current attempt number (1-based).
+ * @param maxAttempts - The maximum number of attempts.
+ * @param fn         - The async function to trace.
+ * @returns The function result.
  */
 export function tracedRetry<T>(
   name: string,
@@ -178,6 +220,12 @@ export function tracedRetry<T>(
 
 /**
  * Wrap a rate limiter operation with tracing.
+ *
+ * @typeParam T - The return type.
+ * @param name    - The rate limiter name.
+ * @param allowed - Whether the request was allowed.
+ * @param fn      - The async function to trace.
+ * @returns The function result.
  */
 export function tracedRateLimiter<T>(
   name: string,
@@ -201,6 +249,13 @@ export function tracedRateLimiter<T>(
 
 /**
  * Wrap a bulkhead operation with tracing.
+ *
+ * @typeParam T - The return type.
+ * @param name           - The bulkhead name.
+ * @param active         - Number of currently active calls.
+ * @param maxConcurrent  - Maximum allowed concurrent calls.
+ * @param fn             - The async function to trace.
+ * @returns The function result.
  */
 export function tracedBulkhead<T>(
   name: string,
@@ -226,6 +281,12 @@ export function tracedBulkhead<T>(
 
 /**
  * Wrap a health check operation with tracing.
+ *
+ * @typeParam T - The return type.
+ * @param name      - The health checker name.
+ * @param checkName - The individual check name.
+ * @param fn        - The async function to trace.
+ * @returns The function result.
  */
 export function tracedHealthCheck<T>(
   name: string,
@@ -252,12 +313,32 @@ export function tracedHealthCheck<T>(
 // ============================================
 
 /**
- * Resilience instrumentation configuration.
+ * Resilience instrumentation configuration and span factory.
+ *
+ * Provides convenience methods for creating typed spans for each
+ * resilience pattern without requiring direct OpenTelemetry usage.
+ *
+ * @example
+ * ```typescript
+ * const instrumentation = new ResilienceInstrumentation({
+ *   serviceName: 'my-service',
+ *   sampleRate: 0.5,
+ * });
+ *
+ * const { span, end } = instrumentation.circuitBreaker('api', 'closed');
+ * // ... do work ...
+ * end(); // or end(error)
+ * ```
  */
 export class ResilienceInstrumentation {
   private tracer: unknown;
   private config: TracingConfig;
 
+  /**
+   * Create a new ResilienceInstrumentation.
+   *
+   * @param config - Partial tracing configuration.
+   */
   constructor(config: Partial<TracingConfig> = {}) {
     this.config = {
       enabled: config.enabled ?? true,
@@ -271,7 +352,11 @@ export class ResilienceInstrumentation {
   }
 
   /**
-   * Create a circuit breaker span.
+   * Create a circuit breaker span and end callback.
+   *
+   * @param name  - The circuit breaker name.
+   * @param state - The current circuit state.
+   * @returns An object with the span and an `end` function.
    */
   circuitBreaker(name: string, state: string): {
     span: Span;
@@ -290,7 +375,12 @@ export class ResilienceInstrumentation {
   }
 
   /**
-   * Create a retry span.
+   * Create a retry span and end callback.
+   *
+   * @param name        - The retry policy name.
+   * @param attempt     - The current attempt number.
+   * @param maxAttempts - The maximum number of attempts.
+   * @returns An object with the span and an `end` function.
    */
   retry(name: string, attempt: number, maxAttempts: number): {
     span: Span;
@@ -309,7 +399,11 @@ export class ResilienceInstrumentation {
   }
 
   /**
-   * Create a rate limiter span.
+   * Create a rate limiter span and end callback.
+   *
+   * @param name    - The rate limiter name.
+   * @param allowed - Whether the request was allowed.
+   * @returns An object with the span and an `end` function.
    */
   rateLimiter(name: string, allowed: boolean): {
     span: Span;
@@ -328,7 +422,12 @@ export class ResilienceInstrumentation {
   }
 
   /**
-   * Create a bulkhead span.
+   * Create a bulkhead span and end callback.
+   *
+   * @param name          - The bulkhead name.
+   * @param active        - Number of currently active calls.
+   * @param maxConcurrent - Maximum allowed concurrent calls.
+   * @returns An object with the span and an `end` function.
    */
   bulkhead(name: string, active: number, maxConcurrent: number): {
     span: Span;

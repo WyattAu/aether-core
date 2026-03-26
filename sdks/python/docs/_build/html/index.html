@@ -1,0 +1,391 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Aether Python SDK &mdash; Aether Python SDK  documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Quick Start Guide" href="quickstart.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="#" class="icon icon-home">
+            Aether Python SDK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quick Start Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/core.html">Core API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/event.html">Event System API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/resilience.html">Resilience API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/streaming.html">Streaming API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/workflow.html">Workflow API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/validation.html">Validation API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="#">Aether Python SDK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="#" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Aether Python SDK</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/index.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="aether-python-sdk">
+<h1>Aether Python SDK<a class="headerlink" href="#aether-python-sdk" title="Link to this heading">¶</a></h1>
+<p>Aether is a distributed actor framework SDK for Python, providing
+messaging, state management, resilience patterns, streaming, workflows,
+and event-driven architecture.</p>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quick Start Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="quickstart.html#installation">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart.html#creating-your-first-actor">Creating Your First Actor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart.html#next-steps">Next Steps</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="api/core.html">Core API Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api/core.html#aether_sdk.actor.Actor"><code class="docutils literal notranslate"><span class="pre">Actor</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/core.html#aether_sdk.actor.actor"><code class="docutils literal notranslate"><span class="pre">actor()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/core.html#aether_sdk.messaging.Message"><code class="docutils literal notranslate"><span class="pre">Message</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/core.html#aether_sdk.messaging.MessageType"><code class="docutils literal notranslate"><span class="pre">MessageType</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/core.html#aether_sdk.state.StateHandle"><code class="docutils literal notranslate"><span class="pre">StateHandle</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/core.html#aether_sdk.capabilities.Capability"><code class="docutils literal notranslate"><span class="pre">Capability</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/core.html#aether_sdk.capabilities.CapabilitySet"><code class="docutils literal notranslate"><span class="pre">CapabilitySet</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/core.html#aether_sdk.exceptions.ActorNotFound"><code class="docutils literal notranslate"><span class="pre">ActorNotFound</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/core.html#aether_sdk.exceptions.AetherError"><code class="docutils literal notranslate"><span class="pre">AetherError</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/core.html#aether_sdk.exceptions.CapabilityDenied"><code class="docutils literal notranslate"><span class="pre">CapabilityDenied</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/core.html#aether_sdk.exceptions.RpcError"><code class="docutils literal notranslate"><span class="pre">RpcError</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/core.html#aether_sdk.exceptions.StateError"><code class="docutils literal notranslate"><span class="pre">StateError</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/core.html#aether_sdk.http.HttpClient"><code class="docutils literal notranslate"><span class="pre">HttpClient</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="api/event.html">Event System API Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api/event.html#aether_sdk.event.pubsub.Event"><code class="docutils literal notranslate"><span class="pre">Event</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/event.html#aether_sdk.event.pubsub.InMemoryPubSub"><code class="docutils literal notranslate"><span class="pre">InMemoryPubSub</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/event.html#aether_sdk.event.pubsub.PubSubBackend"><code class="docutils literal notranslate"><span class="pre">PubSubBackend</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/event.html#aether_sdk.event.pubsub.PubSubClient"><code class="docutils literal notranslate"><span class="pre">PubSubClient</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/event.html#aether_sdk.event.pubsub.PubSubMessage"><code class="docutils literal notranslate"><span class="pre">PubSubMessage</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/event.html#aether_sdk.event.pubsub.Publisher"><code class="docutils literal notranslate"><span class="pre">Publisher</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/event.html#aether_sdk.event.pubsub.Subscriber"><code class="docutils literal notranslate"><span class="pre">Subscriber</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/event.html#aether_sdk.event.pubsub.Subscription"><code class="docutils literal notranslate"><span class="pre">Subscription</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/event.html#aether_sdk.event.pubsub.Topic"><code class="docutils literal notranslate"><span class="pre">Topic</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/event.html#aether_sdk.event.pubsub.publish"><code class="docutils literal notranslate"><span class="pre">publish()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/event.html#aether_sdk.event.pubsub.subscribe"><code class="docutils literal notranslate"><span class="pre">subscribe()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/event.html#aether_sdk.event.event_sourcing.Aggregate"><code class="docutils literal notranslate"><span class="pre">Aggregate</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/event.html#aether_sdk.event.event_sourcing.ConcurrencyError"><code class="docutils literal notranslate"><span class="pre">ConcurrencyError</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/event.html#aether_sdk.event.event_sourcing.EventEnvelope"><code class="docutils literal notranslate"><span class="pre">EventEnvelope</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/event.html#aether_sdk.event.event_sourcing.EventSourcedActor"><code class="docutils literal notranslate"><span class="pre">EventSourcedActor</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/event.html#aether_sdk.event.event_sourcing.EventStore"><code class="docutils literal notranslate"><span class="pre">EventStore</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/event.html#aether_sdk.event.event_sourcing.EventVersion"><code class="docutils literal notranslate"><span class="pre">EventVersion</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/event.html#aether_sdk.event.event_sourcing.InMemoryEventStore"><code class="docutils literal notranslate"><span class="pre">InMemoryEventStore</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/event.html#aether_sdk.event.event_sourcing.Snapshot"><code class="docutils literal notranslate"><span class="pre">Snapshot</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/event.html#aether_sdk.event.event_sourcing.apply_event"><code class="docutils literal notranslate"><span class="pre">apply_event()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/event.html#aether_sdk.event.schema.Compatibility"><code class="docutils literal notranslate"><span class="pre">Compatibility</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/event.html#aether_sdk.event.schema.InMemorySchemaRegistry"><code class="docutils literal notranslate"><span class="pre">InMemorySchemaRegistry</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/event.html#aether_sdk.event.schema.JsonSchemaValidator"><code class="docutils literal notranslate"><span class="pre">JsonSchemaValidator</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/event.html#aether_sdk.event.schema.Schema"><code class="docutils literal notranslate"><span class="pre">Schema</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/event.html#aether_sdk.event.schema.SchemaError"><code class="docutils literal notranslate"><span class="pre">SchemaError</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/event.html#aether_sdk.event.schema.SchemaRegistry"><code class="docutils literal notranslate"><span class="pre">SchemaRegistry</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/event.html#aether_sdk.event.schema.SchemaValidator"><code class="docutils literal notranslate"><span class="pre">SchemaValidator</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/event.html#aether_sdk.event.schema.SchemaVersion"><code class="docutils literal notranslate"><span class="pre">SchemaVersion</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/event.html#aether_sdk.event.delivery.DeadLetterQueue"><code class="docutils literal notranslate"><span class="pre">DeadLetterQueue</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/event.html#aether_sdk.event.delivery.DeliveryGuarantee"><code class="docutils literal notranslate"><span class="pre">DeliveryGuarantee</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/event.html#aether_sdk.event.delivery.DeliveryStats"><code class="docutils literal notranslate"><span class="pre">DeliveryStats</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/event.html#aether_sdk.event.delivery.InMemoryDeadLetterQueue"><code class="docutils literal notranslate"><span class="pre">InMemoryDeadLetterQueue</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/event.html#aether_sdk.event.delivery.InMemoryOutbox"><code class="docutils literal notranslate"><span class="pre">InMemoryOutbox</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/event.html#aether_sdk.event.delivery.Outbox"><code class="docutils literal notranslate"><span class="pre">Outbox</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/event.html#aether_sdk.event.delivery.OutboxEntry"><code class="docutils literal notranslate"><span class="pre">OutboxEntry</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/event.html#aether_sdk.event.delivery.RetryPolicy"><code class="docutils literal notranslate"><span class="pre">RetryPolicy</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="api/resilience.html">Resilience API Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.circuit_breaker.CircuitBreaker"><code class="docutils literal notranslate"><span class="pre">CircuitBreaker</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.circuit_breaker.CircuitBreakerConfig"><code class="docutils literal notranslate"><span class="pre">CircuitBreakerConfig</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.circuit_breaker.CircuitBreakerError"><code class="docutils literal notranslate"><span class="pre">CircuitBreakerError</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.circuit_breaker.CircuitBreakerManager"><code class="docutils literal notranslate"><span class="pre">CircuitBreakerManager</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.circuit_breaker.CircuitBreakerStats"><code class="docutils literal notranslate"><span class="pre">CircuitBreakerStats</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.circuit_breaker.CircuitState"><code class="docutils literal notranslate"><span class="pre">CircuitState</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.circuit_breaker.FailureRecord"><code class="docutils literal notranslate"><span class="pre">FailureRecord</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.retry.BackoffStrategy"><code class="docutils literal notranslate"><span class="pre">BackoffStrategy</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.retry.RetryConfig"><code class="docutils literal notranslate"><span class="pre">RetryConfig</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.retry.RetryExhaustedError"><code class="docutils literal notranslate"><span class="pre">RetryExhaustedError</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.retry.RetryPolicy"><code class="docutils literal notranslate"><span class="pre">RetryPolicy</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.retry.RetryResult"><code class="docutils literal notranslate"><span class="pre">RetryResult</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.retry.RetryStats"><code class="docutils literal notranslate"><span class="pre">RetryStats</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.retry.aggressive_retry_policy"><code class="docutils literal notranslate"><span class="pre">aggressive_retry_policy()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.retry.conservative_retry_policy"><code class="docutils literal notranslate"><span class="pre">conservative_retry_policy()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.retry.database_retry_policy"><code class="docutils literal notranslate"><span class="pre">database_retry_policy()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.retry.network_retry_policy"><code class="docutils literal notranslate"><span class="pre">network_retry_policy()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.bulkhead.Bulkhead"><code class="docutils literal notranslate"><span class="pre">Bulkhead</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.bulkhead.BulkheadConfig"><code class="docutils literal notranslate"><span class="pre">BulkheadConfig</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.bulkhead.BulkheadManager"><code class="docutils literal notranslate"><span class="pre">BulkheadManager</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.bulkhead.BulkheadRejectedError"><code class="docutils literal notranslate"><span class="pre">BulkheadRejectedError</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.bulkhead.BulkheadStats"><code class="docutils literal notranslate"><span class="pre">BulkheadStats</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.bulkhead.BulkheadTimeoutError"><code class="docutils literal notranslate"><span class="pre">BulkheadTimeoutError</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.bulkhead.api_bulkhead"><code class="docutils literal notranslate"><span class="pre">api_bulkhead()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.bulkhead.database_bulkhead"><code class="docutils literal notranslate"><span class="pre">database_bulkhead()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.bulkhead.strict_bulkhead"><code class="docutils literal notranslate"><span class="pre">strict_bulkhead()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.rate_limiter.FixedWindow"><code class="docutils literal notranslate"><span class="pre">FixedWindow</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.rate_limiter.RateLimitConfig"><code class="docutils literal notranslate"><span class="pre">RateLimitConfig</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.rate_limiter.RateLimitExhaustedError"><code class="docutils literal notranslate"><span class="pre">RateLimitExhaustedError</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.rate_limiter.RateLimitResult"><code class="docutils literal notranslate"><span class="pre">RateLimitResult</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.rate_limiter.RateLimitStats"><code class="docutils literal notranslate"><span class="pre">RateLimitStats</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.rate_limiter.RateLimitStrategy"><code class="docutils literal notranslate"><span class="pre">RateLimitStrategy</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.rate_limiter.RateLimiter"><code class="docutils literal notranslate"><span class="pre">RateLimiter</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.rate_limiter.RateLimiterManager"><code class="docutils literal notranslate"><span class="pre">RateLimiterManager</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.rate_limiter.SlidingWindow"><code class="docutils literal notranslate"><span class="pre">SlidingWindow</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.rate_limiter.TokenBucket"><code class="docutils literal notranslate"><span class="pre">TokenBucket</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.rate_limiter.api_rate_limiter"><code class="docutils literal notranslate"><span class="pre">api_rate_limiter()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.rate_limiter.bursty_rate_limiter"><code class="docutils literal notranslate"><span class="pre">bursty_rate_limiter()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.rate_limiter.strict_rate_limiter"><code class="docutils literal notranslate"><span class="pre">strict_rate_limiter()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.health_check.HealthCheckOptions"><code class="docutils literal notranslate"><span class="pre">HealthCheckOptions</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.health_check.HealthCheckResult"><code class="docutils literal notranslate"><span class="pre">HealthCheckResult</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.health_check.HealthChecker"><code class="docutils literal notranslate"><span class="pre">HealthChecker</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.health_check.HealthReport"><code class="docutils literal notranslate"><span class="pre">HealthReport</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.health_check.HealthStatus"><code class="docutils literal notranslate"><span class="pre">HealthStatus</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.health_check.dependency_health_check"><code class="docutils literal notranslate"><span class="pre">dependency_health_check()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.health_check.memory_health_check"><code class="docutils literal notranslate"><span class="pre">memory_health_check()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.health_check.ping_health_check"><code class="docutils literal notranslate"><span class="pre">ping_health_check()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.health_check.state_health_check"><code class="docutils literal notranslate"><span class="pre">state_health_check()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.tracing.ResilienceInstrumentation"><code class="docutils literal notranslate"><span class="pre">ResilienceInstrumentation</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.tracing.TracingContext"><code class="docutils literal notranslate"><span class="pre">TracingContext</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.tracing.create_resilience_span"><code class="docutils literal notranslate"><span class="pre">create_resilience_span()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.tracing.get_tracer"><code class="docutils literal notranslate"><span class="pre">get_tracer()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.tracing.record_resilience_event"><code class="docutils literal notranslate"><span class="pre">record_resilience_event()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.tracing.set_resilience_attribute"><code class="docutils literal notranslate"><span class="pre">set_resilience_attribute()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.tracing.traced_bulkhead"><code class="docutils literal notranslate"><span class="pre">traced_bulkhead()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.tracing.traced_circuit_breaker"><code class="docutils literal notranslate"><span class="pre">traced_circuit_breaker()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.tracing.traced_rate_limiter"><code class="docutils literal notranslate"><span class="pre">traced_rate_limiter()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/resilience.html#aether_sdk.resilience.tracing.traced_retry"><code class="docutils literal notranslate"><span class="pre">traced_retry()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="api/streaming.html">Streaming API Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api/streaming.html#aether_sdk.streaming.types.BackpressureConfig"><code class="docutils literal notranslate"><span class="pre">BackpressureConfig</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/streaming.html#aether_sdk.streaming.types.BackpressureStrategy"><code class="docutils literal notranslate"><span class="pre">BackpressureStrategy</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/streaming.html#aether_sdk.streaming.types.DeliveryConfig"><code class="docutils literal notranslate"><span class="pre">DeliveryConfig</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/streaming.html#aether_sdk.streaming.types.DeliverySemantics"><code class="docutils literal notranslate"><span class="pre">DeliverySemantics</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/streaming.html#aether_sdk.streaming.types.Duration"><code class="docutils literal notranslate"><span class="pre">Duration</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/streaming.html#aether_sdk.streaming.types.LateDataPolicy"><code class="docutils literal notranslate"><span class="pre">LateDataPolicy</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/streaming.html#aether_sdk.streaming.types.PaneInfo"><code class="docutils literal notranslate"><span class="pre">PaneInfo</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/streaming.html#aether_sdk.streaming.types.PartitionConfig"><code class="docutils literal notranslate"><span class="pre">PartitionConfig</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/streaming.html#aether_sdk.streaming.types.StreamConfig"><code class="docutils literal notranslate"><span class="pre">StreamConfig</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/streaming.html#aether_sdk.streaming.types.StreamEvent"><code class="docutils literal notranslate"><span class="pre">StreamEvent</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/streaming.html#aether_sdk.streaming.types.Timestamp"><code class="docutils literal notranslate"><span class="pre">Timestamp</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/streaming.html#aether_sdk.streaming.types.Watermark"><code class="docutils literal notranslate"><span class="pre">Watermark</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/streaming.html#aether_sdk.streaming.types.WatermarkStrategy"><code class="docutils literal notranslate"><span class="pre">WatermarkStrategy</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/streaming.html#aether_sdk.streaming.types.WindowInfo"><code class="docutils literal notranslate"><span class="pre">WindowInfo</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/streaming.html#aether_sdk.streaming.types.WindowSpec"><code class="docutils literal notranslate"><span class="pre">WindowSpec</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/streaming.html#aether_sdk.streaming.types.WindowType"><code class="docutils literal notranslate"><span class="pre">WindowType</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/streaming.html#aether_sdk.streaming.stream_actor.StreamActor"><code class="docutils literal notranslate"><span class="pre">StreamActor</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/streaming.html#aether_sdk.streaming.stream_actor.StreamState"><code class="docutils literal notranslate"><span class="pre">StreamState</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/streaming.html#aether_sdk.streaming.stream_actor.StreamingStateHandle"><code class="docutils literal notranslate"><span class="pre">StreamingStateHandle</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/streaming.html#aether_sdk.streaming.backpressure.BackpressureController"><code class="docutils literal notranslate"><span class="pre">BackpressureController</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/streaming.html#aether_sdk.streaming.backpressure.BackpressureError"><code class="docutils literal notranslate"><span class="pre">BackpressureError</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/streaming.html#aether_sdk.streaming.backpressure.BackpressureStats"><code class="docutils literal notranslate"><span class="pre">BackpressureStats</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/streaming.html#aether_sdk.streaming.backpressure.BufferFullError"><code class="docutils literal notranslate"><span class="pre">BufferFullError</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/streaming.html#aether_sdk.streaming.backpressure.MultiLevelBackpressure"><code class="docutils literal notranslate"><span class="pre">MultiLevelBackpressure</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/streaming.html#aether_sdk.streaming.backpressure.RateBasedBackpressure"><code class="docutils literal notranslate"><span class="pre">RateBasedBackpressure</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/streaming.html#aether_sdk.streaming.window.SessionWindow"><code class="docutils literal notranslate"><span class="pre">SessionWindow</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/streaming.html#aether_sdk.streaming.window.SlidingWindow"><code class="docutils literal notranslate"><span class="pre">SlidingWindow</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/streaming.html#aether_sdk.streaming.window.TumblingWindow"><code class="docutils literal notranslate"><span class="pre">TumblingWindow</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/streaming.html#aether_sdk.streaming.window.WindowAssigner"><code class="docutils literal notranslate"><span class="pre">WindowAssigner</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/streaming.html#aether_sdk.streaming.window.WindowState"><code class="docutils literal notranslate"><span class="pre">WindowState</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/streaming.html#aether_sdk.streaming.window.WindowTrigger"><code class="docutils literal notranslate"><span class="pre">WindowTrigger</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/streaming.html#aether_sdk.streaming.window.session"><code class="docutils literal notranslate"><span class="pre">session()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/streaming.html#aether_sdk.streaming.window.sliding"><code class="docutils literal notranslate"><span class="pre">sliding()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/streaming.html#aether_sdk.streaming.window.tumbling"><code class="docutils literal notranslate"><span class="pre">tumbling()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/streaming.html#aether_sdk.streaming.window.window"><code class="docutils literal notranslate"><span class="pre">window()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/streaming.html#aether_sdk.streaming.batch.BatchAggregator"><code class="docutils literal notranslate"><span class="pre">BatchAggregator</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/streaming.html#aether_sdk.streaming.batch.BatchCollector"><code class="docutils literal notranslate"><span class="pre">BatchCollector</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/streaming.html#aether_sdk.streaming.batch.BatchConfig"><code class="docutils literal notranslate"><span class="pre">BatchConfig</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/streaming.html#aether_sdk.streaming.batch.BatchEmitter"><code class="docutils literal notranslate"><span class="pre">BatchEmitter</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/streaming.html#aether_sdk.streaming.batch.BatchProcessor"><code class="docutils literal notranslate"><span class="pre">BatchProcessor</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/streaming.html#aether_sdk.streaming.batch.BatchResult"><code class="docutils literal notranslate"><span class="pre">BatchResult</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/streaming.html#aether_sdk.streaming.batch.BatchStats"><code class="docutils literal notranslate"><span class="pre">BatchStats</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/streaming.html#aether_sdk.streaming.partition.CompositePartitioner"><code class="docutils literal notranslate"><span class="pre">CompositePartitioner</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/streaming.html#aether_sdk.streaming.partition.KeyExtractor"><code class="docutils literal notranslate"><span class="pre">KeyExtractor</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/streaming.html#aether_sdk.streaming.partition.PartitionConfig"><code class="docutils literal notranslate"><span class="pre">PartitionConfig</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/streaming.html#aether_sdk.streaming.partition.PartitionProcessor"><code class="docutils literal notranslate"><span class="pre">PartitionProcessor</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/streaming.html#aether_sdk.streaming.partition.PartitionStrategy"><code class="docutils literal notranslate"><span class="pre">PartitionStrategy</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/streaming.html#aether_sdk.streaming.partition.Partitioner"><code class="docutils literal notranslate"><span class="pre">Partitioner</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/streaming.html#aether_sdk.streaming.zero_copy.BufferStats"><code class="docutils literal notranslate"><span class="pre">BufferStats</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/streaming.html#aether_sdk.streaming.zero_copy.MemoryPool"><code class="docutils literal notranslate"><span class="pre">MemoryPool</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/streaming.html#aether_sdk.streaming.zero_copy.PooledBuffer"><code class="docutils literal notranslate"><span class="pre">PooledBuffer</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/streaming.html#aether_sdk.streaming.zero_copy.RingBuffer"><code class="docutils literal notranslate"><span class="pre">RingBuffer</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/streaming.html#aether_sdk.streaming.zero_copy.ZeroCopyBuffer"><code class="docutils literal notranslate"><span class="pre">ZeroCopyBuffer</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/streaming.html#aether_sdk.streaming.zero_copy.ZeroCopyEmitter"><code class="docutils literal notranslate"><span class="pre">ZeroCopyEmitter</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="api/workflow.html">Workflow API Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api/workflow.html#aether_sdk.workflow.saga.Saga"><code class="docutils literal notranslate"><span class="pre">Saga</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/workflow.html#aether_sdk.workflow.saga.SagaExecutor"><code class="docutils literal notranslate"><span class="pre">SagaExecutor</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/workflow.html#aether_sdk.workflow.saga.SagaStep"><code class="docutils literal notranslate"><span class="pre">SagaStep</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/workflow.html#aether_sdk.workflow.saga.saga"><code class="docutils literal notranslate"><span class="pre">saga()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/workflow.html#aether_sdk.workflow.state_machine.State"><code class="docutils literal notranslate"><span class="pre">State</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/workflow.html#aether_sdk.workflow.state_machine.Transition"><code class="docutils literal notranslate"><span class="pre">Transition</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/workflow.html#aether_sdk.workflow.state_machine.Workflow"><code class="docutils literal notranslate"><span class="pre">Workflow</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/workflow.html#aether_sdk.workflow.state_machine.WorkflowExecutor"><code class="docutils literal notranslate"><span class="pre">WorkflowExecutor</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/workflow.html#aether_sdk.workflow.state_machine.workflow"><code class="docutils literal notranslate"><span class="pre">workflow()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/workflow.html#aether_sdk.workflow.human_task.FormField"><code class="docutils literal notranslate"><span class="pre">FormField</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/workflow.html#aether_sdk.workflow.human_task.HumanTask"><code class="docutils literal notranslate"><span class="pre">HumanTask</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/workflow.html#aether_sdk.workflow.human_task.HumanTaskManager"><code class="docutils literal notranslate"><span class="pre">HumanTaskManager</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/workflow.html#aether_sdk.workflow.human_task.InMemoryTaskStore"><code class="docutils literal notranslate"><span class="pre">InMemoryTaskStore</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/workflow.html#aether_sdk.workflow.human_task.TaskForm"><code class="docutils literal notranslate"><span class="pre">TaskForm</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/workflow.html#aether_sdk.workflow.human_task.TaskQuery"><code class="docutils literal notranslate"><span class="pre">TaskQuery</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/workflow.html#aether_sdk.workflow.human_task.TaskStore"><code class="docutils literal notranslate"><span class="pre">TaskStore</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/workflow.html#aether_sdk.workflow.human_task.create_human_task_manager"><code class="docutils literal notranslate"><span class="pre">create_human_task_manager()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/workflow.html#aether_sdk.workflow.types.Duration"><code class="docutils literal notranslate"><span class="pre">Duration</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/workflow.html#aether_sdk.workflow.types.HumanTaskContext"><code class="docutils literal notranslate"><span class="pre">HumanTaskContext</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/workflow.html#aether_sdk.workflow.types.HumanTaskError"><code class="docutils literal notranslate"><span class="pre">HumanTaskError</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/workflow.html#aether_sdk.workflow.types.HumanTaskNotAssignedError"><code class="docutils literal notranslate"><span class="pre">HumanTaskNotAssignedError</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/workflow.html#aether_sdk.workflow.types.HumanTaskStatus"><code class="docutils literal notranslate"><span class="pre">HumanTaskStatus</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/workflow.html#aether_sdk.workflow.types.HumanTaskTimeoutError"><code class="docutils literal notranslate"><span class="pre">HumanTaskTimeoutError</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/workflow.html#aether_sdk.workflow.types.InvalidTransitionError"><code class="docutils literal notranslate"><span class="pre">InvalidTransitionError</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/workflow.html#aether_sdk.workflow.types.RetryConfig"><code class="docutils literal notranslate"><span class="pre">RetryConfig</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/workflow.html#aether_sdk.workflow.types.RetryPolicy"><code class="docutils literal notranslate"><span class="pre">RetryPolicy</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/workflow.html#aether_sdk.workflow.types.SagaCompensationFailedError"><code class="docutils literal notranslate"><span class="pre">SagaCompensationFailedError</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/workflow.html#aether_sdk.workflow.types.SagaContext"><code class="docutils literal notranslate"><span class="pre">SagaContext</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/workflow.html#aether_sdk.workflow.types.SagaError"><code class="docutils literal notranslate"><span class="pre">SagaError</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/workflow.html#aether_sdk.workflow.types.SagaResult"><code class="docutils literal notranslate"><span class="pre">SagaResult</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/workflow.html#aether_sdk.workflow.types.SagaStatus"><code class="docutils literal notranslate"><span class="pre">SagaStatus</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/workflow.html#aether_sdk.workflow.types.SagaStepFailedError"><code class="docutils literal notranslate"><span class="pre">SagaStepFailedError</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/workflow.html#aether_sdk.workflow.types.StepStatus"><code class="docutils literal notranslate"><span class="pre">StepStatus</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/workflow.html#aether_sdk.workflow.types.TransitionResult"><code class="docutils literal notranslate"><span class="pre">TransitionResult</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/workflow.html#aether_sdk.workflow.types.TransitionStatus"><code class="docutils literal notranslate"><span class="pre">TransitionStatus</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/workflow.html#aether_sdk.workflow.types.WorkflowContext"><code class="docutils literal notranslate"><span class="pre">WorkflowContext</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/workflow.html#aether_sdk.workflow.types.WorkflowError"><code class="docutils literal notranslate"><span class="pre">WorkflowError</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/workflow.html#aether_sdk.workflow.types.WorkflowResult"><code class="docutils literal notranslate"><span class="pre">WorkflowResult</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/workflow.html#aether_sdk.workflow.types.WorkflowStatus"><code class="docutils literal notranslate"><span class="pre">WorkflowStatus</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/workflow.html#aether_sdk.workflow.types.WorkflowSuspendedError"><code class="docutils literal notranslate"><span class="pre">WorkflowSuspendedError</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="api/validation.html">Validation API Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api/validation.html#aether_sdk.validation.SchemaValidationError"><code class="docutils literal notranslate"><span class="pre">SchemaValidationError</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/validation.html#aether_sdk.validation.SchemaValidator"><code class="docutils literal notranslate"><span class="pre">SchemaValidator</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/validation.html#aether_sdk.validation.ValidationError"><code class="docutils literal notranslate"><span class="pre">ValidationError</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/validation.html#aether_sdk.validation.Validator"><code class="docutils literal notranslate"><span class="pre">Validator</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/validation.html#aether_sdk.validation.sanitize_html"><code class="docutils literal notranslate"><span class="pre">sanitize_html()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/validation.html#aether_sdk.validation.sanitize_json"><code class="docutils literal notranslate"><span class="pre">sanitize_json()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/validation.html#aether_sdk.validation.sanitize_sql"><code class="docutils literal notranslate"><span class="pre">sanitize_sql()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/validation.html#aether_sdk.validation.sanitize_string"><code class="docutils literal notranslate"><span class="pre">sanitize_string()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/validation.html#aether_sdk.validation.sanitize_url"><code class="docutils literal notranslate"><span class="pre">sanitize_url()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/validation.html#aether_sdk.validation.validate_alphanumeric"><code class="docutils literal notranslate"><span class="pre">validate_alphanumeric()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/validation.html#aether_sdk.validation.validate_datetime"><code class="docutils literal notranslate"><span class="pre">validate_datetime()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/validation.html#aether_sdk.validation.validate_dict"><code class="docutils literal notranslate"><span class="pre">validate_dict()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/validation.html#aether_sdk.validation.validate_email"><code class="docutils literal notranslate"><span class="pre">validate_email()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/validation.html#aether_sdk.validation.validate_enum"><code class="docutils literal notranslate"><span class="pre">validate_enum()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/validation.html#aether_sdk.validation.validate_float"><code class="docutils literal notranslate"><span class="pre">validate_float()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/validation.html#aether_sdk.validation.validate_integer"><code class="docutils literal notranslate"><span class="pre">validate_integer()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/validation.html#aether_sdk.validation.validate_list"><code class="docutils literal notranslate"><span class="pre">validate_list()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/validation.html#aether_sdk.validation.validate_phone"><code class="docutils literal notranslate"><span class="pre">validate_phone()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/validation.html#aether_sdk.validation.validate_slug"><code class="docutils literal notranslate"><span class="pre">validate_slug()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/validation.html#aether_sdk.validation.validate_string"><code class="docutils literal notranslate"><span class="pre">validate_string()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/validation.html#aether_sdk.validation.validate_url"><code class="docutils literal notranslate"><span class="pre">validate_url()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/validation.html#aether_sdk.validation.validate_username"><code class="docutils literal notranslate"><span class="pre">validate_username()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/validation.html#aether_sdk.validation.validate_uuid"><code class="docutils literal notranslate"><span class="pre">validate_uuid()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/validation.html#aether_sdk.validation.validated"><code class="docutils literal notranslate"><span class="pre">validated()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</div>
+<section id="quick-start">
+<h2>Quick Start<a class="headerlink" href="#quick-start" title="Link to this heading">¶</a></h2>
+<p>Install the SDK:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pip</span> <span class="n">install</span> <span class="n">aether</span><span class="o">-</span><span class="n">sdk</span>
+</pre></div>
+</div>
+<p>Create an actor:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">aether_sdk</span><span class="w"> </span><span class="kn">import</span> <span class="n">Actor</span><span class="p">,</span> <span class="n">Context</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">MyActor</span><span class="p">(</span><span class="n">Actor</span><span class="p">):</span>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">on_message</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">,</span> <span class="n">ctx</span><span class="p">:</span> <span class="n">Context</span><span class="p">):</span>
+        <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">reply</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Got: </span><span class="si">{</span><span class="n">message</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="indices-and-tables">
+<h1>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Link to this heading">¶</a></h1>
+<ul class="simple">
+<li><p><a class="reference internal" href="genindex.html"><span class="std std-ref">Index</span></a></p></li>
+<li><p><a class="reference internal" href="py-modindex.html"><span class="std std-ref">Module Index</span></a></p></li>
+<li><p><a class="reference internal" href="search.html"><span class="std std-ref">Search Page</span></a></p></li>
+</ul>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="quickstart.html" class="btn btn-neutral float-right" title="Quick Start Guide" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 1980 Aether Core Team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,732 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>aether_sdk.resilience.health_check &mdash; Aether Python SDK  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Aether Python SDK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../quickstart.html">Quick Start Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/core.html">Core API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/event.html">Event System API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/resilience.html">Resilience API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/streaming.html">Streaming API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/workflow.html">Workflow API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/validation.html">Validation API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Aether Python SDK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">aether_sdk.resilience.health_check</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for aether_sdk.resilience.health_check</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Health Check Implementation</span>
+
+<span class="sd">Provides standardized health check functionality for actors</span>
+<span class="sd">compatible with Kubernetes liveness/readiness probes.</span>
+
+<span class="sd">Example:</span>
+<span class="sd">    &gt;&gt;&gt; from aether_sdk.resilience.health_check import HealthChecker</span>
+<span class="sd">    &gt;&gt;&gt; checker = HealthChecker(service_id=&quot;my-service&quot;)</span>
+<span class="sd">    &gt;&gt;&gt; await checker.register_check(&quot;ping&quot;, ping_health_check())</span>
+<span class="sd">    &gt;&gt;&gt; report = await checker.run_all()</span>
+<span class="sd">    &gt;&gt;&gt; liveness = await checker.get_liveness()</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Awaitable</span><span class="p">,</span> <span class="n">Union</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">enum</span><span class="w"> </span><span class="kn">import</span> <span class="n">Enum</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">asyncio</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">resource</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">platform</span>
+
+
+<div class="viewcode-block" id="HealthStatus">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.health_check.HealthStatus">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">HealthStatus</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Possible health statuses.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        HEALTHY: All checks passing.</span>
+<span class="sd">        DEGRADED: Non-critical checks failing.</span>
+<span class="sd">        UNHEALTHY: Critical checks failing or service is down.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">HEALTHY</span> <span class="o">=</span> <span class="s2">&quot;healthy&quot;</span>
+    <span class="n">DEGRADED</span> <span class="o">=</span> <span class="s2">&quot;degraded&quot;</span>
+    <span class="n">UNHEALTHY</span> <span class="o">=</span> <span class="s2">&quot;unhealthy&quot;</span></div>
+
+
+
+<div class="viewcode-block" id="HealthCheckResult">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.health_check.HealthCheckResult">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">HealthCheckResult</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Result of a single health check.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        status: The health status reported by this check.</span>
+<span class="sd">        component_id: Identifier for the component being checked.</span>
+<span class="sd">        component_type: Type of component (e.g. ``&quot;self&quot;``,</span>
+<span class="sd">            ``&quot;system&quot;``, ``&quot;storage&quot;``, ``&quot;dependency&quot;``).</span>
+<span class="sd">        observed_value: Optional numeric observation (e.g. latency).</span>
+<span class="sd">        observed_unit: Unit for *observed_value* (e.g. ``&quot;ms&quot;``).</span>
+<span class="sd">        output: Human-readable description of the check result.</span>
+<span class="sd">        time: ISO 8601 timestamp of when the check ran.</span>
+<span class="sd">        details: Arbitrary key-value details about the check.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">status</span><span class="p">:</span> <span class="n">HealthStatus</span>
+    <span class="n">component_id</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">component_type</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">observed_value</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">observed_unit</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">output</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">time</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">details</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="HealthReport">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.health_check.HealthReport">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">HealthReport</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Overall health report aggregating all checks.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        status: Aggregated health status.</span>
+<span class="sd">        version: Service version string.</span>
+<span class="sd">        service_id: Service identifier.</span>
+<span class="sd">        time: ISO 8601 timestamp of the report.</span>
+<span class="sd">        checks: Map of check names to their results.</span>
+<span class="sd">        uptime: Service uptime in seconds.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">status</span><span class="p">:</span> <span class="n">HealthStatus</span>
+    <span class="n">version</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">service_id</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">time</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">checks</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">HealthCheckResult</span><span class="p">]</span>
+    <span class="n">uptime</span><span class="p">:</span> <span class="nb">int</span></div>
+
+
+
+<div class="viewcode-block" id="HealthCheckOptions">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.health_check.HealthCheckOptions">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">HealthCheckOptions</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Options for an individual health check.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        timeout_ms: Maximum time (ms) the check may take.</span>
+<span class="sd">        critical: If ``True``, a failing check sets the overall</span>
+<span class="sd">            status to UNHEALTHY. Non-critical failures result in</span>
+<span class="sd">            DEGRADED.</span>
+<span class="sd">        interval_ms: Run the check periodically at this interval.</span>
+<span class="sd">            Set to ``0`` for on-demand only.</span>
+<span class="sd">        cache_duration_ms: Cache the result for this many ms.</span>
+<span class="sd">            Set to ``0`` to disable caching.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">timeout_ms</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5000</span>
+    <span class="n">critical</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">interval_ms</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">cache_duration_ms</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span></div>
+
+
+
+<span class="n">HealthCheckFn</span> <span class="o">=</span> <span class="n">Callable</span><span class="p">[[],</span> <span class="n">Union</span><span class="p">[</span><span class="n">HealthCheckResult</span><span class="p">,</span> <span class="n">Awaitable</span><span class="p">[</span><span class="n">HealthCheckResult</span><span class="p">]]]</span>
+
+
+<span class="c1"># ============================================</span>
+<span class="c1"># Health Checker Implementation</span>
+<span class="c1"># ============================================</span>
+
+<div class="viewcode-block" id="HealthChecker">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.health_check.HealthChecker">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">HealthChecker</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Health checker with Kubernetes-compatible probes.</span>
+
+<span class="sd">    Manages named health checks, runs them on demand or at intervals,</span>
+<span class="sd">    and aggregates results into :class:`HealthReport` objects.</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; checker = HealthChecker(&quot;my-service&quot;, version=&quot;2.1.0&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; await checker.register_check(&quot;db&quot;, db_health_check())</span>
+<span class="sd">        &gt;&gt;&gt; report = await checker.run_all()</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">service_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;aether-actor&quot;</span><span class="p">,</span>
+        <span class="n">version</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;1.0.0&quot;</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize the health checker.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            service_id: Identifier included in health reports.</span>
+<span class="sd">            version: Service version string included in reports.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_service_id</span> <span class="o">=</span> <span class="n">service_id</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_version</span> <span class="o">=</span> <span class="n">version</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_start_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_checks</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">Lock</span><span class="p">()</span>
+
+<div class="viewcode-block" id="HealthChecker.register_check">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.health_check.HealthChecker.register_check">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">register_check</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">fn</span><span class="p">:</span> <span class="n">HealthCheckFn</span><span class="p">,</span>
+        <span class="n">options</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">HealthCheckOptions</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Register a named health check.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            name: Unique name for the check.</span>
+<span class="sd">            fn: A sync or async callable returning a</span>
+<span class="sd">                :class:`HealthCheckResult`.</span>
+<span class="sd">            options: Optional configuration for the check.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">resolved_options</span> <span class="o">=</span> <span class="n">options</span> <span class="ow">or</span> <span class="n">HealthCheckOptions</span><span class="p">()</span>
+
+        <span class="n">entry</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;fn&quot;</span><span class="p">:</span> <span class="n">fn</span><span class="p">,</span>
+            <span class="s2">&quot;options&quot;</span><span class="p">:</span> <span class="n">resolved_options</span><span class="p">,</span>
+            <span class="s2">&quot;last_result&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="s2">&quot;last_run&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="s2">&quot;task&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="p">}</span>
+
+        <span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_checks</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">entry</span>
+
+        <span class="k">if</span> <span class="n">resolved_options</span><span class="o">.</span><span class="n">interval_ms</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">run_periodically</span><span class="p">():</span>
+                <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_check_with_timeout</span><span class="p">(</span>
+                            <span class="n">name</span><span class="p">,</span> <span class="n">fn</span><span class="p">,</span> <span class="n">resolved_options</span><span class="o">.</span><span class="n">timeout_ms</span>
+                        <span class="p">)</span>
+                        <span class="n">entry</span><span class="p">[</span><span class="s2">&quot;last_result&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">result</span>
+                        <span class="n">entry</span><span class="p">[</span><span class="s2">&quot;last_run&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+                    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                        <span class="n">entry</span><span class="p">[</span><span class="s2">&quot;last_result&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">HealthCheckResult</span><span class="p">(</span>
+                            <span class="n">status</span><span class="o">=</span><span class="n">HealthStatus</span><span class="o">.</span><span class="n">UNHEALTHY</span><span class="p">,</span>
+                            <span class="n">component_id</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
+                            <span class="n">component_type</span><span class="o">=</span><span class="s2">&quot;check&quot;</span><span class="p">,</span>
+                            <span class="n">output</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">),</span>
+                            <span class="n">time</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_timestamp</span><span class="p">(),</span>
+                        <span class="p">)</span>
+                        <span class="n">entry</span><span class="p">[</span><span class="s2">&quot;last_run&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+                    <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">resolved_options</span><span class="o">.</span><span class="n">interval_ms</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">)</span>
+
+            <span class="n">entry</span><span class="p">[</span><span class="s2">&quot;task&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">run_periodically</span><span class="p">())</span></div>
+
+
+<div class="viewcode-block" id="HealthChecker.unregister_check">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.health_check.HealthChecker.unregister_check">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">unregister_check</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Unregister a health check and cancel any periodic task.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            name: The name of the check to remove.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="p">:</span>
+            <span class="n">entry</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_checks</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">entry</span> <span class="ow">and</span> <span class="n">entry</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;task&quot;</span><span class="p">):</span>
+                <span class="n">entry</span><span class="p">[</span><span class="s2">&quot;task&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">cancel</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="HealthChecker.run_check">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.health_check.HealthChecker.run_check">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">run_check</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">HealthCheckResult</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Run a single health check by name.</span>
+
+<span class="sd">        If caching is configured and the cached result is still valid,</span>
+<span class="sd">        the cached result is returned without re-running the check.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            name: The name of the check to run.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A :class:`HealthCheckResult`. Returns UNHEALTHY with</span>
+<span class="sd">            output ``&quot;Check not found&quot;`` if the name is not registered.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">entry</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_checks</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">entry</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">HealthCheckResult</span><span class="p">(</span>
+                <span class="n">status</span><span class="o">=</span><span class="n">HealthStatus</span><span class="o">.</span><span class="n">UNHEALTHY</span><span class="p">,</span>
+                <span class="n">component_id</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
+                <span class="n">component_type</span><span class="o">=</span><span class="s2">&quot;check&quot;</span><span class="p">,</span>
+                <span class="n">output</span><span class="o">=</span><span class="s2">&quot;Check not found&quot;</span><span class="p">,</span>
+                <span class="n">time</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_timestamp</span><span class="p">(),</span>
+            <span class="p">)</span>
+
+        <span class="n">options</span><span class="p">:</span> <span class="n">HealthCheckOptions</span> <span class="o">=</span> <span class="n">entry</span><span class="p">[</span><span class="s2">&quot;options&quot;</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">options</span><span class="o">.</span><span class="n">cache_duration_ms</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">entry</span><span class="p">[</span><span class="s2">&quot;last_result&quot;</span><span class="p">]</span> <span class="ow">and</span> <span class="n">entry</span><span class="p">[</span><span class="s2">&quot;last_run&quot;</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">entry</span><span class="p">[</span><span class="s2">&quot;last_run&quot;</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">options</span><span class="o">.</span><span class="n">cache_duration_ms</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">entry</span><span class="p">[</span><span class="s2">&quot;last_result&quot;</span><span class="p">]</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_check_with_timeout</span><span class="p">(</span>
+                <span class="n">name</span><span class="p">,</span> <span class="n">entry</span><span class="p">[</span><span class="s2">&quot;fn&quot;</span><span class="p">],</span> <span class="n">options</span><span class="o">.</span><span class="n">timeout_ms</span>
+            <span class="p">)</span>
+            <span class="n">entry</span><span class="p">[</span><span class="s2">&quot;last_result&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">result</span>
+            <span class="n">entry</span><span class="p">[</span><span class="s2">&quot;last_run&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+            <span class="k">return</span> <span class="n">result</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="n">HealthCheckResult</span><span class="p">(</span>
+                <span class="n">status</span><span class="o">=</span><span class="n">HealthStatus</span><span class="o">.</span><span class="n">UNHEALTHY</span><span class="p">,</span>
+                <span class="n">component_id</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
+                <span class="n">component_type</span><span class="o">=</span><span class="s2">&quot;check&quot;</span><span class="p">,</span>
+                <span class="n">output</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">),</span>
+                <span class="n">time</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_timestamp</span><span class="p">(),</span>
+            <span class="p">)</span>
+            <span class="n">entry</span><span class="p">[</span><span class="s2">&quot;last_result&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">result</span>
+            <span class="n">entry</span><span class="p">[</span><span class="s2">&quot;last_run&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+            <span class="k">return</span> <span class="n">result</span></div>
+
+
+<div class="viewcode-block" id="HealthChecker.run_all">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.health_check.HealthChecker.run_all">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">run_all</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">HealthReport</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Run all registered health checks and produce an aggregate report.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A :class:`HealthReport` with overall status, per-check</span>
+<span class="sd">            results, and service uptime.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">check_results</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">HealthCheckResult</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_checks</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+            <span class="n">check_results</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_check</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+
+        <span class="n">status</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calculate_overall_status</span><span class="p">(</span><span class="n">check_results</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">HealthReport</span><span class="p">(</span>
+            <span class="n">status</span><span class="o">=</span><span class="n">status</span><span class="p">,</span>
+            <span class="n">version</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_version</span><span class="p">,</span>
+            <span class="n">service_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_service_id</span><span class="p">,</span>
+            <span class="n">time</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_timestamp</span><span class="p">(),</span>
+            <span class="n">checks</span><span class="o">=</span><span class="n">check_results</span><span class="p">,</span>
+            <span class="n">uptime</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_start_time</span><span class="p">),</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="HealthChecker.get_liveness">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.health_check.HealthChecker.get_liveness">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">get_liveness</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a liveness probe response.</span>
+
+<span class="sd">        Liveness indicates whether the process is alive and not deadlocked.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A dict with ``&quot;alive&quot;`` (bool) and ``&quot;time&quot;`` (ISO 8601).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;alive&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+            <span class="s2">&quot;time&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_timestamp</span><span class="p">(),</span>
+        <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="HealthChecker.get_readiness">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.health_check.HealthChecker.get_readiness">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">get_readiness</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a readiness probe response.</span>
+
+<span class="sd">        Readiness indicates whether the service can accept traffic.</span>
+<span class="sd">        Only **critical** checks affect readiness.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A dict with ``&quot;ready&quot;`` (bool), ``&quot;time&quot;``, and optional</span>
+<span class="sd">            ``&quot;checks&quot;`` dict mapping critical check names to booleans.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">report</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_all</span><span class="p">()</span>
+
+        <span class="n">checks</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">report</span><span class="o">.</span><span class="n">checks</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">entry</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_checks</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">entry</span> <span class="ow">and</span> <span class="n">entry</span><span class="p">[</span><span class="s2">&quot;options&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">critical</span><span class="p">:</span>
+                <span class="n">checks</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">status</span> <span class="o">!=</span> <span class="n">HealthStatus</span><span class="o">.</span><span class="n">UNHEALTHY</span>
+
+        <span class="n">ready</span> <span class="o">=</span> <span class="n">report</span><span class="o">.</span><span class="n">status</span> <span class="o">!=</span> <span class="n">HealthStatus</span><span class="o">.</span><span class="n">UNHEALTHY</span>
+
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;ready&quot;</span><span class="p">:</span> <span class="n">ready</span><span class="p">,</span>
+            <span class="s2">&quot;time&quot;</span><span class="p">:</span> <span class="n">report</span><span class="o">.</span><span class="n">time</span><span class="p">,</span>
+            <span class="s2">&quot;checks&quot;</span><span class="p">:</span> <span class="n">checks</span> <span class="k">if</span> <span class="n">checks</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="HealthChecker.get_startup">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.health_check.HealthChecker.get_startup">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">get_startup</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a startup probe response.</span>
+
+<span class="sd">        Startup indicates whether the service has completed its</span>
+<span class="sd">        initialization.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A dict with ``&quot;started&quot;`` (bool) and ``&quot;time&quot;`` (ISO 8601).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;started&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+            <span class="s2">&quot;time&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_timestamp</span><span class="p">(),</span>
+        <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="HealthChecker.shutdown">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.health_check.HealthChecker.shutdown">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">shutdown</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Cancel all periodic health check tasks and clear registrations.&quot;&quot;&quot;</span>
+        <span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_checks</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">entry</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;task&quot;</span><span class="p">):</span>
+                    <span class="n">entry</span><span class="p">[</span><span class="s2">&quot;task&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">cancel</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_checks</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_calculate_overall_status</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">checks</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">HealthCheckResult</span><span class="p">]</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">HealthStatus</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Determine the overall status from individual check results.</span>
+
+<span class="sd">        Critical UNHEALTHY checks immediately yield UNHEALTHY.</span>
+<span class="sd">        Otherwise, any UNHEALTHY or DEGRADED check yields DEGRADED.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            checks: Map of check names to results.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The aggregated :class:`HealthStatus`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">has_degraded</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">has_unhealthy</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">checks</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">entry</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_checks</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="n">HealthStatus</span><span class="o">.</span><span class="n">UNHEALTHY</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">entry</span> <span class="ow">and</span> <span class="n">entry</span><span class="p">[</span><span class="s2">&quot;options&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">critical</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="n">HealthStatus</span><span class="o">.</span><span class="n">UNHEALTHY</span>
+                <span class="n">has_unhealthy</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">elif</span> <span class="n">result</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="n">HealthStatus</span><span class="o">.</span><span class="n">DEGRADED</span><span class="p">:</span>
+                <span class="n">has_degraded</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="k">if</span> <span class="n">has_unhealthy</span> <span class="ow">or</span> <span class="n">has_degraded</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">HealthStatus</span><span class="o">.</span><span class="n">DEGRADED</span>
+
+        <span class="k">return</span> <span class="n">HealthStatus</span><span class="o">.</span><span class="n">HEALTHY</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">_run_check_with_timeout</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">fn</span><span class="p">:</span> <span class="n">HealthCheckFn</span><span class="p">,</span>
+        <span class="n">timeout_ms</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">HealthCheckResult</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Run a health check function with a timeout.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            name: Check name (used in error messages).</span>
+<span class="sd">            fn: Sync or async callable.</span>
+<span class="sd">            timeout_ms: Maximum execution time.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The :class:`HealthCheckResult` from the check function.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            Exception: If the check times out or raises.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="n">fn</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">iscoroutine</span><span class="p">(</span><span class="n">result</span><span class="p">):</span>
+                <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">wait_for</span><span class="p">(</span>
+                    <span class="n">result</span><span class="p">,</span>
+                    <span class="n">timeout</span><span class="o">=</span><span class="n">timeout_ms</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="k">return</span> <span class="n">result</span>
+        <span class="k">except</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">TimeoutError</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Health check timed out after </span><span class="si">{</span><span class="n">timeout_ms</span><span class="si">}</span><span class="s2">ms&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_get_timestamp</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the current UTC time as an ISO 8601 string.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A string like ``&quot;2025-01-15T12:00:00Z&quot;``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2">T%H:%M:%SZ&quot;</span><span class="p">,</span> <span class="n">time</span><span class="o">.</span><span class="n">gmtime</span><span class="p">())</span></div>
+
+
+
+<span class="c1"># ============================================</span>
+<span class="c1"># Predefined Health Checks</span>
+<span class="c1"># ============================================</span>
+
+<div class="viewcode-block" id="ping_health_check">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.health_check.ping_health_check">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">ping_health_check</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">HealthCheckFn</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create a simple liveness ping health check.</span>
+
+<span class="sd">    Always returns :data:`HealthStatus.HEALTHY`.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        A :data:`HealthCheckFn` callable.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">check</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">HealthCheckResult</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">HealthCheckResult</span><span class="p">(</span>
+            <span class="n">status</span><span class="o">=</span><span class="n">HealthStatus</span><span class="o">.</span><span class="n">HEALTHY</span><span class="p">,</span>
+            <span class="n">component_id</span><span class="o">=</span><span class="s2">&quot;ping&quot;</span><span class="p">,</span>
+            <span class="n">component_type</span><span class="o">=</span><span class="s2">&quot;self&quot;</span><span class="p">,</span>
+            <span class="n">observed_value</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+            <span class="n">observed_unit</span><span class="o">=</span><span class="s2">&quot;ms&quot;</span><span class="p">,</span>
+            <span class="n">time</span><span class="o">=</span><span class="n">time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2">T%H:%M:%SZ&quot;</span><span class="p">,</span> <span class="n">time</span><span class="o">.</span><span class="n">gmtime</span><span class="p">()),</span>
+        <span class="p">)</span>
+    <span class="k">return</span> <span class="n">check</span></div>
+
+
+
+<div class="viewcode-block" id="memory_health_check">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.health_check.memory_health_check">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">memory_health_check</span><span class="p">(</span>
+    <span class="n">max_heap_mb</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1024</span><span class="p">,</span>
+    <span class="n">warn_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.8</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">HealthCheckFn</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create a health check that monitors process memory usage.</span>
+
+<span class="sd">    Uses ``resource.getrusage`` to estimate RSS and reports DEGRADED</span>
+<span class="sd">    when usage exceeds *warn_threshold* and UNHEALTHY above 95 %.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        max_heap_mb: Maximum allowed heap size in MB.</span>
+<span class="sd">        warn_threshold: Fraction (0–1) at which to report DEGRADED.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        A :data:`HealthCheckFn` callable.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">check</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">HealthCheckResult</span><span class="p">:</span>
+        <span class="n">rusage</span> <span class="o">=</span> <span class="n">resource</span><span class="o">.</span><span class="n">getrusage</span><span class="p">(</span><span class="n">resource</span><span class="o">.</span><span class="n">RUSAGE_SELF</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">platform</span><span class="o">.</span><span class="n">system</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;Darwin&quot;</span><span class="p">:</span>
+            <span class="n">rss_mb</span> <span class="o">=</span> <span class="n">rusage</span><span class="o">.</span><span class="n">ru_maxrss</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">rss_mb</span> <span class="o">=</span> <span class="n">rusage</span><span class="o">.</span><span class="n">ru_maxrss</span> <span class="o">/</span> <span class="mi">1024</span>
+
+        <span class="n">heap_used_mb</span> <span class="o">=</span> <span class="n">rss_mb</span> <span class="o">*</span> <span class="mf">0.7</span>
+        <span class="n">heap_total_mb</span> <span class="o">=</span> <span class="n">max_heap_mb</span>
+        <span class="n">usage</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">heap_used_mb</span> <span class="o">/</span> <span class="n">heap_total_mb</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">heap_used_mb</span> <span class="o">&gt;</span> <span class="n">max_heap_mb</span> <span class="ow">or</span> <span class="n">usage</span> <span class="o">&gt;</span> <span class="mf">0.95</span><span class="p">:</span>
+            <span class="n">status</span> <span class="o">=</span> <span class="n">HealthStatus</span><span class="o">.</span><span class="n">UNHEALTHY</span>
+        <span class="k">elif</span> <span class="n">usage</span> <span class="o">&gt;</span> <span class="n">warn_threshold</span><span class="p">:</span>
+            <span class="n">status</span> <span class="o">=</span> <span class="n">HealthStatus</span><span class="o">.</span><span class="n">DEGRADED</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">status</span> <span class="o">=</span> <span class="n">HealthStatus</span><span class="o">.</span><span class="n">HEALTHY</span>
+
+        <span class="k">return</span> <span class="n">HealthCheckResult</span><span class="p">(</span>
+            <span class="n">status</span><span class="o">=</span><span class="n">status</span><span class="p">,</span>
+            <span class="n">component_id</span><span class="o">=</span><span class="s2">&quot;memory&quot;</span><span class="p">,</span>
+            <span class="n">component_type</span><span class="o">=</span><span class="s2">&quot;system&quot;</span><span class="p">,</span>
+            <span class="n">observed_value</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">heap_used_mb</span><span class="p">),</span>
+            <span class="n">observed_unit</span><span class="o">=</span><span class="s2">&quot;MB&quot;</span><span class="p">,</span>
+            <span class="n">output</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Heap usage: </span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">heap_used_mb</span><span class="p">)</span><span class="si">}</span><span class="s2">MB / </span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">heap_total_mb</span><span class="p">)</span><span class="si">}</span><span class="s2">MB (</span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">usage</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">100</span><span class="p">)</span><span class="si">}</span><span class="s2">%)&quot;</span><span class="p">,</span>
+            <span class="n">time</span><span class="o">=</span><span class="n">time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2">T%H:%M:%SZ&quot;</span><span class="p">,</span> <span class="n">time</span><span class="o">.</span><span class="n">gmtime</span><span class="p">()),</span>
+            <span class="n">details</span><span class="o">=</span><span class="p">{</span>
+                <span class="s2">&quot;heap_used_mb&quot;</span><span class="p">:</span> <span class="n">heap_used_mb</span><span class="p">,</span>
+                <span class="s2">&quot;heap_total_mb&quot;</span><span class="p">:</span> <span class="n">heap_total_mb</span><span class="p">,</span>
+                <span class="s2">&quot;rss_mb&quot;</span><span class="p">:</span> <span class="n">rss_mb</span><span class="p">,</span>
+            <span class="p">},</span>
+        <span class="p">)</span>
+    <span class="k">return</span> <span class="n">check</span></div>
+
+
+
+<div class="viewcode-block" id="state_health_check">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.health_check.state_health_check">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">state_health_check</span><span class="p">(</span>
+    <span class="n">state_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">read_fn</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="nb">str</span><span class="p">],</span> <span class="n">Awaitable</span><span class="p">[</span><span class="nb">bool</span><span class="p">]],</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">HealthCheckFn</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create a health check that verifies state storage accessibility.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        state_key: Key to read in order to verify connectivity.</span>
+<span class="sd">        read_fn: Async callable ``(key) -&gt; bool`` that reads from</span>
+<span class="sd">            the state store.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        A :data:`HealthCheckFn` callable. Reports DEGRADED if the</span>
+<span class="sd">        read takes longer than 1 second.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">check</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">HealthCheckResult</span><span class="p">:</span>
+        <span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">exists</span> <span class="o">=</span> <span class="k">await</span> <span class="n">read_fn</span><span class="p">(</span><span class="n">state_key</span><span class="p">)</span>
+            <span class="n">latency_ms</span> <span class="o">=</span> <span class="nb">int</span><span class="p">((</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start</span><span class="p">)</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">latency_ms</span> <span class="o">&gt;</span> <span class="mi">1000</span><span class="p">:</span>
+                <span class="n">status</span> <span class="o">=</span> <span class="n">HealthStatus</span><span class="o">.</span><span class="n">DEGRADED</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">status</span> <span class="o">=</span> <span class="n">HealthStatus</span><span class="o">.</span><span class="n">HEALTHY</span>
+
+            <span class="k">return</span> <span class="n">HealthCheckResult</span><span class="p">(</span>
+                <span class="n">status</span><span class="o">=</span><span class="n">status</span><span class="p">,</span>
+                <span class="n">component_id</span><span class="o">=</span><span class="s2">&quot;state-storage&quot;</span><span class="p">,</span>
+                <span class="n">component_type</span><span class="o">=</span><span class="s2">&quot;storage&quot;</span><span class="p">,</span>
+                <span class="n">observed_value</span><span class="o">=</span><span class="n">latency_ms</span><span class="p">,</span>
+                <span class="n">observed_unit</span><span class="o">=</span><span class="s2">&quot;ms&quot;</span><span class="p">,</span>
+                <span class="n">output</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;State storage </span><span class="si">{</span><span class="s1">&#39;accessible&#39;</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">exists</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="s1">&#39;empty&#39;</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="n">time</span><span class="o">=</span><span class="n">time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2">T%H:%M:%SZ&quot;</span><span class="p">,</span> <span class="n">time</span><span class="o">.</span><span class="n">gmtime</span><span class="p">()),</span>
+            <span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">HealthCheckResult</span><span class="p">(</span>
+                <span class="n">status</span><span class="o">=</span><span class="n">HealthStatus</span><span class="o">.</span><span class="n">UNHEALTHY</span><span class="p">,</span>
+                <span class="n">component_id</span><span class="o">=</span><span class="s2">&quot;state-storage&quot;</span><span class="p">,</span>
+                <span class="n">component_type</span><span class="o">=</span><span class="s2">&quot;storage&quot;</span><span class="p">,</span>
+                <span class="n">output</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">),</span>
+                <span class="n">time</span><span class="o">=</span><span class="n">time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2">T%H:%M:%SZ&quot;</span><span class="p">,</span> <span class="n">time</span><span class="o">.</span><span class="n">gmtime</span><span class="p">()),</span>
+            <span class="p">)</span>
+    <span class="k">return</span> <span class="n">check</span></div>
+
+
+
+<div class="viewcode-block" id="dependency_health_check">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.health_check.dependency_health_check">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">dependency_health_check</span><span class="p">(</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">check_fn</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[],</span> <span class="n">Awaitable</span><span class="p">[</span><span class="nb">bool</span><span class="p">]],</span>
+    <span class="n">timeout_ms</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5000</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">HealthCheckFn</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create an async health check for an external dependency.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        name: Human-readable dependency name (used in results).</span>
+<span class="sd">        check_fn: Async callable ``() -&gt; bool`` that returns ``True``</span>
+<span class="sd">            if the dependency is healthy.</span>
+<span class="sd">        timeout_ms: Maximum time to wait for *check_fn*.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        A :data:`HealthCheckFn` callable.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">check</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">HealthCheckResult</span><span class="p">:</span>
+        <span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">wait_for</span><span class="p">(</span>
+                <span class="n">check_fn</span><span class="p">(),</span>
+                <span class="n">timeout</span><span class="o">=</span><span class="n">timeout_ms</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">,</span>
+            <span class="p">)</span>
+
+            <span class="n">latency_ms</span> <span class="o">=</span> <span class="nb">int</span><span class="p">((</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start</span><span class="p">)</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">)</span>
+            <span class="n">status</span> <span class="o">=</span> <span class="n">HealthStatus</span><span class="o">.</span><span class="n">HEALTHY</span> <span class="k">if</span> <span class="n">result</span> <span class="k">else</span> <span class="n">HealthStatus</span><span class="o">.</span><span class="n">UNHEALTHY</span>
+
+            <span class="k">return</span> <span class="n">HealthCheckResult</span><span class="p">(</span>
+                <span class="n">status</span><span class="o">=</span><span class="n">status</span><span class="p">,</span>
+                <span class="n">component_id</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
+                <span class="n">component_type</span><span class="o">=</span><span class="s2">&quot;dependency&quot;</span><span class="p">,</span>
+                <span class="n">observed_value</span><span class="o">=</span><span class="n">latency_ms</span><span class="p">,</span>
+                <span class="n">observed_unit</span><span class="o">=</span><span class="s2">&quot;ms&quot;</span><span class="p">,</span>
+                <span class="n">time</span><span class="o">=</span><span class="n">time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2">T%H:%M:%SZ&quot;</span><span class="p">,</span> <span class="n">time</span><span class="o">.</span><span class="n">gmtime</span><span class="p">()),</span>
+            <span class="p">)</span>
+        <span class="k">except</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">TimeoutError</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">HealthCheckResult</span><span class="p">(</span>
+                <span class="n">status</span><span class="o">=</span><span class="n">HealthStatus</span><span class="o">.</span><span class="n">UNHEALTHY</span><span class="p">,</span>
+                <span class="n">component_id</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
+                <span class="n">component_type</span><span class="o">=</span><span class="s2">&quot;dependency&quot;</span><span class="p">,</span>
+                <span class="n">output</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Dependency check timed out after </span><span class="si">{</span><span class="n">timeout_ms</span><span class="si">}</span><span class="s2">ms&quot;</span><span class="p">,</span>
+                <span class="n">time</span><span class="o">=</span><span class="n">time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2">T%H:%M:%SZ&quot;</span><span class="p">,</span> <span class="n">time</span><span class="o">.</span><span class="n">gmtime</span><span class="p">()),</span>
+            <span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">HealthCheckResult</span><span class="p">(</span>
+                <span class="n">status</span><span class="o">=</span><span class="n">HealthStatus</span><span class="o">.</span><span class="n">UNHEALTHY</span><span class="p">,</span>
+                <span class="n">component_id</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
+                <span class="n">component_type</span><span class="o">=</span><span class="s2">&quot;dependency&quot;</span><span class="p">,</span>
+                <span class="n">output</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">),</span>
+                <span class="n">time</span><span class="o">=</span><span class="n">time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2">T%H:%M:%SZ&quot;</span><span class="p">,</span> <span class="n">time</span><span class="o">.</span><span class="n">gmtime</span><span class="p">()),</span>
+            <span class="p">)</span>
+    <span class="k">return</span> <span class="n">check</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 1980 Aether Core Team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

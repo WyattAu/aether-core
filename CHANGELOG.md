@@ -7,7 +7,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.4.0] - Planned
+## [1.6.0] - 2026-03-26
+
+### Added
+
+- Python SDK: 503 docstrings across 17 source modules
+- JavaScript SDK: 252 TSDoc comments across 22 source files
+- 8 example applications (4 topics × 2 SDKs)
+- 5 tutorials (Getting Started, Stateful Actors, Event-Driven, Performance, Workflows)
+- 4 migration guides (v1.4→v1.5, Kafka, Temporal, Akka)
+- 14 Python edge case tests
+- 56 JavaScript edge case tests
+- 26 Python end-to-end tests
+- 26 JavaScript end-to-end tests
+- 6 Python chaos engineering tests
+- 6 JavaScript chaos engineering tests
+- 6 Python performance benchmarks
+- 12 JavaScript performance benchmarks
+- 64 cross-SDK integration tests
+- Cross-SDK contract specification (CONTRACT.md)
+- Shared test vectors (test_vectors.json)
+- Kubernetes Helm chart with auto-scaling
+- Terraform deployment module
+- Development Docker Compose configuration
+- Production Docker Compose configuration
+- Prometheus alerting rules (21 rules across 5 groups)
+- Grafana monitoring dashboard (18 panels across 4 rows)
+- Incident response runbook
+- Scaling runbook
+- Alerting rules documentation
+- CI/CD benchmark integration (sdk-ci.yml, benchmarks.yml)
+- Makefile SDK benchmark targets
+
+### Changed
+
+- Python test coverage: 73% → 92% (1,104 tests)
+- JavaScript test coverage: 85% → 93.55% (696 tests)
+- Roadmap status updated for v1.6.0 release
+
+### Deprecated
+
+- Nothing deprecated in this release
+
+### Removed
+
+- Nothing removed in this release
+
+### Security
+
+- No security vulnerabilities introduced
+
+---
+
+## [1.4.0] - 2026-03-18
 
 ### Added - Reliability Patterns
 
@@ -942,6 +994,9 @@ Each SDK includes 5 comprehensive examples:
 
 | Version | Date | Phase | Description |
 |---------|------|-------|-------------|
+| 1.6.0 | 2026-03-26 | 21 | Enhancement & Polish — "Horizon" |
+| 1.4.0 | 2026-03-18 | 20 | Resilience — Circuit Breaker, Observability, Security |
+| 1.3.1 | 2026-03-16 | 18 | SDK Publishing & Examples |
 | 1.3.0 | 2026-03-16 | 18 | Multi-Language SDKs & Documentation |
 | 1.2.0-alpha | 2026-03-14 | 17 | Multi-Provider AI Support |
 | 1.1.0-alpha | 2026-03-14 | 16 | AI Integration Features |
@@ -1009,5 +1064,5 @@ Planned features:
 
 ---
 
-**Last Updated:** 2026-03-06  
-**Next Release:** 1.0.0-beta (Target: Week 8)
+**Last Updated:** 2026-03-26
+**Next Release:** 1.6.1 (Go/Java SDK test coverage)

@@ -1,0 +1,749 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>aether_sdk.resilience.rate_limiter &mdash; Aether Python SDK  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Aether Python SDK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../quickstart.html">Quick Start Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/core.html">Core API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/event.html">Event System API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/resilience.html">Resilience API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/streaming.html">Streaming API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/workflow.html">Workflow API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/validation.html">Validation API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Aether Python SDK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">aether_sdk.resilience.rate_limiter</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for aether_sdk.resilience.rate_limiter</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Rate Limiter Implementation</span>
+
+<span class="sd">Provides rate limiting with multiple strategies:</span>
+<span class="sd">- Token Bucket: Allows bursts up to bucket size</span>
+<span class="sd">- Sliding Window: Smooth rate limiting over time</span>
+<span class="sd">- Fixed Window: Simple window-based limiting</span>
+
+<span class="sd">Example:</span>
+<span class="sd">    &gt;&gt;&gt; from aether_sdk.resilience.rate_limiter import RateLimiter, RateLimitConfig</span>
+<span class="sd">    &gt;&gt;&gt; limiter = RateLimiter(RateLimitConfig(requests_per_second=100))</span>
+<span class="sd">    &gt;&gt;&gt; await limiter.acquire(max_wait_ms=5000)</span>
+<span class="sd">    &gt;&gt;&gt; result = await limiter.execute(my_func)</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">enum</span><span class="w"> </span><span class="kn">import</span> <span class="n">Enum</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">asyncio</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">random</span>
+
+
+<div class="viewcode-block" id="RateLimitStrategy">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.rate_limiter.RateLimitStrategy">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">RateLimitStrategy</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Rate limiting strategy selection.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        TOKEN_BUCKET: Tokens refill at a constant rate; allows bursts</span>
+<span class="sd">            up to the bucket capacity.</span>
+<span class="sd">        SLIDING_WINDOW: Counts requests over a sliding time window</span>
+<span class="sd">            for smooth, accurate limiting.</span>
+<span class="sd">        FIXED_WINDOW: Counts requests in fixed time intervals;</span>
+<span class="sd">            allows a burst at the start of each window.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">TOKEN_BUCKET</span> <span class="o">=</span> <span class="s2">&quot;token-bucket&quot;</span>
+    <span class="n">SLIDING_WINDOW</span> <span class="o">=</span> <span class="s2">&quot;sliding-window&quot;</span>
+    <span class="n">FIXED_WINDOW</span> <span class="o">=</span> <span class="s2">&quot;fixed-window&quot;</span></div>
+
+
+
+<div class="viewcode-block" id="RateLimitConfig">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.rate_limiter.RateLimitConfig">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">RateLimitConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Configuration for a :class:`RateLimiter`.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        requests_per_second: Target request rate.</span>
+<span class="sd">        burst_size: Maximum burst size (token bucket only). Defaults</span>
+<span class="sd">            to ``requests_per_second`` if not set.</span>
+<span class="sd">        strategy: The rate limiting algorithm to use.</span>
+<span class="sd">        window_size_ms: Window duration for sliding/fixed strategies</span>
+<span class="sd">            (default 1000 ms).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">requests_per_second</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span>
+    <span class="n">burst_size</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">strategy</span><span class="p">:</span> <span class="n">RateLimitStrategy</span> <span class="o">=</span> <span class="n">RateLimitStrategy</span><span class="o">.</span><span class="n">TOKEN_BUCKET</span>
+    <span class="n">window_size_ms</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1000</span></div>
+
+
+
+<div class="viewcode-block" id="RateLimitStats">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.rate_limiter.RateLimitStats">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">RateLimitStats</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Statistics for a :class:`RateLimiter`.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        allowed_requests: Total requests that were permitted.</span>
+<span class="sd">        rejected_requests: Total requests that were rejected.</span>
+<span class="sd">        current_rate: Approximate current request rate.</span>
+<span class="sd">        wait_time_ms: Estimated wait time for the next request (ms).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">allowed_requests</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">rejected_requests</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">current_rate</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+    <span class="n">wait_time_ms</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span></div>
+
+
+
+<div class="viewcode-block" id="RateLimitResult">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.rate_limiter.RateLimitResult">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">RateLimitResult</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Result of a non-blocking rate limit check.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        allowed: Whether the request is permitted.</span>
+<span class="sd">        wait_time_ms: Estimated milliseconds until a slot is available.</span>
+<span class="sd">        remaining_tokens: Remaining tokens (token bucket only).</span>
+<span class="sd">        reset_in: Milliseconds until the current window resets</span>
+<span class="sd">            (window strategies only).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">allowed</span><span class="p">:</span> <span class="nb">bool</span>
+    <span class="n">wait_time_ms</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">remaining_tokens</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">reset_in</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="RateLimitExhaustedError">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.rate_limiter.RateLimitExhaustedError">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">RateLimitExhaustedError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Raised when a rate limit cannot be satisfied within the allowed wait time.&quot;&quot;&quot;</span>
+    <span class="k">pass</span></div>
+
+
+
+<span class="c1"># ============================================</span>
+<span class="c1"># Token Bucket Implementation</span>
+<span class="c1"># ============================================</span>
+
+<div class="viewcode-block" id="TokenBucket">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.rate_limiter.TokenBucket">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">TokenBucket</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Token bucket rate limiter implementation.</span>
+
+<span class="sd">    Tokens refill at a constant rate. Requests consume tokens; if</span>
+<span class="sd">    insufficient tokens are available the request is rejected but the</span>
+<span class="sd">    caller can calculate how long to wait.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        requests_per_second: Refill rate.</span>
+<span class="sd">        burst_size: Maximum token capacity (bucket depth).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">requests_per_second</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">burst_size</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_max_tokens</span> <span class="o">=</span> <span class="n">burst_size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_tokens</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">burst_size</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_refill_rate</span> <span class="o">=</span> <span class="n">requests_per_second</span> <span class="o">/</span> <span class="mf">1000.0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_last_refill</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">*</span> <span class="mi">1000</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">Lock</span><span class="p">()</span>
+
+<div class="viewcode-block" id="TokenBucket.try_acquire">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.rate_limiter.TokenBucket.try_acquire">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">try_acquire</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tokens</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RateLimitResult</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Attempt to acquire tokens without blocking.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            tokens: Number of tokens to acquire (default 1).</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A :class:`RateLimitResult` indicating whether the</span>
+<span class="sd">            acquisition succeeded and, if not, how long to wait.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_refill</span><span class="p">()</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tokens</span> <span class="o">&gt;=</span> <span class="n">tokens</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_tokens</span> <span class="o">-=</span> <span class="n">tokens</span>
+                <span class="k">return</span> <span class="n">RateLimitResult</span><span class="p">(</span>
+                    <span class="n">allowed</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                    <span class="n">wait_time_ms</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                    <span class="n">remaining_tokens</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_tokens</span><span class="p">),</span>
+                <span class="p">)</span>
+
+            <span class="n">tokens_needed</span> <span class="o">=</span> <span class="n">tokens</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tokens</span>
+            <span class="n">wait_time_ms</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">tokens_needed</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">_refill_rate</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">RateLimitResult</span><span class="p">(</span>
+                <span class="n">allowed</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">wait_time_ms</span><span class="o">=</span><span class="n">wait_time_ms</span><span class="p">,</span>
+                <span class="n">remaining_tokens</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_tokens</span><span class="p">),</span>
+            <span class="p">)</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_refill</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Refill tokens based on elapsed time since the last refill.&quot;&quot;&quot;</span>
+        <span class="n">now</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">*</span> <span class="mi">1000</span>
+        <span class="n">elapsed</span> <span class="o">=</span> <span class="n">now</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_last_refill</span>
+        <span class="n">tokens_to_add</span> <span class="o">=</span> <span class="n">elapsed</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_refill_rate</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_tokens</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_max_tokens</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tokens</span> <span class="o">+</span> <span class="n">tokens_to_add</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_last_refill</span> <span class="o">=</span> <span class="n">now</span>
+
+<div class="viewcode-block" id="TokenBucket.get_tokens">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.rate_limiter.TokenBucket.get_tokens">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_tokens</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the current number of available tokens.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Integer token count after refilling.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_refill</span><span class="p">()</span>
+        <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_tokens</span><span class="p">)</span></div>
+</div>
+
+
+
+<span class="c1"># ============================================</span>
+<span class="c1"># Sliding Window Implementation</span>
+<span class="c1"># ============================================</span>
+
+<div class="viewcode-block" id="SlidingWindow">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.rate_limiter.SlidingWindow">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">SlidingWindow</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Sliding window rate limiter implementation.</span>
+
+<span class="sd">    Tracks individual request timestamps within a sliding window to</span>
+<span class="sd">    provide smooth and accurate rate limiting.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        requests_per_second: Maximum requests per window.</span>
+<span class="sd">        window_size_ms: Window duration in milliseconds (default 1000).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">requests_per_second</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">window_size_ms</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1000</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_max_requests</span> <span class="o">=</span> <span class="n">requests_per_second</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_window_size_ms</span> <span class="o">=</span> <span class="n">window_size_ms</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_requests</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">Lock</span><span class="p">()</span>
+
+<div class="viewcode-block" id="SlidingWindow.try_acquire">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.rate_limiter.SlidingWindow.try_acquire">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">try_acquire</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RateLimitResult</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Attempt to acquire permission without blocking.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A :class:`RateLimitResult`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="p">:</span>
+            <span class="n">now</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">*</span> <span class="mi">1000</span>
+            <span class="n">window_start</span> <span class="o">=</span> <span class="n">now</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_window_size_ms</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_requests</span> <span class="o">=</span> <span class="p">[</span><span class="n">t</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_requests</span> <span class="k">if</span> <span class="n">t</span> <span class="o">&gt;</span> <span class="n">window_start</span><span class="p">]</span>
+
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_requests</span><span class="p">)</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_max_requests</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_requests</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">now</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">RateLimitResult</span><span class="p">(</span>
+                    <span class="n">allowed</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                    <span class="n">wait_time_ms</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                    <span class="n">remaining_tokens</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_max_requests</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_requests</span><span class="p">),</span>
+                <span class="p">)</span>
+
+            <span class="n">oldest_request</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_requests</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">wait_time_ms</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">oldest_request</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_window_size_ms</span> <span class="o">-</span> <span class="n">now</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">RateLimitResult</span><span class="p">(</span>
+                <span class="n">allowed</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">wait_time_ms</span><span class="o">=</span><span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">wait_time_ms</span><span class="p">),</span>
+                <span class="n">reset_in</span><span class="o">=</span><span class="n">wait_time_ms</span><span class="p">,</span>
+            <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="SlidingWindow.get_current_count">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.rate_limiter.SlidingWindow.get_current_count">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_current_count</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the number of requests in the current window.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Integer count of recorded requests within the window.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">now</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">*</span> <span class="mi">1000</span>
+        <span class="n">window_start</span> <span class="o">=</span> <span class="n">now</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_window_size_ms</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">([</span><span class="n">t</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_requests</span> <span class="k">if</span> <span class="n">t</span> <span class="o">&gt;</span> <span class="n">window_start</span><span class="p">])</span></div>
+</div>
+
+
+
+<span class="c1"># ============================================</span>
+<span class="c1"># Fixed Window Implementation</span>
+<span class="c1"># ============================================</span>
+
+<div class="viewcode-block" id="FixedWindow">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.rate_limiter.FixedWindow">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">FixedWindow</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Fixed window rate limiter implementation.</span>
+
+<span class="sd">    Divides time into fixed-size windows and counts requests per window.</span>
+<span class="sd">    Simpler than sliding window but allows a burst at window boundaries.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        requests_per_second: Maximum requests per window.</span>
+<span class="sd">        window_size_ms: Window duration in milliseconds (default 1000).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">requests_per_second</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">window_size_ms</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1000</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_max_requests</span> <span class="o">=</span> <span class="n">requests_per_second</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_window_size_ms</span> <span class="o">=</span> <span class="n">window_size_ms</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_count</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_window_start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">*</span> <span class="mi">1000</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">Lock</span><span class="p">()</span>
+
+<div class="viewcode-block" id="FixedWindow.try_acquire">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.rate_limiter.FixedWindow.try_acquire">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">try_acquire</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RateLimitResult</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Attempt to acquire permission without blocking.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A :class:`RateLimitResult`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="p">:</span>
+            <span class="n">now</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">*</span> <span class="mi">1000</span>
+
+            <span class="k">if</span> <span class="n">now</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_window_start</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_window_size_ms</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_count</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_window_start</span> <span class="o">=</span> <span class="n">now</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_count</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_max_requests</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_count</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">return</span> <span class="n">RateLimitResult</span><span class="p">(</span>
+                    <span class="n">allowed</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                    <span class="n">wait_time_ms</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                    <span class="n">remaining_tokens</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_max_requests</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_count</span><span class="p">,</span>
+                    <span class="n">reset_in</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_window_start</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_window_size_ms</span> <span class="o">-</span> <span class="n">now</span><span class="p">),</span>
+                <span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">RateLimitResult</span><span class="p">(</span>
+                <span class="n">allowed</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">wait_time_ms</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_window_start</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_window_size_ms</span> <span class="o">-</span> <span class="n">now</span><span class="p">),</span>
+                <span class="n">reset_in</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_window_start</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_window_size_ms</span> <span class="o">-</span> <span class="n">now</span><span class="p">),</span>
+            <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="FixedWindow.get_current_count">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.rate_limiter.FixedWindow.get_current_count">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_current_count</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the request count in the current fixed window.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Integer count of requests recorded in this window.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_count</span></div>
+</div>
+
+
+
+<span class="c1"># ============================================</span>
+<span class="c1"># Rate Limiter</span>
+<span class="c1"># ============================================</span>
+
+<div class="viewcode-block" id="RateLimiter">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.rate_limiter.RateLimiter">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">RateLimiter</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Rate limiter with pluggable strategy backends.</span>
+
+<span class="sd">    Delegates to :class:`TokenBucket`, :class:`SlidingWindow`, or</span>
+<span class="sd">    :class:`FixedWindow` based on the configured</span>
+<span class="sd">    :class:`RateLimitStrategy`.</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; rl = RateLimiter(RateLimitConfig(requests_per_second=50))</span>
+<span class="sd">        &gt;&gt;&gt; await rl.execute(my_func)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RateLimitConfig</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize the rate limiter.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            config: Optional configuration. Defaults to</span>
+<span class="sd">                :class:`RateLimitConfig`.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            ValueError: If an unknown strategy is specified.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="o">=</span> <span class="n">config</span> <span class="ow">or</span> <span class="n">RateLimitConfig</span><span class="p">()</span>
+
+        <span class="n">burst_size</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">burst_size</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">burst_size</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">requests_per_second</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">strategy</span> <span class="o">==</span> <span class="n">RateLimitStrategy</span><span class="o">.</span><span class="n">TOKEN_BUCKET</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_impl</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="n">TokenBucket</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">requests_per_second</span><span class="p">,</span>
+                <span class="n">burst_size</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">strategy</span> <span class="o">==</span> <span class="n">RateLimitStrategy</span><span class="o">.</span><span class="n">SLIDING_WINDOW</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_impl</span> <span class="o">=</span> <span class="n">SlidingWindow</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">requests_per_second</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">window_size_ms</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">strategy</span> <span class="o">==</span> <span class="n">RateLimitStrategy</span><span class="o">.</span><span class="n">FIXED_WINDOW</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_impl</span> <span class="o">=</span> <span class="n">FixedWindow</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">requests_per_second</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">window_size_ms</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown rate limit strategy: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">strategy</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_allowed_requests</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_rejected_requests</span> <span class="o">=</span> <span class="mi">0</span>
+
+<div class="viewcode-block" id="RateLimiter.try_acquire">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.rate_limiter.RateLimiter.try_acquire">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">try_acquire</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tokens</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RateLimitResult</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Non-blocking rate limit check.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            tokens: Number of tokens to acquire (token bucket only).</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A :class:`RateLimitResult` indicating whether the request</span>
+<span class="sd">            is allowed.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_impl</span><span class="p">,</span> <span class="n">TokenBucket</span><span class="p">):</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_impl</span><span class="o">.</span><span class="n">try_acquire</span><span class="p">(</span><span class="n">tokens</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_impl</span><span class="o">.</span><span class="n">try_acquire</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">allowed</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_allowed_requests</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_rejected_requests</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="k">return</span> <span class="n">result</span></div>
+
+
+<div class="viewcode-block" id="RateLimiter.acquire">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.rate_limiter.RateLimiter.acquire">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">acquire</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">max_wait_ms</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5000</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Blocking acquire — waits if necessary for a permit.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            max_wait_ms: Maximum time to wait in milliseconds.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            RateLimitExhaustedError: If the wait time would exceed</span>
+<span class="sd">                *max_wait_ms*, or if the rate limit is still exceeded</span>
+<span class="sd">                after waiting.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">try_acquire</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">allowed</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">wait_time_ms</span> <span class="o">&gt;</span> <span class="n">max_wait_ms</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_rejected_requests</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">raise</span> <span class="n">RateLimitExhaustedError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Rate limit exceeded. Wait time </span><span class="si">{</span><span class="n">result</span><span class="o">.</span><span class="n">wait_time_ms</span><span class="si">}</span><span class="s2">ms &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;exceeds max </span><span class="si">{</span><span class="n">max_wait_ms</span><span class="si">}</span><span class="s2">ms&quot;</span>
+            <span class="p">)</span>
+
+        <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">wait_time_ms</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">)</span>
+
+        <span class="n">retry_result</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">try_acquire</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">retry_result</span><span class="o">.</span><span class="n">allowed</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">RateLimitExhaustedError</span><span class="p">(</span><span class="s2">&quot;Rate limit still exceeded after waiting&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="RateLimiter.execute">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.rate_limiter.RateLimiter.execute">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[],</span> <span class="n">Any</span><span class="p">],</span> <span class="n">max_wait_ms</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5000</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Execute a function after acquiring a rate-limit permit.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            func: A zero-argument async callable.</span>
+<span class="sd">            max_wait_ms: Maximum time to wait for a permit.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The result of *func*.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            RateLimitExhaustedError: If a permit cannot be obtained</span>
+<span class="sd">                within *max_wait_ms*.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">acquire</span><span class="p">(</span><span class="n">max_wait_ms</span><span class="p">)</span>
+        <span class="k">return</span> <span class="k">await</span> <span class="n">func</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="RateLimiter.get_stats">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.rate_limiter.RateLimiter.get_stats">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_stats</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RateLimitStats</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a snapshot of the rate limiter statistics.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A :class:`RateLimitStats` dataclass.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">current_rate</span> <span class="o">=</span> <span class="mf">0.0</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_impl</span><span class="p">,</span> <span class="n">TokenBucket</span><span class="p">):</span>
+            <span class="n">current_rate</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">requests_per_second</span> <span class="o">*</span> <span class="p">(</span>
+                <span class="mi">1</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_impl</span><span class="o">.</span><span class="n">get_tokens</span><span class="p">()</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">burst_size</span>
+            <span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">burst_size</span> <span class="k">else</span> <span class="mi">0</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_impl</span><span class="p">,</span> <span class="n">SlidingWindow</span><span class="p">):</span>
+            <span class="n">current_rate</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_impl</span><span class="o">.</span><span class="n">get_current_count</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_impl</span><span class="p">,</span> <span class="n">FixedWindow</span><span class="p">):</span>
+            <span class="n">current_rate</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_impl</span><span class="o">.</span><span class="n">get_current_count</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">RateLimitStats</span><span class="p">(</span>
+            <span class="n">allowed_requests</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_allowed_requests</span><span class="p">,</span>
+            <span class="n">rejected_requests</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_rejected_requests</span><span class="p">,</span>
+            <span class="n">current_rate</span><span class="o">=</span><span class="n">current_rate</span><span class="p">,</span>
+            <span class="n">wait_time_ms</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="RateLimiter.reset_stats">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.rate_limiter.RateLimiter.reset_stats">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">reset_stats</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Reset acceptance/rejection counters to zero.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_allowed_requests</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_rejected_requests</span> <span class="o">=</span> <span class="mi">0</span></div>
+</div>
+
+
+
+<span class="c1"># ============================================</span>
+<span class="c1"># Rate Limiter Manager</span>
+<span class="c1"># ============================================</span>
+
+<div class="viewcode-block" id="RateLimiterManager">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.rate_limiter.RateLimiterManager">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">RateLimiterManager</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Registry for named :class:`RateLimiter` instances.</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; mgr = RateLimiterManager()</span>
+<span class="sd">        &gt;&gt;&gt; rl = mgr.get(&quot;external-api&quot;)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">default_config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RateLimitConfig</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize the manager.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            default_config: Default configuration for new limiters.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_limiters</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">RateLimiter</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_default_config</span> <span class="o">=</span> <span class="n">default_config</span> <span class="ow">or</span> <span class="n">RateLimitConfig</span><span class="p">()</span>
+
+<div class="viewcode-block" id="RateLimiterManager.get">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.rate_limiter.RateLimiterManager.get">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RateLimitConfig</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RateLimiter</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get or create a rate limiter by name.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            name: Unique name for the limiter.</span>
+<span class="sd">            config: Optional per-limiter configuration.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The :class:`RateLimiter` instance for *name*.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_limiters</span><span class="p">:</span>
+            <span class="n">merged_config</span> <span class="o">=</span> <span class="n">RateLimitConfig</span><span class="p">(</span>
+                <span class="n">requests_per_second</span><span class="o">=</span><span class="p">(</span>
+                    <span class="n">config</span><span class="o">.</span><span class="n">requests_per_second</span>
+                    <span class="k">if</span> <span class="n">config</span>
+                    <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">_default_config</span><span class="o">.</span><span class="n">requests_per_second</span>
+                <span class="p">),</span>
+                <span class="n">burst_size</span><span class="o">=</span><span class="p">(</span>
+                    <span class="n">config</span><span class="o">.</span><span class="n">burst_size</span>
+                    <span class="k">if</span> <span class="n">config</span>
+                    <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">_default_config</span><span class="o">.</span><span class="n">burst_size</span>
+                <span class="p">),</span>
+                <span class="n">strategy</span><span class="o">=</span><span class="p">(</span>
+                    <span class="n">config</span><span class="o">.</span><span class="n">strategy</span>
+                    <span class="k">if</span> <span class="n">config</span>
+                    <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">_default_config</span><span class="o">.</span><span class="n">strategy</span>
+                <span class="p">),</span>
+                <span class="n">window_size_ms</span><span class="o">=</span><span class="p">(</span>
+                    <span class="n">config</span><span class="o">.</span><span class="n">window_size_ms</span>
+                    <span class="k">if</span> <span class="n">config</span>
+                    <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">_default_config</span><span class="o">.</span><span class="n">window_size_ms</span>
+                <span class="p">),</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_limiters</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">RateLimiter</span><span class="p">(</span><span class="n">merged_config</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_limiters</span><span class="p">[</span><span class="n">name</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="RateLimiterManager.get_all_stats">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.rate_limiter.RateLimiterManager.get_all_stats">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_all_stats</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">RateLimitStats</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return statistics for every registered rate limiter.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A dict mapping limiter names to their :class:`RateLimitStats`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">{</span><span class="n">name</span><span class="p">:</span> <span class="n">limiter</span><span class="o">.</span><span class="n">get_stats</span><span class="p">()</span> <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">limiter</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_limiters</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span></div>
+
+
+<div class="viewcode-block" id="RateLimiterManager.reset_all_stats">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.rate_limiter.RateLimiterManager.reset_all_stats">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">reset_all_stats</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Reset statistics for every registered rate limiter.&quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">limiter</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_limiters</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="n">limiter</span><span class="o">.</span><span class="n">reset_stats</span><span class="p">()</span></div>
+</div>
+
+
+
+<span class="c1"># ============================================</span>
+<span class="c1"># Predefined Rate Limiters</span>
+<span class="c1"># ============================================</span>
+
+<div class="viewcode-block" id="api_rate_limiter">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.rate_limiter.api_rate_limiter">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">api_rate_limiter</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">RateLimiter</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create a rate limiter for API requests (100 req/s with 200 burst).</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        A :class:`RateLimiter` using the token bucket strategy.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">RateLimiter</span><span class="p">(</span><span class="n">RateLimitConfig</span><span class="p">(</span>
+        <span class="n">requests_per_second</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span>
+        <span class="n">burst_size</span><span class="o">=</span><span class="mi">200</span><span class="p">,</span>
+        <span class="n">strategy</span><span class="o">=</span><span class="n">RateLimitStrategy</span><span class="o">.</span><span class="n">TOKEN_BUCKET</span><span class="p">,</span>
+    <span class="p">))</span></div>
+
+
+
+<div class="viewcode-block" id="strict_rate_limiter">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.rate_limiter.strict_rate_limiter">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">strict_rate_limiter</span><span class="p">(</span><span class="n">requests_per_second</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RateLimiter</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create a strict rate limiter without burst allowance.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        requests_per_second: Maximum requests per second.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        A :class:`RateLimiter` using the sliding window strategy.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">RateLimiter</span><span class="p">(</span><span class="n">RateLimitConfig</span><span class="p">(</span>
+        <span class="n">requests_per_second</span><span class="o">=</span><span class="n">requests_per_second</span><span class="p">,</span>
+        <span class="n">strategy</span><span class="o">=</span><span class="n">RateLimitStrategy</span><span class="o">.</span><span class="n">SLIDING_WINDOW</span><span class="p">,</span>
+    <span class="p">))</span></div>
+
+
+
+<div class="viewcode-block" id="bursty_rate_limiter">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.rate_limiter.bursty_rate_limiter">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">bursty_rate_limiter</span><span class="p">(</span><span class="n">burst_size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">refill_rate</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RateLimiter</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create a rate limiter optimized for bursty traffic patterns.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        burst_size: Maximum burst size (bucket capacity).</span>
+<span class="sd">        refill_rate: Tokens added per second.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        A :class:`RateLimiter` using the token bucket strategy.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">RateLimiter</span><span class="p">(</span><span class="n">RateLimitConfig</span><span class="p">(</span>
+        <span class="n">requests_per_second</span><span class="o">=</span><span class="n">refill_rate</span><span class="p">,</span>
+        <span class="n">burst_size</span><span class="o">=</span><span class="n">burst_size</span><span class="p">,</span>
+        <span class="n">strategy</span><span class="o">=</span><span class="n">RateLimitStrategy</span><span class="o">.</span><span class="n">TOKEN_BUCKET</span><span class="p">,</span>
+    <span class="p">))</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 1980 Aether Core Team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

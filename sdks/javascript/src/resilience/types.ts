@@ -5,20 +5,31 @@
 
 /**
  * Circuit breaker states.
+ *
+ * - **Closed** — Normal operation; requests pass through.
+ * - **Open** — Requests are blocked; waiting for reset timeout.
+ * - **HalfOpen** — Limited requests allowed to test recovery.
  */
 export enum CircuitState {
+  /** Normal operation; requests pass through. */
   Closed = 'closed',
+  /** Requests are blocked; waiting for reset timeout. */
   Open = 'open',
+  /** Limited requests allowed to test recovery. */
   HalfOpen = 'half-open',
 }
 
 /**
- * Backoff strategies for retry.
+ * Backoff strategies for retry policies.
  */
 export enum BackoffStrategy {
+  /** Constant delay between attempts. */
   Fixed = 'fixed',
+  /** Linearly increasing delay. */
   Linear = 'linear',
+  /** Exponentially increasing delay. */
   Exponential = 'exponential',
+  /** Exponential delay with random jitter to avoid thundering herd. */
   ExponentialJitter = 'exponential-jitter',
 }
 
@@ -26,8 +37,11 @@ export enum BackoffStrategy {
  * Rate limiting strategies.
  */
 export enum RateLimitStrategy {
+  /** Tokens refill at a constant rate; bursty traffic allowed. */
   TokenBucket = 'token-bucket',
+  /** Counts requests in a sliding time window. */
   SlidingWindow = 'sliding-window',
+  /** Resets counter at fixed time intervals. */
   FixedWindow = 'fixed-window',
 }
 
@@ -35,9 +49,13 @@ export enum RateLimitStrategy {
  * Health status for health checks.
  */
 export enum HealthStatus {
+  /** The check is passing. */
   Healthy = 'healthy',
+  /** The check is failing. */
   Unhealthy = 'unhealthy',
+  /** The check is partially failing (below failure threshold). */
   Degraded = 'degraded',
+  /** The check has not yet run. */
   Starting = 'starting',
 }
 
@@ -45,63 +63,71 @@ export enum HealthStatus {
  * Circuit breaker configuration.
  */
 export interface CircuitBreakerConfig {
-  /** Failure threshold before opening (default: 5) */
+  /** Number of failures before opening the circuit (default: 5). */
   failureThreshold: number;
-  /** Success threshold in half-open to close (default: 3) */
+  /** Number of consecutive successes in half-open to close (default: 3). */
   successThreshold: number;
-  /** Time in open state before half-open (ms, default: 30000) */
+  /** Time in open state before transitioning to half-open (ms, default: 30000). */
   resetTimeout: number;
-  /** Time window for counting failures (ms, default: 60000) */
+  /** Sliding time window for counting failures (ms, default: 60000). */
   failureWindow: number;
-  /** Name for this circuit breaker */
+  /** Logical name for this circuit breaker. */
   name: string;
 }
 
 /**
- * Circuit breaker statistics.
+ * Circuit breaker statistics snapshot.
  */
 export interface CircuitBreakerStats {
+  /** Current circuit state. */
   state: CircuitState;
+  /** Total recorded failures (since last reset). */
   failureCount: number;
+  /** Total recorded successes (since last reset). */
   successCount: number;
+  /** Total number of calls through the breaker. */
   totalCalls: number;
+  /** Timestamp of the last failure, or `null`. */
   lastFailureTime: number | null;
+  /** Timestamp of the last state transition, or `null`. */
   lastStateChange: number | null;
 }
 
 /**
- * Retry configuration.
+ * Retry policy configuration.
  */
 export interface RetryConfig {
-  /** Maximum retry attempts (default: 3) */
+  /** Maximum number of attempts (default: 3). */
   maxAttempts: number;
-  /** Initial delay in ms (default: 100) */
+  /** Initial delay before the first retry (ms, default: 100). */
   initialDelay: number;
-  /** Maximum delay in ms (default: 30000) */
+  /** Maximum delay cap between retries (ms, default: 30000). */
   maxDelay: number;
-  /** Backoff multiplier (default: 2) */
+  /** Multiplier applied to the delay on each attempt (default: 2). */
   multiplier: number;
-  /** Backoff strategy */
+  /** The backoff strategy to use. */
   strategy: BackoffStrategy;
-  /** Jitter factor 0-1 (default: 0.1) */
+  /** Jitter factor between 0 and 1 (default: 0.1). */
   jitterFactor: number;
-  /** Name for this retry policy */
+  /** Logical name for this retry policy. */
   name: string;
 }
 
 /**
- * Retry result.
+ * Result of a retry execution.
+ *
+ * @typeParam T - The expected result type on success.
  */
 export interface RetryResult<T> {
-  /** The result if successful */
+  /** The result if the operation succeeded. */
   result: T | null;
-  /** Error if all retries failed */
+  /** The last error if all attempts failed. */
   error: Error | null;
-  /** Number of attempts made */
+  /** Total number of attempts made. */
   attempts: number;
-  /** Total time spent in ms */
+  /** Total elapsed time including delays (ms). */
   totalTime: number;
-  /** Whether the operation succeeded */
+  /** Whether the operation ultimately succeeded. */
   success: boolean;
 }
 
@@ -109,29 +135,29 @@ export interface RetryResult<T> {
  * Rate limiter configuration.
  */
 export interface RateLimitConfig {
-  /** Maximum requests per window */
+  /** Maximum number of requests per window. */
   maxRequests: number;
-  /** Window duration in ms (default: 1000) */
+  /** Window duration in milliseconds (default: 1000). */
   windowMs: number;
-  /** Rate limiting strategy */
+  /** The rate limiting strategy to use. */
   strategy: RateLimitStrategy;
-  /** Token bucket refill rate (tokens per second, for token bucket) */
+  /** Token refill rate in tokens per second (for TokenBucket strategy). */
   refillRate: number;
-  /** Name for this rate limiter */
+  /** Logical name for this rate limiter. */
   name: string;
 }
 
 /**
- * Rate limit result.
+ * Result of a rate limit acquisition attempt.
  */
 export interface RateLimitResult {
-  /** Whether the request is allowed */
+  /** Whether the request is allowed. */
   allowed: boolean;
-  /** Remaining requests in current window */
+  /** Remaining requests in the current window/bucket. */
   remaining: number;
-  /** Time until reset in ms */
+  /** Time until the window/bucket resets (ms). */
   resetIn: number;
-  /** Current retry-after header value */
+  /** Suggested `Retry-After` header value (ms). */
   retryAfter: number;
 }
 
@@ -139,47 +165,47 @@ export interface RateLimitResult {
  * Health check configuration.
  */
 export interface HealthCheckConfig {
-  /** Health check name */
+  /** Logical name for this check. */
   name: string;
-  /** Check interval in ms (default: 30000) */
+  /** Interval between periodic checks (ms, default: 30000). */
   interval: number;
-  /** Check timeout in ms (default: 5000) */
+  /** Maximum execution time per check (ms, default: 5000). */
   timeout: number;
-  /** Number of failures before unhealthy (default: 3) */
+  /** Consecutive failures before marking Unhealthy (default: 3). */
   failureThreshold: number;
-  /** Number of successes before healthy (default: 1) */
+  /** Consecutive successes before marking Healthy (default: 1). */
   successThreshold: number;
-  /** Initial delay before first check in ms (default: 0) */
+  /** Delay before the first check runs (ms, default: 0). */
   initialDelay: number;
 }
 
 /**
- * Health check result.
+ * Result of a single health check execution.
  */
 export interface HealthCheckResult {
-  /** Name of the check */
+  /** Name of the check. */
   name: string;
-  /** Current status */
+  /** Current health status. */
   status: HealthStatus;
-  /** Optional message */
+  /** Optional human-readable message. */
   message?: string;
-  /** Timestamp of the check */
+  /** Unix timestamp (ms) when the check was performed. */
   timestamp: number;
-  /** Duration of the check in ms */
+  /** Duration of the check in milliseconds. */
   duration: number;
-  /** Additional details */
+  /** Optional arbitrary details (e.g., memory stats). */
   details?: Record<string, unknown>;
 }
 
 /**
- * Health report containing all check results.
+ * Aggregated health report containing all check results.
  */
 export interface HealthReport {
-  /** Overall status */
+  /** Overall status (worst status among all checks). */
   status: HealthStatus;
-  /** Individual check results */
+  /** Individual check results keyed by check name. */
   checks: Record<string, HealthCheckResult>;
-  /** Timestamp of the report */
+  /** Unix timestamp (ms) of the report. */
   timestamp: number;
 }
 
@@ -187,62 +213,66 @@ export interface HealthReport {
  * Bulkhead configuration.
  */
 export interface BulkheadConfig {
-  /** Maximum concurrent calls (default: 10) */
+  /** Maximum number of concurrent calls (default: 10). */
   maxConcurrent: number;
-  /** Maximum queue size (default: 0, no queue) */
+  /** Maximum number of queued calls (default: 0 = no queue). */
   maxQueueSize: number;
-  /** Queue timeout in ms (default: 0, immediate rejection) */
+  /** Maximum wait time in the queue (ms, default: 0 = immediate rejection). */
   queueTimeout: number;
-  /** Name for this bulkhead */
+  /** Logical name for this bulkhead. */
   name: string;
 }
 
 /**
- * Bulkhead statistics.
+ * Bulkhead statistics snapshot.
  */
 export interface BulkheadStats {
-  /** Current active calls */
+  /** Currently executing calls. */
   active: number;
-  /** Current queue size */
+  /** Currently queued calls. */
   queueSize: number;
-  /** Available permits */
+  /** Available permits (maxConcurrent - active). */
   available: number;
-  /** Total calls rejected */
+  /** Total calls rejected due to capacity. */
   rejected: number;
-  /** Total calls accepted */
+  /** Total calls accepted for execution. */
   accepted: number;
 }
 
 /**
- * Tracing configuration.
+ * OpenTelemetry tracing configuration.
  */
 export interface TracingConfig {
-  /** Enable OpenTelemetry tracing */
+  /** Whether tracing is enabled (default: true). */
   enabled: boolean;
-  /** Service name reported to tracer */
+  /** Service name reported to the tracer (default: `'aether-resilience'`). */
   serviceName: string;
-  /** Sampling rate (0.0 to 1.0) */
+  /** Sampling rate from 0.0 (none) to 1.0 (all) (default: 1.0). */
   sampleRate: number;
 }
 
 /**
- * Tracing context interface.
+ * Tracing context interface for span operations.
  */
 export interface TracingContext {
-  /** Set an attribute on the span */
+  /** Set an attribute on the current span. */
   setAttribute(key: string, value: unknown): void;
-  /** Add an event to the span */
+  /** Record an event on the current span. */
   addEvent(name: string, attributes?: Record<string, unknown>): void;
-  /** End the span */
+  /** End the current span, optionally recording an error. */
   end(error?: Error): void;
 }
 
 /**
- * Health check function type.
+ * Function type for health checks.
+ *
+ * May return the result synchronously or as a promise.
  */
 export type HealthCheckFn = () => Promise<HealthCheckResult> | HealthCheckResult;
 
 /**
- * Async function type for execution.
+ * Generic async function type for execution wrappers.
+ *
+ * @typeParam T - The return type of the function.
  */
 export type AsyncFunction<T> = () => Promise<T>;

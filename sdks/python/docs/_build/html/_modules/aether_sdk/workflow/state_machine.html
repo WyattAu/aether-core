@@ -1,0 +1,852 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>aether_sdk.workflow.state_machine &mdash; Aether Python SDK  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Aether Python SDK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../quickstart.html">Quick Start Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/core.html">Core API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/event.html">Event System API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/resilience.html">Resilience API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/streaming.html">Streaming API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/workflow.html">Workflow API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/validation.html">Validation API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Aether Python SDK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">aether_sdk.workflow.state_machine</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for aether_sdk.workflow.state_machine</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Workflow State Machine</span>
+
+<span class="sd">Provides visual workflow definitions with state transitions</span>
+<span class="sd">for building long-running processes.</span>
+
+<span class="sd">Example:</span>
+<span class="sd">    &gt;&gt;&gt; from aether_sdk.workflow.state_machine import Workflow, State, Transition, WorkflowExecutor</span>
+<span class="sd">    &gt;&gt;&gt; workflow = Workflow(&quot;approval-flow&quot;)</span>
+<span class="sd">    ...     .state(&quot;draft&quot;)</span>
+<span class="sd">    ...     .state(&quot;approved&quot;, is_final=True)</span>
+<span class="sd">    ...     .transition(&quot;submit&quot;, &quot;draft&quot;, &quot;approved&quot;)</span>
+<span class="sd">    ...     .build()</span>
+<span class="sd">    &gt;&gt;&gt; executor = WorkflowExecutor()</span>
+<span class="sd">    &gt;&gt;&gt; result = await executor.start(workflow, {&quot;request_id&quot;: &quot;123&quot;})</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">datetime</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">Any</span><span class="p">,</span>
+    <span class="n">Callable</span><span class="p">,</span>
+    <span class="n">Dict</span><span class="p">,</span>
+    <span class="n">Generic</span><span class="p">,</span>
+    <span class="n">List</span><span class="p">,</span>
+    <span class="n">Optional</span><span class="p">,</span>
+    <span class="n">Set</span><span class="p">,</span>
+    <span class="n">TypeVar</span><span class="p">,</span>
+    <span class="n">Awaitable</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">ABC</span><span class="p">,</span> <span class="n">abstractmethod</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">enum</span><span class="w"> </span><span class="kn">import</span> <span class="n">Enum</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">asyncio</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">uuid</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">.types</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">WorkflowStatus</span><span class="p">,</span>
+    <span class="n">TransitionStatus</span><span class="p">,</span>
+    <span class="n">WorkflowContext</span><span class="p">,</span>
+    <span class="n">WorkflowResult</span><span class="p">,</span>
+    <span class="n">TransitionResult</span><span class="p">,</span>
+    <span class="n">WorkflowError</span><span class="p">,</span>
+    <span class="n">InvalidTransitionError</span><span class="p">,</span>
+    <span class="n">WorkflowSuspendedError</span><span class="p">,</span>
+    <span class="n">Duration</span><span class="p">,</span>
+    <span class="n">TransitionHandler</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+<span class="n">T</span> <span class="o">=</span> <span class="n">TypeVar</span><span class="p">(</span><span class="s1">&#39;T&#39;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="State">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.state_machine.State">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">State</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A state in the workflow state machine.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        name: State name.</span>
+<span class="sd">        is_initial: Whether this is the starting state.</span>
+<span class="sd">        is_final: Whether this is a terminal state.</span>
+<span class="sd">        on_enter: Action executed when entering this state.</span>
+<span class="sd">        on_exit: Action executed when leaving this state.</span>
+<span class="sd">        timeout: Optional timeout for this state.</span>
+<span class="sd">        timeout_transition: Transition to fire on timeout.</span>
+<span class="sd">        metadata: Arbitrary key-value metadata.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">is_initial</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">is_final</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">on_enter</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">TransitionHandler</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">on_exit</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">TransitionHandler</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">timeout</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Duration</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">timeout_transition</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">metadata</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="Transition">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.state_machine.Transition">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Transition</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A transition between two states.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        name: Transition name.</span>
+<span class="sd">        from_state: Source state name.</span>
+<span class="sd">        to_state: Target state name.</span>
+<span class="sd">        guard: Optional predicate that must return ``True`` for the</span>
+<span class="sd">            transition to proceed.</span>
+<span class="sd">        action: Optional action executed during the transition.</span>
+<span class="sd">        metadata: Arbitrary key-value metadata.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">from_state</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">to_state</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">guard</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">[[</span><span class="n">WorkflowContext</span><span class="p">],</span> <span class="nb">bool</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">action</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">TransitionHandler</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">metadata</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="Workflow">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.state_machine.Workflow">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">Workflow</span><span class="p">(</span><span class="n">Generic</span><span class="p">[</span><span class="n">T</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A workflow definition as a state machine.</span>
+
+<span class="sd">    Defines states and transitions between them. Supports method</span>
+<span class="sd">    chaining for fluent API construction.</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; wf = Workflow(&quot;order-workflow&quot;)</span>
+<span class="sd">        ...     .state(&quot;created&quot;, is_initial=True)</span>
+<span class="sd">        ...     .state(&quot;shipped&quot;, is_final=True)</span>
+<span class="sd">        ...     .transition(&quot;ship&quot;, &quot;created&quot;, &quot;shipped&quot;)</span>
+<span class="sd">        ...     .on_enter(&quot;shipped&quot;, notify_shipped)</span>
+<span class="sd">        ...     .build()</span>
+
+<span class="sd">    Type Parameters:</span>
+<span class="sd">        T: Type of the workflow input.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize the workflow.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            name: Workflow name.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_states</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">State</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_transitions</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">Transition</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_initial_state</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_final_states</span><span class="p">:</span> <span class="n">Set</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_current_state</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">State</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_metadata</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+
+<div class="viewcode-block" id="Workflow.state">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.state_machine.Workflow.state">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">state</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">is_initial</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">is_final</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">timeout</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Duration</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">timeout_transition</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Workflow</span><span class="p">[</span><span class="n">T</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Add a state to the workflow.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            name: State name.</span>
+<span class="sd">            is_initial: Whether this is the initial state.</span>
+<span class="sd">            is_final: Whether this is a terminal state.</span>
+<span class="sd">            timeout: Optional timeout for this state.</span>
+<span class="sd">            timeout_transition: Transition to take on timeout.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Self for method chaining.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            WorkflowError: If multiple initial states are defined.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">state</span> <span class="o">=</span> <span class="n">State</span><span class="p">(</span>
+            <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
+            <span class="n">is_initial</span><span class="o">=</span><span class="n">is_initial</span><span class="p">,</span>
+            <span class="n">is_final</span><span class="o">=</span><span class="n">is_final</span><span class="p">,</span>
+            <span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">,</span>
+            <span class="n">timeout_transition</span><span class="o">=</span><span class="n">timeout_transition</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_states</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">state</span>
+
+        <span class="k">if</span> <span class="n">is_initial</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_initial_state</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">WorkflowError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Multiple initial states: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_initial_state</span><span class="si">}</span><span class="s2"> and </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_initial_state</span> <span class="o">=</span> <span class="n">name</span>
+
+        <span class="k">if</span> <span class="n">is_final</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_final_states</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_current_state</span> <span class="o">=</span> <span class="n">state</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="Workflow.on_enter">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.state_machine.Workflow.on_enter">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">on_enter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">handler</span><span class="p">:</span> <span class="n">TransitionHandler</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Workflow</span><span class="p">[</span><span class="n">T</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Set the on-enter handler for a state.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            state_name: Name of an existing state.</span>
+<span class="sd">            handler: Async or sync callable.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Self for method chaining.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            WorkflowError: If the state name is not recognized.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">state_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_states</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">WorkflowError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown state: </span><span class="si">{</span><span class="n">state_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_states</span><span class="p">[</span><span class="n">state_name</span><span class="p">]</span><span class="o">.</span><span class="n">on_enter</span> <span class="o">=</span> <span class="n">handler</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="Workflow.on_exit">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.state_machine.Workflow.on_exit">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">on_exit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">handler</span><span class="p">:</span> <span class="n">TransitionHandler</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Workflow</span><span class="p">[</span><span class="n">T</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Set the on-exit handler for a state.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            state_name: Name of an existing state.</span>
+<span class="sd">            handler: Async or sync callable.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Self for method chaining.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            WorkflowError: If the state name is not recognized.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">state_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_states</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">WorkflowError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown state: </span><span class="si">{</span><span class="n">state_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_states</span><span class="p">[</span><span class="n">state_name</span><span class="p">]</span><span class="o">.</span><span class="n">on_exit</span> <span class="o">=</span> <span class="n">handler</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="Workflow.transition">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.state_machine.Workflow.transition">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">transition</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">from_state</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">to_state</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">guard</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">[[</span><span class="n">WorkflowContext</span><span class="p">],</span> <span class="nb">bool</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Workflow</span><span class="p">[</span><span class="n">T</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Add a transition between states.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            name: Transition name.</span>
+<span class="sd">            from_state: Source state name.</span>
+<span class="sd">            to_state: Target state name.</span>
+<span class="sd">            guard: Optional guard predicate.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Self for method chaining.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            WorkflowError: If either state is not recognized.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">from_state</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_states</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">WorkflowError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown source state: </span><span class="si">{</span><span class="n">from_state</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">to_state</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_states</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">WorkflowError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown target state: </span><span class="si">{</span><span class="n">to_state</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="n">transition</span> <span class="o">=</span> <span class="n">Transition</span><span class="p">(</span>
+            <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
+            <span class="n">from_state</span><span class="o">=</span><span class="n">from_state</span><span class="p">,</span>
+            <span class="n">to_state</span><span class="o">=</span><span class="n">to_state</span><span class="p">,</span>
+            <span class="n">guard</span><span class="o">=</span><span class="n">guard</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">from_state</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_transitions</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_transitions</span><span class="p">[</span><span class="n">from_state</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_transitions</span><span class="p">[</span><span class="n">from_state</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">transition</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="Workflow.with_action">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.state_machine.Workflow.with_action">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">with_action</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">transition_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">action</span><span class="p">:</span> <span class="n">TransitionHandler</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Workflow</span><span class="p">[</span><span class="n">T</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Set the action for a named transition.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            transition_name: Name of an existing transition.</span>
+<span class="sd">            action: Async or sync callable.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Self for method chaining.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            WorkflowError: If the transition name is not found.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">transitions</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_transitions</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">transitions</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="n">transition_name</span><span class="p">:</span>
+                    <span class="n">t</span><span class="o">.</span><span class="n">action</span> <span class="o">=</span> <span class="n">action</span>
+                    <span class="k">return</span> <span class="bp">self</span>
+        <span class="k">raise</span> <span class="n">WorkflowError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown transition: </span><span class="si">{</span><span class="n">transition_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Workflow.with_metadata">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.state_machine.Workflow.with_metadata">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">with_metadata</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Workflow</span><span class="p">[</span><span class="n">T</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Add metadata to the workflow.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            key: Metadata key.</span>
+<span class="sd">            value: Metadata value.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Self for method chaining.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_metadata</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="Workflow.build">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.state_machine.Workflow.build">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">build</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Workflow</span><span class="p">[</span><span class="n">T</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Validate and return the workflow.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The validated workflow instance.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            WorkflowError: If no initial state is defined.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_initial_state</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">WorkflowError</span><span class="p">(</span><span class="s2">&quot;No initial state defined&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">states</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">State</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a copy of all states.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A dict mapping state names to :class:`State` objects.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">dict</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_states</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">initial_state</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the initial state name.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The name of the initial state.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            WorkflowError: If no initial state is defined.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_initial_state</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">WorkflowError</span><span class="p">(</span><span class="s2">&quot;No initial state defined&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_initial_state</span>
+
+<div class="viewcode-block" id="Workflow.is_final_state">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.state_machine.Workflow.is_final_state">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">is_final_state</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check whether a state is a final (terminal) state.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            state_name: State name.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            ``True`` if the state is final.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">state_name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_final_states</span></div>
+
+
+<div class="viewcode-block" id="Workflow.get_transitions">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.state_machine.Workflow.get_transitions">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_transitions</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">from_state</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Transition</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return all transitions from a given state.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            from_state: Source state name.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A list of :class:`Transition` objects.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_transitions</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">from_state</span><span class="p">,</span> <span class="p">[])</span></div>
+
+
+<div class="viewcode-block" id="Workflow.get_transition">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.state_machine.Workflow.get_transition">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_transition</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">from_state</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Transition</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Look up a specific transition by name from a state.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            from_state: Source state name.</span>
+<span class="sd">            name: Transition name.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The matching :class:`Transition`, or ``None``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_transitions</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">from_state</span><span class="p">,</span> <span class="p">[]):</span>
+            <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="n">name</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">t</span>
+        <span class="k">return</span> <span class="kc">None</span></div>
+
+
+<div class="viewcode-block" id="Workflow.validate_transition">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.state_machine.Workflow.validate_transition">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">validate_transition</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">from_state</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">transition_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">context</span><span class="p">:</span> <span class="n">WorkflowContext</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Transition</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Validate that a transition is allowed.</span>
+
+<span class="sd">        Checks that the transition exists and its guard (if any)</span>
+<span class="sd">        returns ``True``.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            from_state: Current state name.</span>
+<span class="sd">            transition_name: Name of the transition to validate.</span>
+<span class="sd">            context: The workflow context (passed to guard predicates).</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The :class:`Transition` if valid, ``None`` otherwise.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">transition</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_transition</span><span class="p">(</span><span class="n">from_state</span><span class="p">,</span> <span class="n">transition_name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">transition</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+        <span class="k">if</span> <span class="n">transition</span><span class="o">.</span><span class="n">guard</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">transition</span><span class="o">.</span><span class="n">guard</span><span class="p">(</span><span class="n">context</span><span class="p">):</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+        <span class="k">return</span> <span class="n">transition</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="WorkflowExecutor">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.state_machine.WorkflowExecutor">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">WorkflowExecutor</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Executes workflow state machines.</span>
+
+<span class="sd">    Manages workflow lifecycle, state transitions, and persistence.</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; executor = WorkflowExecutor()</span>
+<span class="sd">        &gt;&gt;&gt; result = await executor.start(workflow, {&quot;order_id&quot;: &quot;123&quot;})</span>
+<span class="sd">        &gt;&gt;&gt; result = await executor.transition(result.workflow_id, &quot;ship&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; status = await executor.get_status(result.workflow_id)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize with empty workflow registries.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_workflows</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">WorkflowContext</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_definitions</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Workflow</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+
+<div class="viewcode-block" id="WorkflowExecutor.start">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.state_machine.WorkflowExecutor.start">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">start</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">workflow</span><span class="p">:</span> <span class="n">Workflow</span><span class="p">[</span><span class="n">T</span><span class="p">],</span>
+        <span class="nb">input</span><span class="p">:</span> <span class="n">T</span><span class="p">,</span>
+        <span class="n">workflow_id</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">WorkflowResult</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Start a new workflow execution.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            workflow: The workflow definition.</span>
+<span class="sd">            input: Input data for the workflow.</span>
+<span class="sd">            workflow_id: Optional explicit ID.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A :class:`WorkflowResult` with the initial status.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">wf_id</span> <span class="o">=</span> <span class="n">workflow_id</span> <span class="ow">or</span> <span class="nb">str</span><span class="p">(</span><span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">())</span>
+
+        <span class="n">context</span> <span class="o">=</span> <span class="n">WorkflowContext</span><span class="p">[</span><span class="n">T</span><span class="p">](</span>
+            <span class="n">workflow_id</span><span class="o">=</span><span class="n">wf_id</span><span class="p">,</span>
+            <span class="n">workflow_type</span><span class="o">=</span><span class="n">workflow</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+            <span class="n">current_state</span><span class="o">=</span><span class="n">workflow</span><span class="o">.</span><span class="n">initial_state</span><span class="p">,</span>
+            <span class="nb">input</span><span class="o">=</span><span class="nb">input</span><span class="p">,</span>
+            <span class="n">started_at</span><span class="o">=</span><span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">(),</span>
+            <span class="n">updated_at</span><span class="o">=</span><span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">(),</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_workflows</span><span class="p">[</span><span class="n">wf_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">context</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_definitions</span><span class="p">[</span><span class="n">wf_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">workflow</span>
+
+        <span class="n">initial_state</span> <span class="o">=</span> <span class="n">workflow</span><span class="o">.</span><span class="n">_states</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">workflow</span><span class="o">.</span><span class="n">initial_state</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">initial_state</span> <span class="ow">and</span> <span class="n">initial_state</span><span class="o">.</span><span class="n">on_enter</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">await</span> <span class="n">initial_state</span><span class="o">.</span><span class="n">on_enter</span><span class="p">(</span><span class="n">context</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to execute on-enter for initial state: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="n">context</span><span class="o">.</span><span class="n">add_history_event</span><span class="p">(</span>
+            <span class="s2">&quot;workflow_started&quot;</span><span class="p">,</span>
+            <span class="n">initial_state</span><span class="o">=</span><span class="n">workflow</span><span class="o">.</span><span class="n">initial_state</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">WorkflowResult</span><span class="p">(</span>
+            <span class="n">workflow_id</span><span class="o">=</span><span class="n">wf_id</span><span class="p">,</span>
+            <span class="n">status</span><span class="o">=</span><span class="n">WorkflowStatus</span><span class="o">.</span><span class="n">RUNNING</span><span class="p">,</span>
+            <span class="n">current_state</span><span class="o">=</span><span class="n">context</span><span class="o">.</span><span class="n">current_state</span><span class="p">,</span>
+            <span class="n">started_at</span><span class="o">=</span><span class="n">context</span><span class="o">.</span><span class="n">started_at</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="WorkflowExecutor.transition">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.state_machine.WorkflowExecutor.transition">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">transition</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">workflow_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">transition_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">payload</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TransitionResult</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Execute a state transition on a running workflow.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            workflow_id: The workflow instance ID.</span>
+<span class="sd">            transition_name: The transition to execute.</span>
+<span class="sd">            payload: Optional payload for the transition.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A :class:`TransitionResult` with the outcome.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            WorkflowError: If the workflow or definition is not found.</span>
+<span class="sd">            WorkflowSuspendedError: If the workflow is suspended.</span>
+<span class="sd">            InvalidTransitionError: If the transition is not valid.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">context</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_workflows</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">workflow_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">context</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">WorkflowError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown workflow: </span><span class="si">{</span><span class="n">workflow_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="n">workflow</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_definitions</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">workflow_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">workflow</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">WorkflowError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown workflow definition: </span><span class="si">{</span><span class="n">workflow_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">context</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="n">WorkflowStatus</span><span class="o">.</span><span class="n">SUSPENDED</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">WorkflowSuspendedError</span><span class="p">(</span><span class="n">workflow_id</span><span class="p">)</span>
+
+        <span class="n">from_state</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">current_state</span>
+
+        <span class="n">transition</span> <span class="o">=</span> <span class="n">workflow</span><span class="o">.</span><span class="n">validate_transition</span><span class="p">(</span><span class="n">from_state</span><span class="p">,</span> <span class="n">transition_name</span><span class="p">,</span> <span class="n">context</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">transition</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">InvalidTransitionError</span><span class="p">(</span><span class="n">from_state</span><span class="p">,</span> <span class="n">transition_name</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">)</span>
+
+        <span class="n">to_state</span> <span class="o">=</span> <span class="n">transition</span><span class="o">.</span><span class="n">to_state</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">current_state_def</span> <span class="o">=</span> <span class="n">workflow</span><span class="o">.</span><span class="n">_states</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">from_state</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">current_state_def</span> <span class="ow">and</span> <span class="n">current_state_def</span><span class="o">.</span><span class="n">on_exit</span><span class="p">:</span>
+                <span class="k">await</span> <span class="n">current_state_def</span><span class="o">.</span><span class="n">on_exit</span><span class="p">(</span><span class="n">context</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">transition</span><span class="o">.</span><span class="n">action</span><span class="p">:</span>
+                <span class="k">await</span> <span class="n">transition</span><span class="o">.</span><span class="n">action</span><span class="p">(</span><span class="n">context</span><span class="p">)</span>
+
+            <span class="n">context</span><span class="o">.</span><span class="n">current_state</span> <span class="o">=</span> <span class="n">to_state</span>
+            <span class="n">context</span><span class="o">.</span><span class="n">updated_at</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span>
+
+            <span class="n">new_state_def</span> <span class="o">=</span> <span class="n">workflow</span><span class="o">.</span><span class="n">_states</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">to_state</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">new_state_def</span> <span class="ow">and</span> <span class="n">new_state_def</span><span class="o">.</span><span class="n">on_enter</span><span class="p">:</span>
+                <span class="k">await</span> <span class="n">new_state_def</span><span class="o">.</span><span class="n">on_enter</span><span class="p">(</span><span class="n">context</span><span class="p">)</span>
+
+            <span class="n">context</span><span class="o">.</span><span class="n">add_history_event</span><span class="p">(</span>
+                <span class="s2">&quot;transition&quot;</span><span class="p">,</span>
+                <span class="n">transition</span><span class="o">=</span><span class="n">transition_name</span><span class="p">,</span>
+                <span class="n">from_state</span><span class="o">=</span><span class="n">from_state</span><span class="p">,</span>
+                <span class="n">to_state</span><span class="o">=</span><span class="n">to_state</span><span class="p">,</span>
+            <span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">TransitionResult</span><span class="p">(</span>
+                <span class="n">success</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                <span class="n">from_state</span><span class="o">=</span><span class="n">from_state</span><span class="p">,</span>
+                <span class="n">to_state</span><span class="o">=</span><span class="n">to_state</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Transition failed: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">exc_info</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">context</span><span class="o">.</span><span class="n">add_history_event</span><span class="p">(</span>
+                <span class="s2">&quot;transition_failed&quot;</span><span class="p">,</span>
+                <span class="n">transition</span><span class="o">=</span><span class="n">transition_name</span><span class="p">,</span>
+                <span class="n">from_state</span><span class="o">=</span><span class="n">from_state</span><span class="p">,</span>
+                <span class="n">error</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">),</span>
+            <span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">TransitionResult</span><span class="p">(</span>
+                <span class="n">success</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">from_state</span><span class="o">=</span><span class="n">from_state</span><span class="p">,</span>
+                <span class="n">to_state</span><span class="o">=</span><span class="n">to_state</span><span class="p">,</span>
+                <span class="n">error</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">),</span>
+            <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="WorkflowExecutor.suspend">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.state_machine.WorkflowExecutor.suspend">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">suspend</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">reason</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Suspend a running workflow.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            workflow_id: The workflow instance ID.</span>
+<span class="sd">            reason: Optional reason for suspension.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            WorkflowError: If the workflow is not found.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">context</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_workflows</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">workflow_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">context</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">WorkflowError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown workflow: </span><span class="si">{</span><span class="n">workflow_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="n">context</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="n">WorkflowStatus</span><span class="o">.</span><span class="n">SUSPENDED</span>
+        <span class="n">context</span><span class="o">.</span><span class="n">updated_at</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span>
+        <span class="n">context</span><span class="o">.</span><span class="n">add_history_event</span><span class="p">(</span><span class="s2">&quot;suspended&quot;</span><span class="p">,</span> <span class="n">reason</span><span class="o">=</span><span class="n">reason</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="WorkflowExecutor.resume">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.state_machine.WorkflowExecutor.resume">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">resume</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Resume a suspended workflow.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            workflow_id: The workflow instance ID.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            WorkflowError: If the workflow is not found or not suspended.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">context</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_workflows</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">workflow_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">context</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">WorkflowError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown workflow: </span><span class="si">{</span><span class="n">workflow_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">context</span><span class="o">.</span><span class="n">status</span> <span class="o">!=</span> <span class="n">WorkflowStatus</span><span class="o">.</span><span class="n">SUSPENDED</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">WorkflowError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Workflow </span><span class="si">{</span><span class="n">workflow_id</span><span class="si">}</span><span class="s2"> is not suspended&quot;</span><span class="p">)</span>
+
+        <span class="n">context</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="n">WorkflowStatus</span><span class="o">.</span><span class="n">RUNNING</span>
+        <span class="n">context</span><span class="o">.</span><span class="n">updated_at</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span>
+        <span class="n">context</span><span class="o">.</span><span class="n">add_history_event</span><span class="p">(</span><span class="s2">&quot;resumed&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="WorkflowExecutor.cancel">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.state_machine.WorkflowExecutor.cancel">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">cancel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">reason</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Cancel a running workflow.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            workflow_id: The workflow instance ID.</span>
+<span class="sd">            reason: Optional reason for cancellation.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            WorkflowError: If the workflow is not found.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">context</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_workflows</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">workflow_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">context</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">WorkflowError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown workflow: </span><span class="si">{</span><span class="n">workflow_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="n">context</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="n">WorkflowStatus</span><span class="o">.</span><span class="n">CANCELLED</span>
+        <span class="n">context</span><span class="o">.</span><span class="n">updated_at</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span>
+        <span class="n">context</span><span class="o">.</span><span class="n">add_history_event</span><span class="p">(</span><span class="s2">&quot;cancelled&quot;</span><span class="p">,</span> <span class="n">reason</span><span class="o">=</span><span class="n">reason</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="WorkflowExecutor.get_status">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.state_machine.WorkflowExecutor.get_status">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">get_status</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">WorkflowResult</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get the current status of a workflow.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            workflow_id: The workflow instance ID.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A :class:`WorkflowResult`, or ``None`` if not found.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">context</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_workflows</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">workflow_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">context</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+        <span class="n">workflow</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_definitions</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">workflow_id</span><span class="p">)</span>
+        <span class="n">is_final</span> <span class="o">=</span> <span class="n">workflow</span><span class="o">.</span><span class="n">is_final_state</span><span class="p">(</span><span class="n">context</span><span class="o">.</span><span class="n">current_state</span><span class="p">)</span> <span class="k">if</span> <span class="n">workflow</span> <span class="k">else</span> <span class="kc">False</span>
+
+        <span class="n">status</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">status</span>
+        <span class="k">if</span> <span class="n">status</span> <span class="o">==</span> <span class="n">WorkflowStatus</span><span class="o">.</span><span class="n">RUNNING</span> <span class="ow">and</span> <span class="n">is_final</span><span class="p">:</span>
+            <span class="n">status</span> <span class="o">=</span> <span class="n">WorkflowStatus</span><span class="o">.</span><span class="n">COMPLETED</span>
+
+        <span class="k">return</span> <span class="n">WorkflowResult</span><span class="p">(</span>
+            <span class="n">workflow_id</span><span class="o">=</span><span class="n">workflow_id</span><span class="p">,</span>
+            <span class="n">status</span><span class="o">=</span><span class="n">status</span><span class="p">,</span>
+            <span class="n">current_state</span><span class="o">=</span><span class="n">context</span><span class="o">.</span><span class="n">current_state</span><span class="p">,</span>
+            <span class="n">output</span><span class="o">=</span><span class="n">context</span><span class="o">.</span><span class="n">variables</span><span class="p">,</span>
+            <span class="n">history</span><span class="o">=</span><span class="n">context</span><span class="o">.</span><span class="n">history</span><span class="p">,</span>
+            <span class="n">started_at</span><span class="o">=</span><span class="n">context</span><span class="o">.</span><span class="n">started_at</span><span class="p">,</span>
+            <span class="n">updated_at</span><span class="o">=</span><span class="n">context</span><span class="o">.</span><span class="n">updated_at</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="WorkflowExecutor.get_available_transitions">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.state_machine.WorkflowExecutor.get_available_transitions">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_available_transitions</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the names of transitions available from the current state.</span>
+
+<span class="sd">        Transitions whose guards return ``False`` are excluded.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            workflow_id: The workflow instance ID.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A list of transition names.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">context</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_workflows</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">workflow_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">context</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">[]</span>
+
+        <span class="n">workflow</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_definitions</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">workflow_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">workflow</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">[]</span>
+
+        <span class="n">transitions</span> <span class="o">=</span> <span class="n">workflow</span><span class="o">.</span><span class="n">get_transitions</span><span class="p">(</span><span class="n">context</span><span class="o">.</span><span class="n">current_state</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">[</span>
+            <span class="n">t</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">transitions</span>
+            <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">guard</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">t</span><span class="o">.</span><span class="n">guard</span><span class="p">(</span><span class="n">context</span><span class="p">)</span>
+        <span class="p">]</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="workflow">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.state_machine.workflow">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">workflow</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Workflow</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Factory function to create a new workflow.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        name: Workflow name.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        A new :class:`Workflow` instance.</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; wf = workflow(&quot;approval-flow&quot;)</span>
+<span class="sd">        ...     .state(&quot;draft&quot;, is_initial=True)</span>
+<span class="sd">        ...     .state(&quot;approved&quot;, is_final=True)</span>
+<span class="sd">        ...     .transition(&quot;submit&quot;, &quot;draft&quot;, &quot;approved&quot;)</span>
+<span class="sd">        ...     .build()</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">Workflow</span><span class="p">(</span><span class="n">name</span><span class="p">)</span></div>
+
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;State&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;Transition&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;Workflow&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;WorkflowExecutor&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;workflow&quot;</span><span class="p">,</span>
+<span class="p">]</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 1980 Aether Core Team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

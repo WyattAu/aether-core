@@ -1,0 +1,851 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>aether_sdk.event.event_sourcing &mdash; Aether Python SDK  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Aether Python SDK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../quickstart.html">Quick Start Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/core.html">Core API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/event.html">Event System API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/resilience.html">Resilience API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/streaming.html">Streaming API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/workflow.html">Workflow API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/validation.html">Validation API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Aether Python SDK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">aether_sdk.event.event_sourcing</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for aether_sdk.event.event_sourcing</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Event Sourcing for State Persistence</span>
+
+<span class="sd">Provides event sourcing capabilities for building event-sourced aggregates</span>
+<span class="sd">and persisting state as a sequence of events.</span>
+
+<span class="sd">Example:</span>
+<span class="sd">    from aether_sdk.event import EventStore, Aggregate, EventEnvelope</span>
+<span class="sd">    </span>
+<span class="sd">    class Order(Aggregate):</span>
+<span class="sd">        def __init__(self):</span>
+<span class="sd">            super().__init__()</span>
+<span class="sd">            self.status = &quot;pending&quot;</span>
+<span class="sd">            self.items = []</span>
+<span class="sd">        </span>
+<span class="sd">        def apply_order_created(self, event):</span>
+<span class="sd">            self.status = &quot;created&quot;</span>
+<span class="sd">            self.items = event[&quot;items&quot;]</span>
+<span class="sd">        </span>
+<span class="sd">        def apply_order_shipped(self, event):</span>
+<span class="sd">            self.status = &quot;shipped&quot;</span>
+<span class="sd">    </span>
+<span class="sd">    # Store and replay events</span>
+<span class="sd">    store = InMemoryEventStore()</span>
+<span class="sd">    await store.append(&quot;order-123&quot;, {&quot;type&quot;: &quot;order_created&quot;, &quot;items&quot;: [...]})</span>
+<span class="sd">    events = await store.get_events(&quot;order-123&quot;)</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">datetime</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">Any</span><span class="p">,</span>
+    <span class="n">Callable</span><span class="p">,</span>
+    <span class="n">Dict</span><span class="p">,</span>
+    <span class="n">List</span><span class="p">,</span>
+    <span class="n">Optional</span><span class="p">,</span>
+    <span class="n">TypeVar</span><span class="p">,</span>
+    <span class="n">Generic</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">ABC</span><span class="p">,</span> <span class="n">abstractmethod</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">asyncio</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">uuid</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">..exceptions</span><span class="w"> </span><span class="kn">import</span> <span class="n">AetherError</span>
+
+
+<div class="viewcode-block" id="EventVersion">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.event_sourcing.EventVersion">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">EventVersion</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Represents the version of an event or aggregate.</span>
+<span class="sd">    </span>
+<span class="sd">    Versions are monotonically increasing and used for optimistic concurrency.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">major</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">minor</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;v</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">major</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">minor</span><span class="si">}</span><span class="s2">&quot;</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="fm">__lt__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="n">EventVersion</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">major</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">minor</span><span class="p">)</span> <span class="o">&lt;</span> <span class="p">(</span><span class="n">other</span><span class="o">.</span><span class="n">major</span><span class="p">,</span> <span class="n">other</span><span class="o">.</span><span class="n">minor</span><span class="p">)</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="fm">__le__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="n">EventVersion</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">major</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">minor</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="p">(</span><span class="n">other</span><span class="o">.</span><span class="n">major</span><span class="p">,</span> <span class="n">other</span><span class="o">.</span><span class="n">minor</span><span class="p">)</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="fm">__gt__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="n">EventVersion</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">major</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">minor</span><span class="p">)</span> <span class="o">&gt;</span> <span class="p">(</span><span class="n">other</span><span class="o">.</span><span class="n">major</span><span class="p">,</span> <span class="n">other</span><span class="o">.</span><span class="n">minor</span><span class="p">)</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="fm">__ge__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="n">EventVersion</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">major</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">minor</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="p">(</span><span class="n">other</span><span class="o">.</span><span class="n">major</span><span class="p">,</span> <span class="n">other</span><span class="o">.</span><span class="n">minor</span><span class="p">)</span>
+    
+<div class="viewcode-block" id="EventVersion.parse">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.event_sourcing.EventVersion.parse">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">parse</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">version_str</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">EventVersion</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Parse version string like &#39;v1.2&#39; or &#39;1.2&#39;.&quot;&quot;&quot;</span>
+        <span class="n">version_str</span> <span class="o">=</span> <span class="n">version_str</span><span class="o">.</span><span class="n">lstrip</span><span class="p">(</span><span class="s1">&#39;v&#39;</span><span class="p">)</span>
+        <span class="n">parts</span> <span class="o">=</span> <span class="n">version_str</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span>
+            <span class="n">major</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">parts</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span>
+            <span class="n">minor</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">parts</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">parts</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="k">else</span> <span class="mi">0</span>
+        <span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="EventEnvelope">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.event_sourcing.EventEnvelope">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">EventEnvelope</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Envelope wrapping an event with metadata.</span>
+<span class="sd">    </span>
+<span class="sd">    Contains the event payload along with metadata needed for</span>
+<span class="sd">    persistence, replay, and auditing.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">event_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">()))</span>
+    <span class="n">aggregate_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">aggregate_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">event_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">version</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span>  <span class="c1"># Sequence number within aggregate</span>
+    <span class="n">timestamp</span><span class="p">:</span> <span class="n">datetime</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">)</span>
+    <span class="n">payload</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">)</span>
+    <span class="n">metadata</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">)</span>
+    <span class="n">schema_version</span><span class="p">:</span> <span class="n">EventVersion</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="n">EventVersion</span><span class="p">)</span>
+    <span class="n">causation_id</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># ID of event that caused this</span>
+    <span class="n">correlation_id</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># Correlates related events</span>
+    
+<div class="viewcode-block" id="EventEnvelope.to_dict">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.event_sourcing.EventEnvelope.to_dict">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Serialize to dictionary.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;event_id&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">event_id</span><span class="p">,</span>
+            <span class="s2">&quot;aggregate_id&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">aggregate_id</span><span class="p">,</span>
+            <span class="s2">&quot;aggregate_type&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">aggregate_type</span><span class="p">,</span>
+            <span class="s2">&quot;event_type&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">event_type</span><span class="p">,</span>
+            <span class="s2">&quot;version&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="p">,</span>
+            <span class="s2">&quot;timestamp&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">timestamp</span><span class="o">.</span><span class="n">isoformat</span><span class="p">(),</span>
+            <span class="s2">&quot;payload&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">payload</span><span class="p">,</span>
+            <span class="s2">&quot;metadata&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">metadata</span><span class="p">,</span>
+            <span class="s2">&quot;schema_version&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">schema_version</span><span class="p">),</span>
+            <span class="s2">&quot;causation_id&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">causation_id</span><span class="p">,</span>
+            <span class="s2">&quot;correlation_id&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">correlation_id</span><span class="p">,</span>
+        <span class="p">}</span></div>
+
+    
+<div class="viewcode-block" id="EventEnvelope.from_dict">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.event_sourcing.EventEnvelope.from_dict">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_dict</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">EventEnvelope</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Deserialize from dictionary.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span>
+            <span class="n">event_id</span><span class="o">=</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;event_id&quot;</span><span class="p">],</span>
+            <span class="n">aggregate_id</span><span class="o">=</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;aggregate_id&quot;</span><span class="p">],</span>
+            <span class="n">aggregate_type</span><span class="o">=</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;aggregate_type&quot;</span><span class="p">],</span>
+            <span class="n">event_type</span><span class="o">=</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;event_type&quot;</span><span class="p">],</span>
+            <span class="n">version</span><span class="o">=</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;version&quot;</span><span class="p">],</span>
+            <span class="n">timestamp</span><span class="o">=</span><span class="n">datetime</span><span class="o">.</span><span class="n">fromisoformat</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;timestamp&quot;</span><span class="p">]),</span>
+            <span class="n">payload</span><span class="o">=</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;payload&quot;</span><span class="p">],</span>
+            <span class="n">metadata</span><span class="o">=</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;metadata&quot;</span><span class="p">,</span> <span class="p">{}),</span>
+            <span class="n">schema_version</span><span class="o">=</span><span class="n">EventVersion</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;schema_version&quot;</span><span class="p">,</span> <span class="s2">&quot;v1.0&quot;</span><span class="p">)),</span>
+            <span class="n">causation_id</span><span class="o">=</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;causation_id&quot;</span><span class="p">),</span>
+            <span class="n">correlation_id</span><span class="o">=</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;correlation_id&quot;</span><span class="p">),</span>
+        <span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="Snapshot">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.event_sourcing.Snapshot">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Snapshot</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Point-in-time snapshot of an aggregate&#39;s state.</span>
+<span class="sd">    </span>
+<span class="sd">    Snapshots are used to optimize replay by providing a starting point</span>
+<span class="sd">    instead of replaying all events from the beginning.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">aggregate_id</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">aggregate_type</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">version</span><span class="p">:</span> <span class="nb">int</span>  <span class="c1"># Version at which snapshot was taken</span>
+    <span class="n">state</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span>
+    <span class="n">timestamp</span><span class="p">:</span> <span class="n">datetime</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">)</span>
+    <span class="n">metadata</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">)</span></div>
+
+
+
+<span class="n">T</span> <span class="o">=</span> <span class="n">TypeVar</span><span class="p">(</span><span class="s1">&#39;T&#39;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="Aggregate">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.event_sourcing.Aggregate">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">Aggregate</span><span class="p">(</span><span class="n">ABC</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Base class for event-sourced aggregates.</span>
+<span class="sd">    </span>
+<span class="sd">    Aggregates maintain their state by applying events. Subclasses</span>
+<span class="sd">    should implement apply_* methods for each event type.</span>
+<span class="sd">    </span>
+<span class="sd">    Example:</span>
+<span class="sd">        class Order(Aggregate):</span>
+<span class="sd">            def __init__(self):</span>
+<span class="sd">                super().__init__()</span>
+<span class="sd">                self.status = &quot;pending&quot;</span>
+<span class="sd">                self.total = 0.0</span>
+<span class="sd">            </span>
+<span class="sd">            def apply_order_created(self, event: Dict[str, Any]):</span>
+<span class="sd">                self.status = &quot;created&quot;</span>
+<span class="sd">                self.total = event.get(&quot;total&quot;, 0)</span>
+<span class="sd">            </span>
+<span class="sd">            def apply_item_added(self, event: Dict[str, Any]):</span>
+<span class="sd">                self.total += event.get(&quot;price&quot;, 0)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_version</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_uncommitted_events</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">EventEnvelope</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_snapshot_version</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">id</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Aggregate ID.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_id</span>
+    
+    <span class="nd">@id</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_id</span> <span class="o">=</span> <span class="n">value</span>
+    
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">version</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Current version (number of applied events).&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_version</span>
+    
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">uncommitted_events</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">EventEnvelope</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Events not yet persisted.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_uncommitted_events</span><span class="p">)</span>
+    
+<div class="viewcode-block" id="Aggregate.apply_event">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.event_sourcing.Aggregate.apply_event">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">apply_event</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">envelope</span><span class="p">:</span> <span class="n">EventEnvelope</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Apply an event to update aggregate state.</span>
+<span class="sd">        </span>
+<span class="sd">        Looks for an apply_* method based on event type.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">event_type</span> <span class="o">=</span> <span class="n">envelope</span><span class="o">.</span><span class="n">event_type</span>
+        <span class="n">method_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;apply_</span><span class="si">{</span><span class="n">event_type</span><span class="si">}</span><span class="s2">&quot;</span>
+        
+        <span class="n">method</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">method_name</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">method</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># No handler for this event type - that&#39;s okay</span>
+            <span class="k">return</span>
+        
+        <span class="n">method</span><span class="p">(</span><span class="n">envelope</span><span class="o">.</span><span class="n">payload</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_version</span> <span class="o">=</span> <span class="n">envelope</span><span class="o">.</span><span class="n">version</span>
+        
+        <span class="c1"># Set ID from first event</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_id</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_id</span> <span class="o">=</span> <span class="n">envelope</span><span class="o">.</span><span class="n">aggregate_id</span></div>
+
+    
+<div class="viewcode-block" id="Aggregate.emit_event">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.event_sourcing.Aggregate.emit_event">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">emit_event</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">event_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">payload</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
+        <span class="n">metadata</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">schema_version</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">EventVersion</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">EventEnvelope</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create and apply a new event.</span>
+<span class="sd">        </span>
+<span class="sd">        The event is added to uncommitted events list.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_version</span> <span class="o">+=</span> <span class="mi">1</span>
+        
+        <span class="n">envelope</span> <span class="o">=</span> <span class="n">EventEnvelope</span><span class="p">(</span>
+            <span class="n">aggregate_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_id</span><span class="p">,</span>
+            <span class="n">aggregate_type</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span>
+            <span class="n">event_type</span><span class="o">=</span><span class="n">event_type</span><span class="p">,</span>
+            <span class="n">version</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_version</span><span class="p">,</span>
+            <span class="n">payload</span><span class="o">=</span><span class="n">payload</span><span class="p">,</span>
+            <span class="n">metadata</span><span class="o">=</span><span class="n">metadata</span> <span class="ow">or</span> <span class="p">{},</span>
+            <span class="n">schema_version</span><span class="o">=</span><span class="n">schema_version</span> <span class="ow">or</span> <span class="n">EventVersion</span><span class="p">(),</span>
+        <span class="p">)</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">_uncommitted_events</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">envelope</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">apply_event</span><span class="p">(</span><span class="n">envelope</span><span class="p">)</span>
+        
+        <span class="k">return</span> <span class="n">envelope</span></div>
+
+    
+<div class="viewcode-block" id="Aggregate.mark_events_committed">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.event_sourcing.Aggregate.mark_events_committed">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">mark_events_committed</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Clear uncommitted events after persistence.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_uncommitted_events</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span></div>
+
+    
+<div class="viewcode-block" id="Aggregate.load_from_history">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.event_sourcing.Aggregate.load_from_history">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_from_history</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">events</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">EventEnvelope</span><span class="p">],</span>
+        <span class="n">snapshot</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Snapshot</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Rebuild aggregate state from event history.</span>
+<span class="sd">        </span>
+<span class="sd">        Optionally start from a snapshot.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">snapshot</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_load_snapshot</span><span class="p">(</span><span class="n">snapshot</span><span class="p">)</span>
+        
+        <span class="k">for</span> <span class="n">event</span> <span class="ow">in</span> <span class="n">events</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">event</span><span class="o">.</span><span class="n">version</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_version</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">apply_event</span><span class="p">(</span><span class="n">event</span><span class="p">)</span></div>
+
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">_load_snapshot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">snapshot</span><span class="p">:</span> <span class="n">Snapshot</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Load state from a snapshot.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_id</span> <span class="o">=</span> <span class="n">snapshot</span><span class="o">.</span><span class="n">aggregate_id</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_version</span> <span class="o">=</span> <span class="n">snapshot</span><span class="o">.</span><span class="n">version</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_snapshot_version</span> <span class="o">=</span> <span class="n">snapshot</span><span class="o">.</span><span class="n">version</span>
+        
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">snapshot</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+    
+<div class="viewcode-block" id="Aggregate.create_snapshot">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.event_sourcing.Aggregate.create_snapshot">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">create_snapshot</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Snapshot</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create a snapshot of current state.</span>
+<span class="sd">        </span>
+<span class="sd">        Subclasses should override to control what state is captured.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">state</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">key</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">):</span>
+                <span class="n">state</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+        
+        <span class="k">return</span> <span class="n">Snapshot</span><span class="p">(</span>
+            <span class="n">aggregate_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_id</span><span class="p">,</span>
+            <span class="n">aggregate_type</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span>
+            <span class="n">version</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_version</span><span class="p">,</span>
+            <span class="n">state</span><span class="o">=</span><span class="n">state</span><span class="p">,</span>
+        <span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="EventStore">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.event_sourcing.EventStore">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">EventStore</span><span class="p">(</span><span class="n">ABC</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Abstract base class for event stores.</span>
+<span class="sd">    </span>
+<span class="sd">    Provides persistence for event streams and snapshots.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    
+<div class="viewcode-block" id="EventStore.append">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.event_sourcing.EventStore.append">[docs]</a>
+    <span class="nd">@abstractmethod</span>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">append</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">aggregate_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">events</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]],</span>
+        <span class="n">expected_version</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Append events to an aggregate&#39;s stream.</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            aggregate_id: The aggregate ID</span>
+<span class="sd">            events: List of event payloads</span>
+<span class="sd">            expected_version: For optimistic concurrency check</span>
+<span class="sd">        </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            The new version number</span>
+<span class="sd">        </span>
+<span class="sd">        Raises:</span>
+<span class="sd">            ConcurrencyError: If version mismatch</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+
+    
+<div class="viewcode-block" id="EventStore.get_events">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.event_sourcing.EventStore.get_events">[docs]</a>
+    <span class="nd">@abstractmethod</span>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">get_events</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">aggregate_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">after_version</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">EventEnvelope</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get events for an aggregate.</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            aggregate_id: The aggregate ID</span>
+<span class="sd">            after_version: Only return events after this version</span>
+<span class="sd">        </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            List of event envelopes</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+
+    
+<div class="viewcode-block" id="EventStore.get_events_after">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.event_sourcing.EventStore.get_events_after">[docs]</a>
+    <span class="nd">@abstractmethod</span>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">get_events_after</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">aggregate_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">after_event_id</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">EventEnvelope</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get events after a specific event.</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            aggregate_id: The aggregate ID</span>
+<span class="sd">            after_event_id: Get events after this event ID</span>
+<span class="sd">        </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            List of event envelopes</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+
+    
+<div class="viewcode-block" id="EventStore.get_events_between_versions">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.event_sourcing.EventStore.get_events_between_versions">[docs]</a>
+    <span class="nd">@abstractmethod</span>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">get_events_between_versions</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">aggregate_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">from_version</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">to_version</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">EventEnvelope</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get events within a version range.</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            aggregate_id: The aggregate ID</span>
+<span class="sd">            from_version: Start version (inclusive)</span>
+<span class="sd">            to_version: End version (inclusive)</span>
+<span class="sd">        </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            List of event envelopes</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+
+    
+<div class="viewcode-block" id="EventStore.get_all_events">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.event_sourcing.EventStore.get_all_events">[docs]</a>
+    <span class="nd">@abstractmethod</span>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">get_all_events</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">aggregate_type</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">from_timestamp</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">datetime</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">EventEnvelope</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get all events, optionally filtered.</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            aggregate_type: Filter by aggregate type</span>
+<span class="sd">            from_timestamp: Filter events after this time</span>
+<span class="sd">        </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            List of event envelopes</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+
+    
+<div class="viewcode-block" id="EventStore.save_snapshot">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.event_sourcing.EventStore.save_snapshot">[docs]</a>
+    <span class="nd">@abstractmethod</span>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">save_snapshot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">snapshot</span><span class="p">:</span> <span class="n">Snapshot</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Save a snapshot for an aggregate.&quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+
+    
+<div class="viewcode-block" id="EventStore.load_snapshot">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.event_sourcing.EventStore.load_snapshot">[docs]</a>
+    <span class="nd">@abstractmethod</span>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">load_snapshot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">aggregate_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Snapshot</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Load the latest snapshot for an aggregate.&quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="InMemoryEventStore">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.event_sourcing.InMemoryEventStore">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">InMemoryEventStore</span><span class="p">(</span><span class="n">EventStore</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    In-memory implementation of EventStore for testing and development.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_events</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">EventEnvelope</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_snapshots</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Snapshot</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_all_events</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">EventEnvelope</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">Lock</span><span class="p">()</span>
+    
+<div class="viewcode-block" id="InMemoryEventStore.append">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.event_sourcing.InMemoryEventStore.append">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">append</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">aggregate_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">events</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]],</span>
+        <span class="n">expected_version</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Append events to an aggregate&#39;s stream.&quot;&quot;&quot;</span>
+        <span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">aggregate_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_events</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_events</span><span class="p">[</span><span class="n">aggregate_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+            
+            <span class="n">current_version</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_events</span><span class="p">[</span><span class="n">aggregate_id</span><span class="p">])</span>
+            
+            <span class="c1"># Optimistic concurrency check</span>
+            <span class="k">if</span> <span class="n">expected_version</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">current_version</span> <span class="o">!=</span> <span class="n">expected_version</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">ConcurrencyError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Expected version </span><span class="si">{</span><span class="n">expected_version</span><span class="si">}</span><span class="s2">, but was </span><span class="si">{</span><span class="n">current_version</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="p">)</span>
+            
+            <span class="n">envelopes</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">event</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">events</span><span class="p">):</span>
+                <span class="n">envelope</span> <span class="o">=</span> <span class="n">EventEnvelope</span><span class="p">(</span>
+                    <span class="n">aggregate_id</span><span class="o">=</span><span class="n">aggregate_id</span><span class="p">,</span>
+                    <span class="n">event_type</span><span class="o">=</span><span class="n">event</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;type&quot;</span><span class="p">,</span> <span class="s2">&quot;unknown&quot;</span><span class="p">),</span>
+                    <span class="n">version</span><span class="o">=</span><span class="n">current_version</span> <span class="o">+</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span>
+                    <span class="n">payload</span><span class="o">=</span><span class="n">event</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="n">envelopes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">envelope</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_all_events</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">envelope</span><span class="p">)</span>
+            
+            <span class="bp">self</span><span class="o">.</span><span class="n">_events</span><span class="p">[</span><span class="n">aggregate_id</span><span class="p">]</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">envelopes</span><span class="p">)</span>
+            <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_events</span><span class="p">[</span><span class="n">aggregate_id</span><span class="p">])</span></div>
+
+    
+<div class="viewcode-block" id="InMemoryEventStore.get_events">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.event_sourcing.InMemoryEventStore.get_events">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">get_events</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">aggregate_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">after_version</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">EventEnvelope</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get events for an aggregate.&quot;&quot;&quot;</span>
+        <span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">aggregate_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_events</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">[]</span>
+            
+            <span class="n">events</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_events</span><span class="p">[</span><span class="n">aggregate_id</span><span class="p">]</span>
+            <span class="k">return</span> <span class="p">[</span><span class="n">e</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">events</span> <span class="k">if</span> <span class="n">e</span><span class="o">.</span><span class="n">version</span> <span class="o">&gt;</span> <span class="n">after_version</span><span class="p">]</span></div>
+
+    
+<div class="viewcode-block" id="InMemoryEventStore.get_events_after">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.event_sourcing.InMemoryEventStore.get_events_after">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">get_events_after</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">aggregate_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">after_event_id</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">EventEnvelope</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get events after a specific event.&quot;&quot;&quot;</span>
+        <span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">aggregate_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_events</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">[]</span>
+            
+            <span class="n">events</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_events</span><span class="p">[</span><span class="n">aggregate_id</span><span class="p">]</span>
+            <span class="n">found</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="p">[]</span>
+            
+            <span class="k">for</span> <span class="n">event</span> <span class="ow">in</span> <span class="n">events</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">found</span><span class="p">:</span>
+                    <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="n">event</span><span class="o">.</span><span class="n">event_id</span> <span class="o">==</span> <span class="n">after_event_id</span><span class="p">:</span>
+                    <span class="n">found</span> <span class="o">=</span> <span class="kc">True</span>
+            
+            <span class="k">return</span> <span class="n">result</span></div>
+
+    
+<div class="viewcode-block" id="InMemoryEventStore.get_events_between_versions">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.event_sourcing.InMemoryEventStore.get_events_between_versions">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">get_events_between_versions</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">aggregate_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">from_version</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">to_version</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">EventEnvelope</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get events within a version range.&quot;&quot;&quot;</span>
+        <span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">aggregate_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_events</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">[]</span>
+            
+            <span class="n">events</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_events</span><span class="p">[</span><span class="n">aggregate_id</span><span class="p">]</span>
+            <span class="k">return</span> <span class="p">[</span>
+                <span class="n">e</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">events</span>
+                <span class="k">if</span> <span class="n">from_version</span> <span class="o">&lt;=</span> <span class="n">e</span><span class="o">.</span><span class="n">version</span> <span class="o">&lt;=</span> <span class="n">to_version</span>
+            <span class="p">]</span></div>
+
+    
+<div class="viewcode-block" id="InMemoryEventStore.get_all_events">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.event_sourcing.InMemoryEventStore.get_all_events">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">get_all_events</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">aggregate_type</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">from_timestamp</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">datetime</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">EventEnvelope</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get all events, optionally filtered.&quot;&quot;&quot;</span>
+        <span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="p">:</span>
+            <span class="n">events</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_all_events</span><span class="p">)</span>
+            
+            <span class="k">if</span> <span class="n">aggregate_type</span><span class="p">:</span>
+                <span class="n">events</span> <span class="o">=</span> <span class="p">[</span><span class="n">e</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">events</span> <span class="k">if</span> <span class="n">e</span><span class="o">.</span><span class="n">aggregate_type</span> <span class="o">==</span> <span class="n">aggregate_type</span><span class="p">]</span>
+            
+            <span class="k">if</span> <span class="n">from_timestamp</span><span class="p">:</span>
+                <span class="n">events</span> <span class="o">=</span> <span class="p">[</span><span class="n">e</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">events</span> <span class="k">if</span> <span class="n">e</span><span class="o">.</span><span class="n">timestamp</span> <span class="o">&gt;=</span> <span class="n">from_timestamp</span><span class="p">]</span>
+            
+            <span class="k">return</span> <span class="n">events</span></div>
+
+    
+<div class="viewcode-block" id="InMemoryEventStore.save_snapshot">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.event_sourcing.InMemoryEventStore.save_snapshot">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">save_snapshot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">snapshot</span><span class="p">:</span> <span class="n">Snapshot</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Save a snapshot.&quot;&quot;&quot;</span>
+        <span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_snapshots</span><span class="p">[</span><span class="n">snapshot</span><span class="o">.</span><span class="n">aggregate_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">snapshot</span></div>
+
+    
+<div class="viewcode-block" id="InMemoryEventStore.load_snapshot">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.event_sourcing.InMemoryEventStore.load_snapshot">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">load_snapshot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">aggregate_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Snapshot</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Load the latest snapshot.&quot;&quot;&quot;</span>
+        <span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_snapshots</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">aggregate_id</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="ConcurrencyError">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.event_sourcing.ConcurrencyError">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">ConcurrencyError</span><span class="p">(</span><span class="n">AetherError</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Raised when optimistic concurrency check fails.&quot;&quot;&quot;</span>
+    <span class="k">pass</span></div>
+
+
+
+<div class="viewcode-block" id="EventSourcedActor">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.event_sourcing.EventSourcedActor">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">EventSourcedActor</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Mixin for actors that use event sourcing.</span>
+<span class="sd">    </span>
+<span class="sd">    Combines actor behavior with event sourcing patterns.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event_store</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">EventStore</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_event_store</span> <span class="o">=</span> <span class="n">event_store</span> <span class="ow">or</span> <span class="n">InMemoryEventStore</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_aggregates</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Aggregate</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+    
+<div class="viewcode-block" id="EventSourcedActor.load_aggregate">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.event_sourcing.EventSourcedActor.load_aggregate">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">load_aggregate</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">aggregate_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">aggregate_class</span><span class="p">:</span> <span class="nb">type</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Aggregate</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Load an aggregate from the event store.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">aggregate_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_aggregates</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_aggregates</span><span class="p">[</span><span class="n">aggregate_id</span><span class="p">]</span>
+        
+        <span class="n">aggregate</span> <span class="o">=</span> <span class="n">aggregate_class</span><span class="p">()</span>
+        <span class="n">aggregate</span><span class="o">.</span><span class="n">id</span> <span class="o">=</span> <span class="n">aggregate_id</span>
+        
+        <span class="c1"># Try to load from snapshot first</span>
+        <span class="n">snapshot</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_event_store</span><span class="o">.</span><span class="n">load_snapshot</span><span class="p">(</span><span class="n">aggregate_id</span><span class="p">)</span>
+        
+        <span class="c1"># Load events after snapshot</span>
+        <span class="n">after_version</span> <span class="o">=</span> <span class="n">snapshot</span><span class="o">.</span><span class="n">version</span> <span class="k">if</span> <span class="n">snapshot</span> <span class="k">else</span> <span class="mi">0</span>
+        <span class="n">events</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_event_store</span><span class="o">.</span><span class="n">get_events</span><span class="p">(</span><span class="n">aggregate_id</span><span class="p">,</span> <span class="n">after_version</span><span class="p">)</span>
+        
+        <span class="c1"># Rebuild state</span>
+        <span class="n">aggregate</span><span class="o">.</span><span class="n">load_from_history</span><span class="p">(</span><span class="n">events</span><span class="p">,</span> <span class="n">snapshot</span><span class="p">)</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">_aggregates</span><span class="p">[</span><span class="n">aggregate_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">aggregate</span>
+        <span class="k">return</span> <span class="n">aggregate</span></div>
+
+    
+<div class="viewcode-block" id="EventSourcedActor.save_aggregate">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.event_sourcing.EventSourcedActor.save_aggregate">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">save_aggregate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">aggregate</span><span class="p">:</span> <span class="n">Aggregate</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Persist uncommitted events from an aggregate.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">events</span> <span class="o">=</span> <span class="n">aggregate</span><span class="o">.</span><span class="n">uncommitted_events</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">events</span><span class="p">:</span>
+            <span class="k">return</span>
+        
+        <span class="c1"># Convert envelopes to event dicts</span>
+        <span class="n">event_dicts</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="p">{</span>
+                <span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="n">e</span><span class="o">.</span><span class="n">event_type</span><span class="p">,</span>
+                <span class="o">**</span><span class="n">e</span><span class="o">.</span><span class="n">payload</span>
+            <span class="p">}</span>
+            <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">events</span>
+        <span class="p">]</span>
+        
+        <span class="n">expected_version</span> <span class="o">=</span> <span class="n">aggregate</span><span class="o">.</span><span class="n">version</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">events</span><span class="p">)</span>
+        <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_event_store</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="n">aggregate</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+            <span class="n">event_dicts</span><span class="p">,</span>
+            <span class="n">expected_version</span> <span class="k">if</span> <span class="n">expected_version</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="p">)</span>
+        
+        <span class="n">aggregate</span><span class="o">.</span><span class="n">mark_events_committed</span><span class="p">()</span></div>
+
+    
+<div class="viewcode-block" id="EventSourcedActor.save_snapshot">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.event_sourcing.EventSourcedActor.save_snapshot">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">save_snapshot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">aggregate_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create and save a snapshot for an aggregate.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">aggregate_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_aggregates</span><span class="p">:</span>
+            <span class="k">return</span>
+        
+        <span class="n">aggregate</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_aggregates</span><span class="p">[</span><span class="n">aggregate_id</span><span class="p">]</span>
+        <span class="n">snapshot</span> <span class="o">=</span> <span class="n">aggregate</span><span class="o">.</span><span class="n">create_snapshot</span><span class="p">()</span>
+        <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_event_store</span><span class="o">.</span><span class="n">save_snapshot</span><span class="p">(</span><span class="n">snapshot</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="apply_event">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.event_sourcing.apply_event">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">apply_event</span><span class="p">(</span><span class="n">aggregate</span><span class="p">:</span> <span class="n">Aggregate</span><span class="p">,</span> <span class="n">envelope</span><span class="p">:</span> <span class="n">EventEnvelope</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Helper function to apply an event to an aggregate.</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        aggregate: The aggregate to update</span>
+<span class="sd">        envelope: The event envelope to apply</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">aggregate</span><span class="o">.</span><span class="n">apply_event</span><span class="p">(</span><span class="n">envelope</span><span class="p">)</span></div>
+
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;EventVersion&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;EventEnvelope&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;Snapshot&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;Aggregate&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;EventStore&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;InMemoryEventStore&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;EventSourcedActor&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ConcurrencyError&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;apply_event&quot;</span><span class="p">,</span>
+<span class="p">]</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 1980 Aether Core Team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

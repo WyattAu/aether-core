@@ -1,0 +1,813 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>aether_sdk.workflow.saga &mdash; Aether Python SDK  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Aether Python SDK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../quickstart.html">Quick Start Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/core.html">Core API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/event.html">Event System API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/resilience.html">Resilience API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/streaming.html">Streaming API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/workflow.html">Workflow API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/validation.html">Validation API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Aether Python SDK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">aether_sdk.workflow.saga</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for aether_sdk.workflow.saga</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Saga Pattern Implementation</span>
+
+<span class="sd">Provides distributed transaction coordination with compensation</span>
+<span class="sd">for building reliable multi-step workflows across actors.</span>
+
+<span class="sd">Example:</span>
+<span class="sd">    &gt;&gt;&gt; from aether_sdk.workflow.saga import Saga, SagaStep, SagaExecutor</span>
+<span class="sd">    &gt;&gt;&gt; order_saga = Saga(&quot;order-processing&quot;)</span>
+<span class="sd">    ...     .step(&quot;reserve-inventory&quot;)</span>
+<span class="sd">    ...     .action(reserve_fn)</span>
+<span class="sd">    ...     .compensate(release_fn)</span>
+<span class="sd">    ...     .step(&quot;process-payment&quot;)</span>
+<span class="sd">    ...     .action(charge_fn)</span>
+<span class="sd">    ...     .compensate(refund_fn)</span>
+<span class="sd">    ...     .build()</span>
+<span class="sd">    &gt;&gt;&gt; result = await executor.execute(order_saga, {&quot;order_id&quot;: &quot;123&quot;})</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">datetime</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">Any</span><span class="p">,</span>
+    <span class="n">Callable</span><span class="p">,</span>
+    <span class="n">Dict</span><span class="p">,</span>
+    <span class="n">Generic</span><span class="p">,</span>
+    <span class="n">List</span><span class="p">,</span>
+    <span class="n">Optional</span><span class="p">,</span>
+    <span class="n">TypeVar</span><span class="p">,</span>
+    <span class="n">Awaitable</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">ABC</span><span class="p">,</span> <span class="n">abstractmethod</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">asyncio</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">random</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">uuid</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">.types</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">SagaStatus</span><span class="p">,</span>
+    <span class="n">StepStatus</span><span class="p">,</span>
+    <span class="n">SagaContext</span><span class="p">,</span>
+    <span class="n">SagaResult</span><span class="p">,</span>
+    <span class="n">SagaError</span><span class="p">,</span>
+    <span class="n">SagaStepFailedError</span><span class="p">,</span>
+    <span class="n">SagaCompensationFailedError</span><span class="p">,</span>
+    <span class="n">Duration</span><span class="p">,</span>
+    <span class="n">RetryConfig</span><span class="p">,</span>
+    <span class="n">RetryPolicy</span><span class="p">,</span>
+    <span class="n">ActionHandler</span><span class="p">,</span>
+    <span class="n">CompensationHandler</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+<span class="n">T</span> <span class="o">=</span> <span class="n">TypeVar</span><span class="p">(</span><span class="s1">&#39;T&#39;</span><span class="p">)</span>
+<span class="n">R</span> <span class="o">=</span> <span class="n">TypeVar</span><span class="p">(</span><span class="s1">&#39;R&#39;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="SagaStep">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.SagaStep">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">SagaStep</span><span class="p">(</span><span class="n">Generic</span><span class="p">[</span><span class="n">T</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A single step in a saga.</span>
+
+<span class="sd">    Each step has an action (the forward operation) and an optional</span>
+<span class="sd">    compensation (the undo operation). Steps can be retried, timed out,</span>
+<span class="sd">    or conditionally skipped.</span>
+
+<span class="sd">    Type Parameters:</span>
+<span class="sd">        T: Type of the saga input.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        name: Step name.</span>
+<span class="sd">        action: Forward operation callable.</span>
+<span class="sd">        compensate: Compensation (undo) callable.</span>
+<span class="sd">        retry_config: Retry configuration for transient failures.</span>
+<span class="sd">        timeout: Step timeout duration.</span>
+<span class="sd">        skip_condition: If this returns ``True``, the step is skipped.</span>
+<span class="sd">        status: Current execution status.</span>
+<span class="sd">        attempts: Number of attempts made so far.</span>
+<span class="sd">        error: Error message from the last failure.</span>
+<span class="sd">        started_at: When execution started.</span>
+<span class="sd">        completed_at: When execution completed.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">action</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ActionHandler</span><span class="p">[</span><span class="n">T</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">compensate</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">CompensationHandler</span><span class="p">[</span><span class="n">T</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">retry_config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RetryConfig</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">timeout</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Duration</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">skip_condition</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">[[</span><span class="n">SagaContext</span><span class="p">[</span><span class="n">T</span><span class="p">]],</span> <span class="nb">bool</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">status</span><span class="p">:</span> <span class="n">StepStatus</span> <span class="o">=</span> <span class="n">StepStatus</span><span class="o">.</span><span class="n">PENDING</span>
+    <span class="n">attempts</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">error</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">started_at</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">datetime</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">completed_at</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">datetime</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="SagaStep.with_action">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.SagaStep.with_action">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">with_action</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">action</span><span class="p">:</span> <span class="n">ActionHandler</span><span class="p">[</span><span class="n">T</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">SagaStep</span><span class="p">[</span><span class="n">T</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Set the action handler.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            action: Forward operation callable.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Self for method chaining.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">action</span> <span class="o">=</span> <span class="n">action</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="SagaStep.with_compensation">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.SagaStep.with_compensation">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">with_compensation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">compensate</span><span class="p">:</span> <span class="n">CompensationHandler</span><span class="p">[</span><span class="n">T</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">SagaStep</span><span class="p">[</span><span class="n">T</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Set the compensation handler.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            compensate: Undo operation callable.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Self for method chaining.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">compensate</span> <span class="o">=</span> <span class="n">compensate</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="SagaStep.with_retry">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.SagaStep.with_retry">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">with_retry</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="n">RetryConfig</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SagaStep</span><span class="p">[</span><span class="n">T</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Set retry configuration.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            config: Retry configuration.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Self for method chaining.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">retry_config</span> <span class="o">=</span> <span class="n">config</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="SagaStep.with_timeout">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.SagaStep.with_timeout">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">with_timeout</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timeout</span><span class="p">:</span> <span class="n">Duration</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SagaStep</span><span class="p">[</span><span class="n">T</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Set the step timeout.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            timeout: Timeout duration.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Self for method chaining.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">timeout</span> <span class="o">=</span> <span class="n">timeout</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="SagaStep.skip_if">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.SagaStep.skip_if">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">skip_if</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">condition</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">SagaContext</span><span class="p">[</span><span class="n">T</span><span class="p">]],</span> <span class="nb">bool</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">SagaStep</span><span class="p">[</span><span class="n">T</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Set a skip condition.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            condition: Predicate; if ``True``, the step is skipped.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Self for method chaining.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">skip_condition</span> <span class="o">=</span> <span class="n">condition</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="Saga">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.Saga">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">Saga</span><span class="p">(</span><span class="n">Generic</span><span class="p">[</span><span class="n">T</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A saga definition containing ordered steps with compensating actions.</span>
+
+<span class="sd">    Sagas provide distributed transaction semantics by defining undo</span>
+<span class="sd">    operations for each step. If a step fails, all previously completed</span>
+<span class="sd">    steps are compensated in reverse order.</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; saga = Saga(&quot;order-processing&quot;)</span>
+<span class="sd">        ...     .step(&quot;reserve-inventory&quot;)</span>
+<span class="sd">        ...     .action(reserve_inventory)</span>
+<span class="sd">        ...     .compensate(release_inventory)</span>
+<span class="sd">        ...     .step(&quot;process-payment&quot;)</span>
+<span class="sd">        ...     .action(process_payment)</span>
+<span class="sd">        ...     .compensate(refund_payment)</span>
+<span class="sd">        ...     .build()</span>
+
+<span class="sd">    Type Parameters:</span>
+<span class="sd">        T: Type of the saga input.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize the saga.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            name: Saga name.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_steps</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">SagaStep</span><span class="p">[</span><span class="n">T</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_current_step</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">SagaStep</span><span class="p">[</span><span class="n">T</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_metadata</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+
+<div class="viewcode-block" id="Saga.step">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.Saga.step">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Saga</span><span class="p">[</span><span class="n">T</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Add a new step to the saga.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            name: Step name.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Self for method chaining.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">new_step</span> <span class="o">=</span> <span class="n">SagaStep</span><span class="p">[</span><span class="n">T</span><span class="p">](</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_steps</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">new_step</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_current_step</span> <span class="o">=</span> <span class="n">new_step</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="Saga.action">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.Saga.action">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">action</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">handler</span><span class="p">:</span> <span class="n">ActionHandler</span><span class="p">[</span><span class="n">T</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Saga</span><span class="p">[</span><span class="n">T</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Set the action for the current step.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            handler: Forward operation callable.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Self for method chaining.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            ValueError: If no step has been added yet.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_current_step</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;No step defined. Call step() first.&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_current_step</span><span class="o">.</span><span class="n">action</span> <span class="o">=</span> <span class="n">handler</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="Saga.compensate">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.Saga.compensate">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">compensate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">handler</span><span class="p">:</span> <span class="n">CompensationHandler</span><span class="p">[</span><span class="n">T</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Saga</span><span class="p">[</span><span class="n">T</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Set the compensation for the current step.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            handler: Undo operation callable.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Self for method chaining.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            ValueError: If no step has been added yet.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_current_step</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;No step defined. Call step() first.&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_current_step</span><span class="o">.</span><span class="n">compensate</span> <span class="o">=</span> <span class="n">handler</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="Saga.retry">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.Saga.retry">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">retry</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="n">RetryConfig</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Saga</span><span class="p">[</span><span class="n">T</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Set retry config for the current step.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            config: Retry configuration.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Self for method chaining.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            ValueError: If no step has been added yet.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_current_step</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;No step defined. Call step() first.&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_current_step</span><span class="o">.</span><span class="n">retry_config</span> <span class="o">=</span> <span class="n">config</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="Saga.timeout">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.Saga.timeout">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">timeout</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">duration</span><span class="p">:</span> <span class="n">Duration</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Saga</span><span class="p">[</span><span class="n">T</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Set timeout for the current step.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            duration: Timeout duration.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Self for method chaining.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            ValueError: If no step has been added yet.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_current_step</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;No step defined. Call step() first.&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_current_step</span><span class="o">.</span><span class="n">timeout</span> <span class="o">=</span> <span class="n">duration</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="Saga.skip_if">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.Saga.skip_if">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">skip_if</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">condition</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">SagaContext</span><span class="p">[</span><span class="n">T</span><span class="p">]],</span> <span class="nb">bool</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Saga</span><span class="p">[</span><span class="n">T</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Set skip condition for the current step.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            condition: Predicate.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Self for method chaining.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            ValueError: If no step has been added yet.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_current_step</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;No step defined. Call step() first.&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_current_step</span><span class="o">.</span><span class="n">skip_condition</span> <span class="o">=</span> <span class="n">condition</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="Saga.with_metadata">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.Saga.with_metadata">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">with_metadata</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Saga</span><span class="p">[</span><span class="n">T</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Add metadata to the saga.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            key: Metadata key.</span>
+<span class="sd">            value: Metadata value.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Self for method chaining.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_metadata</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="Saga.build">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.Saga.build">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">build</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Saga</span><span class="p">[</span><span class="n">T</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Validate the saga and return it.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The validated saga instance.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            ValueError: If any step is missing an action.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">step</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_steps</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">step</span><span class="o">.</span><span class="n">action</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Step &#39;</span><span class="si">{</span><span class="n">step</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&#39; has no action defined&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">steps</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">SagaStep</span><span class="p">[</span><span class="n">T</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a copy of all steps.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A list of :class:`SagaStep` instances.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_steps</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Saga.get_step">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.Saga.get_step">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">SagaStep</span><span class="p">[</span><span class="n">T</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Look up a step by name.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            name: Step name.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The matching :class:`SagaStep`, or ``None``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">step</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_steps</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">step</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="n">name</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">step</span>
+        <span class="k">return</span> <span class="kc">None</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="SagaExecutor">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.SagaExecutor">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">SagaExecutor</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Executes sagas with automatic compensation on failure.</span>
+
+<span class="sd">    Runs saga steps in order. If any step fails, all previously</span>
+<span class="sd">    completed steps are compensated in reverse order.</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; executor = SagaExecutor()</span>
+<span class="sd">        &gt;&gt;&gt; result = await executor.execute(order_saga, {&quot;order_id&quot;: &quot;123&quot;})</span>
+<span class="sd">        &gt;&gt;&gt; if result.status == SagaStatus.COMPLETED:</span>
+<span class="sd">        ...     print(&quot;Success!&quot;)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">default_retry</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RetryConfig</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">default_timeout</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Duration</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize the executor.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            default_retry: Default retry config for steps that don&#39;t</span>
+<span class="sd">                specify their own.</span>
+<span class="sd">            default_timeout: Default timeout for steps that don&#39;t</span>
+<span class="sd">                specify their own.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">default_retry</span> <span class="o">=</span> <span class="n">default_retry</span> <span class="ow">or</span> <span class="n">RetryConfig</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">default_timeout</span> <span class="o">=</span> <span class="n">default_timeout</span> <span class="ow">or</span> <span class="n">Duration</span><span class="o">.</span><span class="n">from_seconds</span><span class="p">(</span><span class="mi">30</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_running_sagas</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">SagaContext</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+
+<div class="viewcode-block" id="SagaExecutor.execute">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.SagaExecutor.execute">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">execute</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">saga</span><span class="p">:</span> <span class="n">Saga</span><span class="p">[</span><span class="n">T</span><span class="p">],</span>
+        <span class="nb">input</span><span class="p">:</span> <span class="n">T</span><span class="p">,</span>
+        <span class="n">context_id</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SagaResult</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Execute a saga with the given input.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            saga: The saga definition (must be built).</span>
+<span class="sd">            input: Input data for the saga.</span>
+<span class="sd">            context_id: Optional explicit context ID.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A :class:`SagaResult` with execution status, output,</span>
+<span class="sd">            and step information.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">context</span> <span class="o">=</span> <span class="n">SagaContext</span><span class="p">[</span><span class="n">T</span><span class="p">](</span>
+            <span class="n">saga_id</span><span class="o">=</span><span class="n">context_id</span> <span class="ow">or</span> <span class="nb">str</span><span class="p">(</span><span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">()),</span>
+            <span class="nb">input</span><span class="o">=</span><span class="nb">input</span><span class="p">,</span>
+            <span class="n">started_at</span><span class="o">=</span><span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">(),</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_running_sagas</span><span class="p">[</span><span class="n">context</span><span class="o">.</span><span class="n">saga_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">context</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">step</span> <span class="ow">in</span> <span class="n">saga</span><span class="o">.</span><span class="n">steps</span><span class="p">:</span>
+                <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_execute_step</span><span class="p">(</span><span class="n">step</span><span class="p">,</span> <span class="n">context</span><span class="p">,</span> <span class="n">saga</span><span class="p">)</span>
+
+            <span class="n">context</span><span class="o">.</span><span class="n">completed_at</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span>
+
+            <span class="k">return</span> <span class="n">SagaResult</span><span class="p">(</span>
+                <span class="n">saga_id</span><span class="o">=</span><span class="n">context</span><span class="o">.</span><span class="n">saga_id</span><span class="p">,</span>
+                <span class="n">status</span><span class="o">=</span><span class="n">SagaStatus</span><span class="o">.</span><span class="n">COMPLETED</span><span class="p">,</span>
+                <span class="n">output</span><span class="o">=</span><span class="n">context</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;output&quot;</span><span class="p">),</span>
+                <span class="n">completed_steps</span><span class="o">=</span><span class="n">context</span><span class="o">.</span><span class="n">completed_steps</span><span class="p">,</span>
+                <span class="n">started_at</span><span class="o">=</span><span class="n">context</span><span class="o">.</span><span class="n">started_at</span><span class="p">,</span>
+                <span class="n">completed_at</span><span class="o">=</span><span class="n">context</span><span class="o">.</span><span class="n">completed_at</span><span class="p">,</span>
+                <span class="n">duration_ms</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span>
+                    <span class="p">(</span><span class="n">context</span><span class="o">.</span><span class="n">completed_at</span> <span class="o">-</span> <span class="n">context</span><span class="o">.</span><span class="n">started_at</span><span class="p">)</span><span class="o">.</span><span class="n">total_seconds</span><span class="p">()</span> <span class="o">*</span> <span class="mi">1000</span>
+                <span class="p">)</span> <span class="k">if</span> <span class="n">context</span><span class="o">.</span><span class="n">started_at</span> <span class="ow">and</span> <span class="n">context</span><span class="o">.</span><span class="n">completed_at</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="k">except</span> <span class="n">SagaStepFailedError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Saga step failed: </span><span class="si">{</span><span class="n">e</span><span class="o">.</span><span class="n">step_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">exc_info</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">context</span><span class="o">.</span><span class="n">failed_step</span> <span class="o">=</span> <span class="n">e</span><span class="o">.</span><span class="n">step_name</span>
+            <span class="n">context</span><span class="o">.</span><span class="n">error</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">cause</span><span class="p">)</span> <span class="k">if</span> <span class="n">e</span><span class="o">.</span><span class="n">cause</span> <span class="k">else</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+
+            <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compensate</span><span class="p">(</span><span class="n">saga</span><span class="p">,</span> <span class="n">context</span><span class="p">)</span>
+
+            <span class="n">context</span><span class="o">.</span><span class="n">completed_at</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span>
+
+            <span class="k">return</span> <span class="n">SagaResult</span><span class="p">(</span>
+                <span class="n">saga_id</span><span class="o">=</span><span class="n">context</span><span class="o">.</span><span class="n">saga_id</span><span class="p">,</span>
+                <span class="n">status</span><span class="o">=</span><span class="n">SagaStatus</span><span class="o">.</span><span class="n">COMPENSATED</span> <span class="k">if</span> <span class="n">context</span><span class="o">.</span><span class="n">completed_steps</span> <span class="k">else</span> <span class="n">SagaStatus</span><span class="o">.</span><span class="n">FAILED</span><span class="p">,</span>
+                <span class="n">error</span><span class="o">=</span><span class="n">context</span><span class="o">.</span><span class="n">error</span><span class="p">,</span>
+                <span class="n">completed_steps</span><span class="o">=</span><span class="n">context</span><span class="o">.</span><span class="n">completed_steps</span><span class="p">,</span>
+                <span class="n">compensated_steps</span><span class="o">=</span><span class="p">[</span><span class="n">s</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">context</span><span class="o">.</span><span class="n">completed_steps</span><span class="p">],</span>
+                <span class="n">started_at</span><span class="o">=</span><span class="n">context</span><span class="o">.</span><span class="n">started_at</span><span class="p">,</span>
+                <span class="n">completed_at</span><span class="o">=</span><span class="n">context</span><span class="o">.</span><span class="n">completed_at</span><span class="p">,</span>
+                <span class="n">duration_ms</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span>
+                    <span class="p">(</span><span class="n">context</span><span class="o">.</span><span class="n">completed_at</span> <span class="o">-</span> <span class="n">context</span><span class="o">.</span><span class="n">started_at</span><span class="p">)</span><span class="o">.</span><span class="n">total_seconds</span><span class="p">()</span> <span class="o">*</span> <span class="mi">1000</span>
+                <span class="p">)</span> <span class="k">if</span> <span class="n">context</span><span class="o">.</span><span class="n">started_at</span> <span class="ow">and</span> <span class="n">context</span><span class="o">.</span><span class="n">completed_at</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Saga execution failed: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">exc_info</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">context</span><span class="o">.</span><span class="n">error</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+            <span class="n">context</span><span class="o">.</span><span class="n">completed_at</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span>
+
+            <span class="k">return</span> <span class="n">SagaResult</span><span class="p">(</span>
+                <span class="n">saga_id</span><span class="o">=</span><span class="n">context</span><span class="o">.</span><span class="n">saga_id</span><span class="p">,</span>
+                <span class="n">status</span><span class="o">=</span><span class="n">SagaStatus</span><span class="o">.</span><span class="n">FAILED</span><span class="p">,</span>
+                <span class="n">error</span><span class="o">=</span><span class="n">context</span><span class="o">.</span><span class="n">error</span><span class="p">,</span>
+                <span class="n">started_at</span><span class="o">=</span><span class="n">context</span><span class="o">.</span><span class="n">started_at</span><span class="p">,</span>
+                <span class="n">completed_at</span><span class="o">=</span><span class="n">context</span><span class="o">.</span><span class="n">completed_at</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">context</span><span class="o">.</span><span class="n">saga_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_running_sagas</span><span class="p">:</span>
+                <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">_running_sagas</span><span class="p">[</span><span class="n">context</span><span class="o">.</span><span class="n">saga_id</span><span class="p">]</span></div>
+
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">_execute_step</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">step</span><span class="p">:</span> <span class="n">SagaStep</span><span class="p">[</span><span class="n">T</span><span class="p">],</span>
+        <span class="n">context</span><span class="p">:</span> <span class="n">SagaContext</span><span class="p">[</span><span class="n">T</span><span class="p">],</span>
+        <span class="n">saga</span><span class="p">:</span> <span class="n">Saga</span><span class="p">[</span><span class="n">T</span><span class="p">],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Execute a single step with retry logic.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            step: The step to execute.</span>
+<span class="sd">            context: The saga execution context.</span>
+<span class="sd">            saga: The saga definition.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            SagaStepFailedError: If the step fails after all retries.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">step</span><span class="o">.</span><span class="n">skip_condition</span> <span class="ow">and</span> <span class="n">step</span><span class="o">.</span><span class="n">skip_condition</span><span class="p">(</span><span class="n">context</span><span class="p">):</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Skipping step &#39;</span><span class="si">{</span><span class="n">step</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&#39; due to skip condition&quot;</span><span class="p">)</span>
+            <span class="n">step</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="n">StepStatus</span><span class="o">.</span><span class="n">SKIPPED</span>
+            <span class="k">return</span>
+
+        <span class="k">if</span> <span class="n">step</span><span class="o">.</span><span class="n">action</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Step &#39;</span><span class="si">{</span><span class="n">step</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&#39; has no action, skipping&quot;</span><span class="p">)</span>
+            <span class="n">step</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="n">StepStatus</span><span class="o">.</span><span class="n">SKIPPED</span>
+            <span class="k">return</span>
+
+        <span class="n">retry_config</span> <span class="o">=</span> <span class="n">step</span><span class="o">.</span><span class="n">retry_config</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">default_retry</span>
+        <span class="n">timeout</span> <span class="o">=</span> <span class="n">step</span><span class="o">.</span><span class="n">timeout</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">default_timeout</span>
+
+        <span class="n">step</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="n">StepStatus</span><span class="o">.</span><span class="n">RUNNING</span>
+        <span class="n">step</span><span class="o">.</span><span class="n">started_at</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span>
+
+        <span class="k">for</span> <span class="n">attempt</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">retry_config</span><span class="o">.</span><span class="n">max_attempts</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">step</span><span class="o">.</span><span class="n">attempts</span> <span class="o">=</span> <span class="n">attempt</span>
+
+                <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">wait_for</span><span class="p">(</span>
+                    <span class="n">step</span><span class="o">.</span><span class="n">action</span><span class="p">(</span><span class="n">context</span><span class="p">),</span>
+                    <span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="o">.</span><span class="n">total_seconds</span><span class="p">,</span>
+                <span class="p">)</span>
+
+                <span class="k">if</span> <span class="n">result</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">context</span><span class="o">.</span><span class="n">set_state</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;step_</span><span class="si">{</span><span class="n">step</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">_result&quot;</span><span class="p">,</span> <span class="n">result</span><span class="p">)</span>
+
+                <span class="n">step</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="n">StepStatus</span><span class="o">.</span><span class="n">COMPLETED</span>
+                <span class="n">step</span><span class="o">.</span><span class="n">completed_at</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span>
+                <span class="n">context</span><span class="o">.</span><span class="n">mark_step_completed</span><span class="p">(</span><span class="n">step</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Step &#39;</span><span class="si">{</span><span class="n">step</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&#39; completed successfully&quot;</span><span class="p">)</span>
+                <span class="k">return</span>
+
+            <span class="k">except</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">TimeoutError</span><span class="p">:</span>
+                <span class="n">error_msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;Step &#39;</span><span class="si">{</span><span class="n">step</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&#39; timed out after </span><span class="si">{</span><span class="n">timeout</span><span class="o">.</span><span class="n">total_seconds</span><span class="si">}</span><span class="s2">s&quot;</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">error_msg</span><span class="si">}</span><span class="s2"> (attempt </span><span class="si">{</span><span class="n">attempt</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">retry_config</span><span class="o">.</span><span class="n">max_attempts</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+                <span class="n">step</span><span class="o">.</span><span class="n">error</span> <span class="o">=</span> <span class="n">error_msg</span>
+
+                <span class="k">if</span> <span class="n">attempt</span> <span class="o">&lt;</span> <span class="n">retry_config</span><span class="o">.</span><span class="n">max_attempts</span><span class="p">:</span>
+                    <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_wait_for_retry</span><span class="p">(</span><span class="n">retry_config</span><span class="p">,</span> <span class="n">attempt</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">step</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="n">StepStatus</span><span class="o">.</span><span class="n">FAILED</span>
+                    <span class="k">raise</span> <span class="n">SagaStepFailedError</span><span class="p">(</span><span class="n">step</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="ne">TimeoutError</span><span class="p">(</span><span class="n">error_msg</span><span class="p">))</span>
+
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Step &#39;</span><span class="si">{</span><span class="n">step</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&#39; failed: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2"> (attempt </span><span class="si">{</span><span class="n">attempt</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">retry_config</span><span class="o">.</span><span class="n">max_attempts</span><span class="si">}</span><span class="s2">)&quot;</span>
+                <span class="p">)</span>
+                <span class="n">step</span><span class="o">.</span><span class="n">error</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+
+                <span class="k">if</span> <span class="n">attempt</span> <span class="o">&lt;</span> <span class="n">retry_config</span><span class="o">.</span><span class="n">max_attempts</span><span class="p">:</span>
+                    <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_wait_for_retry</span><span class="p">(</span><span class="n">retry_config</span><span class="p">,</span> <span class="n">attempt</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">step</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="n">StepStatus</span><span class="o">.</span><span class="n">FAILED</span>
+                    <span class="k">raise</span> <span class="n">SagaStepFailedError</span><span class="p">(</span><span class="n">step</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">_compensate</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">saga</span><span class="p">:</span> <span class="n">Saga</span><span class="p">[</span><span class="n">T</span><span class="p">],</span>
+        <span class="n">context</span><span class="p">:</span> <span class="n">SagaContext</span><span class="p">[</span><span class="n">T</span><span class="p">],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compensate all completed steps in reverse order.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            saga: The saga definition.</span>
+<span class="sd">            context: The saga execution context.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            SagaCompensationFailedError: If any compensation fails.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">completed_steps</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">reversed</span><span class="p">(</span><span class="n">context</span><span class="o">.</span><span class="n">completed_steps</span><span class="p">))</span>
+
+        <span class="k">for</span> <span class="n">step_name</span> <span class="ow">in</span> <span class="n">completed_steps</span><span class="p">:</span>
+            <span class="n">step</span> <span class="o">=</span> <span class="n">saga</span><span class="o">.</span><span class="n">get_step</span><span class="p">(</span><span class="n">step_name</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">step</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">step</span><span class="o">.</span><span class="n">compensate</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No compensation for step &#39;</span><span class="si">{</span><span class="n">step_name</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+                <span class="k">continue</span>
+
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">step</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="n">StepStatus</span><span class="o">.</span><span class="n">COMPENSATING</span>
+                <span class="k">await</span> <span class="n">step</span><span class="o">.</span><span class="n">compensate</span><span class="p">(</span><span class="n">context</span><span class="p">)</span>
+                <span class="n">step</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="n">StepStatus</span><span class="o">.</span><span class="n">COMPENSATED</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Compensated step &#39;</span><span class="si">{</span><span class="n">step_name</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">step</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="n">StepStatus</span><span class="o">.</span><span class="n">FAILED</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Compensation failed for step &#39;</span><span class="si">{</span><span class="n">step_name</span><span class="si">}</span><span class="s2">&#39;: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="n">SagaCompensationFailedError</span><span class="p">(</span><span class="n">step_name</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">_wait_for_retry</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">config</span><span class="p">:</span> <span class="n">RetryConfig</span><span class="p">,</span>
+        <span class="n">attempt</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Wait before retrying based on the retry policy.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            config: Retry configuration.</span>
+<span class="sd">            attempt: The attempt that just failed (1-based).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">policy</span> <span class="o">==</span> <span class="n">RetryPolicy</span><span class="o">.</span><span class="n">NONE</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="n">delay_ms</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">initial_delay</span><span class="o">.</span><span class="n">milliseconds</span>
+
+        <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">policy</span> <span class="ow">in</span> <span class="p">(</span><span class="n">RetryPolicy</span><span class="o">.</span><span class="n">EXPONENTIAL</span><span class="p">,</span> <span class="n">RetryPolicy</span><span class="o">.</span><span class="n">EXPONENTIAL_JITTER</span><span class="p">):</span>
+            <span class="n">delay_ms</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">delay_ms</span> <span class="o">*</span> <span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">multiplier</span> <span class="o">**</span> <span class="p">(</span><span class="n">attempt</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)))</span>
+            <span class="n">delay_ms</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">delay_ms</span><span class="p">,</span> <span class="n">config</span><span class="o">.</span><span class="n">max_delay</span><span class="o">.</span><span class="n">milliseconds</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">policy</span> <span class="o">==</span> <span class="n">RetryPolicy</span><span class="o">.</span><span class="n">EXPONENTIAL_JITTER</span><span class="p">:</span>
+                <span class="n">jitter</span> <span class="o">=</span> <span class="n">delay_ms</span> <span class="o">*</span> <span class="n">config</span><span class="o">.</span><span class="n">jitter</span>
+                <span class="n">delay_ms</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">delay_ms</span> <span class="o">+</span> <span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="o">-</span><span class="n">jitter</span><span class="p">,</span> <span class="n">jitter</span><span class="p">))</span>
+
+        <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">delay_ms</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">)</span>
+
+<div class="viewcode-block" id="SagaExecutor.get_status">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.SagaExecutor.get_status">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">get_status</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">saga_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">SagaResult</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get the status of a running saga.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            saga_id: The saga context ID.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A :class:`SagaResult` with RUNNING status, or ``None``</span>
+<span class="sd">            if the saga is not found or has completed.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">context</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_running_sagas</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">saga_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">context</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+        <span class="k">return</span> <span class="n">SagaResult</span><span class="p">(</span>
+            <span class="n">saga_id</span><span class="o">=</span><span class="n">context</span><span class="o">.</span><span class="n">saga_id</span><span class="p">,</span>
+            <span class="n">status</span><span class="o">=</span><span class="n">SagaStatus</span><span class="o">.</span><span class="n">RUNNING</span><span class="p">,</span>
+            <span class="n">completed_steps</span><span class="o">=</span><span class="n">context</span><span class="o">.</span><span class="n">completed_steps</span><span class="p">,</span>
+            <span class="n">started_at</span><span class="o">=</span><span class="n">context</span><span class="o">.</span><span class="n">started_at</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="SagaExecutor.compensate">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.SagaExecutor.compensate">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">compensate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">saga_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Manually trigger compensation for a running saga.</span>
+
+<span class="sd">        Useful for external intervention or manual rollback.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            saga_id: The saga context ID.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            SagaError: If no running saga with the given ID exists.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">context</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_running_sagas</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">saga_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">context</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">SagaError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No running saga with ID </span><span class="si">{</span><span class="n">saga_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Manual compensation requested for saga </span><span class="si">{</span><span class="n">saga_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="saga">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.saga">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">saga</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Saga</span><span class="p">[</span><span class="n">T</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Function/decorator to create a new saga definition.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        name: Saga name.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        A new :class:`Saga` instance.</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; order_saga = saga(&quot;order-processing&quot;)</span>
+<span class="sd">        ...     .step(&quot;reserve&quot;).action(reserve_fn).compensate(release_fn)</span>
+<span class="sd">        ...     .build()</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">Saga</span><span class="p">(</span><span class="n">name</span><span class="p">)</span></div>
+
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;SagaStep&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;Saga&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;SagaExecutor&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;saga&quot;</span><span class="p">,</span>
+<span class="p">]</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 1980 Aether Core Team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

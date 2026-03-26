@@ -1,0 +1,1243 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>aether_sdk.workflow.human_task &mdash; Aether Python SDK  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Aether Python SDK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../quickstart.html">Quick Start Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/core.html">Core API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/event.html">Event System API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/resilience.html">Resilience API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/streaming.html">Streaming API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/workflow.html">Workflow API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/validation.html">Validation API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Aether Python SDK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">aether_sdk.workflow.human_task</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for aether_sdk.workflow.human_task</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Human Task Integration</span>
+
+<span class="sd">Provides support for human-in-the-loop workflows with task assignment,</span>
+<span class="sd">timeouts, and escalation.</span>
+
+<span class="sd">Example:</span>
+<span class="sd">    &gt;&gt;&gt; from aether_sdk.workflow.human_task import HumanTask, HumanTaskManager</span>
+<span class="sd">    &gt;&gt;&gt; task = HumanTask(task_type=&quot;approval&quot;, title=&quot;Approve PO&quot;)</span>
+<span class="sd">    &gt;&gt;&gt; manager = HumanTaskManager()</span>
+<span class="sd">    &gt;&gt;&gt; await manager.create_task(task, &quot;wf-1&quot;, &quot;approval-step&quot;)</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">timedelta</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">Any</span><span class="p">,</span>
+    <span class="n">Callable</span><span class="p">,</span>
+    <span class="n">Dict</span><span class="p">,</span>
+    <span class="n">List</span><span class="p">,</span>
+    <span class="n">Optional</span><span class="p">,</span>
+    <span class="n">Generic</span><span class="p">,</span>
+    <span class="n">TypeVar</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">ABC</span><span class="p">,</span> <span class="n">abstractmethod</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">asyncio</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">uuid</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">.types</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">HumanTaskStatus</span><span class="p">,</span>
+    <span class="n">HumanTaskContext</span><span class="p">,</span>
+    <span class="n">HumanTaskError</span><span class="p">,</span>
+    <span class="n">HumanTaskTimeoutError</span><span class="p">,</span>
+    <span class="n">HumanTaskNotAssignedError</span><span class="p">,</span>
+    <span class="n">Duration</span><span class="p">,</span>
+    <span class="n">TaskFormValidator</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+<span class="n">T</span> <span class="o">=</span> <span class="n">TypeVar</span><span class="p">(</span><span class="s1">&#39;T&#39;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="FormField">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.human_task.FormField">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">FormField</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A field definition in a human task form.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        name: Field name (used as the key in form data).</span>
+<span class="sd">        field_type: Input type (``&quot;text&quot;``, ``&quot;number&quot;``, ``&quot;boolean&quot;``,</span>
+<span class="sd">            ``&quot;select&quot;``, ``&quot;date&quot;``, etc.).</span>
+<span class="sd">        label: Optional display label.</span>
+<span class="sd">        description: Optional help text.</span>
+<span class="sd">        required: Whether the field is mandatory.</span>
+<span class="sd">        default: Default value if not provided.</span>
+<span class="sd">        options: Options for ``&quot;select&quot;`` fields.</span>
+<span class="sd">        validation: Optional validation rules (e.g. ``{&quot;min&quot;: 0, &quot;max&quot;: 100}``).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">field_type</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">label</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">description</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">required</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">default</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">options</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">validation</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="TaskForm">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.human_task.TaskForm">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">TaskForm</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A form definition for a human task.</span>
+
+<span class="sd">    Contains a list of :class:`FormField` instances and provides</span>
+<span class="sd">    validation logic.</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; form = TaskForm()</span>
+<span class="sd">        ...     .add_field(&quot;approved&quot;, &quot;boolean&quot;, required=True)</span>
+<span class="sd">        ...     .add_field(&quot;comments&quot;, &quot;text&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; form.validate({&quot;approved&quot;: True})</span>
+<span class="sd">        True</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">fields</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">FormField</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+
+<div class="viewcode-block" id="TaskForm.add_field">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.human_task.TaskForm.add_field">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">add_field</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">field_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">label</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">required</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TaskForm</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Add a field to the form.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            name: Field name.</span>
+<span class="sd">            field_type: Input type.</span>
+<span class="sd">            label: Display label (defaults to *name*).</span>
+<span class="sd">            required: Whether the field is mandatory.</span>
+<span class="sd">            **kwargs: Additional keyword arguments forwarded to</span>
+<span class="sd">                :class:`FormField`.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Self for method chaining.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fields</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">FormField</span><span class="p">(</span>
+            <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
+            <span class="n">field_type</span><span class="o">=</span><span class="n">field_type</span><span class="p">,</span>
+            <span class="n">label</span><span class="o">=</span><span class="n">label</span> <span class="ow">or</span> <span class="n">name</span><span class="p">,</span>
+            <span class="n">required</span><span class="o">=</span><span class="n">required</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+        <span class="p">))</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="TaskForm.validate">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.human_task.TaskForm.validate">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">validate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Validate form data against the field definitions.</span>
+
+<span class="sd">        Checks required fields, type constraints, and numeric min/max.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            data: Form data as a dict.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            ``True`` if the data is valid.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">fields</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">field</span><span class="o">.</span><span class="n">required</span> <span class="ow">and</span> <span class="n">field</span><span class="o">.</span><span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">False</span>
+
+            <span class="k">if</span> <span class="n">field</span><span class="o">.</span><span class="n">name</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+                <span class="n">value</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">field</span><span class="o">.</span><span class="n">name</span><span class="p">]</span>
+
+                <span class="k">if</span> <span class="n">field</span><span class="o">.</span><span class="n">field_type</span> <span class="o">==</span> <span class="s2">&quot;number&quot;</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">)):</span>
+                    <span class="k">return</span> <span class="kc">False</span>
+                <span class="k">elif</span> <span class="n">field</span><span class="o">.</span><span class="n">field_type</span> <span class="o">==</span> <span class="s2">&quot;boolean&quot;</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">bool</span><span class="p">):</span>
+                    <span class="k">return</span> <span class="kc">False</span>
+                <span class="k">elif</span> <span class="n">field</span><span class="o">.</span><span class="n">field_type</span> <span class="o">==</span> <span class="s2">&quot;text&quot;</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                    <span class="k">return</span> <span class="kc">False</span>
+
+                <span class="k">if</span> <span class="n">field</span><span class="o">.</span><span class="n">validation</span><span class="p">:</span>
+                    <span class="n">min_val</span> <span class="o">=</span> <span class="n">field</span><span class="o">.</span><span class="n">validation</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;min&quot;</span><span class="p">)</span>
+                    <span class="n">max_val</span> <span class="o">=</span> <span class="n">field</span><span class="o">.</span><span class="n">validation</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;max&quot;</span><span class="p">)</span>
+
+                    <span class="k">if</span> <span class="n">min_val</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">value</span> <span class="o">&lt;</span> <span class="n">min_val</span><span class="p">:</span>
+                        <span class="k">return</span> <span class="kc">False</span>
+                    <span class="k">if</span> <span class="n">max_val</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">value</span> <span class="o">&gt;</span> <span class="n">max_val</span><span class="p">:</span>
+                        <span class="k">return</span> <span class="kc">False</span>
+
+        <span class="k">return</span> <span class="kc">True</span></div>
+
+
+<div class="viewcode-block" id="TaskForm.to_dict">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.human_task.TaskForm.to_dict">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Serialize the form to a dictionary.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A dict with a ``&quot;fields&quot;`` key containing a list of</span>
+<span class="sd">            field descriptors.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;fields&quot;</span><span class="p">:</span> <span class="p">[</span>
+                <span class="p">{</span>
+                    <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                    <span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="n">f</span><span class="o">.</span><span class="n">field_type</span><span class="p">,</span>
+                    <span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="n">f</span><span class="o">.</span><span class="n">label</span><span class="p">,</span>
+                    <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="n">f</span><span class="o">.</span><span class="n">description</span><span class="p">,</span>
+                    <span class="s2">&quot;required&quot;</span><span class="p">:</span> <span class="n">f</span><span class="o">.</span><span class="n">required</span><span class="p">,</span>
+                    <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="n">f</span><span class="o">.</span><span class="n">default</span><span class="p">,</span>
+                    <span class="s2">&quot;options&quot;</span><span class="p">:</span> <span class="n">f</span><span class="o">.</span><span class="n">options</span><span class="p">,</span>
+                    <span class="s2">&quot;validation&quot;</span><span class="p">:</span> <span class="n">f</span><span class="o">.</span><span class="n">validation</span><span class="p">,</span>
+                <span class="p">}</span>
+                <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">fields</span>
+            <span class="p">]</span>
+        <span class="p">}</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="HumanTask">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.human_task.HumanTask">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">HumanTask</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A human task that pauses workflow execution until completed.</span>
+
+<span class="sd">    Human tasks support assignment, delegation, timeouts, and</span>
+<span class="sd">    escalation. They are typically used for approvals, reviews,</span>
+<span class="sd">    or other manual decisions.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        task_type: Logical type of the task (e.g. ``&quot;approval&quot;``).</span>
+<span class="sd">        title: Human-readable title.</span>
+<span class="sd">        description: Detailed description of the task.</span>
+<span class="sd">        assignee: User assigned to the task.</span>
+<span class="sd">        candidate_users: Users eligible to claim the task.</span>
+<span class="sd">        candidate_groups: Groups eligible to claim the task.</span>
+<span class="sd">        priority: Priority level (1 = highest, 10 = lowest).</span>
+<span class="sd">        due_date: When the task is expected to be completed.</span>
+<span class="sd">        timeout: Duration before automatic timeout action.</span>
+<span class="sd">        timeout_action: Action on timeout (``&quot;escalate&quot;``,</span>
+<span class="sd">            ``&quot;complete&quot;``, ``&quot;fail&quot;``).</span>
+<span class="sd">        form: Optional :class:`TaskForm` for structured input.</span>
+<span class="sd">        form_validator: Optional custom validation callable.</span>
+<span class="sd">        metadata: Arbitrary key-value metadata.</span>
+<span class="sd">        task_id: Unique task identifier (auto-generated).</span>
+<span class="sd">        workflow_id: Parent workflow instance ID.</span>
+<span class="sd">        step_name: Workflow step that created this task.</span>
+<span class="sd">        status: Current task status.</span>
+<span class="sd">        created_at: When the task was created.</span>
+<span class="sd">        updated_at: When the task was last modified.</span>
+<span class="sd">        completed_at: When the task was completed.</span>
+<span class="sd">        completed_by: User who completed the task.</span>
+<span class="sd">        result: Form data submitted on completion.</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; task = HumanTask(task_type=&quot;approval&quot;, title=&quot;Approve PO&quot;)</span>
+<span class="sd">        ...     .with_assignee(&quot;manager@co.com&quot;)</span>
+<span class="sd">        ...     .with_priority(3)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">task_type</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">title</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">description</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">assignee</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">candidate_users</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+    <span class="n">candidate_groups</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+    <span class="n">priority</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span>
+    <span class="n">due_date</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">datetime</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">timeout</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Duration</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">timeout_action</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;escalate&quot;</span>
+    <span class="n">form</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">TaskForm</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">form_validator</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">TaskFormValidator</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">metadata</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">)</span>
+    <span class="n">task_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">()))</span>
+    <span class="n">workflow_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">step_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">status</span><span class="p">:</span> <span class="n">HumanTaskStatus</span> <span class="o">=</span> <span class="n">HumanTaskStatus</span><span class="o">.</span><span class="n">PENDING</span>
+    <span class="n">created_at</span><span class="p">:</span> <span class="n">datetime</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">)</span>
+    <span class="n">updated_at</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">datetime</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">completed_at</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">datetime</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">completed_by</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">result</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="HumanTask.with_assignee">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.human_task.HumanTask.with_assignee">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">with_assignee</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">assignee</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">HumanTask</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Set the assignee.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            assignee: User identifier.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Self for chaining.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assignee</span> <span class="o">=</span> <span class="n">assignee</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="HumanTask.with_candidates">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.human_task.HumanTask.with_candidates">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">with_candidates</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">users</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">groups</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">HumanTask</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Set candidate users and/or groups.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            users: List of user identifiers.</span>
+<span class="sd">            groups: List of group identifiers.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Self for chaining.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">users</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">candidate_users</span> <span class="o">=</span> <span class="n">users</span>
+        <span class="k">if</span> <span class="n">groups</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">candidate_groups</span> <span class="o">=</span> <span class="n">groups</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="HumanTask.with_priority">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.human_task.HumanTask.with_priority">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">with_priority</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">priority</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">HumanTask</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Set priority (clamped to 1–10).</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            priority: Priority level.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Self for chaining.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">priority</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">min</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="n">priority</span><span class="p">))</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="HumanTask.with_due_date">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.human_task.HumanTask.with_due_date">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">with_due_date</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">due_date</span><span class="p">:</span> <span class="n">datetime</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">HumanTask</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Set the due date.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            due_date: Due date.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Self for chaining.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">due_date</span> <span class="o">=</span> <span class="n">due_date</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="HumanTask.with_timeout">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.human_task.HumanTask.with_timeout">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">with_timeout</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">timeout</span><span class="p">:</span> <span class="n">Duration</span><span class="p">,</span>
+        <span class="n">action</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;escalate&quot;</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">HumanTask</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Set timeout and action.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            timeout: Timeout duration.</span>
+<span class="sd">            action: Action on timeout (``&quot;escalate&quot;``, ``&quot;complete&quot;``,</span>
+<span class="sd">                ``&quot;fail&quot;``).</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Self for chaining.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">timeout</span> <span class="o">=</span> <span class="n">timeout</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">timeout_action</span> <span class="o">=</span> <span class="n">action</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="HumanTask.with_form">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.human_task.HumanTask.with_form">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">with_form</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">form</span><span class="p">:</span> <span class="n">TaskForm</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">HumanTask</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Set the task form.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            form: A :class:`TaskForm` instance.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Self for chaining.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">form</span> <span class="o">=</span> <span class="n">form</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="HumanTask.is_overdue">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.human_task.HumanTask.is_overdue">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">is_overdue</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check whether the task is past its due date.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            ``True`` if the due date has passed (or was never set).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">due_date</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">return</span> <span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">due_date</span></div>
+
+
+<div class="viewcode-block" id="HumanTask.is_expired">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.human_task.HumanTask.is_expired">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">is_expired</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check whether the task has timed out.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            ``True`` if the timeout duration has elapsed since creation.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">timeout</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="n">expires_at</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">created_at</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">timeout</span><span class="o">.</span><span class="n">to_timedelta</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span> <span class="o">&gt;</span> <span class="n">expires_at</span></div>
+
+
+<div class="viewcode-block" id="HumanTask.to_context">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.human_task.HumanTask.to_context">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">to_context</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">HumanTaskContext</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Convert to a :class:`HumanTaskContext` for storage.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A :class:`HumanTaskContext` with all task fields.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">HumanTaskContext</span><span class="p">(</span>
+            <span class="n">task_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">task_id</span><span class="p">,</span>
+            <span class="n">task_type</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">task_type</span><span class="p">,</span>
+            <span class="n">workflow_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">workflow_id</span><span class="p">,</span>
+            <span class="n">step_name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">step_name</span><span class="p">,</span>
+            <span class="n">title</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">title</span><span class="p">,</span>
+            <span class="n">description</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">description</span><span class="p">,</span>
+            <span class="n">assignee</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">assignee</span><span class="p">,</span>
+            <span class="n">candidate_users</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">candidate_users</span><span class="p">,</span>
+            <span class="n">candidate_groups</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">candidate_groups</span><span class="p">,</span>
+            <span class="n">priority</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">priority</span><span class="p">,</span>
+            <span class="n">due_date</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">due_date</span><span class="p">,</span>
+            <span class="n">form_data</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">form</span> <span class="k">else</span> <span class="p">{},</span>
+            <span class="n">result</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">result</span><span class="p">,</span>
+            <span class="n">status</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">status</span><span class="p">,</span>
+            <span class="n">created_at</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">created_at</span><span class="p">,</span>
+            <span class="n">updated_at</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">updated_at</span><span class="p">,</span>
+            <span class="n">completed_at</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">completed_at</span><span class="p">,</span>
+            <span class="n">completed_by</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">completed_by</span><span class="p">,</span>
+            <span class="n">metadata</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">metadata</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="HumanTask.from_context">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.human_task.HumanTask.from_context">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_context</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">context</span><span class="p">:</span> <span class="n">HumanTaskContext</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">HumanTask</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Reconstruct a :class:`HumanTask` from a :class:`HumanTaskContext`.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            context: The context to reconstruct from.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A :class:`HumanTask` instance.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">task</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span>
+            <span class="n">task_type</span><span class="o">=</span><span class="n">context</span><span class="o">.</span><span class="n">task_type</span><span class="p">,</span>
+            <span class="n">title</span><span class="o">=</span><span class="n">context</span><span class="o">.</span><span class="n">title</span><span class="p">,</span>
+            <span class="n">description</span><span class="o">=</span><span class="n">context</span><span class="o">.</span><span class="n">description</span><span class="p">,</span>
+            <span class="n">assignee</span><span class="o">=</span><span class="n">context</span><span class="o">.</span><span class="n">assignee</span><span class="p">,</span>
+            <span class="n">candidate_users</span><span class="o">=</span><span class="n">context</span><span class="o">.</span><span class="n">candidate_users</span><span class="p">,</span>
+            <span class="n">candidate_groups</span><span class="o">=</span><span class="n">context</span><span class="o">.</span><span class="n">candidate_groups</span><span class="p">,</span>
+            <span class="n">priority</span><span class="o">=</span><span class="n">context</span><span class="o">.</span><span class="n">priority</span><span class="p">,</span>
+            <span class="n">due_date</span><span class="o">=</span><span class="n">context</span><span class="o">.</span><span class="n">due_date</span><span class="p">,</span>
+            <span class="n">metadata</span><span class="o">=</span><span class="n">context</span><span class="o">.</span><span class="n">metadata</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">task</span><span class="o">.</span><span class="n">task_id</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">task_id</span>
+        <span class="n">task</span><span class="o">.</span><span class="n">workflow_id</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">workflow_id</span>
+        <span class="n">task</span><span class="o">.</span><span class="n">step_name</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">step_name</span>
+        <span class="n">task</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">status</span>
+        <span class="n">task</span><span class="o">.</span><span class="n">created_at</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">created_at</span>
+        <span class="n">task</span><span class="o">.</span><span class="n">updated_at</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">updated_at</span>
+        <span class="n">task</span><span class="o">.</span><span class="n">completed_at</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">completed_at</span>
+        <span class="n">task</span><span class="o">.</span><span class="n">completed_by</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">completed_by</span>
+        <span class="n">task</span><span class="o">.</span><span class="n">result</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">result</span>
+
+        <span class="k">if</span> <span class="n">context</span><span class="o">.</span><span class="n">form_data</span><span class="p">:</span>
+            <span class="n">task</span><span class="o">.</span><span class="n">form</span> <span class="o">=</span> <span class="n">TaskForm</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">task</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="HumanTaskManager">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.human_task.HumanTaskManager">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">HumanTaskManager</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Manages the lifecycle of human tasks in workflows.</span>
+
+<span class="sd">    Handles task creation, assignment, claiming, completion,</span>
+<span class="sd">    rejection, delegation, and escalation.</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; manager = HumanTaskManager()</span>
+<span class="sd">        &gt;&gt;&gt; task = await manager.create_task(ht, &quot;wf-1&quot;, &quot;step-1&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; await manager.claim_task(task.task_id, &quot;user@co.com&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; await manager.complete_task(task.task_id, {&quot;approved&quot;: True})</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize with empty task and event registries.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_tasks</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">HumanTask</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_pending_timeouts</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">Task</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_completion_events</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">Event</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+
+<div class="viewcode-block" id="HumanTaskManager.create_task">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.human_task.HumanTaskManager.create_task">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">create_task</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">task</span><span class="p">:</span> <span class="n">HumanTask</span><span class="p">,</span>
+        <span class="n">workflow_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">step_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">HumanTask</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create and register a new human task.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            task: The task definition.</span>
+<span class="sd">            workflow_id: Parent workflow instance ID.</span>
+<span class="sd">            step_name: Workflow step that created the task.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The created task (with IDs and timestamps set).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">task</span><span class="o">.</span><span class="n">workflow_id</span> <span class="o">=</span> <span class="n">workflow_id</span>
+        <span class="n">task</span><span class="o">.</span><span class="n">step_name</span> <span class="o">=</span> <span class="n">step_name</span>
+        <span class="n">task</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="n">HumanTaskStatus</span><span class="o">.</span><span class="n">PENDING</span>
+        <span class="n">task</span><span class="o">.</span><span class="n">created_at</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_tasks</span><span class="p">[</span><span class="n">task</span><span class="o">.</span><span class="n">task_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">task</span>
+
+        <span class="k">if</span> <span class="n">task</span><span class="o">.</span><span class="n">timeout</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_schedule_timeout</span><span class="p">(</span><span class="n">task</span><span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Created human task </span><span class="si">{</span><span class="n">task</span><span class="o">.</span><span class="n">task_id</span><span class="si">}</span><span class="s2"> for workflow </span><span class="si">{</span><span class="n">workflow_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">task</span></div>
+
+
+<div class="viewcode-block" id="HumanTaskManager.claim_task">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.human_task.HumanTaskManager.claim_task">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">claim_task</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">task_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">user</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">HumanTask</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Claim a task for a specific user.</span>
+
+<span class="sd">        The user must be the assigned user or in the candidate</span>
+<span class="sd">        users/groups.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            task_id: The task ID.</span>
+<span class="sd">            user: The user claiming the task.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The updated task.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            HumanTaskError: If the task is not found, not claimable,</span>
+<span class="sd">                or the user is not authorized.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">task</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tasks</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">task</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">HumanTaskError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Task not found: </span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">task</span><span class="o">.</span><span class="n">status</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="n">HumanTaskStatus</span><span class="o">.</span><span class="n">PENDING</span><span class="p">,</span> <span class="n">HumanTaskStatus</span><span class="o">.</span><span class="n">ASSIGNED</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="n">HumanTaskError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Task cannot be claimed: status is </span><span class="si">{</span><span class="n">task</span><span class="o">.</span><span class="n">status</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="n">can_claim</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">task</span><span class="o">.</span><span class="n">assignee</span> <span class="o">==</span> <span class="n">user</span> <span class="ow">or</span>
+            <span class="n">user</span> <span class="ow">in</span> <span class="n">task</span><span class="o">.</span><span class="n">candidate_users</span> <span class="ow">or</span>
+            <span class="nb">any</span><span class="p">(</span><span class="n">group</span> <span class="ow">in</span> <span class="n">task</span><span class="o">.</span><span class="n">candidate_groups</span> <span class="k">for</span> <span class="n">group</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_user_groups</span><span class="p">(</span><span class="n">user</span><span class="p">))</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">can_claim</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">HumanTaskError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;User </span><span class="si">{</span><span class="n">user</span><span class="si">}</span><span class="s2"> cannot claim task </span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="n">task</span><span class="o">.</span><span class="n">assignee</span> <span class="o">=</span> <span class="n">user</span>
+        <span class="n">task</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="n">HumanTaskStatus</span><span class="o">.</span><span class="n">IN_PROGRESS</span>
+        <span class="n">task</span><span class="o">.</span><span class="n">updated_at</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Task </span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2"> claimed by </span><span class="si">{</span><span class="n">user</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">task</span></div>
+
+
+<div class="viewcode-block" id="HumanTaskManager.complete_task">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.human_task.HumanTaskManager.complete_task">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">complete_task</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">task_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">result</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
+        <span class="n">user</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">HumanTask</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Complete a task with a result.</span>
+
+<span class="sd">        Validates form data if a form is defined.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            task_id: The task ID.</span>
+<span class="sd">            result: The task result (form data).</span>
+<span class="sd">            user: Optional user completing the task.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The completed task.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            HumanTaskError: If the task is not found, already</span>
+<span class="sd">                completed, timed out, or validation fails.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">task</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tasks</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">task</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">HumanTaskError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Task not found: </span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">task</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="n">HumanTaskStatus</span><span class="o">.</span><span class="n">COMPLETED</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">HumanTaskError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Task already completed: </span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">task</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="n">HumanTaskStatus</span><span class="o">.</span><span class="n">TIMEOUT</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">HumanTaskError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Task has timed out: </span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">task</span><span class="o">.</span><span class="n">form</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">task</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">result</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="n">HumanTaskError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid form data for task </span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">task</span><span class="o">.</span><span class="n">form_validator</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">task</span><span class="o">.</span><span class="n">form_validator</span><span class="p">(</span><span class="n">result</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="n">HumanTaskError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Custom validation failed for task </span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="n">task</span><span class="o">.</span><span class="n">result</span> <span class="o">=</span> <span class="n">result</span>
+        <span class="n">task</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="n">HumanTaskStatus</span><span class="o">.</span><span class="n">COMPLETED</span>
+        <span class="n">task</span><span class="o">.</span><span class="n">completed_at</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span>
+        <span class="n">task</span><span class="o">.</span><span class="n">completed_by</span> <span class="o">=</span> <span class="n">user</span> <span class="ow">or</span> <span class="n">task</span><span class="o">.</span><span class="n">assignee</span>
+        <span class="n">task</span><span class="o">.</span><span class="n">updated_at</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">task_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pending_timeouts</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_pending_timeouts</span><span class="p">[</span><span class="n">task_id</span><span class="p">]</span><span class="o">.</span><span class="n">cancel</span><span class="p">()</span>
+            <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pending_timeouts</span><span class="p">[</span><span class="n">task_id</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">task_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_completion_events</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_completion_events</span><span class="p">[</span><span class="n">task_id</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">()</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Task </span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2"> completed by </span><span class="si">{</span><span class="n">task</span><span class="o">.</span><span class="n">completed_by</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">task</span></div>
+
+
+<div class="viewcode-block" id="HumanTaskManager.reject_task">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.human_task.HumanTaskManager.reject_task">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">reject_task</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">task_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">reason</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">user</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">HumanTask</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Reject a task.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            task_id: The task ID.</span>
+<span class="sd">            reason: Reason for rejection.</span>
+<span class="sd">            user: Optional user rejecting the task.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The rejected task.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            HumanTaskError: If the task is not found.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">task</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tasks</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">task</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">HumanTaskError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Task not found: </span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="n">task</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="n">HumanTaskStatus</span><span class="o">.</span><span class="n">REJECTED</span>
+        <span class="n">task</span><span class="o">.</span><span class="n">result</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;rejected&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span> <span class="s2">&quot;reason&quot;</span><span class="p">:</span> <span class="n">reason</span><span class="p">}</span>
+        <span class="n">task</span><span class="o">.</span><span class="n">completed_at</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span>
+        <span class="n">task</span><span class="o">.</span><span class="n">completed_by</span> <span class="o">=</span> <span class="n">user</span> <span class="ow">or</span> <span class="n">task</span><span class="o">.</span><span class="n">assignee</span>
+        <span class="n">task</span><span class="o">.</span><span class="n">updated_at</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">task_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pending_timeouts</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_pending_timeouts</span><span class="p">[</span><span class="n">task_id</span><span class="p">]</span><span class="o">.</span><span class="n">cancel</span><span class="p">()</span>
+            <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pending_timeouts</span><span class="p">[</span><span class="n">task_id</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">task_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_completion_events</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_completion_events</span><span class="p">[</span><span class="n">task_id</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">()</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Task </span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2"> rejected by </span><span class="si">{</span><span class="n">task</span><span class="o">.</span><span class="n">completed_by</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">reason</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">task</span></div>
+
+
+<div class="viewcode-block" id="HumanTaskManager.escalate_task">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.human_task.HumanTaskManager.escalate_task">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">escalate_task</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">task_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">escalate_to</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">HumanTask</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Escalate a task to another user or group.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            task_id: The task ID.</span>
+<span class="sd">            escalate_to: User email or group name to escalate to.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The escalated task.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            HumanTaskError: If the task is not found.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">task</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tasks</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">task</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">HumanTaskError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Task not found: </span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="n">task</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="n">HumanTaskStatus</span><span class="o">.</span><span class="n">ESCALATED</span>
+        <span class="n">task</span><span class="o">.</span><span class="n">updated_at</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">escalate_to</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s2">&quot;@&quot;</span> <span class="ow">in</span> <span class="n">escalate_to</span><span class="p">:</span>
+                <span class="n">task</span><span class="o">.</span><span class="n">assignee</span> <span class="o">=</span> <span class="n">escalate_to</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">task</span><span class="o">.</span><span class="n">candidate_groups</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">escalate_to</span><span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Task </span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2"> escalated to </span><span class="si">{</span><span class="n">escalate_to</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="s1">&#39;manager&#39;</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">task</span></div>
+
+
+<div class="viewcode-block" id="HumanTaskManager.delegate_task">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.human_task.HumanTaskManager.delegate_task">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">delegate_task</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">task_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">delegate_to</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">HumanTask</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Delegate a task to another user.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            task_id: The task ID.</span>
+<span class="sd">            delegate_to: User to delegate to.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The delegated task.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            HumanTaskError: If the task is not found.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">task</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tasks</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">task</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">HumanTaskError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Task not found: </span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="n">old_assignee</span> <span class="o">=</span> <span class="n">task</span><span class="o">.</span><span class="n">assignee</span>
+        <span class="n">task</span><span class="o">.</span><span class="n">assignee</span> <span class="o">=</span> <span class="n">delegate_to</span>
+        <span class="n">task</span><span class="o">.</span><span class="n">updated_at</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Task </span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2"> delegated from </span><span class="si">{</span><span class="n">old_assignee</span><span class="si">}</span><span class="s2"> to </span><span class="si">{</span><span class="n">delegate_to</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">task</span></div>
+
+
+<div class="viewcode-block" id="HumanTaskManager.get_task">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.human_task.HumanTaskManager.get_task">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">get_task</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">HumanTask</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get a task by ID.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            task_id: The task ID.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The :class:`HumanTask`, or ``None`` if not found.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tasks</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="HumanTaskManager.get_tasks_for_user">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.human_task.HumanTaskManager.get_tasks_for_user">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">get_tasks_for_user</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">user</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">include_completed</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">HumanTask</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get all tasks assigned to or claimable by a user.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            user: User identifier.</span>
+<span class="sd">            include_completed: Whether to include completed, rejected,</span>
+<span class="sd">                and timed-out tasks.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A list of :class:`HumanTask` instances.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">tasks</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tasks</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">task</span><span class="o">.</span><span class="n">assignee</span> <span class="o">==</span> <span class="n">user</span> <span class="ow">or</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">task</span><span class="o">.</span><span class="n">candidate_users</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">include_completed</span> <span class="ow">or</span> <span class="n">task</span><span class="o">.</span><span class="n">status</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span>
+                    <span class="n">HumanTaskStatus</span><span class="o">.</span><span class="n">COMPLETED</span><span class="p">,</span>
+                    <span class="n">HumanTaskStatus</span><span class="o">.</span><span class="n">REJECTED</span><span class="p">,</span>
+                    <span class="n">HumanTaskStatus</span><span class="o">.</span><span class="n">TIMEOUT</span><span class="p">,</span>
+                <span class="p">):</span>
+                    <span class="n">tasks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">task</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">tasks</span></div>
+
+
+<div class="viewcode-block" id="HumanTaskManager.wait_for_completion">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.human_task.HumanTaskManager.wait_for_completion">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">wait_for_completion</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">task_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">timeout</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Wait for a task to complete.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            task_id: The task ID.</span>
+<span class="sd">            timeout: Maximum wait time in seconds.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The task result dict.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            HumanTaskError: If the task is not found or does not</span>
+<span class="sd">                complete successfully.</span>
+<span class="sd">            HumanTaskTimeoutError: If the timeout expires.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">task</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tasks</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">task</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">HumanTaskError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Task not found: </span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">task</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="n">HumanTaskStatus</span><span class="o">.</span><span class="n">COMPLETED</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">task</span><span class="o">.</span><span class="n">result</span> <span class="ow">or</span> <span class="p">{}</span>
+
+        <span class="k">if</span> <span class="n">task_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_completion_events</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_completion_events</span><span class="p">[</span><span class="n">task_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">Event</span><span class="p">()</span>
+
+        <span class="n">event</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_completion_events</span><span class="p">[</span><span class="n">task_id</span><span class="p">]</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">wait_for</span><span class="p">(</span><span class="n">event</span><span class="o">.</span><span class="n">wait</span><span class="p">(),</span> <span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">TimeoutError</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">HumanTaskTimeoutError</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
+
+        <span class="n">task</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tasks</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">task</span> <span class="ow">and</span> <span class="n">task</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="n">HumanTaskStatus</span><span class="o">.</span><span class="n">COMPLETED</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">task</span><span class="o">.</span><span class="n">result</span> <span class="ow">or</span> <span class="p">{}</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">HumanTaskError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Task </span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2"> did not complete successfully&quot;</span><span class="p">)</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_schedule_timeout</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task</span><span class="p">:</span> <span class="n">HumanTask</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Schedule an automatic timeout for a task.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            task: The task to schedule a timeout for.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">task</span><span class="o">.</span><span class="n">timeout</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">timeout_handler</span><span class="p">():</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">task</span><span class="o">.</span><span class="n">timeout</span><span class="o">.</span><span class="n">total_seconds</span><span class="p">)</span>
+                <span class="n">task</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tasks</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">task</span> <span class="ow">and</span> <span class="n">task</span><span class="o">.</span><span class="n">status</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span>
+                    <span class="n">HumanTaskStatus</span><span class="o">.</span><span class="n">COMPLETED</span><span class="p">,</span>
+                    <span class="n">HumanTaskStatus</span><span class="o">.</span><span class="n">REJECTED</span><span class="p">,</span>
+                <span class="p">):</span>
+                    <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_handle_timeout</span><span class="p">(</span><span class="n">task</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">CancelledError</span><span class="p">:</span>
+                <span class="k">pass</span>
+
+        <span class="n">task_id</span> <span class="o">=</span> <span class="n">task</span><span class="o">.</span><span class="n">task_id</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_pending_timeouts</span><span class="p">[</span><span class="n">task_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">timeout_handler</span><span class="p">())</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">_handle_timeout</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task</span><span class="p">:</span> <span class="n">HumanTask</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Handle a task that has timed out.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            task: The timed-out task.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Task </span><span class="si">{</span><span class="n">task</span><span class="o">.</span><span class="n">task_id</span><span class="si">}</span><span class="s2"> timed out&quot;</span><span class="p">)</span>
+
+        <span class="n">task</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="n">HumanTaskStatus</span><span class="o">.</span><span class="n">TIMEOUT</span>
+        <span class="n">task</span><span class="o">.</span><span class="n">updated_at</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">task</span><span class="o">.</span><span class="n">timeout_action</span> <span class="o">==</span> <span class="s2">&quot;escalate&quot;</span><span class="p">:</span>
+            <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">escalate_task</span><span class="p">(</span><span class="n">task</span><span class="o">.</span><span class="n">task_id</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">task</span><span class="o">.</span><span class="n">timeout_action</span> <span class="o">==</span> <span class="s2">&quot;fail&quot;</span><span class="p">:</span>
+            <span class="n">task</span><span class="o">.</span><span class="n">result</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;failed&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span> <span class="s2">&quot;reason&quot;</span><span class="p">:</span> <span class="s2">&quot;timeout&quot;</span><span class="p">}</span>
+            <span class="k">if</span> <span class="n">task</span><span class="o">.</span><span class="n">task_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_completion_events</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_completion_events</span><span class="p">[</span><span class="n">task</span><span class="o">.</span><span class="n">task_id</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_get_user_groups</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get groups for a user (placeholder for identity integration).</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            user: User identifier.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            An empty list (override or integrate with an IdP).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">[]</span></div>
+
+
+
+<div class="viewcode-block" id="TaskQuery">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.human_task.TaskQuery">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">TaskQuery</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Query parameters for searching tasks.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        workflow_id: Filter by workflow ID.</span>
+<span class="sd">        assignee: Filter by assignee.</span>
+<span class="sd">        candidate_user: Filter by candidate user.</span>
+<span class="sd">        candidate_group: Filter by candidate group.</span>
+<span class="sd">        status: Filter by status (list of statuses).</span>
+<span class="sd">        task_type: Filter by task type.</span>
+<span class="sd">        priority_min: Minimum priority (inclusive).</span>
+<span class="sd">        priority_max: Maximum priority (inclusive).</span>
+<span class="sd">        due_before: Include tasks due before this date.</span>
+<span class="sd">        due_after: Include tasks due after this date.</span>
+<span class="sd">        limit: Maximum number of results.</span>
+<span class="sd">        offset: Offset for pagination.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">workflow_id</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">assignee</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">candidate_user</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">candidate_group</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">status</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">HumanTaskStatus</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">task_type</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">priority_min</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">priority_max</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">due_before</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">datetime</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">due_after</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">datetime</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">limit</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">offset</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="TaskStore">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.human_task.TaskStore">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">TaskStore</span><span class="p">(</span><span class="n">ABC</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Abstract base class for task persistence backends.</span>
+
+<span class="sd">    Implementations can use in-memory storage, databases, or</span>
+<span class="sd">    external services.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="TaskStore.create">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.human_task.TaskStore.create">[docs]</a>
+    <span class="nd">@abstractmethod</span>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">create</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task</span><span class="p">:</span> <span class="n">HumanTaskContext</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Persist a new task.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            task: The task context to store.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="TaskStore.get">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.human_task.TaskStore.get">[docs]</a>
+    <span class="nd">@abstractmethod</span>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">HumanTaskContext</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Retrieve a task by ID.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            task_id: The task ID.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The task context, or ``None`` if not found.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="TaskStore.update">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.human_task.TaskStore.update">[docs]</a>
+    <span class="nd">@abstractmethod</span>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task</span><span class="p">:</span> <span class="n">HumanTaskContext</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Update an existing task.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            task: The task context with updated fields.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="TaskStore.delete">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.human_task.TaskStore.delete">[docs]</a>
+    <span class="nd">@abstractmethod</span>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">delete</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Delete a task.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            task_id: The task ID.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="TaskStore.query">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.human_task.TaskStore.query">[docs]</a>
+    <span class="nd">@abstractmethod</span>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">query</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">query</span><span class="p">:</span> <span class="n">TaskQuery</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">HumanTaskContext</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Query tasks based on criteria.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            query: A :class:`TaskQuery` with filter parameters.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A list of matching task contexts.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="InMemoryTaskStore">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.human_task.InMemoryTaskStore">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">InMemoryTaskStore</span><span class="p">(</span><span class="n">TaskStore</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;In-memory implementation of :class:`TaskStore`.</span>
+
+<span class="sd">    Useful for testing and simple use cases. Data is not persisted</span>
+<span class="sd">    across restarts.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize with an empty task store.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_tasks</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">HumanTaskContext</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">Lock</span><span class="p">()</span>
+
+<div class="viewcode-block" id="InMemoryTaskStore.create">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.human_task.InMemoryTaskStore.create">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">create</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task</span><span class="p">:</span> <span class="n">HumanTaskContext</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Store a new task.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            task: The task context to store.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_tasks</span><span class="p">[</span><span class="n">task</span><span class="o">.</span><span class="n">task_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">task</span></div>
+
+
+<div class="viewcode-block" id="InMemoryTaskStore.get">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.human_task.InMemoryTaskStore.get">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">HumanTaskContext</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Retrieve a task by ID.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            task_id: The task ID.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The task context, or ``None``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tasks</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">task_id</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="InMemoryTaskStore.update">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.human_task.InMemoryTaskStore.update">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task</span><span class="p">:</span> <span class="n">HumanTaskContext</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Update an existing task (no-op if not found).</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            task: The task context with updated fields.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">task</span><span class="o">.</span><span class="n">task_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tasks</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_tasks</span><span class="p">[</span><span class="n">task</span><span class="o">.</span><span class="n">task_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">task</span></div>
+
+
+<div class="viewcode-block" id="InMemoryTaskStore.delete">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.human_task.InMemoryTaskStore.delete">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">delete</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Delete a task (no-op if not found).</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            task_id: The task ID.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_tasks</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">task_id</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="InMemoryTaskStore.query">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.human_task.InMemoryTaskStore.query">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">query</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">query</span><span class="p">:</span> <span class="n">TaskQuery</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">HumanTaskContext</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Query tasks based on criteria with pagination.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            query: A :class:`TaskQuery`.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A filtered, paginated list of task contexts.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tasks</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">query</span><span class="o">.</span><span class="n">workflow_id</span> <span class="ow">and</span> <span class="n">task</span><span class="o">.</span><span class="n">workflow_id</span> <span class="o">!=</span> <span class="n">query</span><span class="o">.</span><span class="n">workflow_id</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="k">if</span> <span class="n">query</span><span class="o">.</span><span class="n">assignee</span> <span class="ow">and</span> <span class="n">task</span><span class="o">.</span><span class="n">assignee</span> <span class="o">!=</span> <span class="n">query</span><span class="o">.</span><span class="n">assignee</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="k">if</span> <span class="n">query</span><span class="o">.</span><span class="n">candidate_user</span> <span class="ow">and</span> <span class="n">query</span><span class="o">.</span><span class="n">candidate_user</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">task</span><span class="o">.</span><span class="n">candidate_users</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="k">if</span> <span class="n">query</span><span class="o">.</span><span class="n">candidate_group</span> <span class="ow">and</span> <span class="n">query</span><span class="o">.</span><span class="n">candidate_group</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">task</span><span class="o">.</span><span class="n">candidate_groups</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="k">if</span> <span class="n">query</span><span class="o">.</span><span class="n">status</span> <span class="ow">and</span> <span class="n">task</span><span class="o">.</span><span class="n">status</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">query</span><span class="o">.</span><span class="n">status</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="k">if</span> <span class="n">query</span><span class="o">.</span><span class="n">task_type</span> <span class="ow">and</span> <span class="n">task</span><span class="o">.</span><span class="n">task_type</span> <span class="o">!=</span> <span class="n">query</span><span class="o">.</span><span class="n">task_type</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="k">if</span> <span class="n">query</span><span class="o">.</span><span class="n">priority_min</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">task</span><span class="o">.</span><span class="n">priority</span> <span class="o">&lt;</span> <span class="n">query</span><span class="o">.</span><span class="n">priority_min</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="n">query</span><span class="o">.</span><span class="n">priority_max</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">task</span><span class="o">.</span><span class="n">priority</span> <span class="o">&gt;</span> <span class="n">query</span><span class="o">.</span><span class="n">priority_max</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="k">if</span> <span class="n">query</span><span class="o">.</span><span class="n">due_before</span> <span class="ow">and</span> <span class="n">task</span><span class="o">.</span><span class="n">due_date</span> <span class="ow">and</span> <span class="n">task</span><span class="o">.</span><span class="n">due_date</span> <span class="o">&gt;=</span> <span class="n">query</span><span class="o">.</span><span class="n">due_before</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="n">query</span><span class="o">.</span><span class="n">due_after</span> <span class="ow">and</span> <span class="n">task</span><span class="o">.</span><span class="n">due_date</span> <span class="ow">and</span> <span class="n">task</span><span class="o">.</span><span class="n">due_date</span> <span class="o">&lt;=</span> <span class="n">query</span><span class="o">.</span><span class="n">due_after</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="n">results</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">task</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">query</span><span class="o">.</span><span class="n">offset</span><span class="p">:</span>
+            <span class="n">results</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="n">query</span><span class="o">.</span><span class="n">offset</span><span class="p">:]</span>
+        <span class="k">if</span> <span class="n">query</span><span class="o">.</span><span class="n">limit</span><span class="p">:</span>
+            <span class="n">results</span> <span class="o">=</span> <span class="n">results</span><span class="p">[:</span><span class="n">query</span><span class="o">.</span><span class="n">limit</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="n">results</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="create_human_task_manager">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.human_task.create_human_task_manager">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">create_human_task_manager</span><span class="p">(</span>
+    <span class="n">store</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">TaskStore</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">HumanTaskManager</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Factory function to create a :class:`HumanTaskManager`.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        store: Reserved for future use (currently ignored).</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        A new :class:`HumanTaskManager` instance.</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; manager = create_human_task_manager()</span>
+<span class="sd">        &gt;&gt;&gt; task = await manager.create_task(</span>
+<span class="sd">        ...     HumanTask(task_type=&quot;approval&quot;, title=&quot;Approve&quot;),</span>
+<span class="sd">        ...     &quot;wf-123&quot;, &quot;step-1&quot;,</span>
+<span class="sd">        ... )</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">HumanTaskManager</span><span class="p">()</span></div>
+
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;FormField&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;TaskForm&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;HumanTask&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;HumanTaskManager&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;TaskQuery&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;TaskStore&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;InMemoryTaskStore&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;create_human_task_manager&quot;</span><span class="p">,</span>
+<span class="p">]</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 1980 Aether Core Team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

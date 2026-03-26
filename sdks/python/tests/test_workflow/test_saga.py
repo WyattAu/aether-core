@@ -313,11 +313,14 @@ class TestSagaContext:
     @pytest.mark.asyncio
     async def test_step_completion_tracking(self):
         """Test that completed steps are tracked correctly."""
+        async def noop(ctx):
+            pass
+        
         test_saga = (
             Saga("tracking-saga")
-            .step("a").action(lambda ctx: None)
-            .step("b").action(lambda ctx: None)
-            .step("c").action(lambda ctx: None)
+            .step("a").action(noop)
+            .step("b").action(noop)
+            .step("c").action(noop)
             .build()
         )
         

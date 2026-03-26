@@ -233,6 +233,7 @@ class WorkflowContext(Generic[T]):
     workflow_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     workflow_type: str = ""
     current_state: str = ""
+    status: WorkflowStatus = WorkflowStatus.RUNNING
     input: Optional[T] = None
     variables: Dict[str, Any] = field(default_factory=dict)
     history: List[Dict[str, Any]] = field(default_factory=list)
@@ -323,6 +324,7 @@ class WorkflowResult(Generic[T]):
     current_state: str = ""
     history: List[Dict[str, Any]] = field(default_factory=list)
     started_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
     duration_ms: Optional[int] = None
 

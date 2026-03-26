@@ -1,0 +1,215 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>aether_sdk.messaging &mdash; Aether Python SDK  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            Aether Python SDK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../quickstart.html">Quick Start Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/core.html">Core API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/event.html">Event System API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/resilience.html">Resilience API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/streaming.html">Streaming API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/workflow.html">Workflow API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/validation.html">Validation API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Aether Python SDK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">aether_sdk.messaging</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for aether_sdk.messaging</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Message types for Aether actor communication.</span>
+
+<span class="sd">This module defines :class:`MessageType` (an enumeration of supported</span>
+<span class="sd">message kinds) and :class:`Message` (a dataclass carrying payloads,</span>
+<span class="sd">sender metadata, and correlation IDs).</span>
+
+<span class="sd">Example:</span>
+<span class="sd">    &gt;&gt;&gt; from aether_sdk.messaging import Message, MessageType</span>
+<span class="sd">    &gt;&gt;&gt; msg = Message(type=MessageType.CUSTOM, payload={&quot;key&quot;: &quot;value&quot;})</span>
+<span class="sd">    &gt;&gt;&gt; json_str = msg.to_json()</span>
+<span class="sd">    &gt;&gt;&gt; restored = Message.from_json(json_str)</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Any</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">enum</span><span class="w"> </span><span class="kn">import</span> <span class="n">Enum</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+
+
+<div class="viewcode-block" id="MessageType">
+<a class="viewcode-back" href="../../api/core.html#aether_sdk.messaging.MessageType">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">MessageType</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Enumeration of supported message types.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        START: Signal an actor to start.</span>
+<span class="sd">        STOP: Signal an actor to stop.</span>
+<span class="sd">        SIGNAL: General-purpose signal.</span>
+<span class="sd">        RPC_REQUEST: Request for a remote procedure call.</span>
+<span class="sd">        RPC_RESPONSE: Response to an RPC request.</span>
+<span class="sd">        CUSTOM: User-defined message.</span>
+<span class="sd">        STREAM_EVENT: A streaming data event.</span>
+<span class="sd">        WATERMARK: Watermark indicating event-time progress.</span>
+<span class="sd">        CHECKPOINT: Checkpoint barrier for exactly-once semantics.</span>
+<span class="sd">        CHECKPOINT_ACK: Acknowledgement of a checkpoint barrier.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">START</span> <span class="o">=</span> <span class="s2">&quot;start&quot;</span>
+    <span class="n">STOP</span> <span class="o">=</span> <span class="s2">&quot;stop&quot;</span>
+    <span class="n">SIGNAL</span> <span class="o">=</span> <span class="s2">&quot;signal&quot;</span>
+    <span class="n">RPC_REQUEST</span> <span class="o">=</span> <span class="s2">&quot;rpc_request&quot;</span>
+    <span class="n">RPC_RESPONSE</span> <span class="o">=</span> <span class="s2">&quot;rpc_response&quot;</span>
+    <span class="n">CUSTOM</span> <span class="o">=</span> <span class="s2">&quot;custom&quot;</span>
+    <span class="n">STREAM_EVENT</span> <span class="o">=</span> <span class="s2">&quot;stream_event&quot;</span>
+    <span class="n">WATERMARK</span> <span class="o">=</span> <span class="s2">&quot;watermark&quot;</span>
+    <span class="n">CHECKPOINT</span> <span class="o">=</span> <span class="s2">&quot;checkpoint&quot;</span>
+    <span class="n">CHECKPOINT_ACK</span> <span class="o">=</span> <span class="s2">&quot;checkpoint_ack&quot;</span></div>
+
+
+
+<div class="viewcode-block" id="Message">
+<a class="viewcode-back" href="../../api/core.html#aether_sdk.messaging.Message">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Message</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A message exchanged between actors.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        type: The kind of message.</span>
+<span class="sd">        payload: Arbitrary data carried by the message.</span>
+<span class="sd">        sender: Name of the sending actor (set automatically by</span>
+<span class="sd">            :meth:`Actor.send &lt;aether_sdk.actor.Actor.send&gt;`).</span>
+<span class="sd">        correlation_id: Optional identifier used to match RPC responses</span>
+<span class="sd">            to their requests.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="nb">type</span><span class="p">:</span> <span class="n">MessageType</span>
+    <span class="n">payload</span><span class="p">:</span> <span class="n">Any</span>
+    <span class="n">sender</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">correlation_id</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="Message.to_json">
+<a class="viewcode-back" href="../../api/core.html#aether_sdk.messaging.Message.to_json">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">to_json</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Serialize the message to a JSON string.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A JSON-formatted string representation of the message.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">({</span>
+            <span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">type</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+            <span class="s2">&quot;payload&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">payload</span><span class="p">,</span>
+            <span class="s2">&quot;sender&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">sender</span><span class="p">,</span>
+            <span class="s2">&quot;correlation_id&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">correlation_id</span><span class="p">,</span>
+        <span class="p">})</span></div>
+
+
+<div class="viewcode-block" id="Message.from_json">
+<a class="viewcode-back" href="../../api/core.html#aether_sdk.messaging.Message.from_json">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_json</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Message&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Deserialize a message from a JSON string.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            data: JSON string produced by :meth:`to_json`.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A reconstructed :class:`Message` instance.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            KeyError: If required fields are missing from the JSON.</span>
+<span class="sd">            ValueError: If the type value is not a valid :class:`MessageType`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">obj</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span>
+            <span class="nb">type</span><span class="o">=</span><span class="n">MessageType</span><span class="p">(</span><span class="n">obj</span><span class="p">[</span><span class="s2">&quot;type&quot;</span><span class="p">]),</span>
+            <span class="n">payload</span><span class="o">=</span><span class="n">obj</span><span class="p">[</span><span class="s2">&quot;payload&quot;</span><span class="p">],</span>
+            <span class="n">sender</span><span class="o">=</span><span class="n">obj</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;sender&quot;</span><span class="p">),</span>
+            <span class="n">correlation_id</span><span class="o">=</span><span class="n">obj</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;correlation_id&quot;</span><span class="p">),</span>
+        <span class="p">)</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 1980 Aether Core Team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

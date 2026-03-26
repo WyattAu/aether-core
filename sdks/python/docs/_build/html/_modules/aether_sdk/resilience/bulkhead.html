@@ -1,0 +1,482 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>aether_sdk.resilience.bulkhead &mdash; Aether Python SDK  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Aether Python SDK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../quickstart.html">Quick Start Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/core.html">Core API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/event.html">Event System API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/resilience.html">Resilience API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/streaming.html">Streaming API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/workflow.html">Workflow API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/validation.html">Validation API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Aether Python SDK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">aether_sdk.resilience.bulkhead</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for aether_sdk.resilience.bulkhead</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Bulkhead Pattern Implementation</span>
+
+<span class="sd">Provides resource isolation by limiting concurrent calls.</span>
+<span class="sd">Prevents one failing component from taking down the entire system.</span>
+
+<span class="sd">Example:</span>
+<span class="sd">    &gt;&gt;&gt; from aether_sdk.resilience.bulkhead import Bulkhead, BulkheadConfig</span>
+<span class="sd">    &gt;&gt;&gt; bh = Bulkhead(BulkheadConfig(max_concurrent=10, max_queued=50))</span>
+<span class="sd">    &gt;&gt;&gt; result = await bh.execute(some_async_func)</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">asyncio</span>
+
+
+<div class="viewcode-block" id="BulkheadConfig">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.bulkhead.BulkheadConfig">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">BulkheadConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Configuration for a :class:`Bulkhead`.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        max_concurrent: Maximum number of concurrent executions.</span>
+<span class="sd">        max_queued: Maximum number of queued callers waiting for a</span>
+<span class="sd">            slot. Set to ``0`` to disable queuing.</span>
+<span class="sd">        timeout_ms: Maximum time (ms) a queued call may wait for an</span>
+<span class="sd">            execution slot. Set to ``0`` for no timeout.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">max_concurrent</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span>
+    <span class="n">max_queued</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span>
+    <span class="n">timeout_ms</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span></div>
+
+
+
+<div class="viewcode-block" id="BulkheadStats">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.bulkhead.BulkheadStats">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">BulkheadStats</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Snapshot of a bulkhead&#39;s current statistics.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        active: Number of currently executing calls.</span>
+<span class="sd">        queued: Number of calls waiting in the queue.</span>
+<span class="sd">        max_concurrent: Configured concurrency limit.</span>
+<span class="sd">        max_queued: Configured queue capacity.</span>
+<span class="sd">        total_accepted: Total calls that started executing.</span>
+<span class="sd">        total_rejected: Total calls rejected due to capacity.</span>
+<span class="sd">        total_timeout: Total calls that timed out while queued.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">active</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">queued</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">max_concurrent</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">max_queued</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">total_accepted</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">total_rejected</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">total_timeout</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span></div>
+
+
+
+<div class="viewcode-block" id="BulkheadRejectedError">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.bulkhead.BulkheadRejectedError">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">BulkheadRejectedError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Raised when a call is rejected because the bulkhead is at capacity.</span>
+
+<span class="sd">    This occurs when both the concurrency slots and the queue are full.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">pass</span></div>
+
+
+
+<div class="viewcode-block" id="BulkheadTimeoutError">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.bulkhead.BulkheadTimeoutError">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">BulkheadTimeoutError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Raised when a queued call times out before an execution slot becomes available.&quot;&quot;&quot;</span>
+    <span class="k">pass</span></div>
+
+
+
+<div class="viewcode-block" id="Bulkhead">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.bulkhead.Bulkhead">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">Bulkhead</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Bulkhead pattern for resource isolation using semaphores.</span>
+
+<span class="sd">    Limits the number of concurrent executions to prevent resource</span>
+<span class="sd">    exhaustion. Optionally queues excess callers until a slot becomes</span>
+<span class="sd">    available.</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; bh = Bulkhead(BulkheadConfig(max_concurrent=5))</span>
+<span class="sd">        &gt;&gt;&gt; try:</span>
+<span class="sd">        ...     result = await bh.execute(my_func)</span>
+<span class="sd">        ... except BulkheadRejectedError:</span>
+<span class="sd">        ...     print(&quot;System at capacity&quot;)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">BulkheadConfig</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize the bulkhead.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            config: Optional configuration. Defaults to</span>
+<span class="sd">                :class:`BulkheadConfig`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="o">=</span> <span class="n">config</span> <span class="ow">or</span> <span class="n">BulkheadConfig</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_semaphore</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">Semaphore</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">max_concurrent</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_queue_semaphore</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">Semaphore</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">max_queued</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_total_accepted</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_total_rejected</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_total_timeout</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_active</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_queued</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stats_lock</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">Lock</span><span class="p">()</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">max_concurrent</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the configured maximum concurrency.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">max_concurrent</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">max_queued</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the configured maximum queue size.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">max_queued</span>
+
+<div class="viewcode-block" id="Bulkhead.execute">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.bulkhead.Bulkhead.execute">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[],</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Execute a function with bulkhead protection.</span>
+
+<span class="sd">        If the bulkhead is at capacity and queuing is disabled (or the</span>
+<span class="sd">        queue is full), the call is rejected immediately.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            func: A zero-argument async callable.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The result of *func*.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            BulkheadRejectedError: If the bulkhead cannot accept</span>
+<span class="sd">                another call.</span>
+<span class="sd">            BulkheadTimeoutError: If a queued call times out while</span>
+<span class="sd">                waiting for an execution slot.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">max_queued</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_semaphore</span><span class="o">.</span><span class="n">locked</span><span class="p">()</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_semaphore</span><span class="o">.</span><span class="n">_value</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stats_lock</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_total_rejected</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">raise</span> <span class="n">BulkheadRejectedError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Bulkhead at capacity: max_concurrent=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">max_concurrent</span><span class="si">}</span><span class="s2">, &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;max_queued=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">max_queued</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="p">)</span>
+
+            <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_semaphore</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stats_lock</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_active</span> <span class="o">+=</span> <span class="mi">1</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_total_accepted</span> <span class="o">+=</span> <span class="mi">1</span>
+
+                <span class="k">return</span> <span class="k">await</span> <span class="n">func</span><span class="p">()</span>
+            <span class="k">finally</span><span class="p">:</span>
+                <span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stats_lock</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_active</span> <span class="o">-=</span> <span class="mi">1</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_semaphore</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>
+
+        <span class="n">queue_acquired</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_queue_semaphore</span><span class="o">.</span><span class="n">locked</span><span class="p">()</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_queue_semaphore</span><span class="o">.</span><span class="n">_value</span> <span class="o">==</span> <span class="mi">0</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_queue_semaphore</span><span class="o">.</span><span class="n">_value</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stats_lock</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_total_rejected</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">raise</span> <span class="n">BulkheadRejectedError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Bulkhead at capacity: max_concurrent=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">max_concurrent</span><span class="si">}</span><span class="s2">, &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;max_queued=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">max_queued</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+
+        <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_queue_semaphore</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stats_lock</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_queued</span> <span class="o">+=</span> <span class="mi">1</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">timeout_ms</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">wait_for</span><span class="p">(</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">_semaphore</span><span class="o">.</span><span class="n">acquire</span><span class="p">(),</span>
+                        <span class="n">timeout</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">timeout_ms</span> <span class="o">/</span> <span class="mi">1000</span>
+                    <span class="p">)</span>
+                <span class="k">except</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">TimeoutError</span><span class="p">:</span>
+                    <span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stats_lock</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">_total_timeout</span> <span class="o">+=</span> <span class="mi">1</span>
+                    <span class="k">raise</span> <span class="n">BulkheadTimeoutError</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;Bulkhead queued call timed out after </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">timeout_ms</span><span class="si">}</span><span class="s2">ms&quot;</span>
+                    <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_semaphore</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>
+
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stats_lock</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_queued</span> <span class="o">-=</span> <span class="mi">1</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_active</span> <span class="o">+=</span> <span class="mi">1</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_total_accepted</span> <span class="o">+=</span> <span class="mi">1</span>
+
+                <span class="k">return</span> <span class="k">await</span> <span class="n">func</span><span class="p">()</span>
+            <span class="k">finally</span><span class="p">:</span>
+                <span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stats_lock</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_active</span> <span class="o">-=</span> <span class="mi">1</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_semaphore</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_queue_semaphore</span><span class="o">.</span><span class="n">release</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="Bulkhead.get_stats">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.bulkhead.Bulkhead.get_stats">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_stats</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BulkheadStats</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a snapshot of the current bulkhead statistics.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A :class:`BulkheadStats` dataclass.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">BulkheadStats</span><span class="p">(</span>
+            <span class="n">active</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_active</span><span class="p">,</span>
+            <span class="n">queued</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_queued</span><span class="p">,</span>
+            <span class="n">max_concurrent</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">max_concurrent</span><span class="p">,</span>
+            <span class="n">max_queued</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">max_queued</span><span class="p">,</span>
+            <span class="n">total_accepted</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_total_accepted</span><span class="p">,</span>
+            <span class="n">total_rejected</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_total_rejected</span><span class="p">,</span>
+            <span class="n">total_timeout</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_total_timeout</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Bulkhead.reset_stats">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.bulkhead.Bulkhead.reset_stats">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">reset_stats</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Reset acceptance/rejection/timeout counters to zero.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_total_accepted</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_total_rejected</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_total_timeout</span> <span class="o">=</span> <span class="mi">0</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="BulkheadManager">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.bulkhead.BulkheadManager">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">BulkheadManager</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Registry for named :class:`Bulkhead` instances.</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; mgr = BulkheadManager()</span>
+<span class="sd">        &gt;&gt;&gt; bh = mgr.get(&quot;api-calls&quot;)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">default_config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">BulkheadConfig</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize the manager.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            default_config: Default configuration applied to bulkheads</span>
+<span class="sd">                that do not supply their own config.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_bulkheads</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Bulkhead</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_default_config</span> <span class="o">=</span> <span class="n">default_config</span> <span class="ow">or</span> <span class="n">BulkheadConfig</span><span class="p">()</span>
+
+<div class="viewcode-block" id="BulkheadManager.get">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.bulkhead.BulkheadManager.get">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">BulkheadConfig</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Bulkhead</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get or create a bulkhead by name.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            name: Unique name for the bulkhead.</span>
+<span class="sd">            config: Optional per-bulkhead configuration.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The :class:`Bulkhead` instance for *name*.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_bulkheads</span><span class="p">:</span>
+            <span class="n">merged_config</span> <span class="o">=</span> <span class="n">BulkheadConfig</span><span class="p">(</span>
+                <span class="n">max_concurrent</span><span class="o">=</span><span class="p">(</span>
+                    <span class="n">config</span><span class="o">.</span><span class="n">max_concurrent</span>
+                    <span class="k">if</span> <span class="n">config</span>
+                    <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">_default_config</span><span class="o">.</span><span class="n">max_concurrent</span>
+                <span class="p">),</span>
+                <span class="n">max_queued</span><span class="o">=</span><span class="p">(</span>
+                    <span class="n">config</span><span class="o">.</span><span class="n">max_queued</span>
+                    <span class="k">if</span> <span class="n">config</span>
+                    <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">_default_config</span><span class="o">.</span><span class="n">max_queued</span>
+                <span class="p">),</span>
+                <span class="n">timeout_ms</span><span class="o">=</span><span class="p">(</span>
+                    <span class="n">config</span><span class="o">.</span><span class="n">timeout_ms</span>
+                    <span class="k">if</span> <span class="n">config</span>
+                    <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">_default_config</span><span class="o">.</span><span class="n">timeout_ms</span>
+                <span class="p">),</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_bulkheads</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">Bulkhead</span><span class="p">(</span><span class="n">merged_config</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_bulkheads</span><span class="p">[</span><span class="n">name</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="BulkheadManager.get_all_stats">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.bulkhead.BulkheadManager.get_all_stats">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_all_stats</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">BulkheadStats</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return statistics for every registered bulkhead.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A dict mapping bulkhead names to their :class:`BulkheadStats`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">{</span><span class="n">name</span><span class="p">:</span> <span class="n">bulkhead</span><span class="o">.</span><span class="n">get_stats</span><span class="p">()</span> <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">bulkhead</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_bulkheads</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span></div>
+
+
+<div class="viewcode-block" id="BulkheadManager.reset_all_stats">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.bulkhead.BulkheadManager.reset_all_stats">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">reset_all_stats</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Reset statistics for every registered bulkhead.&quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">bulkhead</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_bulkheads</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="n">bulkhead</span><span class="o">.</span><span class="n">reset_stats</span><span class="p">()</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="api_bulkhead">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.bulkhead.api_bulkhead">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">api_bulkhead</span><span class="p">(</span><span class="n">max_concurrent</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">50</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Bulkhead</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create a bulkhead pre-configured for API calls.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        max_concurrent: Maximum concurrent API calls (default 50).</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        A :class:`Bulkhead` with a 100-slot queue.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">Bulkhead</span><span class="p">(</span><span class="n">BulkheadConfig</span><span class="p">(</span>
+        <span class="n">max_concurrent</span><span class="o">=</span><span class="n">max_concurrent</span><span class="p">,</span>
+        <span class="n">max_queued</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span>
+    <span class="p">))</span></div>
+
+
+
+<div class="viewcode-block" id="database_bulkhead">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.bulkhead.database_bulkhead">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">database_bulkhead</span><span class="p">(</span><span class="n">max_concurrent</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Bulkhead</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create a bulkhead pre-configured for database operations.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        max_concurrent: Maximum concurrent DB operations (default 10).</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        A :class:`Bulkhead` with a 50-slot queue and 30-second timeout.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">Bulkhead</span><span class="p">(</span><span class="n">BulkheadConfig</span><span class="p">(</span>
+        <span class="n">max_concurrent</span><span class="o">=</span><span class="n">max_concurrent</span><span class="p">,</span>
+        <span class="n">max_queued</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span>
+        <span class="n">timeout_ms</span><span class="o">=</span><span class="mi">30000</span><span class="p">,</span>
+    <span class="p">))</span></div>
+
+
+
+<div class="viewcode-block" id="strict_bulkhead">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.bulkhead.strict_bulkhead">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">strict_bulkhead</span><span class="p">(</span><span class="n">max_concurrent</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Bulkhead</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create a strict bulkhead with no queuing.</span>
+
+<span class="sd">    Calls are rejected immediately when all slots are occupied.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        max_concurrent: Maximum concurrent operations (default 5).</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        A :class:`Bulkhead` with ``max_queued=0``.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">Bulkhead</span><span class="p">(</span><span class="n">BulkheadConfig</span><span class="p">(</span>
+        <span class="n">max_concurrent</span><span class="o">=</span><span class="n">max_concurrent</span><span class="p">,</span>
+        <span class="n">max_queued</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+    <span class="p">))</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 1980 Aether Core Team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

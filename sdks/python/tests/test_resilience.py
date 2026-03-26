@@ -159,7 +159,7 @@ class TestRetryPolicy:
         async def flaky_func():
             attempts[0] += 1
             if attempts[0] < 3:
-                raise Exception("transient error")
+                raise Exception("temporary error")  # Matches default retryable patterns
             return "success"
         
         result = await policy.execute(flaky_func)
@@ -199,7 +199,7 @@ class TestRetryPolicy:
             attempts[0] += 1
             if attempts[0] == 1:
                 delays.append(asyncio.get_event_loop().time())
-                raise Exception("first attempt")
+                raise Exception("timeout on first attempt")  # Matches default retryable patterns
             delays.append(asyncio.get_event_loop().time())
             return "success"
         
@@ -307,20 +307,20 @@ class TestBulkhead:
             await blocked.wait()
             return "done"
         
-        # Start first call
+        # Start first call - this holds the semaphore
         task1 = asyncio.create_task(bh.execute(blocking_func))
         await started.wait()
         
-        # Fill the semaphore
+        # Second call should be rejected since max_concurrent=1 and no queue
         async def quick_func():
             return "quick"
         
-        # Second call should succeed (semaphore allows it)
-        result = await bh.execute(quick_func)
-        assert result == "quick"
+        with pytest.raises(BulkheadRejectedError):
+            await bh.execute(quick_func)
         
         blocked.set()
-        await task1
+        result1 = await task1
+        assert result1 == "done"
 
     @pytest.mark.asyncio
     async def test_bulkhead_stats(self):

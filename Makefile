@@ -68,3 +68,14 @@ audit:
 # Generate documentation
 docs:
 	cargo doc --workspace --no-deps --open
+
+# Run Python SDK benchmarks
+sdk-bench-python:
+	cd sdks/python && pytest tests/performance/ -v --benchmark-only
+
+# Run JavaScript SDK benchmarks
+sdk-bench-js:
+	cd sdks/javascript && pnpm exec jest tests/performance/ --verbose
+
+# Run all SDK benchmarks
+sdk-bench-all: sdk-bench-python sdk-bench-js

@@ -1,0 +1,102 @@
+services:
+  aether-core:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: aether-dev
+    ports:
+      - "9000:9000/udp"
+      - "9001:9001/tcp"
+      - "8080:8080/tcp"
+    volumes:
+      - ../target:/app/target:cached
+      - ../aether.toml:/etc/aether/aether.toml:ro
+      - aether-dev-data:/var/lib/aether
+      - aether-dev-logs:/var/log/aether
+    environment:
+      - AETHER_NODE_ID=dev-node-1
+      - RUST_LOG=debug,aether=trace
+      - AETHER_CONFIG=/etc/aether/aether.toml
+      - AETHER_DATA=/var/lib/aether
+      - AETHER_LOGS=/var/log/aether
+    networks:
+      - aether-dev
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    container_name: aether-dev-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - aether-dev
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    profiles:
+      - streaming
+
+  prometheus:
+    image: prom/prometheus:v2.50.0
+    container_name: aether-dev-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.dev.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - aether-dev
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    profiles:
+      - monitoring
+
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: aether-dev-grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    networks:
+      - aether-dev
+    depends_on:
+      - prometheus
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    profiles:
+      - monitoring
+
+volumes:
+  aether-dev-data:
+  aether-dev-logs:
+  redis-data:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  aether-dev:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16

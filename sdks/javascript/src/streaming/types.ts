@@ -14,11 +14,11 @@
  * Types of windowing strategies.
  */
 export enum WindowType {
-  /** Fixed-size, non-overlapping windows */
+  /** Fixed-size, non-overlapping windows. */
   Tumbling = 'tumbling',
-  /** Fixed-size, overlapping windows */
+  /** Fixed-size, overlapping windows. */
   Sliding = 'sliding',
-  /** Dynamic size based on activity gaps */
+  /** Dynamic size based on activity gaps. */
   Session = 'session',
 }
 
@@ -26,11 +26,11 @@ export enum WindowType {
  * How to handle late-arriving data.
  */
 export enum LateDataPolicy {
-  /** Discard late events */
+  /** Discard late events silently. */
   Drop = 'drop',
-  /** Route to side output stream */
+  /** Route late events to a side output stream. */
   SideOutput = 'side-output',
-  /** Reprocess affected windows */
+  /** Reprocess affected windows with late data. */
   Reprocess = 'reprocess',
 }
 
@@ -38,11 +38,11 @@ export enum LateDataPolicy {
  * Watermark generation strategy.
  */
 export enum WatermarkStrategy {
-  /** Based on event timestamps */
+  /** Watermark based on event timestamps. */
   EventTime = 'event-time',
-  /** Based on processing time */
+  /** Watermark based on wall-clock processing time. */
   ProcessingTime = 'processing-time',
-  /** Allow bounded lateness */
+  /** Allow bounded out-of-orderness before advancing watermark. */
   BoundedOutOfOrder = 'bounded-out-of-order',
 }
 
@@ -50,13 +50,13 @@ export enum WatermarkStrategy {
  * Backpressure handling strategies.
  */
 export enum BackpressureStrategy {
-  /** Buffer events up to limit */
+  /** Buffer events up to the configured limit. */
   Buffer = 'buffer',
-  /** Drop events when overloaded */
+  /** Drop events when the processor is overloaded. */
   Drop = 'drop',
-  /** Raise error when overloaded */
+  /** Raise an error when the processor is overloaded. */
   Fail = 'fail',
-  /** Keep only latest events */
+  /** Keep only the latest events, discarding older ones. */
   Latest = 'latest',
 }
 
@@ -64,28 +64,30 @@ export enum BackpressureStrategy {
  * Message delivery guarantees.
  */
 export enum DeliverySemantics {
-  /** Fire and forget */
+  /** Fire and forget; no delivery confirmation. */
   AtMostOnce = 'at-most-once',
-  /** May duplicate */
+  /** Guaranteed delivery but possible duplicates. */
   AtLeastOnce = 'at-least-once',
-  /** No duplicates, no loss */
+  /** Exactly-once delivery; no duplicates, no loss. */
   ExactlyOnce = 'exactly-once',
 }
 
 /**
- * Window pane type.
+ * Window pane firing classification.
  */
 export enum PaneInfo {
-  /** Early firing before watermark */
+  /** Early firing before the watermark has passed. */
   Early = 'early',
-  /** On-time firing at watermark */
+  /** On-time firing at the watermark. */
   OnTime = 'on-time',
-  /** Late firing after watermark */
+  /** Late firing after the watermark has passed. */
   Late = 'late',
 }
 
 /**
  * Event timestamp with millisecond precision.
+ *
+ * Immutable value object for representing points in time in stream processing.
  *
  * @example
  * ```typescript
@@ -95,38 +97,55 @@ export enum PaneInfo {
  * ```
  */
 export class Timestamp {
+  /**
+   * Create a Timestamp from milliseconds.
+   *
+   * @param milliseconds - Time value in milliseconds since Unix epoch.
+   */
   constructor(public readonly milliseconds: number) {}
 
   /**
-   * Create timestamp from current time.
+   * Create a Timestamp representing the current time.
+   *
+   * @returns A new Timestamp for `Date.now()`.
    */
   static now(): Timestamp {
     return new Timestamp(Date.now());
   }
 
   /**
-   * Create timestamp from Date object.
+   * Create a Timestamp from a Date object.
+   *
+   * @param date - The Date to convert.
+   * @returns A new Timestamp with the same millisecond value.
    */
   static fromDate(date: Date): Timestamp {
     return new Timestamp(date.getTime());
   }
 
   /**
-   * Create timestamp from seconds.
+   * Create a Timestamp from seconds since the Unix epoch.
+   *
+   * @param seconds - Time value in seconds (fractional values are floored).
+   * @returns A new Timestamp.
    */
   static fromSeconds(seconds: number): Timestamp {
     return new Timestamp(Math.floor(seconds * 1000));
   }
 
   /**
-   * Convert to Date object.
+   * Convert this Timestamp to a JavaScript Date object.
+   *
+   * @returns A new Date representing the same point in time.
    */
   toDate(): Date {
     return new Date(this.milliseconds);
   }
 
   /**
-   * Convert to seconds.
+   * Convert this Timestamp to seconds.
+   *
+   * @returns The time value in seconds (may be fractional).
    */
   toSeconds(): number {
     return this.milliseconds / 1000;
@@ -134,13 +153,19 @@ export class Timestamp {
 
   /**
    * Add a duration to this timestamp.
+   *
+   * @param duration - The duration to add.
+   * @returns A new Timestamp representing the sum.
    */
   add(duration: Duration): Timestamp {
     return new Timestamp(this.milliseconds + duration.milliseconds);
   }
 
   /**
-   * Subtract another timestamp to get duration.
+   * Subtract another timestamp to get the elapsed duration.
+   *
+   * @param other - The timestamp to subtract.
+   * @returns A Duration representing `this - other`.
    */
   subtract(other: Timestamp): Duration {
     return new Duration(this.milliseconds - other.milliseconds);
@@ -148,39 +173,89 @@ export class Timestamp {
 
   /**
    * Subtract a duration from this timestamp.
+   *
+   * @param duration - The duration to subtract.
+   * @returns A new Timestamp representing the difference.
    */
   subtractDuration(duration: Duration): Timestamp {
     return new Timestamp(this.milliseconds - duration.milliseconds);
   }
 
+  /**
+   * Compare this timestamp to another.
+   *
+   * @param other - The timestamp to compare against.
+   * @returns Negative if `this < other`, zero if equal, positive if `this > other`.
+   */
   compareTo(other: Timestamp): number {
     return this.milliseconds - other.milliseconds;
   }
 
+  /**
+   * Check equality with another timestamp.
+   *
+   * @param other - The timestamp to compare against.
+   * @returns `true` if both represent the same millisecond.
+   */
   equals(other: Timestamp): boolean {
     return this.milliseconds === other.milliseconds;
   }
 
+  /**
+   * Check if this timestamp is strictly before another.
+   *
+   * @param other - The timestamp to compare against.
+   * @returns `true` if `this < other`.
+   */
   isBefore(other: Timestamp): boolean {
     return this.milliseconds < other.milliseconds;
   }
 
+  /**
+   * Check if this timestamp is strictly after another.
+   *
+   * @param other - The timestamp to compare against.
+   * @returns `true` if `this > other`.
+   */
   isAfter(other: Timestamp): boolean {
     return this.milliseconds > other.milliseconds;
   }
 
+  /**
+   * Check if this timestamp is before or equal to another.
+   *
+   * @param other - The timestamp to compare against.
+   * @returns `true` if `this <= other`.
+   */
   isBeforeOrEqual(other: Timestamp): boolean {
     return this.milliseconds <= other.milliseconds;
   }
 
+  /**
+   * Check if this timestamp is after or equal to another.
+   *
+   * @param other - The timestamp to compare against.
+   * @returns `true` if `this >= other`.
+   */
   isAfterOrEqual(other: Timestamp): boolean {
     return this.milliseconds >= other.milliseconds;
   }
 
+  /**
+   * Serialize to a raw millisecond number.
+   *
+   * @returns The millisecond value.
+   */
   toJSON(): number {
     return this.milliseconds;
   }
 
+  /**
+   * Deserialize from a raw millisecond number.
+   *
+   * @param ms - The millisecond value.
+   * @returns A new Timestamp.
+   */
   static fromJSON(ms: number): Timestamp {
     return new Timestamp(ms);
   }
@@ -188,6 +263,8 @@ export class Timestamp {
 
 /**
  * Duration with millisecond precision.
+ *
+ * Immutable value object for representing spans of time in stream processing.
  *
  * @example
  * ```typescript
@@ -197,66 +274,96 @@ export class Timestamp {
  * ```
  */
 export class Duration {
+  /**
+   * Create a Duration from milliseconds.
+   *
+   * @param milliseconds - The duration in milliseconds.
+   */
   constructor(public readonly milliseconds: number) {}
 
   /**
-   * Create duration from milliseconds.
+   * Create a Duration from milliseconds.
+   *
+   * @param ms - The duration in milliseconds.
+   * @returns A new Duration.
    */
   static fromMillis(ms: number): Duration {
     return new Duration(ms);
   }
 
   /**
-   * Create duration from seconds.
+   * Create a Duration from seconds.
+   *
+   * @param seconds - The duration in seconds.
+   * @returns A new Duration.
    */
   static fromSeconds(seconds: number): Duration {
     return new Duration(Math.floor(seconds * 1000));
   }
 
   /**
-   * Create duration from minutes.
+   * Create a Duration from minutes.
+   *
+   * @param minutes - The duration in minutes.
+   * @returns A new Duration.
    */
   static fromMinutes(minutes: number): Duration {
     return new Duration(Math.floor(minutes * 60 * 1000));
   }
 
   /**
-   * Create duration from hours.
+   * Create a Duration from hours.
+   *
+   * @param hours - The duration in hours.
+   * @returns A new Duration.
    */
   static fromHours(hours: number): Duration {
     return new Duration(Math.floor(hours * 3600 * 1000));
   }
 
   /**
-   * Convert to seconds.
+   * Convert this Duration to seconds.
+   *
+   * @returns The duration in seconds (may be fractional).
    */
   toSeconds(): number {
     return this.milliseconds / 1000;
   }
 
   /**
-   * Get milliseconds.
+   * Get the duration in milliseconds.
+   *
+   * @returns The millisecond value.
    */
   toMillis(): number {
     return this.milliseconds;
   }
 
   /**
-   * Add another duration.
+   * Add another duration to this one.
+   *
+   * @param other - The duration to add.
+   * @returns A new Duration representing the sum.
    */
   add(other: Duration): Duration {
     return new Duration(this.milliseconds + other.milliseconds);
   }
 
   /**
-   * Subtract another duration.
+   * Subtract another duration from this one.
+   *
+   * @param other - The duration to subtract.
+   * @returns A new Duration representing the difference.
    */
   subtract(other: Duration): Duration {
     return new Duration(this.milliseconds - other.milliseconds);
   }
 
   /**
-   * Multiply by a factor.
+   * Multiply this duration by a scalar factor.
+   *
+   * @param factor - The multiplication factor.
+   * @returns A new Duration scaled by the factor.
    */
   multiply(factor: number): Duration {
     return new Duration(this.milliseconds * factor);
@@ -264,27 +371,46 @@ export class Duration {
 }
 
 /**
- * Event in a stream with metadata.
+ * An event in a data stream with associated metadata.
+ *
+ * @typeParam T - The payload type.
+ *
+ * @example
+ * ```typescript
+ * const event: StreamEvent<User> = {
+ *   key: 'user-123',
+ *   value: { name: 'Alice' },
+ *   timestamp: Timestamp.now(),
+ *   headers: { 'trace-id': 'abc' },
+ * };
+ * ```
  */
 export interface StreamEvent<T> {
-  /** Partition key */
+  /** Partition key for routing and grouping. */
   key: string;
-  /** Event payload */
+  /** Event payload. */
   value: T;
-  /** Event timestamp */
+  /** Event timestamp (event time, not processing time). */
   timestamp: Timestamp;
-  /** Optional headers */
+  /** Optional headers for metadata. */
   headers?: Record<string, string>;
-  /** Optional partition number */
+  /** Optional partition number. */
   partition?: number;
-  /** Optional offset in partition */
+  /** Optional offset within the partition. */
   offset?: number;
-  /** Optional event type identifier */
+  /** Optional event type identifier. */
   eventType?: string;
 }
 
 /**
  * Create a new stream event.
+ *
+ * @typeParam T - The payload type.
+ * @param key       - Partition key.
+ * @param value     - Event payload.
+ * @param timestamp - Event timestamp (defaults to now).
+ * @param options   - Optional additional event properties.
+ * @returns A new {@link StreamEvent}.
  */
 export function createStreamEvent<T>(
   key: string,
@@ -293,22 +419,38 @@ export function createStreamEvent<T>(
   options?: Partial<Omit<StreamEvent<T>, 'key' | 'value' | 'timestamp'>>
 ): StreamEvent<T> {
   const ts = timestamp ?? Timestamp.now();
-    return {
-      key,
-      value,
-      timestamp: ts,
-      headers: options?.headers,
-      partition: options?.partition,
-      offset: options?.offset,
-      eventType: options?.eventType,
-    };
-  }
+  return {
+    key,
+    value,
+    timestamp: ts,
+    headers: options?.headers,
+    partition: options?.partition,
+    offset: options?.offset,
+    eventType: options?.eventType,
+  };
 }
 
 /**
- * Watermark indicating event time progress.
+ * Watermark indicating the progress of event-time processing.
+ *
+ * Events with timestamps before the watermark are considered late.
+ *
+ * @example
+ * ```typescript
+ * const watermark = new Watermark(Timestamp.now(), 'input-stream');
+ * if (watermark.isLate(event.timestamp)) {
+ *   // Handle late event
+ * }
+ * ```
  */
 export class Watermark {
+  /**
+   * Create a new Watermark.
+   *
+   * @param timestamp - The watermark timestamp.
+   * @param streamId  - The stream identifier.
+   * @param partition - Optional partition number.
+   */
   constructor(
     public readonly timestamp: Timestamp,
     public readonly streamId: string,
@@ -317,11 +459,19 @@ export class Watermark {
 
   /**
    * Check if an event timestamp is late relative to this watermark.
+   *
+   * @param eventTimestamp - The event timestamp to check.
+   * @returns `true` if the event is before the watermark (late).
    */
   isLate(eventTimestamp: Timestamp): boolean {
     return eventTimestamp.isBefore(this.timestamp);
   }
 
+  /**
+   * Serialize the watermark to a plain object.
+   *
+   * @returns A plain object representation.
+   */
   toJSON(): object {
     return {
       timestamp: this.timestamp.milliseconds,
@@ -330,6 +480,12 @@ export class Watermark {
     };
   }
 
+  /**
+   * Deserialize a plain object into a Watermark.
+   *
+   * @param obj - The serialized watermark object.
+   * @returns A new Watermark instance.
+   */
   static fromObject(obj: {
     timestamp: number;
     streamId: string;
@@ -343,22 +499,29 @@ export class Watermark {
  * Window specification for stream processing.
  */
 export interface WindowSpec {
-  /** Window type */
+  /** Window type (tumbling, sliding, or session). */
   type: WindowType;
-  /** Window size */
+  /** Window size (or base size for sliding windows). */
   size: Duration;
-  /** Slide interval for sliding windows */
+  /** Slide interval for sliding windows. */
   slide?: Duration;
-  /** Gap for session windows */
+  /** Inactivity gap for session windows. */
   gap?: Duration;
-  /** Late data tolerance */
+  /** Tolerance for late-arriving data. */
   lateTolerance: Duration;
-  /** Allowed lateness */
+  /** Allowed lateness before events are dropped. */
   allowedLateness: Duration;
 }
 
 /**
  * Create a window specification.
+ *
+ * @param type    - The window type.
+ * @param size    - The window size.
+ * @param options - Optional overrides for slide, gap, and late data settings.
+ * @returns A validated {@link WindowSpec}.
+ * @throws Error If a sliding window is missing a `slide` parameter,
+ *               or a session window is missing a `gap` parameter.
  */
 export function createWindowSpec(
   type: WindowType,
@@ -388,23 +551,30 @@ export function createWindowSpec(
 }
 
 /**
- * Information about an active window.
+ * Information about an active or completed window.
  */
 export interface WindowInfo {
-  /** Window start time */
+  /** Window start time. */
   start: Timestamp;
-  /** Window end time */
+  /** Window end time. */
   end: Timestamp;
-  /** Maximum event timestamp in window */
+  /** Maximum event timestamp observed in the window. */
   maxTimestamp: Timestamp;
-  /** Pane type */
+  /** Pane firing classification. */
   pane: PaneInfo;
-  /** Optional window ID */
+  /** Optional unique window identifier. */
   windowId?: string;
 }
 
 /**
  * Create window info.
+ *
+ * @param start        - Window start timestamp.
+ * @param end          - Window end timestamp.
+ * @param maxTimestamp - Maximum event timestamp in the window.
+ * @param pane         - The pane firing classification.
+ * @param windowId     - Optional window identifier.
+ * @returns A new {@link WindowInfo}.
  */
 export function createWindowInfo(
   start: Timestamp,
@@ -420,59 +590,45 @@ export function createWindowInfo(
     pane,
     windowId,
   };
-  }
-}
-
-/**
- * Check if timestamp falls within this window.
- */
-  contains(timestamp: Timestamp): boolean {
-    return timestamp.isBeforeOrEqual(this.start) && timestamp.isBefore(this.end);
-  }
-}
-
-/**
- * Check if timestamp is late for this window.
- */
-  isLate(timestamp: Timestamp): boolean {
-    return timestamp.isBefore(this.start);
-  }
 }
 
 /**
  * Configuration for stream actors.
  */
 export interface StreamConfig {
-  /** Input streams */
+  /** Names of input streams. */
   inputStreams: string[];
-  /** Output streams */
+  /** Names of output streams. */
   outputStreams: string[];
-  /** Parallelism */
+  /** Degree of parallelism for this actor. */
   parallelism: number;
-  /** Partition strategy */
+  /** Partition assignment strategy. */
   partitionStrategy: 'key' | 'range' | 'hash' | 'random';
-  /** Watermark strategy */
+  /** Watermark generation strategy. */
   watermarkStrategy: WatermarkStrategy;
-  /** Watermark interval */
+  /** Interval between watermark emissions. */
   watermarkInterval: Duration;
-  /** Out-of-orderness tolerance */
+  /** Allowed out-of-orderness tolerance. */
   outOfOrderness: Duration;
-  /** Enable checkpointing */
+  /** Whether periodic checkpointing is enabled. */
   checkpointingEnabled: boolean;
-  /** Checkpoint interval */
+  /** Interval between checkpoints. */
   checkpointInterval: Duration;
-  /** Late data policy */
+  /** Policy for handling late-arriving data. */
   lateDataPolicy: LateDataPolicy;
-  /** Side output stream for late data */
+  /** Side output stream name for late data. */
   lateDataOutput?: string;
-  /** Buffer capacity */
+  /** Maximum number of events to buffer. */
   bufferCapacity: number;
-  /** Buffer timeout */
+  /** Maximum time to wait before flushing buffered events. */
   bufferTimeout: Duration;
 }
 
 /**
  * Create a default stream configuration.
+ *
+ * @param options - Partial overrides for any config field.
+ * @returns A complete {@link StreamConfig} with sensible defaults.
  */
 export function createStreamConfig(
   options?: Partial<StreamConfig>
@@ -498,18 +654,21 @@ export function createStreamConfig(
  * Configuration for backpressure handling.
  */
 export interface BackpressureConfig {
-  /** Backpressure strategy */
+  /** The backpressure strategy to use. */
   strategy: BackpressureStrategy;
-  /** Buffer size */
+  /** Maximum number of events to buffer. */
   bufferSize: number;
-  /** High watermark (90% = 0.9) */
+  /** High watermark as a fraction (e.g., 0.9 = 90%). */
   highWatermark: number;
-  /** Low watermark (50% = 0.5) */
+  /** Low watermark as a fraction (e.g., 0.5 = 50%). */
   lowWatermark: number;
 }
 
 /**
  * Create a default backpressure configuration.
+ *
+ * @param options - Partial overrides for any config field.
+ * @returns A complete {@link BackpressureConfig} with sensible defaults.
  */
 export function createBackpressureConfig(
   options?: Partial<BackpressureConfig>
@@ -526,32 +685,57 @@ export function createBackpressureConfig(
  * Configuration for stream partitioning.
  */
 export interface PartitionConfig {
-  /** Partition strategy */
+  /** Partition assignment strategy. */
   strategy: 'key' | 'range' | 'hash' | 'random';
-  /** Number of partitions */
+  /** Total number of partitions. */
   partitions: number;
-  /** Key extractor function */
+  /** Optional key extractor function. */
   keyExtractor?: (value: unknown) => string;
 }
 
- /**
+/**
+ * Handler for processing individual stream events.
+ *
+ * @typeParam T - The event payload type.
+ */
+export type EventHandler<T> = (event: StreamEvent<T>) => Promise<void> | void;
+
+/**
+ * Handler for processing a batch of stream events.
+ *
+ * @typeParam T - The event payload type.
+ */
+export type BatchHandler<T> = (events: StreamEvent<T>[]) => Promise<void> | void;
+
+/**
+ * Handler for processing windowed stream events.
+ *
+ * @typeParam V - The event payload type.
+ * @typeParam R - The result type.
+ */
+export type WindowHandler<V, R> = (events: StreamEvent<V>[], info: WindowInfo) => R;
+
+/**
  * Configuration for message delivery guarantees.
  */
 export interface DeliveryConfig {
-  /** Delivery semantics */
+  /** The delivery semantics to enforce. */
   semantics: DeliverySemantics;
-  /** Maximum retry attempts */
+  /** Maximum number of delivery retry attempts. */
   maxRetries: number;
-  /** Retry backoff duration */
+  /** Backoff duration between retries. */
   retryBackoff: Duration;
-  /** Dead letter topic */
+  /** Optional dead-letter topic for failed deliveries. */
   deadLetterTopic?: string;
-  /** Enable idempotence */
+  /** Whether idempotent processing is enabled. */
   enableIdempotence: boolean;
 }
 
- /**
+/**
  * Create a default delivery configuration.
+ *
+ * @param options - Partial overrides for any config field.
+ * @returns A complete {@link DeliveryConfig} with sensible defaults.
  */
 export function createDeliveryConfig(
   options?: Partial<DeliveryConfig>
@@ -564,4 +748,3 @@ export function createDeliveryConfig(
     enableIdempotence: options?.enableIdempotence ?? false,
   };
 }
-

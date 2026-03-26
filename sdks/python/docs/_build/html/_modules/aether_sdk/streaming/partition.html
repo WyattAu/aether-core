@@ -1,0 +1,538 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>aether_sdk.streaming.partition &mdash; Aether Python SDK  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Aether Python SDK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../quickstart.html">Quick Start Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/core.html">Core API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/event.html">Event System API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/resilience.html">Resilience API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/streaming.html">Streaming API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/workflow.html">Workflow API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/validation.html">Validation API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Aether Python SDK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">aether_sdk.streaming.partition</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for aether_sdk.streaming.partition</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Partitioning for Parallel Stream Processing</span>
+
+<span class="sd">Provides partition-based parallel processing for horizontal scalability</span>
+<span class="sd"> across multiple stream consumers.</span>
+
+<span class="sd">Example:</span>
+<span class="sd">    from aether_sdk.streaming import (</span>
+<span class="sd">        Partitioner,</span>
+<span class="sd">        PartitionStrategy,</span>
+<span class="sd">        KeyExtractor,</span>
+<span class="sd">    )</span>
+<span class="sd">    </span>
+<span class="sd">    # Define key extractor</span>
+<span class="sd">    def user_id_extractor(event):</span>
+<span class="sd">        return event.value.get(&#39;user_id&#39;, &#39;unknown&#39;)</span>
+<span class="sd">    </span>
+<span class="sd">    # Create partitioner</span>
+<span class="sd">    partitioner = Partitioner(</span>
+<span class="sd">        strategy=PartitionStrategy.KEY,</span>
+<span class="sd">        key_extractor=user_id_extractor,</span>
+<span class="sd">        num_partitions=10,</span>
+<span class="sd">    )</span>
+<span class="sd">    </span>
+<span class="sd">    # Route events to partitions</span>
+<span class="sd">    partition = partitioner.partition(event)</span>
+<span class="sd">    await partition_processors[partition].process(event)</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">Any</span><span class="p">,</span>
+    <span class="n">Generic</span><span class="p">,</span>
+    <span class="n">TypeVar</span><span class="p">,</span>
+    <span class="n">Optional</span><span class="p">,</span>
+    <span class="n">Callable</span><span class="p">,</span>
+    <span class="n">List</span><span class="p">,</span>
+    <span class="n">Dict</span><span class="p">,</span>
+    <span class="n">Tuple</span><span class="p">,</span>
+    <span class="n">Union</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">enum</span><span class="w"> </span><span class="kn">import</span> <span class="n">Enum</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">ABC</span><span class="p">,</span> <span class="n">abstractmethod</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">asyncio</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">collections</span><span class="w"> </span><span class="kn">import</span> <span class="n">defaultdict</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">hashlib</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">.types</span><span class="w"> </span><span class="kn">import</span> <span class="n">StreamEvent</span><span class="p">,</span> <span class="n">Timestamp</span>
+
+
+<span class="n">T</span> <span class="o">=</span> <span class="n">TypeVar</span><span class="p">(</span><span class="s1">&#39;T&#39;</span><span class="p">)</span>
+<span class="n">K</span> <span class="o">=</span> <span class="n">TypeVar</span><span class="p">(</span><span class="s1">&#39;K&#39;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="PartitionStrategy">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.partition.PartitionStrategy">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">PartitionStrategy</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Partitioning strategies.&quot;&quot;&quot;</span>
+    <span class="n">KEY</span> <span class="o">=</span> <span class="s2">&quot;key&quot;</span>           <span class="c1"># Partition by extracted key</span>
+    <span class="n">HASH</span> <span class="o">=</span> <span class="s2">&quot;hash&quot;</span>       <span class="c1"># Hash-based partitioning</span>
+    <span class="n">RANGE</span> <span class="o">=</span> <span class="s2">&quot;range&quot;</span>     <span class="c1"># Range-based partitioning</span>
+    <span class="n">RANDOM</span> <span class="o">=</span> <span class="s2">&quot;random&quot;</span>     <span class="c1"># Random distribution</span>
+    <span class="n">ROUND_ROBIN</span> <span class="o">=</span> <span class="s2">&quot;round_robin&quot;</span>  <span class="c1"># Round-robin distribution</span></div>
+
+
+
+<div class="viewcode-block" id="PartitionConfig">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.partition.PartitionConfig">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">PartitionConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Configuration for partitioning.&quot;&quot;&quot;</span>
+    <span class="n">strategy</span><span class="p">:</span> <span class="n">PartitionStrategy</span> <span class="o">=</span> <span class="n">PartitionStrategy</span><span class="o">.</span><span class="n">KEY</span>
+    <span class="n">num_partitions</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span>
+    <span class="n">key_extractor</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">[[</span><span class="n">Any</span><span class="p">],</span> <span class="n">K</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">partition_key</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># For KEY strategy</span>
+    <span class="n">ranges</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="n">Any</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># For RANGE strategy</span>
+    <span class="n">hash_function</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">[[</span><span class="nb">bytes</span><span class="p">],</span> <span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">rebalance_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.2</span>  <span class="c1"># Threshold for auto-rebalancing</span>
+    <span class="n">enable_rebalancing</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span></div>
+
+
+
+<div class="viewcode-block" id="Partitioner">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.partition.Partitioner">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">Partitioner</span><span class="p">(</span><span class="n">Generic</span><span class="p">[</span><span class="n">T</span><span class="p">,</span> <span class="n">K</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Partitions events across multiple consumers for parallel processing.</span>
+<span class="sd">    </span>
+<span class="sd">    Type Parameters:</span>
+<span class="sd">        T: Type of the event value</span>
+<span class="sd">        K: Type of the partition key</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="n">PartitionConfig</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">config</span> <span class="o">=</span> <span class="n">config</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_partition_counts</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_partition_processors</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="s1">&#39;PartitionProcessor[T]&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_total_events</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_key_distribution</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="n">K</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+    
+<div class="viewcode-block" id="Partitioner.partition">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.partition.Partitioner.partition">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">partition</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">:</span> <span class="n">StreamEvent</span><span class="p">[</span><span class="n">T</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Determine the partition for an event.</span>
+<span class="sd">        </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            Partition number (0 to num_partitions - 1)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">key</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_extract_key</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
+        <span class="n">partition</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_partition</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">_partition_counts</span><span class="p">[</span><span class="n">partition</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_total_events</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_key_distribution</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+        
+        <span class="k">return</span> <span class="n">partition</span></div>
+
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">_extract_key</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">:</span> <span class="n">StreamEvent</span><span class="p">[</span><span class="n">T</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">K</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Extract the partition key from the event.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">key_extractor</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">key_extractor</span><span class="p">(</span><span class="n">event</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">partition_key</span><span class="p">:</span>
+            <span class="c1"># Use reflection to get key from dict-like objects</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="n">event</span><span class="o">.</span><span class="n">value</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+                <span class="k">return</span> <span class="n">value</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">partition_key</span><span class="p">,</span> <span class="s1">&#39;default&#39;</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">partition_key</span><span class="p">):</span>
+                <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">partition_key</span><span class="p">,</span> <span class="s1">&#39;default&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="s1">&#39;default&#39;</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">_compute_partition</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="n">K</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute partition number from key.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">strategy</span> <span class="o">==</span> <span class="n">PartitionStrategy</span><span class="o">.</span><span class="n">KEY</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_key_to_partition</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">strategy</span> <span class="o">==</span> <span class="n">PartitionStrategy</span><span class="o">.</span><span class="n">HASH</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_hash_to_partition</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">strategy</span> <span class="o">==</span> <span class="n">PartitionStrategy</span><span class="o">.</span><span class="n">RANGE</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_range_to_partition</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">strategy</span> <span class="o">==</span> <span class="n">PartitionStrategy</span><span class="o">.</span><span class="n">RANDOM</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_random_partition</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">strategy</span> <span class="o">==</span> <span class="n">PartitionStrategy</span><span class="o">.</span><span class="n">ROUND_ROBIN</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_round_robin_partition</span><span class="p">()</span>
+        <span class="k">return</span> <span class="mi">0</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">_key_to_partition</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="n">K</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Map key directly to partition using hash.&quot;&quot;&quot;</span>
+        <span class="n">key_bytes</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">key</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">hash_function</span><span class="p">:</span>
+            <span class="n">hash_value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">hash_function</span><span class="p">(</span><span class="n">key_bytes</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">hash_value</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">hashlib</span><span class="o">.</span><span class="n">md5</span><span class="p">(</span><span class="n">key_bytes</span><span class="p">)</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">(),</span> <span class="mi">16</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">hash_value</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">num_partitions</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">_hash_to_partition</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="n">K</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Hash-based partitioning.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_key_to_partition</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">_range_to_partition</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="n">K</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Range-based partitioning.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">ranges</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_key_to_partition</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+        
+        <span class="n">key_value</span> <span class="o">=</span> <span class="n">key</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">))</span> <span class="k">else</span> <span class="nb">hash</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">key</span><span class="p">))</span>
+        
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">ranges</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">start</span> <span class="o">&lt;=</span> <span class="n">key_value</span> <span class="o">&lt;</span> <span class="n">end</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">i</span>
+        
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">ranges</span><span class="p">)</span>  <span class="c1"># Default to last partition</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">_random_partition</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Random partition assignment.&quot;&quot;&quot;</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">random</span>
+        <span class="k">return</span> <span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">num_partitions</span><span class="p">)</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">_round_robin_partition</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Round-robin partition assignment.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_total_events</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">num_partitions</span>
+    
+<div class="viewcode-block" id="Partitioner.get_processor">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.partition.Partitioner.get_processor">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_processor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">partition</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;PartitionProcessor[T]&#39;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get the processor for a partition.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">partition</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_partition_processors</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_partition_processors</span><span class="p">[</span><span class="n">partition</span><span class="p">]</span> <span class="o">=</span> <span class="n">PartitionProcessor</span><span class="p">(</span><span class="n">partition</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_partition_processors</span><span class="p">[</span><span class="n">partition</span><span class="p">]</span></div>
+
+    
+<div class="viewcode-block" id="Partitioner.get_distribution_stats">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.partition.Partitioner.get_distribution_stats">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_distribution_stats</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get partition distribution statistics.&quot;&quot;&quot;</span>
+        <span class="n">total</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_partition_counts</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+        <span class="k">if</span> <span class="n">total</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{</span>
+                <span class="s2">&quot;total_events&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+                <span class="s2">&quot;num_partitions&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">num_partitions</span><span class="p">,</span>
+                <span class="s2">&quot;distribution&quot;</span><span class="p">:</span> <span class="p">{},</span>
+                <span class="s2">&quot;skew&quot;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
+            <span class="p">}</span>
+        
+        <span class="n">distribution</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">):</span> <span class="p">{</span>
+                <span class="s2">&quot;count&quot;</span><span class="p">:</span> <span class="n">count</span><span class="p">,</span>
+                <span class="s2">&quot;percentage&quot;</span><span class="p">:</span> <span class="p">(</span><span class="n">count</span> <span class="o">/</span> <span class="n">total</span><span class="p">)</span> <span class="o">*</span> <span class="mi">100</span><span class="p">,</span>
+            <span class="p">}</span>
+            <span class="k">for</span> <span class="n">p</span><span class="p">,</span> <span class="n">count</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_partition_counts</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
+        <span class="p">}</span>
+        
+        <span class="c1"># Calculate skew (max deviation from even distribution)</span>
+        <span class="n">ideal</span> <span class="o">=</span> <span class="n">total</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">num_partitions</span>
+        <span class="n">max_deviation</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span>
+            <span class="nb">abs</span><span class="p">(</span><span class="n">count</span> <span class="o">-</span> <span class="n">ideal</span><span class="p">)</span> <span class="k">for</span> <span class="n">count</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_partition_counts</span><span class="o">.</span><span class="n">values</span><span class="p">()</span>
+        <span class="p">)</span>
+        <span class="n">skew</span> <span class="o">=</span> <span class="n">max_deviation</span> <span class="o">/</span> <span class="n">ideal</span> <span class="k">if</span> <span class="n">ideal</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mf">0.0</span>
+        
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;total_events&quot;</span><span class="p">:</span> <span class="n">total</span><span class="p">,</span>
+            <span class="s2">&quot;num_partitions&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">num_partitions</span><span class="p">,</span>
+            <span class="s2">&quot;distribution&quot;</span><span class="p">:</span> <span class="n">distribution</span><span class="p">,</span>
+            <span class="s2">&quot;skew&quot;</span><span class="p">:</span> <span class="n">skew</span><span class="p">,</span>
+            <span class="s2">&quot;key_distribution&quot;</span><span class="p">:</span> <span class="nb">dict</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_key_distribution</span><span class="p">),</span>
+        <span class="p">}</span></div>
+
+    
+<div class="viewcode-block" id="Partitioner.rebalance">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.partition.Partitioner.rebalance">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">rebalance</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Suggest partitions to rebalance based on current distribution.</span>
+<span class="sd">        </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            List of partition numbers that should be rebalanced.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">stats</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_distribution_stats</span><span class="p">()</span>
+        <span class="n">skew</span> <span class="o">=</span> <span class="n">stats</span><span class="p">[</span><span class="s2">&quot;skew&quot;</span><span class="p">]</span>
+        
+        <span class="k">if</span> <span class="n">skew</span> <span class="o">&lt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">rebalance_threshold</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">[]</span>
+        
+        <span class="c1"># Find overloaded and underloaded partitions</span>
+        <span class="n">partitions_to_rebalance</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">partition</span><span class="p">,</span> <span class="n">count</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_partition_counts</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">ideal</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_total_events</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">num_partitions</span>
+            <span class="k">if</span> <span class="n">count</span> <span class="o">&gt;</span> <span class="n">ideal</span> <span class="o">*</span> <span class="mf">1.5</span><span class="p">:</span>  <span class="c1"># 50% above ideal</span>
+                <span class="n">partitions_to_rebalance</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">partition</span><span class="p">)</span>
+        
+        <span class="k">return</span> <span class="n">partitions_to_rebalance</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="PartitionProcessor">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.partition.PartitionProcessor">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">PartitionProcessor</span><span class="p">(</span><span class="n">Generic</span><span class="p">[</span><span class="n">T</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Processor for a single partition.</span>
+<span class="sd">    </span>
+<span class="sd">    Handles event processing, buffering, and emission for one partition.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">partition_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">buffer_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1000</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">partition_id</span> <span class="o">=</span> <span class="n">partition_id</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">buffer_size</span> <span class="o">=</span> <span class="n">buffer_size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_buffer</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">StreamEvent</span><span class="p">[</span><span class="n">T</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_processed_count</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_last_processed</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    
+<div class="viewcode-block" id="PartitionProcessor.process">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.partition.PartitionProcessor.process">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">:</span> <span class="n">StreamEvent</span><span class="p">[</span><span class="n">T</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">StreamEvent</span><span class="p">[</span><span class="n">T</span><span class="p">]]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Process an event.</span>
+<span class="sd">        </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            A batch of events if buffer is full, None otherwise.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_buffer</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
+        
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_buffer</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">buffer_size</span><span class="p">:</span>
+            <span class="n">batch</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_buffer</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_buffer</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_processed_count</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">batch</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_last_processed</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">get_event_loop</span><span class="p">()</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+            <span class="k">return</span> <span class="n">batch</span>
+        
+        <span class="k">return</span> <span class="kc">None</span></div>
+
+    
+<div class="viewcode-block" id="PartitionProcessor.flush">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.partition.PartitionProcessor.flush">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">flush</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">StreamEvent</span><span class="p">[</span><span class="n">T</span><span class="p">]]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Flush any remaining events in the buffer.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_buffer</span><span class="p">:</span>
+            <span class="n">batch</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_buffer</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_buffer</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_processed_count</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">batch</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_last_processed</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">get_event_loop</span><span class="p">()</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+            <span class="k">return</span> <span class="n">batch</span>
+        <span class="k">return</span> <span class="kc">None</span></div>
+
+    
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">buffer_size_current</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get current buffer size.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_buffer</span><span class="p">)</span>
+    
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">is_empty</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check if buffer is empty.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_buffer</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
+    
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">stats</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get partition processor statistics.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;partition_id&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">partition_id</span><span class="p">,</span>
+            <span class="s2">&quot;buffer_size&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_buffer</span><span class="p">),</span>
+            <span class="s2">&quot;processed_count&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_processed_count</span><span class="p">,</span>
+            <span class="s2">&quot;last_processed&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_last_processed</span><span class="p">,</span>
+        <span class="p">}</span></div>
+
+
+
+<div class="viewcode-block" id="CompositePartitioner">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.partition.CompositePartitioner">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">CompositePartitioner</span><span class="p">(</span><span class="n">Generic</span><span class="p">[</span><span class="n">T</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Combines multiple partitioning strategies for better distribution.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">strategies</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="n">PartitionStrategy</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">Any</span><span class="p">],</span> <span class="n">K</span><span class="p">]]],</span>
+        <span class="n">num_partitions</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Args:</span>
+<span class="sd">            strategies: List of (strategy, weight, key_extractor) tuples</span>
+<span class="sd">            num_partitions: Number of partitions</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">strategies</span> <span class="o">=</span> <span class="n">strategies</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_partitions</span> <span class="o">=</span> <span class="n">num_partitions</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_partitioners</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">Partitioner</span><span class="p">(</span><span class="n">PartitionConfig</span><span class="p">(</span>
+                <span class="n">strategy</span><span class="o">=</span><span class="n">strategy</span><span class="p">,</span>
+                <span class="n">num_partitions</span><span class="o">=</span><span class="n">num_partitions</span><span class="p">,</span>
+                <span class="n">key_extractor</span><span class="o">=</span><span class="n">extractor</span><span class="p">,</span>
+            <span class="p">))</span>
+            <span class="k">for</span> <span class="n">strategy</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">extractor</span> <span class="ow">in</span> <span class="n">strategies</span>
+        <span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_weights</span> <span class="o">=</span> <span class="p">[</span><span class="n">weight</span> <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">weight</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">strategies</span><span class="p">]</span>
+    
+<div class="viewcode-block" id="CompositePartitioner.partition">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.partition.CompositePartitioner.partition">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">partition</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">:</span> <span class="n">StreamEvent</span><span class="p">[</span><span class="n">T</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Use composite partitioning.&quot;&quot;&quot;</span>
+        <span class="c1"># Get partitions from each strategy</span>
+        <span class="n">partitions</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">partition</span><span class="p">(</span><span class="n">event</span><span class="p">),</span> <span class="n">w</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">p</span><span class="p">,</span> <span class="n">w</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_partitioners</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_weights</span><span class="p">)</span>
+        <span class="p">]</span>
+        
+        <span class="c1"># Weighted average of partition numbers</span>
+        <span class="n">total_weight</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">w</span> <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">w</span> <span class="ow">in</span> <span class="n">partitions</span><span class="p">)</span>
+        <span class="n">weighted_sum</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">p</span> <span class="o">*</span> <span class="n">w</span> <span class="k">for</span> <span class="n">p</span><span class="p">,</span> <span class="n">w</span> <span class="ow">in</span> <span class="n">partitions</span><span class="p">)</span>
+        
+        <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">weighted_sum</span> <span class="o">/</span> <span class="n">total_weight</span><span class="p">)</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_partitions</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="KeyExtractor">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.partition.KeyExtractor">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">KeyExtractor</span><span class="p">(</span><span class="n">Generic</span><span class="p">[</span><span class="n">T</span><span class="p">,</span> <span class="n">K</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Utility class for extracting partition keys from events.&quot;&quot;&quot;</span>
+    
+<div class="viewcode-block" id="KeyExtractor.from_field">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.partition.KeyExtractor.from_field">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_field</span><span class="p">(</span><span class="n">field_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">T</span><span class="p">],</span> <span class="n">K</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a key extractor from a field name.&quot;&quot;&quot;</span>
+        <span class="k">def</span><span class="w"> </span><span class="nf">extractor</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="n">T</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">K</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+                <span class="k">return</span> <span class="n">value</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">field_name</span><span class="p">,</span> <span class="s1">&#39;default&#39;</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">field_name</span><span class="p">):</span>
+                <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">field_name</span><span class="p">,</span> <span class="s1">&#39;default&#39;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="s1">&#39;default&#39;</span>
+        <span class="k">return</span> <span class="n">extractor</span></div>
+
+    
+<div class="viewcode-block" id="KeyExtractor.from_path">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.partition.KeyExtractor.from_path">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_path</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">T</span><span class="p">],</span> <span class="n">K</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a key extractor from a dot-notation path.&quot;&quot;&quot;</span>
+        <span class="k">def</span><span class="w"> </span><span class="nf">extractor</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="n">T</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">K</span><span class="p">:</span>
+            <span class="n">current</span> <span class="o">=</span> <span class="n">value</span>
+            <span class="k">for</span> <span class="n">part</span> <span class="ow">in</span> <span class="n">path</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">):</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">current</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+                    <span class="n">current</span> <span class="o">=</span> <span class="n">current</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">part</span><span class="p">,</span> <span class="s1">&#39;default&#39;</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">current</span><span class="p">,</span> <span class="n">part</span><span class="p">):</span>
+                    <span class="n">current</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">current</span><span class="p">,</span> <span class="n">part</span><span class="p">,</span> <span class="s1">&#39;default&#39;</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="s1">&#39;default&#39;</span>
+            <span class="k">return</span> <span class="n">current</span> <span class="k">if</span> <span class="n">current</span> <span class="o">!=</span> <span class="s1">&#39;default&#39;</span> <span class="k">else</span> <span class="s1">&#39;default&#39;</span>
+        <span class="k">return</span> <span class="n">extractor</span></div>
+
+    
+<div class="viewcode-block" id="KeyExtractor.composite">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.partition.KeyExtractor.composite">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">composite</span><span class="p">(</span><span class="o">*</span><span class="n">extractors</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">T</span><span class="p">],</span> <span class="n">K</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">T</span><span class="p">],</span> <span class="n">K</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a composite key from multiple extractors.&quot;&quot;&quot;</span>
+        <span class="k">def</span><span class="w"> </span><span class="nf">extractor</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="n">T</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">K</span><span class="p">:</span>
+            <span class="n">keys</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">ext</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="k">for</span> <span class="n">ext</span> <span class="ow">in</span> <span class="n">extractors</span><span class="p">)</span>
+            <span class="k">return</span> <span class="nb">hash</span><span class="p">(</span><span class="n">keys</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">extractor</span></div>
+</div>
+
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s1">&#39;PartitionStrategy&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;PartitionConfig&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;Partitioner&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;PartitionProcessor&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;CompositePartitioner&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;KeyExtractor&#39;</span><span class="p">,</span>
+<span class="p">]</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 1980 Aether Core Team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,567 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>aether_sdk.resilience.circuit_breaker &mdash; Aether Python SDK  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Aether Python SDK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../quickstart.html">Quick Start Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/core.html">Core API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/event.html">Event System API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/resilience.html">Resilience API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/streaming.html">Streaming API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/workflow.html">Workflow API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/validation.html">Validation API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Aether Python SDK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">aether_sdk.resilience.circuit_breaker</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for aether_sdk.resilience.circuit_breaker</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Circuit Breaker Pattern Implementation</span>
+
+<span class="sd">Prevents cascading failures by stopping requests to a failing service.</span>
+
+<span class="sd">States:</span>
+<span class="sd">- CLOSED: Normal operation, requests pass through</span>
+<span class="sd">- OPEN: Failing, requests are rejected immediately</span>
+<span class="sd">- HALF_OPEN: Testing if service recovered</span>
+
+<span class="sd">Example:</span>
+<span class="sd">    &gt;&gt;&gt; from aether_sdk.resilience.circuit_breaker import CircuitBreaker, CircuitBreakerConfig</span>
+<span class="sd">    &gt;&gt;&gt; cb = CircuitBreaker(CircuitBreakerConfig(failure_threshold=3))</span>
+<span class="sd">    &gt;&gt;&gt; try:</span>
+<span class="sd">    ...     result = await cb.execute(some_async_func)</span>
+<span class="sd">    ... except CircuitBreakerError:</span>
+<span class="sd">    ...     print(&quot;Service unavailable&quot;)</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Any</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">enum</span><span class="w"> </span><span class="kn">import</span> <span class="n">Enum</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">asyncio</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+
+
+<div class="viewcode-block" id="CircuitState">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.circuit_breaker.CircuitState">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">CircuitState</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Possible states of a circuit breaker.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        CLOSED: Normal operation — requests pass through.</span>
+<span class="sd">        OPEN: Failing — requests are rejected immediately.</span>
+<span class="sd">        HALF_OPEN: Probing — a limited number of requests are allowed</span>
+<span class="sd">            to test whether the service has recovered.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">CLOSED</span> <span class="o">=</span> <span class="s2">&quot;closed&quot;</span>
+    <span class="n">OPEN</span> <span class="o">=</span> <span class="s2">&quot;open&quot;</span>
+    <span class="n">HALF_OPEN</span> <span class="o">=</span> <span class="s2">&quot;half-open&quot;</span></div>
+
+
+
+<div class="viewcode-block" id="CircuitBreakerConfig">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.circuit_breaker.CircuitBreakerConfig">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">CircuitBreakerConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Configuration parameters for a :class:`CircuitBreaker`.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        failure_threshold: Number of failures before opening the circuit.</span>
+<span class="sd">        success_threshold: Number of consecutive successes in half-open</span>
+<span class="sd">            state before closing the circuit.</span>
+<span class="sd">        timeout_ms: Milliseconds to wait before transitioning from</span>
+<span class="sd">            open to half-open.</span>
+<span class="sd">        half_open_max_calls: Maximum number of calls allowed while</span>
+<span class="sd">            in half-open state.</span>
+<span class="sd">        failure_window_ms: Sliding time window (ms) for counting</span>
+<span class="sd">            failures. Set to ``0`` to use cumulative failure count.</span>
+<span class="sd">        on_open: Callback invoked when the circuit opens.</span>
+<span class="sd">        on_close: Callback invoked when the circuit closes.</span>
+<span class="sd">        on_half_open: Callback invoked when the circuit enters</span>
+<span class="sd">            half-open state.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">failure_threshold</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span>
+    <span class="n">success_threshold</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span>
+    <span class="n">timeout_ms</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">30000</span>
+    <span class="n">half_open_max_calls</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span>
+    <span class="n">failure_window_ms</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">60000</span>
+    <span class="n">on_open</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">[[],</span> <span class="kc">None</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">on_close</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">[[],</span> <span class="kc">None</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">on_half_open</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">[[],</span> <span class="kc">None</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="CircuitBreakerStats">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.circuit_breaker.CircuitBreakerStats">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">CircuitBreakerStats</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Snapshot of a circuit breaker&#39;s current statistics.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        state: Current circuit state.</span>
+<span class="sd">        failures: Total recorded failures.</span>
+<span class="sd">        successes: Total recorded successes.</span>
+<span class="sd">        rejected_calls: Number of calls rejected while the circuit</span>
+<span class="sd">            was open or half-open at capacity.</span>
+<span class="sd">        total_calls: Total number of calls attempted.</span>
+<span class="sd">        last_failure: Unix timestamp of the most recent failure.</span>
+<span class="sd">        last_success: Unix timestamp of the most recent success.</span>
+<span class="sd">        last_state_change: Unix timestamp of the most recent state</span>
+<span class="sd">            transition.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">state</span><span class="p">:</span> <span class="n">CircuitState</span> <span class="o">=</span> <span class="n">CircuitState</span><span class="o">.</span><span class="n">CLOSED</span>
+    <span class="n">failures</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">successes</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">rejected_calls</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">total_calls</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">last_failure</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">last_success</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">last_state_change</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="CircuitBreakerError">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.circuit_breaker.CircuitBreakerError">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">CircuitBreakerError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Raised when a call is rejected because the circuit is open.</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; try:</span>
+<span class="sd">        ...     await cb.execute(func)</span>
+<span class="sd">        ... except CircuitBreakerError as e:</span>
+<span class="sd">        ...     print(f&quot;Blocked: {e}&quot;)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">pass</span></div>
+
+
+
+<div class="viewcode-block" id="FailureRecord">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.circuit_breaker.FailureRecord">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">FailureRecord</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Record of a single failure within the sliding window.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        timestamp: Unix timestamp when the failure occurred.</span>
+<span class="sd">        error: The exception that caused the failure.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">timestamp</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">error</span><span class="p">:</span> <span class="ne">Exception</span></div>
+
+
+
+<div class="viewcode-block" id="CircuitBreaker">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.circuit_breaker.CircuitBreaker">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">CircuitBreaker</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Circuit breaker for protecting against cascading failures.</span>
+
+<span class="sd">    Wraps async function calls and monitors for failures. When the</span>
+<span class="sd">    failure count exceeds the configured threshold, the circuit opens</span>
+<span class="sd">    and subsequent calls are rejected with :class:`CircuitBreakerError`.</span>
+<span class="sd">    After the timeout elapses, the circuit transitions to half-open and</span>
+<span class="sd">    allows a limited number of probe calls. If those succeed, the</span>
+<span class="sd">    circuit closes again.</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; cb = CircuitBreaker()</span>
+<span class="sd">        &gt;&gt;&gt; try:</span>
+<span class="sd">        ...     result = await cb.execute(my_async_func)</span>
+<span class="sd">        ... except CircuitBreakerError:</span>
+<span class="sd">        ...     print(&quot;Circuit is open — service degraded&quot;)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">CircuitBreakerConfig</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize the circuit breaker.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            config: Optional configuration. Defaults to</span>
+<span class="sd">                :class:`CircuitBreakerConfig` with sensible defaults.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="o">=</span> <span class="n">config</span> <span class="ow">or</span> <span class="n">CircuitBreakerConfig</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="o">=</span> <span class="n">CircuitState</span><span class="o">.</span><span class="n">CLOSED</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_failures</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_successes</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_rejected_calls</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_total_calls</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_half_open_calls</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_last_failure</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_last_success</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_last_state_change</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_failure_history</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">FailureRecord</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">state</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CircuitState</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the current circuit state.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">is_closed</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check whether the circuit is in the CLOSED state.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="o">==</span> <span class="n">CircuitState</span><span class="o">.</span><span class="n">CLOSED</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">is_open</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check whether the circuit is in the OPEN state.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="o">==</span> <span class="n">CircuitState</span><span class="o">.</span><span class="n">OPEN</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">is_half_open</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check whether the circuit is in the HALF_OPEN state.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="o">==</span> <span class="n">CircuitState</span><span class="o">.</span><span class="n">HALF_OPEN</span>
+
+<div class="viewcode-block" id="CircuitBreaker.get_stats">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.circuit_breaker.CircuitBreaker.get_stats">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_stats</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CircuitBreakerStats</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a snapshot of the current circuit breaker statistics.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A :class:`CircuitBreakerStats` dataclass.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">CircuitBreakerStats</span><span class="p">(</span>
+            <span class="n">state</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="p">,</span>
+            <span class="n">failures</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_failures</span><span class="p">,</span>
+            <span class="n">successes</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_successes</span><span class="p">,</span>
+            <span class="n">rejected_calls</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_rejected_calls</span><span class="p">,</span>
+            <span class="n">total_calls</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_total_calls</span><span class="p">,</span>
+            <span class="n">last_failure</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_last_failure</span><span class="p">,</span>
+            <span class="n">last_success</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_last_success</span><span class="p">,</span>
+            <span class="n">last_state_change</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_last_state_change</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CircuitBreaker.execute">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.circuit_breaker.CircuitBreaker.execute">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[],</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Execute an async function through the circuit breaker.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            func: A zero-argument async callable.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The result of *func* if the call succeeds.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            CircuitBreakerError: If the circuit is open or half-open</span>
+<span class="sd">                at max calls.</span>
+<span class="sd">            Exception: Propagates any exception raised by *func*.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_total_calls</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="o">==</span> <span class="n">CircuitState</span><span class="o">.</span><span class="n">OPEN</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_should_attempt_reset</span><span class="p">():</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_transition_to</span><span class="p">(</span><span class="n">CircuitState</span><span class="o">.</span><span class="n">HALF_OPEN</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_rejected_calls</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">raise</span> <span class="n">CircuitBreakerError</span><span class="p">(</span><span class="s2">&quot;Circuit breaker is open&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="o">==</span> <span class="n">CircuitState</span><span class="o">.</span><span class="n">HALF_OPEN</span> <span class="ow">and</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_half_open_calls</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">half_open_max_calls</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_rejected_calls</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">raise</span> <span class="n">CircuitBreakerError</span><span class="p">(</span>
+                <span class="s2">&quot;Circuit breaker is half-open and at max calls&quot;</span>
+            <span class="p">)</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="o">==</span> <span class="n">CircuitState</span><span class="o">.</span><span class="n">HALF_OPEN</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_half_open_calls</span> <span class="o">+=</span> <span class="mi">1</span>
+
+            <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">func</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_on_success</span><span class="p">()</span>
+            <span class="k">return</span> <span class="n">result</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_on_failure</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+            <span class="k">raise</span></div>
+
+
+<div class="viewcode-block" id="CircuitBreaker.force_open">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.circuit_breaker.CircuitBreaker.force_open">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">force_open</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Force the circuit into the OPEN state.</span>
+
+<span class="sd">        Sets the last failure timestamp to the current time to prevent</span>
+<span class="sd">        an immediate reset to half-open.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_last_failure</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">*</span> <span class="mi">1000</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_transition_to</span><span class="p">(</span><span class="n">CircuitState</span><span class="o">.</span><span class="n">OPEN</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CircuitBreaker.force_close">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.circuit_breaker.CircuitBreaker.force_close">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">force_close</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Force the circuit into the CLOSED state, resetting failure counters.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_transition_to</span><span class="p">(</span><span class="n">CircuitState</span><span class="o">.</span><span class="n">CLOSED</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CircuitBreaker.reset">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.circuit_breaker.CircuitBreaker.reset">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">reset</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Reset all statistics and return the circuit to CLOSED state.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_failures</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_successes</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_rejected_calls</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_total_calls</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_half_open_calls</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_failure_history</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_transition_to</span><span class="p">(</span><span class="n">CircuitState</span><span class="o">.</span><span class="n">CLOSED</span><span class="p">)</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_should_attempt_reset</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check whether enough time has elapsed to transition OPEN → HALF_OPEN.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            ``True`` if the timeout since the last failure has elapsed.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_last_failure</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">*</span> <span class="mi">1000</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_last_failure</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">timeout_ms</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_on_success</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Update internal state after a successful execution.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_last_success</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_failure_history</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="o">==</span> <span class="n">CircuitState</span><span class="o">.</span><span class="n">HALF_OPEN</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_successes</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_successes</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">success_threshold</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_transition_to</span><span class="p">(</span><span class="n">CircuitState</span><span class="o">.</span><span class="n">CLOSED</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="o">==</span> <span class="n">CircuitState</span><span class="o">.</span><span class="n">CLOSED</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_failures</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_on_failure</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">error</span><span class="p">:</span> <span class="ne">Exception</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Update internal state after a failed execution.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            error: The exception that caused the failure.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_last_failure</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_failures</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_failure_history</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">FailureRecord</span><span class="p">(</span>
+            <span class="n">timestamp</span><span class="o">=</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">(),</span>
+            <span class="n">error</span><span class="o">=</span><span class="n">error</span>
+        <span class="p">))</span>
+
+        <span class="n">cutoff</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">failure_window_ms</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_failure_history</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">f</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_failure_history</span> <span class="k">if</span> <span class="n">f</span><span class="o">.</span><span class="n">timestamp</span> <span class="o">&gt;=</span> <span class="n">cutoff</span>
+        <span class="p">]</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="o">==</span> <span class="n">CircuitState</span><span class="o">.</span><span class="n">HALF_OPEN</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_transition_to</span><span class="p">(</span><span class="n">CircuitState</span><span class="o">.</span><span class="n">OPEN</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="o">==</span> <span class="n">CircuitState</span><span class="o">.</span><span class="n">CLOSED</span><span class="p">:</span>
+            <span class="n">failure_count</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_failure_history</span><span class="p">)</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">failure_window_ms</span> <span class="o">&gt;</span> <span class="mi">0</span>
+                <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">_failures</span>
+            <span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">failure_count</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">failure_threshold</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_transition_to</span><span class="p">(</span><span class="n">CircuitState</span><span class="o">.</span><span class="n">OPEN</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_transition_to</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">new_state</span><span class="p">:</span> <span class="n">CircuitState</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Transition to a new circuit state and invoke callbacks.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            new_state: The target state.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="o">==</span> <span class="n">new_state</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="n">old_state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="o">=</span> <span class="n">new_state</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_last_state_change</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">new_state</span> <span class="o">==</span> <span class="n">CircuitState</span><span class="o">.</span><span class="n">CLOSED</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_failures</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_successes</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_half_open_calls</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_failure_history</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">on_close</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">on_close</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="n">new_state</span> <span class="o">==</span> <span class="n">CircuitState</span><span class="o">.</span><span class="n">OPEN</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_successes</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_half_open_calls</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">on_open</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">on_open</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="n">new_state</span> <span class="o">==</span> <span class="n">CircuitState</span><span class="o">.</span><span class="n">HALF_OPEN</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_successes</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_half_open_calls</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">on_half_open</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">on_half_open</span><span class="p">()</span></div>
+
+
+
+<div class="viewcode-block" id="CircuitBreakerManager">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.circuit_breaker.CircuitBreakerManager">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">CircuitBreakerManager</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Registry for named :class:`CircuitBreaker` instances.</span>
+
+<span class="sd">    Provides ``get-or-create`` semantics so that the same name always</span>
+<span class="sd">    resolves to the same breaker instance.</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; mgr = CircuitBreakerManager()</span>
+<span class="sd">        &gt;&gt;&gt; cb = mgr.get(&quot;payment-service&quot;)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">default_config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">CircuitBreakerConfig</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize the manager.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            default_config: Default configuration applied to breakers</span>
+<span class="sd">                that do not supply their own config.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_breakers</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">CircuitBreaker</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_default_config</span> <span class="o">=</span> <span class="n">default_config</span> <span class="ow">or</span> <span class="n">CircuitBreakerConfig</span><span class="p">()</span>
+
+<div class="viewcode-block" id="CircuitBreakerManager.get">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.circuit_breaker.CircuitBreakerManager.get">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">CircuitBreakerConfig</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CircuitBreaker</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get or create a circuit breaker by name.</span>
+
+<span class="sd">        If a breaker with *name* already exists, the existing instance</span>
+<span class="sd">        is returned and *config* is ignored. Otherwise a new breaker</span>
+<span class="sd">        is created with the merged configuration.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            name: Unique name for the breaker.</span>
+<span class="sd">            config: Optional per-breaker configuration. Fields set here</span>
+<span class="sd">                override the manager&#39;s defaults.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The :class:`CircuitBreaker` instance for *name*.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_breakers</span><span class="p">:</span>
+            <span class="n">merged_config</span> <span class="o">=</span> <span class="n">CircuitBreakerConfig</span><span class="p">(</span>
+                <span class="n">failure_threshold</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">failure_threshold</span> <span class="k">if</span> <span class="n">config</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">_default_config</span><span class="o">.</span><span class="n">failure_threshold</span><span class="p">,</span>
+                <span class="n">success_threshold</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">success_threshold</span> <span class="k">if</span> <span class="n">config</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">_default_config</span><span class="o">.</span><span class="n">success_threshold</span><span class="p">,</span>
+                <span class="n">timeout_ms</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">timeout_ms</span> <span class="k">if</span> <span class="n">config</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">_default_config</span><span class="o">.</span><span class="n">timeout_ms</span><span class="p">,</span>
+                <span class="n">half_open_max_calls</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">half_open_max_calls</span> <span class="k">if</span> <span class="n">config</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">_default_config</span><span class="o">.</span><span class="n">half_open_max_calls</span><span class="p">,</span>
+                <span class="n">failure_window_ms</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">failure_window_ms</span> <span class="k">if</span> <span class="n">config</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">_default_config</span><span class="o">.</span><span class="n">failure_window_ms</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_breakers</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">CircuitBreaker</span><span class="p">(</span><span class="n">merged_config</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_breakers</span><span class="p">[</span><span class="n">name</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="CircuitBreakerManager.get_all_stats">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.circuit_breaker.CircuitBreakerManager.get_all_stats">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_all_stats</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">CircuitBreakerStats</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return statistics for every registered circuit breaker.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A dict mapping breaker names to their</span>
+<span class="sd">            :class:`CircuitBreakerStats`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">{</span><span class="n">name</span><span class="p">:</span> <span class="n">breaker</span><span class="o">.</span><span class="n">get_stats</span><span class="p">()</span> <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">breaker</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_breakers</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span></div>
+
+
+<div class="viewcode-block" id="CircuitBreakerManager.reset_all">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.circuit_breaker.CircuitBreakerManager.reset_all">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">reset_all</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Reset all registered circuit breakers to their initial state.&quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">breaker</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_breakers</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="n">breaker</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="CircuitBreakerManager.get_open_breakers">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.circuit_breaker.CircuitBreakerManager.get_open_breakers">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_open_breakers</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the names of all circuit breakers currently in OPEN state.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A list of breaker names.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">[</span>
+            <span class="n">name</span> <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">breaker</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_breakers</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">breaker</span><span class="o">.</span><span class="n">is_open</span>
+        <span class="p">]</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 1980 Aether Core Team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -13,9 +13,27 @@ import {
 import { withTracing } from './tracing';
 
 /**
- * Error thrown when all retry attempts are exhausted.
+ * Error thrown when all retry attempts have been exhausted.
+ *
+ * Contains the total number of attempts made and the last error encountered.
+ *
+ * @example
+ * ```typescript
+ * try {
+ *   await retry.executeOrThrow(() => fetchData());
+ * } catch (e) {
+ *   if (e instanceof RetryExhaustedError) {
+ *     console.log(`Failed after ${e.attempts} attempts: ${e.lastError.message}`);
+ *   }
+ * }
+ * ```
  */
 export class RetryExhaustedError extends Error {
+  /**
+   * @param attempts  - Total number of attempts made.
+   * @param lastError - The error from the final attempt.
+   * @param message   - Optional custom message.
+   */
   constructor(
     public readonly attempts: number,
     public readonly lastError: Error,
@@ -43,6 +61,10 @@ const DEFAULT_CONFIG: RetryConfig = {
 
 /**
  * Calculate delay for a given attempt using the configured strategy.
+ *
+ * @param attempt - The 1-based attempt number.
+ * @param config  - The retry configuration.
+ * @returns The delay in milliseconds before the next attempt.
  */
 function calculateDelay(
   attempt: number,
@@ -78,6 +100,8 @@ function calculateDelay(
 
 /**
  * Sleep for a specified duration.
+ *
+ * @param ms - Duration in milliseconds.
  */
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -85,6 +109,10 @@ function sleep(ms: number): Promise<void> {
 
 /**
  * Retry Policy implementation.
+ *
+ * Wraps async functions with configurable retry logic and backoff
+ * strategies. Supports custom retry predicates and provides both
+ * result-returning and exception-throwing execution modes.
  *
  * @example
  * ```typescript
@@ -94,17 +122,25 @@ function sleep(ms: number): Promise<void> {
  * });
  *
  * const result = await retry.execute(() => fetchData());
+ * // result.success indicates outcome; result.error holds the last error.
  * ```
  */
 export class RetryPolicy {
   private readonly config: RetryConfig;
 
+  /**
+   * Create a new RetryPolicy.
+   *
+   * @param config - Partial configuration; unspecified fields use defaults.
+   */
   constructor(config: Partial<RetryConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
   }
 
   /**
-   * Get the retry configuration.
+   * Get a copy of the current retry configuration.
+   *
+   * @returns The active {@link RetryConfig}.
    */
   getConfig(): RetryConfig {
     return { ...this.config };
@@ -113,9 +149,15 @@ export class RetryPolicy {
   /**
    * Execute a function with retry logic.
    *
-   * @param fn - Async function to execute
-   * @param shouldRetry - Optional predicate to determine if retry should occur
-   * @returns Retry result with outcome
+   * On failure, the policy calculates a delay based on the configured
+   * backoff strategy and retries up to `maxAttempts` times. An optional
+   * `shouldRetry` predicate can override the default retry decision.
+   *
+   * @typeParam T - The return type of the function.
+   * @param fn          - Async function to execute.
+   * @param shouldRetry - Optional predicate; return `true` to retry,
+   *                     `false` to stop. Receives the error and attempt number.
+   * @returns A {@link RetryResult} indicating success or failure.
    */
   async execute<T>(
     fn: AsyncFunction<T>,
@@ -175,12 +217,13 @@ export class RetryPolicy {
   }
 
   /**
-   * Execute and throw if all retries fail.
+   * Execute a function with retry logic and throw on exhaustion.
    *
-   * @param fn - Async function to execute
-   * @param shouldRetry - Optional predicate to determine if retry should occur
-   * @returns Result of the function
-   * @throws RetryExhaustedError if all retries fail
+   * @typeParam T - The return type of the function.
+   * @param fn          - Async function to execute.
+   * @param shouldRetry - Optional predicate; return `true` to retry.
+   * @returns The result of the function on success.
+   * @throws RetryExhaustedError If all retry attempts fail.
    */
   async executeOrThrow<T>(
     fn: AsyncFunction<T>,
@@ -197,7 +240,12 @@ export class RetryPolicy {
 
   /**
    * Default retry decision logic.
-   * Retries on network errors, timeouts, and 5xx responses.
+   *
+   * Retries on common network errors (ECONNRESET, ETIMEDOUT, ENOTFOUND,
+   * ECONNREFUSED), HTTP 5xx responses, and timeout errors.
+   *
+   * @param error - The error to evaluate.
+   * @returns `true` if the error is considered retryable.
    */
   private defaultShouldRetry(error: Error): boolean {
     // Network errors
@@ -226,7 +274,9 @@ export class RetryPolicy {
 }
 
 /**
- * Pre-configured network retry policy (3 attempts, exponential backoff).
+ * Create a pre-configured network retry policy (3 attempts, exponential backoff).
+ *
+ * @returns A RetryPolicy tuned for network operations.
  */
 export function networkRetryPolicy(): RetryPolicy {
   return new RetryPolicy({
@@ -240,7 +290,9 @@ export function networkRetryPolicy(): RetryPolicy {
 }
 
 /**
- * Pre-configured database retry policy (5 attempts, longer delays).
+ * Create a pre-configured database retry policy (5 attempts, longer delays).
+ *
+ * @returns A RetryPolicy tuned for database operations.
  */
 export function databaseRetryPolicy(): RetryPolicy {
   return new RetryPolicy({
@@ -254,7 +306,9 @@ export function databaseRetryPolicy(): RetryPolicy {
 }
 
 /**
- * Aggressive retry policy (10 attempts, quick backoff).
+ * Create an aggressive retry policy (10 attempts, quick backoff).
+ *
+ * @returns A RetryPolicy with high attempt count and low initial delay.
  */
 export function aggressiveRetryPolicy(): RetryPolicy {
   return new RetryPolicy({
@@ -268,7 +322,9 @@ export function aggressiveRetryPolicy(): RetryPolicy {
 }
 
 /**
- * Conservative retry policy (2 attempts, long delays).
+ * Create a conservative retry policy (2 attempts, long delays).
+ *
+ * @returns A RetryPolicy with low attempt count and high initial delay.
  */
 export function conservativeRetryPolicy(): RetryPolicy {
   return new RetryPolicy({

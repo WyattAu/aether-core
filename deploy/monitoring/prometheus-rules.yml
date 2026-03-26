@@ -1,0 +1,383 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: aether-alerting-rules
+  namespace: default
+  labels:
+    app.kubernetes.io/name: aether
+    app.kubernetes.io/component: monitoring
+spec:
+  groups:
+    - name: aether-availability
+      rules:
+        - alert: AetherHighErrorRate
+          expr: |
+            (
+              sum(rate(aether_http_requests_total{code=~"5.."}[5m]))
+              /
+              sum(rate(aether_http_requests_total[5m]))
+            ) > 0.05
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Aether error rate exceeds 5%"
+            description: "Error rate is {{ $value | humanizePercentage }} (threshold: 5%) over the last 5 minutes."
+            runbook: "https://docs.aether.dev/runbooks/incident-response#error-rate"
+            dashboard: "https://grafana.aether.dev/d/aether-overview"
+
+        - alert: AetherVeryHighErrorRate
+          expr: |
+            (
+              sum(rate(aether_http_requests_total{code=~"5.."}[2m]))
+              /
+              sum(rate(aether_http_requests_total[2m]))
+            ) > 0.20
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Aether error rate exceeds 20%"
+            description: "Error rate is {{ $value | humanizePercentage }} (threshold: 20%) over the last 2 minutes."
+            runbook: "https://docs.aether.dev/runbooks/incident-response#error-rate"
+            dashboard: "https://grafana.aether.dev/d/aether-overview"
+
+        - alert: AetherHealthCheckFailing
+          expr: up{job="aether"} == 0
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Aether health check failing"
+            description: "Aether instance {{ $labels.instance }} is down. Health endpoint is not responding."
+            runbook: "https://docs.aether.dev/runbooks/incident-response#health-checks"
+
+        - alert: AetherPodRestarting
+          expr: increase(kube_pod_container_status_restarts_total{container="aether"}[1h]) > 3
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Aether pod restarting frequently"
+            description: "Aether pod has restarted {{ $value }} times in the last hour."
+            runbook: "https://docs.aether.dev/runbooks/incident-response#actor-crash-loop"
+
+        - alert: AetherReadinessFailing
+          expr: kube_pod_container_status_ready{container="aether"} == 0
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Aether pod not ready"
+            description: "Aether pod on {{ $labels.instance }} is running but failing readiness checks."
+            runbook: "https://docs.aether.dev/runbooks/incident-response#deployment-failure"
+
+    - name: aether-performance
+      rules:
+        - alert: AetherHighP99Latency
+          expr: |
+            histogram_quantile(0.99,
+              sum(rate(aether_request_duration_seconds_bucket[5m])) by (le)
+            ) > 0.1
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Aether p99 latency exceeds 100ms"
+            description: "p99 latency is {{ $value }}s (threshold: 100ms) over the last 5 minutes."
+            runbook: "https://docs.aether.dev/runbooks/incident-response#high-latency"
+            dashboard: "https://grafana.aether.dev/d/aether-overview"
+
+        - alert: AetherVeryHighP99Latency
+          expr: |
+            histogram_quantile(0.99,
+              sum(rate(aether_request_duration_seconds_bucket[2m])) by (le)
+            ) > 0.5
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Aether p99 latency exceeds 500ms"
+            description: "p99 latency is {{ $value }}s (threshold: 500ms). Users are experiencing severe slowness."
+            runbook: "https://docs.aether.dev/runbooks/incident-response#high-latency"
+
+        - alert: AetherHighP95Latency
+          expr: |
+            histogram_quantile(0.95,
+              sum(rate(aether_request_duration_seconds_bucket[5m])) by (le)
+            ) > 0.05
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Aether p95 latency exceeds 50ms"
+            description: "p95 latency is {{ $value }}s (threshold: 50ms) over the last 10 minutes."
+
+        - alert: AetherThroughputDegradation
+          expr: |
+            (
+              sum(rate(aether_http_requests_total[5m]))
+              /
+              sum(rate(aether_http_requests_total[5m]) offset 1h)
+            ) < 0.5
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Aether throughput dropped more than 50%"
+            description: "Current request rate is {{ $value | humanizePercentage }} of the rate 1 hour ago."
+            runbook: "https://docs.aether.dev/runbooks/scaling#scaling-decision-tree"
+
+    - name: aether-resilience
+      rules:
+        - alert: AetherCircuitBreakerOpen
+          expr: aether_circuit_breaker_state{name=~".+"} == 2
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Aether circuit breaker '{{ $labels.name }}' is open"
+            description: "Circuit breaker '{{ $labels.name }}' has been open for > 2 minutes. All requests to this dependency are being rejected."
+            runbook: "https://docs.aether.dev/runbooks/incident-response#circuit-breaker-stuck-open"
+
+        - alert: AetherCircuitBreakerHalfOpen
+          expr: aether_circuit_breaker_state{name=~".+"} == 1
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Aether circuit breaker '{{ $labels.name }}' stuck in half-open"
+            description: "Circuit breaker has been in half-open state for > 10 minutes, indicating the downstream dependency is unstable."
+            runbook: "https://docs.aether.dev/runbooks/incident-response#circuit-breaker-stuck-open"
+
+        - alert: AetherCircuitBreakerHighRejection
+          expr: |
+            sum(rate(aether_circuit_breaker_rejected_total[5m])) by (name)
+            > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Aether circuit breaker rejecting requests"
+            description: "Circuit breaker '{{ $labels.name }}' is rejecting {{ $value }} requests/sec."
+
+        - alert: AetherRetryExhaustion
+          expr: |
+            (
+              sum(rate(aether_retry_exhausted_total[5m]))
+              /
+              sum(rate(aether_retry_attempts_total[5m]))
+            ) > 0.10
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Aether retry exhaustion rate exceeds 10%"
+            description: "{{ $value | humanizePercentage }} of retry attempts are being exhausted. Downstream dependency may be degraded."
+            runbook: "https://docs.aether.dev/runbooks/incident-response#high-latency"
+
+        - alert: AetherBulkheadHighUtilization
+          expr: |
+            (
+              aether_bulkhead_active{name=~".+"}
+              /
+              aether_bulkhead_max_concurrent{name=~".+"}
+            ) > 0.9
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Aether bulkhead '{{ $labels.name }}' near capacity"
+            description: "Bulkhead '{{ $labels.name }}' is at {{ $value | humanizePercentage }} capacity. Requests may start being rejected."
+            runbook: "https://docs.aether.dev/runbooks/incident-response#high-latency"
+
+        - alert: AetherBulkheadRejecting
+          expr: sum(rate(aether_bulkhead_rejected_total[5m])) by (name) > 10
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Aether bulkhead '{{ $labels.name }}' rejecting requests"
+            description: "Bulkhead is rejecting {{ $value }} requests/sec due to capacity limits."
+            runbook: "https://docs.aether.dev/runbooks/scaling#when-to-add-replicas"
+
+        - alert: AetherRateLimiterHighRejection
+          expr: |
+            (
+              sum(rate(aether_rate_limiter_rejected_total[5m])) by (name)
+              /
+              sum(rate(aether_rate_limiter_total[5m])) by (name)
+            ) > 0.50
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Aether rate limiter '{{ $labels.name }}' rejecting > 50% of requests"
+            description: "Rate limiter is rejecting {{ $value | humanizePercentage }} of requests. Limits may be too restrictive."
+            runbook: "https://docs.aether.dev/runbooks/incident-response#rate-limiter-rejecting-all-requests"
+
+        - alert: AetherRateLimiterAllRejected
+          expr: |
+            (
+              sum(rate(aether_rate_limiter_rejected_total[2m])) by (name)
+              /
+              sum(rate(aether_rate_limiter_total[2m])) by (name)
+            ) > 0.95
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Aether rate limiter '{{ $labels.name }}' rejecting nearly all requests"
+            description: "Rate limiter is rejecting {{ $value | humanizePercentage }} of requests. Service is effectively down."
+            runbook: "https://docs.aether.dev/runbooks/incident-response#rate-limiter-rejecting-all-requests"
+
+    - name: aether-streaming
+      rules:
+        - alert: AetherStreamLag
+          expr: aether_stream_lag_seconds{stream=~".+"} > 30
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Aether stream '{{ $labels.stream }}' lag exceeds 30s"
+            description: "Stream processing is {{ $value }}s behind. Events are not being processed in real-time."
+            runbook: "https://docs.aether.dev/runbooks/incident-response#stream-processing-lag"
+
+        - alert: AetherStreamLagCritical
+          expr: aether_stream_lag_seconds{stream=~".+"} > 120
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Aether stream '{{ $labels.stream }}' lag exceeds 2 minutes"
+            description: "Stream processing is {{ $value }}s behind. Windowed aggregations may produce stale results."
+
+        - alert: AetherBackpressureDropping
+          expr: sum(rate(aether_backpressure_dropped_events_total[5m])) by (controller) > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Aether backpressure dropping events on '{{ $labels.controller }}'"
+            description: "{{ $value }} events/sec are being dropped due to backpressure buffer overflow."
+            runbook: "https://docs.aether.dev/runbooks/incident-response#backpressure-overflow"
+
+        - alert: AetherBackpressureBufferFull
+          expr: |
+            (
+              aether_backpressure_buffer_used{controller=~".+"}
+              /
+              aether_backpressure_buffer_size{controller=~".+"}
+            ) > 0.90
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Aether backpressure buffer '{{ $labels.controller }}' is > 90% full"
+            description: "Buffer fill level is {{ $value | humanizePercentage }}. Data loss is imminent."
+            runbook: "https://docs.aether.dev/runbooks/incident-response#backpressure-overflow"
+
+        - alert: AetherWindowProcessingSlow
+          expr: |
+            histogram_quantile(0.99,
+              sum(rate(aether_window_processing_time_seconds_bucket[5m])) by (le, window_type)
+            ) > 5
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Aether {{ $labels.window_type }} window processing slow (p99 > 5s)"
+            description: "Window processing p99 is {{ $value }}s. Window results are delayed."
+
+        - alert: AetherEventThroughputDrop
+          expr: |
+            (
+              sum(rate(aether_stream_events_total[5m])) by (stream)
+              /
+              sum(rate(aether_stream_events_total[5m]) offset 1h) by (stream)
+            ) < 0.3
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Aether stream '{{ $labels.stream }}' throughput dropped > 70%"
+            description: "Event throughput is {{ $value | humanizePercentage }} of the rate 1 hour ago."
+
+    - name: aether-resources
+      rules:
+        - alert: AetherMemoryHigh
+          expr: |
+            (
+              container_memory_working_set_bytes{container="aether"}
+              /
+              container_spec_memory_limit_bytes{container="aether"}
+            ) > 0.85
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Aether memory usage exceeds 85%"
+            description: "Memory usage is {{ $value | humanizePercentage }} of limit. Risk of OOM kill."
+            runbook: "https://docs.aether.dev/runbooks/incident-response#high-memory-usage-oom-kills"
+
+        - alert: AetherMemoryCritical
+          expr: |
+            (
+              container_memory_working_set_bytes{container="aether"}
+              /
+              container_spec_memory_limit_bytes{container="aether"}
+            ) > 0.95
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Aether memory usage exceeds 95%"
+            description: "Memory usage is {{ $value | humanizePercentage }} of limit. OOM kill is imminent."
+            runbook: "https://docs.aether.dev/runbooks/incident-response#high-memory-usage-oom-kills"
+
+        - alert: AetherCPUHigh
+          expr: |
+            (
+              rate(container_cpu_usage_seconds_total{container="aether"}[5m])
+              /
+              container_spec_cpu_quota{container="aether"} / container_spec_cpu_period{container="aether"}
+            ) > 0.80
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Aether CPU usage exceeds 80%"
+            description: "CPU usage is {{ $value | humanizePercentage }} of limit. Performance may degrade."
+            runbook: "https://docs.aether.dev/runbooks/scaling#when-to-add-replicas"
+
+        - alert: AetherGoroutineLeak
+          expr: aether_goroutine_count > 5000
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Aether goroutine count is {{ $value }}"
+            description: "Goroutine count has exceeded 5000 for 10 minutes. Possible goroutine leak."
+            runbook: "https://docs.aether.dev/runbooks/incident-response#high-memory-usage-oom-kills"
+
+        - alert: AetherOpenFileDescriptors
+          expr: process_open_fds{job="aether"} > 10000
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Aether open file descriptors exceed 10,000"
+            description: "Process has {{ $value }} open file descriptors. May indicate connection leak or insufficient cleanup."
+
+        - alert: AetherGCDurationHigh
+          expr: |
+            histogram_quantile(0.99,
+              rate(go_gc_duration_seconds_bucket[5m])
+            ) > 0.05
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Aether GC pause p99 exceeds 50ms"
+            description: "GC pause p99 is {{ $value }}s. Latency spikes may be caused by garbage collection pressure."
+            runbook: "https://docs.aether.dev/runbooks/incident-response#high-latency"

@@ -1,0 +1,144 @@
+{
+  "messages": [
+    {
+      "name": "custom_message_with_payload",
+      "input": { "type": "custom", "payload": { "key": "value", "count": 42 } },
+      "expected_type": "custom",
+      "expected_payload_keys": ["key", "count"]
+    },
+    {
+      "name": "start_message",
+      "input": { "type": "start", "payload": {} },
+      "expected_type": "start",
+      "expected_payload_keys": []
+    },
+    {
+      "name": "stop_message",
+      "input": { "type": "stop", "payload": {} },
+      "expected_type": "stop",
+      "expected_payload_keys": []
+    },
+    {
+      "name": "signal_message",
+      "input": { "type": "signal", "payload": { "signal": "SIGTERM" } },
+      "expected_type": "signal",
+      "expected_payload_keys": ["signal"]
+    },
+    {
+      "name": "rpc_request_with_correlation",
+      "input": {
+        "type": "rpc_request",
+        "payload": { "method": "get_user", "args": [1] },
+        "sender": "client-actor",
+        "correlation_id": "corr-abc-123"
+      },
+      "expected_type": "rpc_request",
+      "expected_payload_keys": ["method", "args"],
+      "expected_sender": "client-actor",
+      "expected_correlation_id": "corr-abc-123"
+    },
+    {
+      "name": "rpc_response_with_correlation",
+      "input": {
+        "type": "rpc_response",
+        "payload": { "result": { "id": 1, "name": "Alice" } },
+        "sender": "server-actor",
+        "correlation_id": "corr-abc-123"
+      },
+      "expected_type": "rpc_response",
+      "expected_payload_keys": ["result"],
+      "expected_sender": "server-actor",
+      "expected_correlation_id": "corr-abc-123"
+    },
+    {
+      "name": "nested_payload",
+      "input": {
+        "type": "custom",
+        "payload": {
+          "level1": {
+            "level2": {
+              "level3": "deep"
+            }
+          },
+          "items": [1, 2, 3]
+        }
+      },
+      "expected_type": "custom",
+      "expected_payload_keys": ["level1", "items"]
+    }
+  ],
+  "timestamps": [
+    { "name": "epoch", "input_ms": 0 },
+    { "name": "one_second", "input_ms": 1000 },
+    { "name": "one_minute", "input_ms": 60000 },
+    { "name": "one_hour", "input_ms": 3600000 },
+    { "name": "arbitrary_time", "input_ms": 1700000000000 }
+  ],
+  "durations": [
+    { "name": "zero", "input_ms": 0, "expected_seconds": 0.0 },
+    { "name": "one_second", "input_ms": 1000, "expected_seconds": 1.0 },
+    { "name": "five_minutes", "input_ms": 300000, "expected_seconds": 300.0 },
+    { "name": "one_hour", "input_ms": 3600000, "expected_seconds": 3600.0 }
+  ],
+  "window_specs": [
+    {
+      "name": "tumbling_5s",
+      "type": "tumbling",
+      "size_ms": 5000,
+      "slide_ms": null,
+      "gap_ms": null
+    },
+    {
+      "name": "sliding_10s_slide_5s",
+      "type": "sliding",
+      "size_ms": 10000,
+      "slide_ms": 5000,
+      "gap_ms": null
+    },
+    {
+      "name": "session_30s_gap",
+      "type": "session",
+      "size_ms": 86400000,
+      "slide_ms": null,
+      "gap_ms": 30000
+    }
+  ],
+  "capabilities": {
+    "all_capabilities": [
+      "NETWORK_OUTBOUND",
+      "NETWORK_INBOUND",
+      "STATE_READ",
+      "STATE_WRITE",
+      "FS_READ",
+      "FS_WRITE",
+      "ACTOR_MESSAGING",
+      "LOG",
+      "TIME",
+      "RANDOM",
+      "ENVIRONMENT",
+      "HTTP_CLIENT",
+      "HTTP_SERVER"
+    ]
+  },
+  "message_types": {
+    "all_types": [
+      "start",
+      "stop",
+      "signal",
+      "rpc_request",
+      "rpc_response",
+      "custom",
+      "stream_event",
+      "watermark",
+      "checkpoint",
+      "checkpoint_ack"
+    ]
+  },
+  "resilience": [
+    {
+      "name": "circuit_breaker_closed_allows_5",
+      "config": { "failureThreshold": 5, "successThreshold": 3, "timeout": 1000 },
+      "expected": "allows_5_then_opens"
+    }
+  ]
+}

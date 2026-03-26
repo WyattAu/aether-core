@@ -1,0 +1,220 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>aether_sdk.exceptions &mdash; Aether Python SDK  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            Aether Python SDK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../quickstart.html">Quick Start Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/core.html">Core API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/event.html">Event System API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/resilience.html">Resilience API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/streaming.html">Streaming API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/workflow.html">Workflow API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/validation.html">Validation API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Aether Python SDK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">aether_sdk.exceptions</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for aether_sdk.exceptions</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Exception classes for the Aether SDK.</span>
+
+<span class="sd">This module defines all custom exceptions used throughout the Aether SDK.</span>
+<span class="sd">All exceptions inherit from AetherError, making it easy to catch all</span>
+<span class="sd">Aether-related errors with a single except clause.</span>
+
+<span class="sd">Example:</span>
+<span class="sd">    &gt;&gt;&gt; from aether_sdk.exceptions import AetherError, CapabilityDenied</span>
+<span class="sd">    &gt;&gt;&gt; try:</span>
+<span class="sd">    ...     raise CapabilityDenied(&quot;NETWORK_OUTBOUND&quot;)</span>
+<span class="sd">    ... except AetherError as e:</span>
+<span class="sd">    ...     print(f&quot;Caught: {e}&quot;)</span>
+<span class="sd">    Caught: Capability denied: NETWORK_OUTBOUND</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span>
+
+
+<div class="viewcode-block" id="AetherError">
+<a class="viewcode-back" href="../../api/core.html#aether_sdk.exceptions.AetherError">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">AetherError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Base exception for all Aether SDK errors.</span>
+<span class="sd">    </span>
+<span class="sd">    All custom exceptions in the Aether SDK inherit from this class,</span>
+<span class="sd">    allowing callers to catch all Aether-related errors with a single</span>
+<span class="sd">    except clause.</span>
+<span class="sd">    </span>
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; try:</span>
+<span class="sd">        ...     # Some Aether operation</span>
+<span class="sd">        ...     pass</span>
+<span class="sd">        ... except AetherError as e:</span>
+<span class="sd">        ...     print(f&quot;Aether error: {e}&quot;)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">pass</span></div>
+
+
+
+<div class="viewcode-block" id="CapabilityDenied">
+<a class="viewcode-back" href="../../api/core.html#aether_sdk.exceptions.CapabilityDenied">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">CapabilityDenied</span><span class="p">(</span><span class="n">AetherError</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Raised when an actor attempts an operation without required capability.</span>
+<span class="sd">    </span>
+<span class="sd">    This exception indicates that the actor has not been granted the</span>
+<span class="sd">    necessary capability to perform the requested operation.</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        message: Description of the denied capability.</span>
+<span class="sd">    </span>
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; raise CapabilityDenied(&quot;HTTP client requires NETWORK_OUTBOUND capability&quot;)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Capability denied: </span><span class="si">{</span><span class="n">message</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="ActorNotFound">
+<a class="viewcode-back" href="../../api/core.html#aether_sdk.exceptions.ActorNotFound">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">ActorNotFound</span><span class="p">(</span><span class="n">AetherError</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Raised when attempting to communicate with a non-existent actor.</span>
+<span class="sd">    </span>
+<span class="sd">    This exception is raised when trying to send a message or make an</span>
+<span class="sd">    RPC call to an actor that doesn&#39;t exist or has been stopped.</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        actor: Name of the actor that was not found.</span>
+<span class="sd">    </span>
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; raise ActorNotFound(&quot;my_actor&quot;)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">actor</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Actor not found: </span><span class="si">{</span><span class="n">actor</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="StateError">
+<a class="viewcode-back" href="../../api/core.html#aether_sdk.exceptions.StateError">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">StateError</span><span class="p">(</span><span class="n">AetherError</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Raised when a state operation fails.</span>
+<span class="sd">    </span>
+<span class="sd">    This exception indicates a problem with reading from or writing to</span>
+<span class="sd">    the actor&#39;s state storage, such as serialization failures or</span>
+<span class="sd">    storage backend errors.</span>
+<span class="sd">    </span>
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; raise StateError(&quot;Failed to deserialize state value&quot;)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">pass</span></div>
+
+
+
+<div class="viewcode-block" id="RpcError">
+<a class="viewcode-back" href="../../api/core.html#aether_sdk.exceptions.RpcError">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">RpcError</span><span class="p">(</span><span class="n">AetherError</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Raised when an RPC call fails.</span>
+<span class="sd">    </span>
+<span class="sd">    This exception is raised when a remote procedure call to another</span>
+<span class="sd">    actor fails, either due to timeout, an error in the remote actor,</span>
+<span class="sd">    or other communication issues.</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        message: Description of the RPC failure.</span>
+<span class="sd">        code: Optional error code for programmatic error handling.</span>
+<span class="sd">    </span>
+<span class="sd">    Attributes:</span>
+<span class="sd">        code: An optional error code string for categorizing the error.</span>
+<span class="sd">    </span>
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; raise RpcError(&quot;RPC call timed out&quot;, code=&quot;TIMEOUT&quot;)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">code</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">code</span> <span class="o">=</span> <span class="n">code</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 1980 Aether Core Team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

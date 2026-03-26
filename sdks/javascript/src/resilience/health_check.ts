@@ -27,6 +27,7 @@ const DEFAULT_CONFIG: HealthCheckConfig = {
 
 /**
  * Internal health check state.
+ * @internal
  */
 interface HealthCheckState {
   config: HealthCheckConfig;
@@ -42,10 +43,14 @@ interface HealthCheckState {
 /**
  * Health Checker implementation.
  *
- * Supports three types of probes (Kubernetes-compatible):
- * - Liveness: Is the service running?
- * - Readiness: Is the service ready to accept traffic?
- * - Startup: Has the service finished starting?
+ * Manages named health checks and supports three Kubernetes-compatible probe types:
+ *
+ * - **Liveness** — Is the service running? (always returns Healthy if reachable).
+ * - **Readiness** — Is the service ready to accept traffic? (runs all checks).
+ * - **Startup** — Has the service finished starting? (checks for Starting state).
+ *
+ * Individual checks can have their own intervals, timeouts, and failure/success
+ * thresholds. The overall status is the worst status among all checks.
  *
  * @example
  * ```typescript
@@ -63,6 +68,7 @@ interface HealthCheckState {
  *
  * // Get health report
  * const report = await health.check();
+ * console.log(report.status); // 'healthy' | 'unhealthy' | 'degraded'
  * ```
  */
 export class HealthChecker {
@@ -70,11 +76,21 @@ export class HealthChecker {
   private started = false;
 
   /**
-   * Add a health check.
+   * Add a named health check.
    *
-   * @param name - Check name
-   * @param check - Health check function
-   * @param config - Optional configuration
+   * @param name   - Unique check name.
+   * @param check  - Async or sync function returning a {@link HealthCheckResult}.
+   * @param config - Optional per-check configuration overrides.
+   *
+   * @example
+   * ```typescript
+   * health.addCheck('redis', async () => ({
+   *   name: 'redis',
+   *   status: (await redis.ping()) ? HealthStatus.Healthy : HealthStatus.Unhealthy,
+   *   timestamp: Date.now(),
+   *   duration: 0,
+   * }), { timeout: 2000, interval: 10000 });
+   * ```
    */
   addCheck(
     name: string,
@@ -100,7 +116,12 @@ export class HealthChecker {
   }
 
   /**
-   * Remove a health check.
+   * Remove a health check by name.
+   *
+   * Stops the periodic timer if the check is running.
+   *
+   * @param name - The check name to remove.
+   * @returns `true` if the check was found and removed.
    */
   removeCheck(name: string): boolean {
     const state = this.checks.get(name);
@@ -111,7 +132,10 @@ export class HealthChecker {
   }
 
   /**
-   * Start periodic health checks.
+   * Start periodic health checks for all registered checks.
+   *
+   * Each check runs on its own interval after an optional initial delay.
+   * Calling this method when already started is a no-op.
    */
   start(): void {
     if (this.started) {
@@ -134,7 +158,7 @@ export class HealthChecker {
   }
 
   /**
-   * Stop all health checks.
+   * Stop all periodic health checks.
    */
   stop(): void {
     this.started = false;
@@ -149,6 +173,9 @@ export class HealthChecker {
 
   /**
    * Run a single health check.
+   *
+   * @param name - The check name to execute.
+   * @internal
    */
   private async runCheck(name: string): Promise<void> {
     const state = this.checks.get(name);
@@ -182,7 +209,13 @@ export class HealthChecker {
   }
 
   /**
-   * Run a check with timeout.
+   * Run a check with a timeout.
+   *
+   * @param check   - The health check function.
+   * @param timeout - Maximum execution time in ms.
+   * @returns The health check result.
+   * @throws Error If the check exceeds the timeout.
+   * @internal
    */
   private async runWithTimeout(
     check: HealthCheckFn,
@@ -206,7 +239,11 @@ export class HealthChecker {
   }
 
   /**
-   * Update health check state based on result.
+   * Update health check state based on the result.
+   *
+   * @param state  - The internal check state.
+   * @param result - The latest check result.
+   * @internal
    */
   private updateState(
     state: HealthCheckState,
@@ -232,7 +269,12 @@ export class HealthChecker {
   }
 
   /**
-   * Run all health checks and return a report.
+   * Run all health checks and return a comprehensive report.
+   *
+   * Checks that are not running periodically will be executed on-demand.
+   * The overall status is the worst status among all checks.
+   *
+   * @returns A {@link HealthReport} with overall status and per-check results.
    */
   async check(): Promise<HealthReport> {
     return withTracing('health_check.all', async (span) => {
@@ -273,6 +315,10 @@ export class HealthChecker {
 
   /**
    * Get liveness status (is the service running?).
+   *
+   * If this method returns, the service is considered alive.
+   *
+   * @returns Always returns {@link HealthStatus.Healthy}.
    */
   async liveness(): Promise<HealthStatus> {
     // Liveness is simple: if we can respond, we're alive
@@ -281,6 +327,10 @@ export class HealthChecker {
 
   /**
    * Get readiness status (is the service ready for traffic?).
+   *
+   * Delegates to {@link check} and returns the full health report.
+   *
+   * @returns A {@link HealthReport} with overall status and per-check details.
    */
   async readiness(): Promise<HealthReport> {
     return this.check();
@@ -288,6 +338,11 @@ export class HealthChecker {
 
   /**
    * Get startup status (has the service finished starting?).
+   *
+   * Returns `Starting` if any check has not yet completed its first
+   * successful run; otherwise returns `Healthy`.
+   *
+   * @returns The current startup status.
    */
   async startup(): Promise<HealthStatus> {
     // Check if all checks have been initialized
@@ -300,14 +355,19 @@ export class HealthChecker {
   }
 
   /**
-   * Get current status of a specific check.
+   * Get the current status of a specific check.
+   *
+   * @param name - The check name.
+   * @returns The check's {@link HealthStatus}, or `null` if not found.
    */
   getCheckStatus(name: string): HealthStatus | null {
     return this.checks.get(name)?.status ?? null;
   }
 
   /**
-   * Get all check names.
+   * Get all registered check names.
+   *
+   * @returns An array of check names.
    */
   getCheckNames(): string[] {
     return Array.from(this.checks.keys());
@@ -319,7 +379,9 @@ export class HealthChecker {
 // ============================================
 
 /**
- * Simple ping health check.
+ * Create a simple ping health check that always reports healthy.
+ *
+ * @returns A {@link HealthCheckFn} suitable for basic liveness probes.
  */
 export function pingHealthCheck(): HealthCheckFn {
   return () => ({
@@ -331,7 +393,17 @@ export function pingHealthCheck(): HealthCheckFn {
 }
 
 /**
- * Memory health check.
+ * Create a memory health check that monitors heap usage.
+ *
+ * Reports `Unhealthy` when the heap used percentage exceeds the threshold.
+ *
+ * @param maxHeapUsedPercent - Heap usage percentage threshold (default: 90).
+ * @returns A {@link HealthCheckFn} that reports memory health.
+ *
+ * @example
+ * ```typescript
+ * health.addCheck('memory', memoryHealthCheck(85));
+ * ```
  */
 export function memoryHealthCheck(
   maxHeapUsedPercent = 90
@@ -360,7 +432,12 @@ export function memoryHealthCheck(
 }
 
 /**
- * State store health check (placeholder).
+ * Create a state store health check.
+ *
+ * Calls the provided `getState` function and reports Healthy if it returns `true`.
+ *
+ * @param getState - Async function returning `true` if the state store is healthy.
+ * @returns A {@link HealthCheckFn} that reports state store health.
  */
 export function stateHealthCheck(
   getState: () => Promise<boolean>
@@ -388,7 +465,19 @@ export function stateHealthCheck(
 }
 
 /**
- * Dependency health check.
+ * Create a generic dependency health check.
+ *
+ * @param name  - The dependency name (used in the result).
+ * @param check - Async function returning `true` if the dependency is healthy.
+ * @returns A {@link HealthCheckFn} that reports dependency health.
+ *
+ * @example
+ * ```typescript
+ * health.addCheck('redis', dependencyHealthCheck('redis', async () => {
+ *   await redis.ping();
+ *   return true;
+ * }));
+ * ```
  */
 export function dependencyHealthCheck(
   name: string,

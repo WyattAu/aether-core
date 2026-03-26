@@ -11,29 +11,32 @@ import { AsyncFunction } from './types';
 import { withTracing } from './tracing';
 
 /**
- * Configuration for ResilientExecutor.
+ * Configuration for {@link ResilientExecutor}.
  */
 export interface ResilientExecutorConfig {
-  /** Circuit breaker instance */
+  /** Optional circuit breaker instance. */
   breaker?: CircuitBreaker;
-  /** Retry policy instance */
+  /** Optional retry policy instance. */
   retry?: RetryPolicy;
-  /** Rate limiter instance */
+  /** Optional rate limiter instance. */
   rateLimiter?: RateLimiter;
-  /** Bulkhead instance */
+  /** Optional bulkhead instance. */
   bulkhead?: Bulkhead;
-  /** Name for tracing */
+  /** Name for tracing spans (default: `'default'`). */
   name?: string;
 }
 
 /**
- * Combined resilience executor that applies all patterns.
+ * Combined resilience executor that applies all configured patterns.
  *
- * Order of operations:
- * 1. Rate limiting (check if request is allowed)
- * 2. Bulkhead (check capacity)
- * 3. Circuit breaker (check if service is healthy)
- * 4. Retry (handle transient failures)
+ * The executor chains resilience patterns in the following order:
+ *
+ * 1. **Rate limiting** — checks if the request is allowed.
+ * 2. **Bulkhead** — checks concurrency capacity.
+ * 3. **Circuit breaker** — checks if the downstream service is healthy.
+ * 4. **Retry** — handles transient failures with backoff.
+ *
+ * Each pattern is optional; only the configured ones are applied.
  *
  * @example
  * ```typescript
@@ -54,6 +57,11 @@ export class ResilientExecutor {
   private readonly bulkhead?: Bulkhead;
   private readonly name: string;
 
+  /**
+   * Create a new ResilientExecutor.
+   *
+   * @param config - Configuration with optional resilience components.
+   */
   constructor(config: ResilientExecutorConfig = {}) {
     this.breaker = config.breaker;
     this.retry = config.retry;
@@ -65,12 +73,14 @@ export class ResilientExecutor {
   /**
    * Execute a function with all configured resilience patterns.
    *
-   * @param fn - Async function to execute
-   * @returns Result of the function
-   * @throws CircuitBreakerError if circuit is open
-   * @throws RetryExhaustedError if all retries fail
-   * @throws RateLimitExhaustedError if rate limit exceeded
-   * @throws BulkheadRejectedError if bulkhead at capacity
+   * @typeParam T - The return type of the function.
+   * @param fn - Async function to execute.
+   * @returns Result of the function.
+   * @throws CircuitBreakerError   If the circuit is open.
+   * @throws RetryExhaustedError   If all retries fail.
+   * @throws RateLimitExhaustedError If rate limit is exceeded.
+   * @throws BulkheadRejectedError If bulkhead is at capacity.
+   * @throws Error                 Any error thrown by the function itself.
    */
   async execute<T>(fn: AsyncFunction<T>): Promise<T> {
     return withTracing(`resilient_executor.${this.name}.execute`, async (span) => {
@@ -97,6 +107,12 @@ export class ResilientExecutor {
 
   /**
    * Execute with retry and circuit breaker.
+   *
+   * @typeParam T - The return type.
+   * @param fn   - The async function.
+   * @param span - The tracing span.
+   * @returns The function result.
+   * @internal
    */
   private async executeWithRetry<T>(
     fn: AsyncFunction<T>,
@@ -112,6 +128,12 @@ export class ResilientExecutor {
 
   /**
    * Execute with retry logic.
+   *
+   * @typeParam T - The return type.
+   * @param fn   - The async function.
+   * @param span - The tracing span.
+   * @returns The function result.
+   * @internal
    */
   private async executeWithRetryInternal<T>(
     fn: AsyncFunction<T>,
@@ -135,7 +157,9 @@ export class ResilientExecutor {
   }
 
   /**
-   * Create a builder for constructing a ResilientExecutor.
+   * Create a builder for fluently constructing a ResilientExecutor.
+   *
+   * @returns A new {@link ResilientExecutorBuilder}.
    */
   static builder(): ResilientExecutorBuilder {
     return new ResilientExecutorBuilder();
@@ -143,7 +167,9 @@ export class ResilientExecutor {
 }
 
 /**
- * Builder for ResilientExecutor.
+ * Fluent builder for constructing a {@link ResilientExecutor}.
+ *
+ * Each `with*` method returns `this` for chaining.
  *
  * @example
  * ```typescript
@@ -152,6 +178,7 @@ export class ResilientExecutor {
  *   .withRetry({ maxAttempts: 3 })
  *   .withRateLimiter({ maxRequests: 100 })
  *   .withBulkhead({ maxConcurrent: 10 })
+ *   .withName('api-calls')
  *   .build();
  * ```
  */
@@ -159,7 +186,10 @@ export class ResilientExecutorBuilder {
   private config: ResilientExecutorConfig = {};
 
   /**
-   * Add a circuit breaker.
+   * Add a circuit breaker with the given configuration.
+   *
+   * @param config - Partial circuit breaker configuration.
+   * @returns This builder for chaining.
    */
   withCircuitBreaker(config?: ConstructorParameters<typeof CircuitBreaker>[0]): this {
     this.config.breaker = new CircuitBreaker(config ?? {});
@@ -167,7 +197,10 @@ export class ResilientExecutorBuilder {
   }
 
   /**
-   * Add an existing circuit breaker.
+   * Add an existing circuit breaker instance.
+   *
+   * @param breaker - The CircuitBreaker to use.
+   * @returns This builder for chaining.
    */
   withExistingCircuitBreaker(breaker: CircuitBreaker): this {
     this.config.breaker = breaker;
@@ -175,7 +208,10 @@ export class ResilientExecutorBuilder {
   }
 
   /**
-   * Add a retry policy.
+   * Add a retry policy with the given configuration.
+   *
+   * @param config - Partial retry policy configuration.
+   * @returns This builder for chaining.
    */
   withRetry(config?: ConstructorParameters<typeof RetryPolicy>[0]): this {
     this.config.retry = new RetryPolicy(config ?? {});
@@ -183,7 +219,10 @@ export class ResilientExecutorBuilder {
   }
 
   /**
-   * Add an existing retry policy.
+   * Add an existing retry policy instance.
+   *
+   * @param retry - The RetryPolicy to use.
+   * @returns This builder for chaining.
    */
   withExistingRetry(retry: RetryPolicy): this {
     this.config.retry = retry;
@@ -191,7 +230,10 @@ export class ResilientExecutorBuilder {
   }
 
   /**
-   * Add a rate limiter.
+   * Add a rate limiter with the given configuration.
+   *
+   * @param config - Partial rate limiter configuration.
+   * @returns This builder for chaining.
    */
   withRateLimiter(config?: ConstructorParameters<typeof RateLimiter>[0]): this {
     this.config.rateLimiter = new RateLimiter(config ?? {});
@@ -199,7 +241,10 @@ export class ResilientExecutorBuilder {
   }
 
   /**
-   * Add an existing rate limiter.
+   * Add an existing rate limiter instance.
+   *
+   * @param rateLimiter - The RateLimiter to use.
+   * @returns This builder for chaining.
    */
   withExistingRateLimiter(rateLimiter: RateLimiter): this {
     this.config.rateLimiter = rateLimiter;
@@ -207,7 +252,10 @@ export class ResilientExecutorBuilder {
   }
 
   /**
-   * Add a bulkhead.
+   * Add a bulkhead with the given configuration.
+   *
+   * @param config - Partial bulkhead configuration.
+   * @returns This builder for chaining.
    */
   withBulkhead(config?: ConstructorParameters<typeof Bulkhead>[0]): this {
     this.config.bulkhead = new Bulkhead(config ?? {});
@@ -215,7 +263,10 @@ export class ResilientExecutorBuilder {
   }
 
   /**
-   * Add an existing bulkhead.
+   * Add an existing bulkhead instance.
+   *
+   * @param bulkhead - The Bulkhead to use.
+   * @returns This builder for chaining.
    */
   withExistingBulkhead(bulkhead: Bulkhead): this {
     this.config.bulkhead = bulkhead;
@@ -223,7 +274,10 @@ export class ResilientExecutorBuilder {
   }
 
   /**
-   * Set the name for tracing.
+   * Set the name for tracing spans.
+   *
+   * @param name - The executor name.
+   * @returns This builder for chaining.
    */
   withName(name: string): this {
     this.config.name = name;
@@ -231,7 +285,9 @@ export class ResilientExecutorBuilder {
   }
 
   /**
-   * Build the ResilientExecutor.
+   * Build and return the configured ResilientExecutor.
+   *
+   * @returns A new ResilientExecutor with the configured resilience patterns.
    */
   build(): ResilientExecutor {
     return new ResilientExecutor(this.config);

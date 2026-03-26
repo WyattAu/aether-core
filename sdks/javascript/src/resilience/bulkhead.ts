@@ -12,9 +12,26 @@ import {
 import { withTracing } from './tracing';
 
 /**
- * Error thrown when bulkhead is at capacity.
+ * Error thrown when a bulkhead rejects a call because it is at capacity.
+ *
+ * @example
+ * ```typescript
+ * try {
+ *   await bulkhead.execute(() => fetchData());
+ * } catch (e) {
+ *   if (e instanceof BulkheadRejectedError) {
+ *     console.log(`${e.active}/${e.maxConcurrent} calls active`);
+ *   }
+ * }
+ * ```
  */
 export class BulkheadRejectedError extends Error {
+  /**
+   * @param name           - The bulkhead name.
+   * @param active         - Number of currently active calls.
+   * @param maxConcurrent  - Maximum allowed concurrent calls.
+   * @param message        - Optional custom message.
+   */
   constructor(
     public readonly name: string,
     public readonly active: number,
@@ -30,9 +47,21 @@ export class BulkheadRejectedError extends Error {
 }
 
 /**
- * Error thrown when bulkhead queue times out.
+ * Error thrown when a queued call times out waiting for a permit.
+ *
+ * @example
+ * ```typescript
+ * if (e instanceof BulkheadTimeoutError) {
+ *   console.log(`Waited ${e.queueTime}ms in queue`);
+ * }
+ * ```
  */
 export class BulkheadTimeoutError extends Error {
+  /**
+   * @param name       - The bulkhead name.
+   * @param queueTime  - Time spent in the queue before timeout (ms).
+   * @param message    - Optional custom message.
+   */
   constructor(
     public readonly name: string,
     public readonly queueTime: number,
@@ -58,6 +87,8 @@ const DEFAULT_CONFIG: BulkheadConfig = {
 
 /**
  * Queued call representation.
+ *
+ * @typeParam T - The result type of the queued function.
  */
 interface QueuedCall<T> {
   resolve: (value: T) => void;
@@ -69,8 +100,9 @@ interface QueuedCall<T> {
 /**
  * Bulkhead implementation.
  *
- * Limits the number of concurrent calls to a resource, optionally
- * queueing excess requests.
+ * Limits the number of concurrent calls to a resource, optionally queueing
+ * excess requests up to a configured limit. Calls that cannot be queued are
+ * rejected with a {@link BulkheadRejectedError}.
  *
  * @example
  * ```typescript
@@ -96,12 +128,19 @@ export class Bulkhead {
   private rejected = 0;
   private accepted = 0;
 
+  /**
+   * Create a new Bulkhead.
+   *
+   * @param config - Partial configuration; unspecified fields use defaults.
+   */
   constructor(config: Partial<BulkheadConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
   }
 
   /**
    * Get bulkhead statistics.
+   *
+   * @returns A snapshot of current bulkhead metrics.
    */
   getStats(): BulkheadStats {
     return {
@@ -116,10 +155,16 @@ export class Bulkhead {
   /**
    * Execute a function with bulkhead protection.
    *
-   * @param fn - Async function to execute
-   * @returns Result of the function
-   * @throws BulkheadRejectedError if at capacity and no queue
-   * @throws BulkheadTimeoutError if queued and times out
+   * If a permit is available, the function executes immediately. Otherwise,
+   * if queuing is enabled, the call is queued until a permit frees up or the
+   * queue times out. If no queue is configured and the bulkhead is at
+   * capacity, a {@link BulkheadRejectedError} is thrown.
+   *
+   * @typeParam T - The return type of the function.
+   * @param fn - Async function to execute.
+   * @returns Result of the function.
+   * @throws BulkheadRejectedError If at capacity and no queue available.
+   * @throws BulkheadTimeoutError  If queued and times out.
    */
   async execute<T>(fn: AsyncFunction<T>): Promise<T> {
     return withTracing(`bulkhead.${this.config.name}.execute`, async (span) => {
@@ -150,6 +195,11 @@ export class Bulkhead {
 
   /**
    * Execute immediately (permit acquired).
+   *
+   * @typeParam T - The return type.
+   * @param fn   - The async function.
+   * @param span - The tracing span.
+   * @returns The function result.
    */
   private async executeImmediately<T>(
     fn: AsyncFunction<T>,
@@ -169,6 +219,11 @@ export class Bulkhead {
 
   /**
    * Execute with queuing.
+   *
+   * @typeParam T - The return type.
+   * @param fn   - The async function.
+   * @param span - The tracing span.
+   * @returns The function result.
    */
   private executeQueued<T>(
     fn: AsyncFunction<T>,
@@ -264,6 +319,8 @@ export class Bulkhead {
 
   /**
    * Check if bulkhead has available capacity.
+   *
+   * @returns `true` if at least one permit is available.
    */
   hasCapacity(): boolean {
     return this.active < this.config.maxConcurrent;
@@ -271,6 +328,8 @@ export class Bulkhead {
 
   /**
    * Get number of available permits.
+   *
+   * @returns The number of permits not currently in use.
    */
   availablePermits(): number {
     return Math.max(0, this.config.maxConcurrent - this.active);
@@ -278,6 +337,8 @@ export class Bulkhead {
 
   /**
    * Reset bulkhead state.
+   *
+   * Rejects all queued items and resets all counters.
    */
   reset(): void {
     // Reject all queued items
@@ -302,17 +363,35 @@ interface TracingSpan {
 
 /**
  * Manager for multiple bulkheads.
+ *
+ * Provides named access to bulkhead instances, creating them on first access.
+ *
+ * @example
+ * ```typescript
+ * const manager = new BulkheadManager({ maxConcurrent: 10 });
+ * const api = manager.getBulkhead('api', { maxConcurrent: 25 });
+ * const db = manager.getBulkhead('database');
+ * ```
  */
 export class BulkheadManager {
   private bulkheads: Map<string, Bulkhead> = new Map();
   private defaultConfig: BulkheadConfig;
 
+  /**
+   * Create a new BulkheadManager.
+   *
+   * @param defaultConfig - Default configuration applied to new bulkheads.
+   */
   constructor(defaultConfig: Partial<BulkheadConfig> = {}) {
     this.defaultConfig = { ...DEFAULT_CONFIG, ...defaultConfig };
   }
 
   /**
    * Get or create a bulkhead by name.
+   *
+   * @param name   - Unique name for the bulkhead.
+   * @param config - Optional per-bulkhead configuration overrides.
+   * @returns The existing or newly created Bulkhead.
    */
   getBulkhead(name: string, config?: Partial<BulkheadConfig>): Bulkhead {
     if (!this.bulkheads.has(name)) {
@@ -329,14 +408,16 @@ export class BulkheadManager {
   }
 
   /**
-   * Get all bulkhead names.
+   * Get all registered bulkhead names.
+   *
+   * @returns An array of bulkhead names.
    */
   getNames(): string[] {
     return Array.from(this.bulkheads.keys());
   }
 
   /**
-   * Clear all bulkheads.
+   * Reset and remove all bulkheads.
    */
   clear(): void {
     for (const bulkhead of this.bulkheads.values()) {
@@ -351,7 +432,9 @@ export class BulkheadManager {
 // ============================================
 
 /**
- * Pre-configured API bulkhead (25 concurrent).
+ * Create a pre-configured API bulkhead (25 concurrent, 10 queued).
+ *
+ * @returns A Bulkhead tuned for typical API call concurrency.
  */
 export function apiBulkhead(): Bulkhead {
   return new Bulkhead({
@@ -363,7 +446,9 @@ export function apiBulkhead(): Bulkhead {
 }
 
 /**
- * Pre-configured database bulkhead (10 concurrent).
+ * Create a pre-configured database bulkhead (10 concurrent, 20 queued).
+ *
+ * @returns A Bulkhead tuned for database connection pooling.
  */
 export function databaseBulkhead(): Bulkhead {
   return new Bulkhead({
@@ -375,7 +460,9 @@ export function databaseBulkhead(): Bulkhead {
 }
 
 /**
- * Pre-configured strict bulkhead (5 concurrent, no queue).
+ * Create a pre-configured strict bulkhead (5 concurrent, no queue).
+ *
+ * @returns A Bulkhead that immediately rejects excess calls.
  */
 export function strictBulkhead(): Bulkhead {
   return new Bulkhead({

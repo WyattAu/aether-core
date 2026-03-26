@@ -2,6 +2,11 @@
 Retry Policy with Exponential Backoff Implementation
 
 Provides configurable retry logic for transient failures.
+
+Example:
+    >>> from aether_sdk.resilience.retry import RetryPolicy, RetryConfig, BackoffStrategy
+    >>> policy = RetryPolicy(RetryConfig(max_attempts=5, backoff=BackoffStrategy.EXPONENTIAL))
+    >>> result = await policy.execute(my_async_func)
 """
 
 from __future__ import annotations
@@ -15,6 +20,15 @@ T = TypeVar('T')
 
 
 class BackoffStrategy(Enum):
+    """Supported backoff strategies for retry delay calculation.
+
+    Attributes:
+        FIXED: Constant delay between retries.
+        LINEAR: Delay increases linearly with the attempt number.
+        EXPONENTIAL: Delay doubles (or multiplies) with each attempt.
+        EXPONENTIAL_JITTER: Exponential delay with random jitter to
+            avoid thundering-herd effects.
+    """
     FIXED = "fixed"
     LINEAR = "linear"
     EXPONENTIAL = "exponential"
@@ -23,7 +37,22 @@ class BackoffStrategy(Enum):
 
 @dataclass
 class RetryConfig:
-    """Configuration for retry policy."""
+    """Configuration for a :class:`RetryPolicy`.
+
+    Attributes:
+        max_attempts: Maximum number of attempts (including the first).
+        backoff: Strategy used to calculate delay between attempts.
+        base_delay_ms: Base delay in milliseconds.
+        max_delay_ms: Upper bound for the calculated delay.
+        multiplier: Multiplier for exponential/linear strategies.
+        jitter_factor: Fraction of the delay used for jitter (e.g.
+            ``0.1`` means ±10 %).
+        is_retryable: Optional callback ``(error, attempt) -> bool``
+            that determines whether a specific error should be retried.
+        on_retry: Optional callback invoked before each retry.
+        on_exhausted: Optional callback invoked when all retries are
+            exhausted.
+    """
     max_attempts: int = 3
     backoff: BackoffStrategy = BackoffStrategy.EXPONENTIAL_JITTER
     base_delay_ms: int = 100
@@ -37,7 +66,17 @@ class RetryConfig:
 
 @dataclass
 class RetryStats:
-    """Statistics for retry policy."""
+    """Aggregated statistics for a :class:`RetryPolicy`.
+
+    Attributes:
+        total_attempts: Total function invocations.
+        successful_attempts: Invocations that returned without error.
+        failed_attempts: Invocations that raised an exception.
+        retried_calls: Calls that required at least one retry.
+        exhausted_calls: Calls that exhausted all retry attempts.
+        total_retry_delay_ms: Cumulative delay (ms) spent waiting
+            between retries.
+    """
     total_attempts: int = 0
     successful_attempts: int = 0
     failed_attempts: int = 0
@@ -48,14 +87,27 @@ class RetryStats:
 
 @dataclass
 class RetryResult(Generic[T]):
-    """Result of a retry operation."""
+    """Result of a successful retry operation.
+
+    Attributes:
+        result: The value returned by the async function.
+        attempts: Number of attempts required (1 = first try succeeded).
+        total_delay_ms: Total time spent waiting between retries.
+    """
     result: T
     attempts: int
     total_delay_ms: int
 
 
 class RetryExhaustedError(Exception):
-    """Raised when all retries are exhausted."""
+    """Raised when all retry attempts have been exhausted.
+
+    Attributes:
+        last_error: The exception from the final attempt.
+        attempts: Total number of attempts made.
+        total_delay_ms: Cumulative delay between retries.
+    """
+
     def __init__(self, message: str, last_error: Exception, attempts: int, total_delay_ms: int):
         super().__init__(message)
         self.last_error = last_error
@@ -64,39 +116,55 @@ class RetryExhaustedError(Exception):
 
 
 class RetryPolicy:
-    """Retry policy with configurable backoff strategies."""
-    
+    """Retry policy with configurable backoff strategies.
+
+    Wraps async functions and transparently retries on transient
+    failures according to the configured :class:`RetryConfig`.
+
+    Example:
+        >>> policy = RetryPolicy()
+        >>> result = await policy.execute(fetch_data)
+    """
+
     def __init__(self, config: Optional[RetryConfig] = None):
+        """Initialize the retry policy.
+
+        Args:
+            config: Optional configuration. Defaults to
+                :class:`RetryConfig` with exponential jitter backoff.
+        """
         self._config = config or RetryConfig()
         self._stats = RetryStats()
-    
+
     async def execute(self, func: Callable[[], Awaitable[T]]) -> RetryResult[T]:
-        """Execute a function with retry logic.
-        
+        """Execute an async function with retry logic.
+
         Args:
-            func: Async function to execute
-            
+            func: A zero-argument async callable.
+
         Returns:
-            RetryResult with result and metadata
-            
+            A :class:`RetryResult` containing the function's return
+            value and retry metadata.
+
         Raises:
-            RetryExhaustedError: If all retries exhausted
+            RetryExhaustedError: If all retry attempts fail or the
+                error is not retryable.
         """
         attempt = 0
         total_delay_ms = 0
         last_error: Optional[Exception] = None
-        
+
         while attempt < self._config.max_attempts:
             attempt += 1
             self._stats.total_attempts += 1
-            
+
             try:
                 result = await func()
                 self._stats.successful_attempts += 1
-                
+
                 if attempt > 1:
                     self._stats.retried_calls += 1
-                
+
                 return RetryResult(
                     result=result,
                     attempts=attempt,
@@ -105,53 +173,59 @@ class RetryPolicy:
             except Exception as error:
                 last_error = error
                 self._stats.failed_attempts += 1
-                
-                # Check if we should retry
+
                 is_retryable = (
                     self._config.is_retryable(error, attempt)
                     if self._config.is_retryable
                     else self._is_retryable_default(error)
                 )
-                
+
                 if attempt >= self._config.max_attempts or not is_retryable:
                     break
-                
-                # Calculate delay
+
                 delay = self._calculate_delay(attempt)
                 total_delay_ms += delay
                 self._stats.total_retry_delay_ms += delay
-                
-                # Notify callback
+
                 if self._config.on_retry:
                     self._config.on_retry(error, attempt, delay)
-                
-                # Wait before retry
+
                 await asyncio.sleep(delay / 1000)
-        
-        # All retries exhausted - assert last_error is not None
+
         assert last_error is not None, "last_error should not be None after loop"
-        
-        # All retries exhausted
+
         self._stats.exhausted_calls += 1
         if self._config.on_exhausted:
             self._config.on_exhausted(last_error, attempt)
-        
+
         raise RetryExhaustedError(
             f"All {self._config.max_attempts} retry attempts exhausted",
             last_error,
             attempt,
             total_delay_ms,
         )
-    
+
     async def execute_safe(self, func: Callable[[], Awaitable[T]]) -> Optional[RetryResult[T]]:
-        """Execute with result wrapper (doesn't throw on exhaustion)."""
+        """Execute with retry logic but return ``None`` instead of raising.
+
+        Args:
+            func: A zero-argument async callable.
+
+        Returns:
+            A :class:`RetryResult` on success, or ``None`` if all
+            retries are exhausted.
+        """
         try:
             return await self.execute(func)
         except RetryExhaustedError:
             return None
-    
+
     def get_stats(self) -> RetryStats:
-        """Get current statistics."""
+        """Return a snapshot of the retry statistics.
+
+        Returns:
+            A copy of the current :class:`RetryStats`.
+        """
         return RetryStats(
             total_attempts=self._stats.total_attempts,
             successful_attempts=self._stats.successful_attempts,
@@ -160,15 +234,22 @@ class RetryPolicy:
             exhausted_calls=self._stats.exhausted_calls,
             total_retry_delay_ms=self._stats.total_retry_delay_ms,
         )
-    
+
     def reset_stats(self) -> None:
-        """Reset statistics."""
+        """Reset all statistics counters to zero."""
         self._stats = RetryStats()
-    
+
     def _calculate_delay(self, attempt: int) -> int:
-        """Calculate delay for the given attempt."""
+        """Calculate the delay in milliseconds for a given attempt.
+
+        Args:
+            attempt: The 1-based attempt number.
+
+        Returns:
+            Delay in milliseconds, capped at ``max_delay_ms``.
+        """
         delay = 0
-        
+
         if self._config.backoff == BackoffStrategy.FIXED:
             delay = self._config.base_delay_ms
         elif self._config.backoff == BackoffStrategy.LINEAR:
@@ -178,16 +259,32 @@ class RetryPolicy:
         elif self._config.backoff == BackoffStrategy.EXPONENTIAL_JITTER:
             base = self._config.base_delay_ms * (self._config.multiplier ** (attempt - 1))
             delay = self._add_jitter(base)
-        
+
         return min(int(delay), self._config.max_delay_ms)
-    
+
     def _add_jitter(self, delay: float) -> int:
-        """Add jitter to delay."""
+        """Add random jitter to a delay value.
+
+        Args:
+            delay: The base delay in milliseconds.
+
+        Returns:
+            The jittered delay as an integer.
+        """
         jitter = delay * self._config.jitter_factor
         return int(delay + random.uniform(-jitter, jitter))
-    
+
     def _is_retryable_default(self, error: Exception) -> bool:
-        """Default retryable error detection."""
+        """Determine whether an error is transient and retryable.
+
+        Matches common network-related substrings in the error message.
+
+        Args:
+            error: The exception to evaluate.
+
+        Returns:
+            ``True`` if the error appears to be transient.
+        """
         transient_messages = [
             'ECONNRESET',
             'ETIMEDOUT',
@@ -207,7 +304,21 @@ class RetryPolicy:
 # ============================================
 
 def network_retry_policy(**overrides) -> RetryPolicy:
-    """Create a retry policy for transient network errors."""
+    """Create a retry policy tuned for transient network errors.
+
+    Uses exponential jitter backoff with sensible defaults for HTTP
+    and RPC calls.
+
+    Args:
+        **overrides: Keyword arguments forwarded to
+            :class:`RetryConfig` (e.g. ``max_attempts=5``).
+
+    Returns:
+        A configured :class:`RetryPolicy`.
+
+    Example:
+        >>> policy = network_retry_policy(max_attempts=5)
+    """
     return RetryPolicy(RetryConfig(
         max_attempts=overrides.get('max_attempts', 3),
         backoff=BackoffStrategy.EXPONENTIAL_JITTER,
@@ -217,7 +328,17 @@ def network_retry_policy(**overrides) -> RetryPolicy:
 
 
 def database_retry_policy(**overrides) -> RetryPolicy:
-    """Create a retry policy for database operations."""
+    """Create a retry policy tuned for database operations.
+
+    Uses exponential backoff (no jitter) with short base delays.
+
+    Args:
+        **overrides: Keyword arguments forwarded to
+            :class:`RetryConfig`.
+
+    Returns:
+        A configured :class:`RetryPolicy`.
+    """
     return RetryPolicy(RetryConfig(
         max_attempts=overrides.get('max_attempts', 5),
         backoff=BackoffStrategy.EXPONENTIAL,
@@ -228,7 +349,17 @@ def database_retry_policy(**overrides) -> RetryPolicy:
 
 
 def aggressive_retry_policy(**overrides) -> RetryPolicy:
-    """Create an aggressive retry policy (many attempts, short delays)."""
+    """Create an aggressive retry policy with many attempts and short delays.
+
+    Suitable for idempotent operations where rapid recovery is critical.
+
+    Args:
+        **overrides: Keyword arguments forwarded to
+            :class:`RetryConfig`.
+
+    Returns:
+        A configured :class:`RetryPolicy`.
+    """
     return RetryPolicy(RetryConfig(
         max_attempts=overrides.get('max_attempts', 10),
         backoff=BackoffStrategy.EXPONENTIAL_JITTER,
@@ -240,7 +371,17 @@ def aggressive_retry_policy(**overrides) -> RetryPolicy:
 
 
 def conservative_retry_policy(**overrides) -> RetryPolicy:
-    """Create a conservative retry policy (few attempts, longer delays)."""
+    """Create a conservative retry policy with few attempts and long delays.
+
+    Suitable for non-idempotent operations or rate-limited APIs.
+
+    Args:
+        **overrides: Keyword arguments forwarded to
+            :class:`RetryConfig`.
+
+    Returns:
+        A configured :class:`RetryPolicy`.
+    """
     return RetryPolicy(RetryConfig(
         max_attempts=overrides.get('max_attempts', 2),
         backoff=BackoffStrategy.EXPONENTIAL,

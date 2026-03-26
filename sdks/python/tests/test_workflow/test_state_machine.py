@@ -13,8 +13,7 @@ from aether_sdk.workflow.state_machine import (
     WorkflowExecutor,
     workflow,
 )
-from aether_sdk.workflow.state_machine import (
-    # Types
+from aether_sdk.workflow.types import (
     WorkflowStatus,
     TransitionStatus,
     WorkflowContext,
@@ -22,13 +21,6 @@ from aether_sdk.workflow.state_machine import (
     InvalidTransitionError,
     WorkflowSuspendedError,
     Duration,
-    # State machine
-    State,
-    Transition,
-    Workflow,
-    WorkflowExecutor,
-    # Factory function
-    workflow,
 )
 
 
@@ -385,3 +377,407 @@ class TestWorkflowWithActions:
         
         status = await executor.get_status(wf_id)
         assert status.output.get("action_ran") is True
+
+
+class TestWorkflowErrors:
+    """Tests for workflow error handling."""
+    
+    def test_multiple_initial_states_error(self):
+        """Test that multiple initial states raise an error."""
+        wf = Workflow("test")
+        wf.state("a", is_initial=True)
+        
+        with pytest.raises(WorkflowError, match="Multiple initial states"):
+            wf.state("b", is_initial=True)
+    
+    def test_on_enter_unknown_state_error(self):
+        """Test that on_enter for unknown state raises an error."""
+        wf = Workflow("test")
+        wf.state("a", is_initial=True)
+        
+        with pytest.raises(WorkflowError, match="Unknown state"):
+            wf.on_enter("unknown", lambda ctx: None)
+    
+    def test_on_exit_unknown_state_error(self):
+        """Test that on_exit for unknown state raises an error."""
+        wf = Workflow("test")
+        wf.state("a", is_initial=True)
+        
+        with pytest.raises(WorkflowError, match="Unknown state"):
+            wf.on_exit("unknown", lambda ctx: None)
+    
+    def test_transition_unknown_source_state_error(self):
+        """Test that transition from unknown state raises an error."""
+        wf = Workflow("test")
+        wf.state("a", is_initial=True)
+        wf.state("b")
+        
+        with pytest.raises(WorkflowError, match="Unknown source state"):
+            wf.transition("go", from_state="unknown", to_state="b")
+    
+    def test_transition_unknown_target_state_error(self):
+        """Test that transition to unknown state raises an error."""
+        wf = Workflow("test")
+        wf.state("a", is_initial=True)
+        wf.state("b")
+        
+        with pytest.raises(WorkflowError, match="Unknown target state"):
+            wf.transition("go", from_state="a", to_state="unknown")
+    
+    def test_with_action_unknown_transition_error(self):
+        """Test that with_action for unknown transition raises an error."""
+        wf = (
+            Workflow("test")
+            .state("a", is_initial=True)
+            .state("b")
+            .transition("go", from_state="a", to_state="b")
+        )
+        
+        with pytest.raises(WorkflowError, match="Unknown transition"):
+            wf.with_action("unknown", lambda ctx: None)
+    
+    def test_build_without_initial_state_error(self):
+        """Test that build without initial state raises an error."""
+        wf = Workflow("test")
+        wf.state("a")  # Not initial
+        
+        with pytest.raises(WorkflowError, match="No initial state"):
+            wf.build()
+    
+    def test_initial_state_property_without_initial_state(self):
+        """Test accessing initial_state property without initial state."""
+        wf = Workflow("test")
+        
+        with pytest.raises(WorkflowError, match="No initial state"):
+            _ = wf.initial_state
+
+
+class TestWorkflowMetadata:
+    """Tests for workflow metadata."""
+    
+    def test_with_metadata(self):
+        """Test adding metadata to workflow."""
+        wf = (
+            Workflow("test")
+            .state("a", is_initial=True)
+            .with_metadata("version", "1.0")
+            .with_metadata("author", "test")
+            .build()
+        )
+        
+        assert wf._metadata["version"] == "1.0"
+        assert wf._metadata["author"] == "test"
+
+
+class TestWorkflowGuardValidation:
+    """Tests for guard validation in transitions."""
+    
+    @pytest.fixture
+    def workflow_with_guard(self):
+        return (
+            Workflow("guarded")
+            .state("start", is_initial=True)
+            .state("end", is_final=True)
+            .transition(
+                "proceed",
+                from_state="start",
+                to_state="end",
+                guard=lambda ctx: ctx.get_variable("allowed", False)
+            )
+            .build()
+        )
+    
+    @pytest.fixture
+    def executor(self):
+        return WorkflowExecutor()
+    
+    @pytest.mark.asyncio
+    async def test_validate_transition_guard_passes(self, executor, workflow_with_guard):
+        """Test validate_transition when guard passes."""
+        result = await executor.start(workflow_with_guard, {})
+        wf_id = result.workflow_id
+        
+        ctx = executor._workflows[wf_id]
+        ctx.set_variable("allowed", True)
+        
+        transition = workflow_with_guard.validate_transition("start", "proceed", ctx)
+        assert transition is not None
+        assert transition.name == "proceed"
+    
+    @pytest.mark.asyncio
+    async def test_validate_transition_guard_fails(self, executor, workflow_with_guard):
+        """Test validate_transition when guard fails."""
+        result = await executor.start(workflow_with_guard, {})
+        wf_id = result.workflow_id
+        
+        ctx = executor._workflows[wf_id]
+        ctx.set_variable("allowed", False)
+        
+        transition = workflow_with_guard.validate_transition("start", "proceed", ctx)
+        assert transition is None
+    
+    @pytest.mark.asyncio
+    async def test_validate_transition_not_found(self, executor, workflow_with_guard):
+        """Test validate_transition when transition doesn't exist."""
+        result = await executor.start(workflow_with_guard, {})
+        wf_id = result.workflow_id
+        
+        ctx = executor._workflows[wf_id]
+        
+        transition = workflow_with_guard.validate_transition("start", "nonexistent", ctx)
+        assert transition is None
+
+
+class TestWorkflowExecutorErrors:
+    """Tests for executor error handling."""
+    
+    @pytest.fixture
+    def simple_workflow(self):
+        return (
+            Workflow("simple")
+            .state("start", is_initial=True)
+            .state("end", is_final=True)
+            .transition("go", from_state="start", to_state="end")
+            .build()
+        )
+    
+    @pytest.fixture
+    def executor(self):
+        return WorkflowExecutor()
+    
+    @pytest.mark.asyncio
+    async def test_transition_unknown_workflow(self, executor):
+        """Test transition on unknown workflow raises error."""
+        with pytest.raises(WorkflowError, match="Unknown workflow"):
+            await executor.transition("unknown-id", "go")
+    
+    @pytest.mark.asyncio
+    async def test_get_status_unknown_workflow(self, executor):
+        """Test get_status on unknown workflow returns None."""
+        result = await executor.get_status("unknown-id")
+        assert result is None
+    
+    @pytest.mark.asyncio
+    async def test_suspend_unknown_workflow(self, executor):
+        """Test suspend on unknown workflow raises error."""
+        with pytest.raises(WorkflowError, match="Unknown workflow"):
+            await executor.suspend("unknown-id")
+    
+    @pytest.mark.asyncio
+    async def test_resume_unknown_workflow(self, executor):
+        """Test resume on unknown workflow raises error."""
+        with pytest.raises(WorkflowError, match="Unknown workflow"):
+            await executor.resume("unknown-id")
+    
+    @pytest.mark.asyncio
+    async def test_cancel_unknown_workflow(self, executor):
+        """Test cancel on unknown workflow raises error."""
+        with pytest.raises(WorkflowError, match="Unknown workflow"):
+            await executor.cancel("unknown-id")
+    
+    @pytest.mark.asyncio
+    async def test_resume_non_suspended_workflow(self, executor, simple_workflow):
+        """Test resume on non-suspended workflow raises error."""
+        result = await executor.start(simple_workflow, {})
+        
+        with pytest.raises(WorkflowError, match="is not suspended"):
+            await executor.resume(result.workflow_id)
+    
+    @pytest.mark.asyncio
+    async def test_transition_suspended_workflow(self, executor, simple_workflow):
+        """Test transition on suspended workflow raises error."""
+        result = await executor.start(simple_workflow, {})
+        await executor.suspend(result.workflow_id)
+        
+        with pytest.raises(WorkflowSuspendedError):
+            await executor.transition(result.workflow_id, "go")
+
+
+class TestTransitionFailure:
+    """Tests for transition failure handling."""
+    
+    @pytest.fixture
+    def workflow_with_failing_action(self):
+        async def failing_action(ctx):
+            raise RuntimeError("Action failed!")
+        
+        return (
+            Workflow("failing")
+            .state("start", is_initial=True)
+            .state("end", is_final=True)
+            .transition("go", from_state="start", to_state="end")
+            .with_action("go", failing_action)
+            .build()
+        )
+    
+    @pytest.fixture
+    def executor(self):
+        return WorkflowExecutor()
+    
+    @pytest.mark.asyncio
+    async def test_transition_failure_returns_error(self, executor, workflow_with_failing_action):
+        """Test that transition failure is captured in result."""
+        result = await executor.start(workflow_with_failing_action, {})
+        wf_id = result.workflow_id
+        
+        transition_result = await executor.transition(wf_id, "go")
+        
+        assert transition_result.success is False
+        assert "Action failed" in transition_result.error
+        assert transition_result.from_state == "start"
+        assert transition_result.to_state == "end"
+        
+        # Verify history event was added (events use "type" key, not "event")
+        ctx = executor._workflows[wf_id]
+        assert any(e.get("type") == "transition_failed" for e in ctx.history)
+
+
+class TestWorkflowFactory:
+    """Tests for workflow factory function."""
+    
+    def test_workflow_factory(self):
+        """Test the workflow() factory function."""
+        wf = workflow("factory-test")
+        assert wf.name == "factory-test"
+        
+        wf = (
+            wf.state("start", is_initial=True)
+            .state("end", is_final=True)
+            .transition("go", from_state="start", to_state="end")
+            .build()
+        )
+        
+        assert "start" in wf.states
+        assert "end" in wf.states
+
+
+class TestGetAvailableTransitions:
+    """Tests for get_available_transitions method."""
+    
+    @pytest.fixture
+    def workflow_with_multiple_transitions(self):
+        return (
+            Workflow("multi")
+            .state("start", is_initial=True)
+            .state("a")
+            .state("b")
+            .transition("to_a", from_state="start", to_state="a")
+            .transition("to_b", from_state="start", to_state="b")
+            .transition(
+                "guarded",
+                from_state="start",
+                to_state="b",
+                guard=lambda ctx: ctx.get_variable("allow", False)
+            )
+            .build()
+        )
+    
+    @pytest.fixture
+    def executor(self):
+        return WorkflowExecutor()
+    
+    @pytest.mark.asyncio
+    async def test_get_available_transitions_all(self, executor, workflow_with_multiple_transitions):
+        """Test getting all available transitions."""
+        result = await executor.start(workflow_with_multiple_transitions, {})
+        wf_id = result.workflow_id
+        
+        available = executor.get_available_transitions(wf_id)
+        
+        # Should include to_a, to_b, but not guarded (guard returns False)
+        assert "to_a" in available
+        assert "to_b" in available
+        assert "guarded" not in available
+    
+    @pytest.mark.asyncio
+    async def test_get_available_transitions_with_guard_pass(self, executor, workflow_with_multiple_transitions):
+        """Test getting available transitions with passing guard."""
+        result = await executor.start(workflow_with_multiple_transitions, {})
+        wf_id = result.workflow_id
+        
+        ctx = executor._workflows[wf_id]
+        ctx.set_variable("allow", True)
+        
+        available = executor.get_available_transitions(wf_id)
+        
+        assert "guarded" in available
+    
+    @pytest.mark.asyncio
+    async def test_get_available_transitions_unknown_workflow(self, executor):
+        """Test getting transitions for unknown workflow."""
+        available = executor.get_available_transitions("unknown-id")
+        assert available == []
+
+
+class TestWorkflowCompletion:
+    """Tests for workflow completion detection."""
+    
+    @pytest.fixture
+    def workflow_with_final_state(self):
+        return (
+            Workflow("completion")
+            .state("start", is_initial=True)
+            .state("processing")
+            .state("done", is_final=True)
+            .transition("process", from_state="start", to_state="processing")
+            .transition("finish", from_state="processing", to_state="done")
+            .build()
+        )
+    
+    @pytest.fixture
+    def executor(self):
+        return WorkflowExecutor()
+    
+    @pytest.mark.asyncio
+    async def test_workflow_not_completed_in_intermediate_state(self, executor, workflow_with_final_state):
+        """Test that workflow is not completed in intermediate state."""
+        result = await executor.start(workflow_with_final_state, {})
+        wf_id = result.workflow_id
+        
+        await executor.transition(wf_id, "process")
+        
+        status = await executor.get_status(wf_id)
+        assert status.status == WorkflowStatus.RUNNING
+    
+    @pytest.mark.asyncio
+    async def test_workflow_completed_in_final_state(self, executor, workflow_with_final_state):
+        """Test that workflow is completed when reaching final state."""
+        result = await executor.start(workflow_with_final_state, {})
+        wf_id = result.workflow_id
+        
+        await executor.transition(wf_id, "process")
+        await executor.transition(wf_id, "finish")
+        
+        status = await executor.get_status(wf_id)
+        assert status.status == WorkflowStatus.COMPLETED
+
+
+class TestWorkflowWithCustomID:
+    """Tests for workflow with custom ID."""
+    
+    @pytest.fixture
+    def simple_workflow(self):
+        return (
+            Workflow("simple")
+            .state("start", is_initial=True)
+            .state("end", is_final=True)
+            .transition("go", from_state="start", to_state="end")
+            .build()
+        )
+    
+    @pytest.fixture
+    def executor(self):
+        return WorkflowExecutor()
+    
+    @pytest.mark.asyncio
+    async def test_start_with_custom_id(self, executor, simple_workflow):
+        """Test starting workflow with custom ID."""
+        custom_id = "my-custom-workflow-id"
+        result = await executor.start(simple_workflow, {}, workflow_id=custom_id)
+        
+        assert result.workflow_id == custom_id
+        
+        # Verify we can access it with the custom ID
+        status = await executor.get_status(custom_id)
+        assert status is not None
+        assert status.workflow_id == custom_id

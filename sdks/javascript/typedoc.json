@@ -1,0 +1,37 @@
+{
+    "$schema": "https://typedoc.org/schema.json",
+    "entryPoints": [
+        "src/index.ts",
+        "src/actor.ts",
+        "src/messaging.ts",
+        "src/state.ts",
+        "src/capabilities.ts",
+        "src/errors.ts",
+        "src/http.ts",
+        "src/resilience/index.ts",
+        "src/streaming/index.ts",
+        "src/validation/index.ts"
+    ],
+    "entryPointStrategy": "expand",
+    "out": "docs",
+    "name": "Aether JavaScript SDK",
+    "readme": "README.md",
+    "includeVersion": true,
+    "categorizeByGroup": true,
+    "searchInComments": true,
+    "exclude": [
+        "**/node_modules/**",
+        "**/tests/**",
+        "**/coverage/**",
+        "**/*.spec.ts",
+        "**/*.test.ts"
+    ],
+    "categoryOrder": [
+        "Core",
+        "Resilience",
+        "Streaming",
+        "Validation",
+        "*"
+    ],
+    "commentStyle": "JSDoc"
+}

@@ -1,0 +1,240 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>aether_sdk.capabilities &mdash; Aether Python SDK  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            Aether Python SDK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../quickstart.html">Quick Start Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/core.html">Core API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/event.html">Event System API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/resilience.html">Resilience API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/streaming.html">Streaming API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/workflow.html">Workflow API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/validation.html">Validation API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Aether Python SDK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">aether_sdk.capabilities</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for aether_sdk.capabilities</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Capability system for Aether actors.</span>
+
+<span class="sd">This module defines the capability flags that control what resources</span>
+<span class="sd">and operations an actor can access. Capabilities are granted at actor</span>
+<span class="sd">creation time and cannot be escalated during runtime.</span>
+
+<span class="sd">Example:</span>
+<span class="sd">    &gt;&gt;&gt; from aether_sdk import Capability, CapabilitySet</span>
+<span class="sd">    &gt;&gt;&gt; caps = CapabilitySet(Capability.NETWORK_OUTBOUND, Capability.STATE_READ)</span>
+<span class="sd">    &gt;&gt;&gt; caps.has(Capability.NETWORK_OUTBOUND)</span>
+<span class="sd">    True</span>
+<span class="sd">    &gt;&gt;&gt; caps.has_network()</span>
+<span class="sd">    True</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">enum</span><span class="w"> </span><span class="kn">import</span> <span class="n">Flag</span><span class="p">,</span> <span class="n">auto</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Set</span>
+
+
+<div class="viewcode-block" id="Capability">
+<a class="viewcode-back" href="../../api/core.html#aether_sdk.capabilities.Capability">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">Capability</span><span class="p">(</span><span class="n">Flag</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Capability flags that define what an actor can do.</span>
+<span class="sd">    </span>
+<span class="sd">    Capabilities are granted to actors at creation time and define</span>
+<span class="sd">    the boundaries of what operations they can perform. This provides</span>
+<span class="sd">    a fine-grained security model for the actor system.</span>
+<span class="sd">    </span>
+<span class="sd">    Attributes:</span>
+<span class="sd">        NETWORK_OUTBOUND: Allow outbound network connections.</span>
+<span class="sd">        NETWORK_INBOUND: Allow inbound network connections (server).</span>
+<span class="sd">        STATE_READ: Allow reading from state storage.</span>
+<span class="sd">        STATE_WRITE: Allow writing to state storage.</span>
+<span class="sd">        FS_READ: Allow filesystem read operations.</span>
+<span class="sd">        FS_WRITE: Allow filesystem write operations.</span>
+<span class="sd">        ACTOR_MESSAGING: Allow sending messages to other actors.</span>
+<span class="sd">        LOG: Allow writing to logs.</span>
+<span class="sd">        TIME: Allow accessing system time.</span>
+<span class="sd">        RANDOM: Allow generating random numbers.</span>
+<span class="sd">        ENVIRONMENT: Allow accessing environment variables.</span>
+<span class="sd">        HTTP_CLIENT: Allow HTTP client operations.</span>
+<span class="sd">        HTTP_SERVER: Allow HTTP server operations.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">NETWORK_OUTBOUND</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">NETWORK_INBOUND</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">STATE_READ</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">STATE_WRITE</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">FS_READ</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">FS_WRITE</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">ACTOR_MESSAGING</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">LOG</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">TIME</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">RANDOM</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">ENVIRONMENT</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">HTTP_CLIENT</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">HTTP_SERVER</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span></div>
+
+
+
+<div class="viewcode-block" id="CapabilitySet">
+<a class="viewcode-back" href="../../api/core.html#aether_sdk.capabilities.CapabilitySet">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">CapabilitySet</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A set of capabilities with helper methods for checking permissions.</span>
+<span class="sd">    </span>
+<span class="sd">    CapabilitySet provides a convenient way to manage and check multiple</span>
+<span class="sd">    capabilities at once. It supports initialization with capabilities</span>
+<span class="sd">    and provides helper methods for common capability groupings.</span>
+<span class="sd">    </span>
+<span class="sd">    Attributes:</span>
+<span class="sd">        _caps: Internal set of granted capabilities.</span>
+<span class="sd">    </span>
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; caps = CapabilitySet(Capability.NETWORK_OUTBOUND)</span>
+<span class="sd">        &gt;&gt;&gt; caps.has(Capability.NETWORK_OUTBOUND)</span>
+<span class="sd">        True</span>
+<span class="sd">        &gt;&gt;&gt; caps.add(Capability.STATE_READ)</span>
+<span class="sd">        &gt;&gt;&gt; caps.has_state()</span>
+<span class="sd">        True</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">capabilities</span><span class="p">:</span> <span class="n">Capability</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize a CapabilitySet with optional initial capabilities.</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            *capabilities: Zero or more Capability flags to initialize with.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_caps</span><span class="p">:</span> <span class="n">Set</span><span class="p">[</span><span class="n">Capability</span><span class="p">]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">capabilities</span><span class="p">)</span>
+    
+<div class="viewcode-block" id="CapabilitySet.add">
+<a class="viewcode-back" href="../../api/core.html#aether_sdk.capabilities.CapabilitySet.add">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">add</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cap</span><span class="p">:</span> <span class="n">Capability</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Add a capability to the set.</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            cap: The Capability to add.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_caps</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">cap</span><span class="p">)</span></div>
+
+    
+<div class="viewcode-block" id="CapabilitySet.has">
+<a class="viewcode-back" href="../../api/core.html#aether_sdk.capabilities.CapabilitySet.has">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">has</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cap</span><span class="p">:</span> <span class="n">Capability</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check if a specific capability is granted.</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            cap: The Capability to check for.</span>
+<span class="sd">        </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            True if the capability is in the set, False otherwise.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">cap</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_caps</span></div>
+
+    
+<div class="viewcode-block" id="CapabilitySet.has_network">
+<a class="viewcode-back" href="../../api/core.html#aether_sdk.capabilities.CapabilitySet.has_network">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">has_network</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check if any network capability is granted.</span>
+<span class="sd">        </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            True if NETWORK_OUTBOUND or NETWORK_INBOUND is granted.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">Capability</span><span class="o">.</span><span class="n">NETWORK_OUTBOUND</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_caps</span> <span class="ow">or</span> <span class="n">Capability</span><span class="o">.</span><span class="n">NETWORK_INBOUND</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_caps</span></div>
+
+    
+<div class="viewcode-block" id="CapabilitySet.has_state">
+<a class="viewcode-back" href="../../api/core.html#aether_sdk.capabilities.CapabilitySet.has_state">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">has_state</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check if any state capability is granted.</span>
+<span class="sd">        </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            True if STATE_READ or STATE_WRITE is granted.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">Capability</span><span class="o">.</span><span class="n">STATE_READ</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_caps</span> <span class="ow">or</span> <span class="n">Capability</span><span class="o">.</span><span class="n">STATE_WRITE</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_caps</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 1980 Aether Core Team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

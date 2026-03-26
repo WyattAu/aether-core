@@ -1,0 +1,470 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>aether_sdk.actor &mdash; Aether Python SDK  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            Aether Python SDK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../quickstart.html">Quick Start Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/core.html">Core API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/event.html">Event System API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/resilience.html">Resilience API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/streaming.html">Streaming API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/workflow.html">Workflow API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/validation.html">Validation API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Aether Python SDK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">aether_sdk.actor</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for aether_sdk.actor</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Core Actor abstraction for the Aether SDK.</span>
+
+<span class="sd">This module provides the base :class:`Actor` class and the :func:`actor`</span>
+<span class="sd">decorator for building message-driven actors in the Aether framework.</span>
+<span class="sd">Actors communicate asynchronously via messages, support RPC calls, and</span>
+<span class="sd">manage local state through a :class:`~aether_sdk.state.StateHandle`.</span>
+
+<span class="sd">Example:</span>
+<span class="sd">    &gt;&gt;&gt; from aether_sdk.actor import Actor, actor</span>
+<span class="sd">    &gt;&gt;&gt; from aether_sdk.messaging import Message, MessageType</span>
+<span class="sd">    &gt;&gt;&gt;</span>
+<span class="sd">    &gt;&gt;&gt; class GreetActor(Actor):</span>
+<span class="sd">    ...     @classmethod</span>
+<span class="sd">    ...     def name(cls) -&gt; str:</span>
+<span class="sd">    ...         return &quot;greeter&quot;</span>
+<span class="sd">    ...</span>
+<span class="sd">    ...     async def handle_message(self, sender, message):</span>
+<span class="sd">    ...         return Message(type=MessageType.CUSTOM, payload=f&quot;Hello, {message.payload}!&quot;)</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Any</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">ABC</span><span class="p">,</span> <span class="n">abstractmethod</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">asyncio</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">uuid</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">.capabilities</span><span class="w"> </span><span class="kn">import</span> <span class="n">Capability</span><span class="p">,</span> <span class="n">CapabilitySet</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.messaging</span><span class="w"> </span><span class="kn">import</span> <span class="n">Message</span><span class="p">,</span> <span class="n">MessageType</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.state</span><span class="w"> </span><span class="kn">import</span> <span class="n">StateHandle</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.exceptions</span><span class="w"> </span><span class="kn">import</span> <span class="n">ActorNotFound</span><span class="p">,</span> <span class="n">RpcError</span>
+
+
+<div class="viewcode-block" id="Actor">
+<a class="viewcode-back" href="../../api/core.html#aether_sdk.actor.Actor">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">Actor</span><span class="p">(</span><span class="n">ABC</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Base class for Aether actors.</span>
+
+<span class="sd">    Actors are independent units of computation that communicate exclusively</span>
+<span class="sd">    through asynchronous message passing. Each actor maintains its own</span>
+<span class="sd">    private state and processes messages one at a time from its mailbox.</span>
+
+<span class="sd">    Subclasses must implement :meth:`name` and :meth:`handle_message`.</span>
+<span class="sd">    Optionally override :meth:`on_start` and :meth:`on_stop` for lifecycle</span>
+<span class="sd">    hooks.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        _capabilities: Set of capabilities granted to this actor.</span>
+<span class="sd">        _state: Persistent state handle (lazily initialized).</span>
+<span class="sd">        _mailbox: Async queue for incoming and outgoing messages.</span>
+<span class="sd">        _pending_responses: Map of correlation IDs to futures for RPC calls.</span>
+<span class="sd">        _running: Whether the actor&#39;s main loop is active.</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; class MyActor(Actor):</span>
+<span class="sd">        ...     @classmethod</span>
+<span class="sd">        ...     def name(cls):</span>
+<span class="sd">        ...         return &quot;my_actor&quot;</span>
+<span class="sd">        ...</span>
+<span class="sd">        ...     async def handle_message(self, sender, message):</span>
+<span class="sd">        ...         print(f&quot;From {sender}: {message.payload}&quot;)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize the actor with default capabilities and an empty mailbox.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_capabilities</span><span class="p">:</span> <span class="n">CapabilitySet</span> <span class="o">=</span> <span class="n">CapabilitySet</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">StateHandle</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_mailbox</span><span class="p">:</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">Queue</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">Queue</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_pending_responses</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">Future</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_running</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+
+<div class="viewcode-block" id="Actor.name">
+<a class="viewcode-back" href="../../api/core.html#aether_sdk.actor.Actor.name">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">name</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the unique name used for actor registration.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A string identifier for this actor type.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="Actor.handle_message">
+<a class="viewcode-back" href="../../api/core.html#aether_sdk.actor.Actor.handle_message">[docs]</a>
+    <span class="nd">@abstractmethod</span>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">handle_message</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sender</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="n">Message</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Message</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Handle an incoming message.</span>
+
+<span class="sd">        Subclasses must implement this method to define how the actor</span>
+<span class="sd">        processes messages received from other actors.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            sender: The name of the actor that sent the message.</span>
+<span class="sd">            message: The message to process.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            An optional response message. If provided and the original</span>
+<span class="sd">            message has a ``correlation_id``, the response will be</span>
+<span class="sd">            routed back to the sender as an RPC response.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="Actor.on_start">
+<a class="viewcode-back" href="../../api/core.html#aether_sdk.actor.Actor.on_start">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">on_start</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Lifecycle hook called once when the actor starts.</span>
+
+<span class="sd">        Override this to initialize resources such as database connections,</span>
+<span class="sd">        timers, or subscriptions. The default implementation does nothing.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="Actor.on_stop">
+<a class="viewcode-back" href="../../api/core.html#aether_sdk.actor.Actor.on_stop">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">on_stop</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Lifecycle hook called when the actor stops.</span>
+
+<span class="sd">        Override this to flush buffers, close connections, or release</span>
+<span class="sd">        resources. The default implementation does nothing.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="Actor.require">
+<a class="viewcode-back" href="../../api/core.html#aether_sdk.actor.Actor.require">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">require</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">capabilities</span><span class="p">:</span> <span class="n">Capability</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Declare capabilities required by this actor.</span>
+
+<span class="sd">        Call this in the constructor to request permissions such as</span>
+<span class="sd">        network access or state storage. Capabilities are enforced at</span>
+<span class="sd">        runtime — attempting an operation without the required capability</span>
+<span class="sd">        raises :class:`~aether_sdk.exceptions.CapabilityDenied`.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            *capabilities: One or more :class:`~aether_sdk.capabilities.Capability`</span>
+<span class="sd">                flags to request.</span>
+
+<span class="sd">        Example:</span>
+<span class="sd">            &gt;&gt;&gt; self.require(Capability.NETWORK_OUTBOUND, Capability.STATE_READ)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">cap</span> <span class="ow">in</span> <span class="n">capabilities</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_capabilities</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">cap</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Actor.send">
+<a class="viewcode-back" href="../../api/core.html#aether_sdk.actor.Actor.send">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">send</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="n">Message</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Send a fire-and-forget message to another actor.</span>
+
+<span class="sd">        The message is placed in the actor&#39;s outbox for dispatch.</span>
+<span class="sd">        The sender field is automatically set to ``self.name()``.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            target: The registered name of the destination actor.</span>
+<span class="sd">            message: The message to send.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">message</span><span class="o">.</span><span class="n">sender</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">()</span>
+        <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mailbox</span><span class="o">.</span><span class="n">put</span><span class="p">((</span><span class="s2">&quot;send&quot;</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">message</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="Actor.call">
+<a class="viewcode-back" href="../../api/core.html#aether_sdk.actor.Actor.call">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">call</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">timeout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">30.0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Perform an RPC call to another actor and await the response.</span>
+
+<span class="sd">        Creates a ``RPC_REQUEST`` message with a unique correlation ID and</span>
+<span class="sd">        waits for the matching ``RPC_RESPONSE``. The caller is blocked</span>
+<span class="sd">        until a response arrives or the timeout expires.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            target: The registered name of the destination actor.</span>
+<span class="sd">            request: The request payload to send.</span>
+<span class="sd">            timeout: Maximum time in seconds to wait for a response.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The response payload from the remote actor.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            RpcError: If the call times out before a response is received.</span>
+<span class="sd">                The error&#39;s ``code`` attribute is ``&quot;TIMEOUT&quot;``.</span>
+
+<span class="sd">        Example:</span>
+<span class="sd">            &gt;&gt;&gt; result = await self.call(&quot;calculator&quot;, {&quot;op&quot;: &quot;add&quot;, &quot;a&quot;: 1, &quot;b&quot;: 2})</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">correlation_id</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">())</span>
+        <span class="n">message</span> <span class="o">=</span> <span class="n">Message</span><span class="p">(</span>
+            <span class="nb">type</span><span class="o">=</span><span class="n">MessageType</span><span class="o">.</span><span class="n">RPC_REQUEST</span><span class="p">,</span>
+            <span class="n">payload</span><span class="o">=</span><span class="n">request</span><span class="p">,</span>
+            <span class="n">sender</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">(),</span>
+            <span class="n">correlation_id</span><span class="o">=</span><span class="n">correlation_id</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="n">future</span><span class="p">:</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">Future</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">get_event_loop</span><span class="p">()</span><span class="o">.</span><span class="n">create_future</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_pending_responses</span><span class="p">[</span><span class="n">correlation_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">future</span>
+
+        <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="n">message</span><span class="p">)</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">wait_for</span><span class="p">(</span><span class="n">future</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">response</span>
+        <span class="k">except</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">TimeoutError</span><span class="p">:</span>
+            <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pending_responses</span><span class="p">[</span><span class="n">correlation_id</span><span class="p">]</span>
+            <span class="k">raise</span> <span class="n">RpcError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;RPC call to </span><span class="si">{</span><span class="n">target</span><span class="si">}</span><span class="s2"> timed out&quot;</span><span class="p">,</span> <span class="n">code</span><span class="o">=</span><span class="s2">&quot;TIMEOUT&quot;</span><span class="p">)</span></div>
+
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">state</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StateHandle</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get the state handle for this actor.</span>
+
+<span class="sd">        Lazily creates a :class:`~aether_sdk.state.StateHandle` on first</span>
+<span class="sd">        access. Use the returned handle to persist key-value data across</span>
+<span class="sd">        message handling cycles.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The actor&#39;s state handle.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="o">=</span> <span class="n">StateHandle</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span>
+
+<div class="viewcode-block" id="Actor.run">
+<a class="viewcode-back" href="../../api/core.html#aether_sdk.actor.Actor.run">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Run the actor&#39;s main event loop.</span>
+
+<span class="sd">        Calls :meth:`on_start`, then continuously processes mailbox items</span>
+<span class="sd">        (both outgoing sends and incoming receives) until :meth:`stop` is</span>
+<span class="sd">        called. Finally calls :meth:`on_stop`.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            Exception: Any exception raised during message processing will</span>
+<span class="sd">                propagate after :meth:`on_stop` completes.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_running</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">on_start</span><span class="p">()</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">while</span> <span class="bp">self</span><span class="o">.</span><span class="n">_running</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">item</span> <span class="o">=</span> <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">wait_for</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_mailbox</span><span class="o">.</span><span class="n">get</span><span class="p">(),</span> <span class="n">timeout</span><span class="o">=</span><span class="mf">0.1</span><span class="p">)</span>
+                    <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_process_item</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+                <span class="k">except</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">TimeoutError</span><span class="p">:</span>
+                    <span class="k">continue</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">on_stop</span><span class="p">()</span></div>
+
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">_process_item</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">item</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Route a mailbox item to the appropriate handler.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            item: A tuple whose first element is either ``&quot;send&quot;`` or</span>
+<span class="sd">                ``&quot;receive&quot;`` followed by the relevant arguments.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">action</span> <span class="o">=</span> <span class="n">item</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">action</span> <span class="o">==</span> <span class="s2">&quot;send&quot;</span><span class="p">:</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">message</span> <span class="o">=</span> <span class="n">item</span>
+            <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dispatch_message</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="n">message</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">action</span> <span class="o">==</span> <span class="s2">&quot;receive&quot;</span><span class="p">:</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">sender</span><span class="p">,</span> <span class="n">message</span> <span class="o">=</span> <span class="n">item</span>
+            <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_handle_incoming</span><span class="p">(</span><span class="n">sender</span><span class="p">,</span> <span class="n">message</span><span class="p">)</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">_dispatch_message</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="n">Message</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Dispatch an outgoing message to the target actor.</span>
+
+<span class="sd">        This is a stub — concrete implementations or the actor system</span>
+<span class="sd">        should override this to perform actual message delivery.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            target: Destination actor name.</span>
+<span class="sd">            message: The message to deliver.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">_handle_incoming</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sender</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="n">Message</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Handle an incoming message from the mailbox.</span>
+
+<span class="sd">        If the message is an RPC response with a known correlation ID,</span>
+<span class="sd">        the pending future is resolved. Otherwise, the message is</span>
+<span class="sd">        delegated to :meth:`handle_message`.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            sender: Name of the sending actor.</span>
+<span class="sd">            message: The received message.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">message</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="n">MessageType</span><span class="o">.</span><span class="n">RPC_RESPONSE</span> <span class="ow">and</span> <span class="n">message</span><span class="o">.</span><span class="n">correlation_id</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">message</span><span class="o">.</span><span class="n">correlation_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pending_responses</span><span class="p">:</span>
+                <span class="n">future</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pending_responses</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">message</span><span class="o">.</span><span class="n">correlation_id</span><span class="p">)</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">future</span><span class="o">.</span><span class="n">done</span><span class="p">():</span>
+                    <span class="n">future</span><span class="o">.</span><span class="n">set_result</span><span class="p">(</span><span class="n">message</span><span class="o">.</span><span class="n">payload</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="n">response</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">handle_message</span><span class="p">(</span><span class="n">sender</span><span class="p">,</span> <span class="n">message</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">response</span> <span class="ow">and</span> <span class="n">message</span><span class="o">.</span><span class="n">correlation_id</span><span class="p">:</span>
+            <span class="n">response</span><span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">MessageType</span><span class="o">.</span><span class="n">RPC_RESPONSE</span>
+            <span class="n">response</span><span class="o">.</span><span class="n">correlation_id</span> <span class="o">=</span> <span class="n">message</span><span class="o">.</span><span class="n">correlation_id</span>
+            <span class="n">response</span><span class="o">.</span><span class="n">sender</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">()</span>
+
+<div class="viewcode-block" id="Actor.stop">
+<a class="viewcode-back" href="../../api/core.html#aether_sdk.actor.Actor.stop">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">stop</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Signal the actor&#39;s main loop to exit.</span>
+
+<span class="sd">        The loop will finish processing the current item, call</span>
+<span class="sd">        :meth:`on_stop`, and then return from :meth:`run`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_running</span> <span class="o">=</span> <span class="kc">False</span></div>
+
+
+<div class="viewcode-block" id="Actor.deliver">
+<a class="viewcode-back" href="../../api/core.html#aether_sdk.actor.Actor.deliver">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">deliver</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sender</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="n">Message</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Deliver a message directly to this actor&#39;s mailbox.</span>
+
+<span class="sd">        Unlike :meth:`send` (which places an outgoing item in the mailbox),</span>
+<span class="sd">        this places an incoming item so it will be processed by</span>
+<span class="sd">        :meth:`handle_message` on the next loop iteration.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            sender: Name of the sending actor.</span>
+<span class="sd">            message: The message to deliver.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_mailbox</span><span class="o">.</span><span class="n">put_nowait</span><span class="p">((</span><span class="s2">&quot;receive&quot;</span><span class="p">,</span> <span class="n">sender</span><span class="p">,</span> <span class="n">message</span><span class="p">))</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="actor">
+<a class="viewcode-back" href="../../api/core.html#aether_sdk.actor.actor">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">actor</span><span class="p">(</span><span class="bp">cls</span><span class="p">:</span> <span class="nb">type</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">type</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Decorator to turn a plain class into an Aether actor.</span>
+
+<span class="sd">    The decorated class is wrapped so that it inherits from :class:`Actor`</span>
+<span class="sd">    and provides a default :meth:`name` implementation based on the</span>
+<span class="sd">    ``_actor_name`` class attribute or the lowercase class name.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        cls: The class to decorate.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        A new class that subclasses both ``cls`` and :class:`Actor`.</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; @actor</span>
+<span class="sd">        ... class Echo:</span>
+<span class="sd">        ...     _actor_name = &quot;echo&quot;</span>
+<span class="sd">        ...</span>
+<span class="sd">        ...     async def handle_message(self, sender, message):</span>
+<span class="sd">        ...         return message</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">class</span><span class="w"> </span><span class="nc">ActorWrapper</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">Actor</span><span class="p">):</span>
+        <span class="nd">@classmethod</span>
+        <span class="k">def</span><span class="w"> </span><span class="nf">name</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="s1">&#39;_actor_name&#39;</span><span class="p">,</span> <span class="bp">cls</span><span class="o">.</span><span class="vm">__name__</span><span class="o">.</span><span class="n">lower</span><span class="p">())</span>
+
+    <span class="n">ActorWrapper</span><span class="o">.</span><span class="vm">__name__</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="vm">__name__</span>
+    <span class="n">ActorWrapper</span><span class="o">.</span><span class="vm">__qualname__</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="vm">__qualname__</span>
+    <span class="n">ActorWrapper</span><span class="o">.</span><span class="vm">__module__</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="vm">__module__</span>
+
+    <span class="k">return</span> <span class="n">ActorWrapper</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 1980 Aether Core Team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

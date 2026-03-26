@@ -1,0 +1,93 @@
+replicaCount: 3
+
+image:
+  repository: ghcr.io/aether/aether-core
+  tag: latest
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+service:
+  type: ClusterIP
+  port: 8080
+  quicPort: 9000
+  annotations: {}
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations: {}
+  hosts:
+    - host: aether.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: aether-tls
+      hosts:
+        - aether.local
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 256Mi
+  limits:
+    cpu: "2"
+    memory: 2Gi
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+topologySpreadConstraints: []
+
+config:
+  aether.toml: |
+    [server]
+    host = "0.0.0.0"
+    http_port = 8080
+    quic_port = 9000
+
+    [logging]
+    level = "info"
+
+    [storage]
+    path = "/var/lib/aether"
+
+    [cluster]
+    enabled = false
+
+monitoring:
+  prometheus:
+    enabled: true
+    port: 8080
+    path: "/metrics"
+
+extraEnv: []
+extraVolumes: []
+extraVolumeMounts: []

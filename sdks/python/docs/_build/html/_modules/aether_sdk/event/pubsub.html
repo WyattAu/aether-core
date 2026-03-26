@@ -1,0 +1,755 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>aether_sdk.event.pubsub &mdash; Aether Python SDK  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Aether Python SDK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../quickstart.html">Quick Start Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/core.html">Core API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/event.html">Event System API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/resilience.html">Resilience API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/streaming.html">Streaming API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/workflow.html">Workflow API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/validation.html">Validation API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Aether Python SDK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">aether_sdk.event.pubsub</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for aether_sdk.event.pubsub</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Pub/Sub Messaging for Event-Driven Architecture</span>
+
+<span class="sd">Provides topic-based publish/subscribe messaging with actor integration.</span>
+
+<span class="sd">Example:</span>
+<span class="sd">    &gt;&gt;&gt; from aether_sdk.event.pubsub import PubSubClient, Topic, publish</span>
+<span class="sd">    &gt;&gt;&gt; client = PubSubClient()</span>
+<span class="sd">    &gt;&gt;&gt; await client.create_topic(Topic(name=&quot;orders&quot;))</span>
+<span class="sd">    &gt;&gt;&gt; msg_id = await client.publish(&quot;orders&quot;, {&quot;orderId&quot;: &quot;123&quot;})</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">datetime</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">Any</span><span class="p">,</span>
+    <span class="n">Callable</span><span class="p">,</span>
+    <span class="n">Coroutine</span><span class="p">,</span>
+    <span class="n">Dict</span><span class="p">,</span>
+    <span class="n">List</span><span class="p">,</span>
+    <span class="n">Optional</span><span class="p">,</span>
+    <span class="n">Set</span><span class="p">,</span>
+    <span class="n">TypeVar</span><span class="p">,</span>
+    <span class="n">Union</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">ABC</span><span class="p">,</span> <span class="n">abstractmethod</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">asyncio</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">uuid</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">..actor</span><span class="w"> </span><span class="kn">import</span> <span class="n">Actor</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..messaging</span><span class="w"> </span><span class="kn">import</span> <span class="n">Message</span><span class="p">,</span> <span class="n">MessageType</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..exceptions</span><span class="w"> </span><span class="kn">import</span> <span class="n">AetherError</span>
+
+
+<span class="c1"># ============================================</span>
+<span class="c1"># Topic Configuration</span>
+<span class="c1"># ============================================</span>
+
+<div class="viewcode-block" id="Topic">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.pubsub.Topic">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Topic</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Represents a pub/sub topic for message routing.</span>
+
+<span class="sd">    Topics are hierarchical and use ``.`` as separator.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        name: Topic name (alphanumeric, dots, hyphens, underscores).</span>
+<span class="sd">        partitions: Number of partitions for the topic.</span>
+<span class="sd">        retention_ms: Message retention time in milliseconds.</span>
+<span class="sd">        compacted: Whether the topic is compacted (retains latest</span>
+<span class="sd">            value per key only).</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: If *name* is empty or contains invalid characters.</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; Topic(name=&quot;user.events&quot;, partitions=4)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">partitions</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">retention_ms</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">compacted</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Validate the topic name format.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Topic name cannot be empty&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">isalnum</span><span class="p">()</span> <span class="ow">or</span> <span class="n">c</span> <span class="ow">in</span> <span class="s1">&#39;.-_&#39;</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid topic name: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="Subscription">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.pubsub.Subscription">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Subscription</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Represents a subscription to a topic.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        id: Unique subscription identifier.</span>
+<span class="sd">        topic_pattern: Topic pattern to match (supports ``*`` wildcards).</span>
+<span class="sd">        created_at: When the subscription was created.</span>
+<span class="sd">        active: Whether the subscription is currently active.</span>
+<span class="sd">        handler: Callback invoked when a matching message arrives.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nb">id</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">topic_pattern</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">created_at</span><span class="p">:</span> <span class="n">datetime</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">)</span>
+    <span class="n">active</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">handler</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">[[</span><span class="n">PubSubMessage</span><span class="p">],</span> <span class="kc">None</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="PubSubMessage">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.pubsub.PubSubMessage">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">PubSubMessage</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A message in the pub/sub system.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        id: Unique message identifier (auto-generated UUID).</span>
+<span class="sd">        topic: Topic the message was published to.</span>
+<span class="sd">        value: Message payload.</span>
+<span class="sd">        key: Optional partitioning key.</span>
+<span class="sd">        timestamp: When the message was created.</span>
+<span class="sd">        headers: Optional string key-value headers.</span>
+<span class="sd">        partition: Partition number (set by the backend).</span>
+<span class="sd">        offset: Offset within the partition (set by the backend).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nb">id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">()))</span>
+    <span class="n">topic</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">value</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">key</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">timestamp</span><span class="p">:</span> <span class="n">datetime</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">)</span>
+    <span class="n">headers</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">)</span>
+    <span class="n">partition</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">offset</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+
+<div class="viewcode-block" id="PubSubMessage.to_actor_message">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.pubsub.PubSubMessage.to_actor_message">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">to_actor_message</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Message</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Convert to an actor :class:`~aether_sdk.messaging.Message`.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A ``Message`` with type ``STREAM_EVENT`` and the payload.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">Message</span><span class="p">(</span>
+            <span class="nb">type</span><span class="o">=</span><span class="n">MessageType</span><span class="o">.</span><span class="n">STREAM_EVENT</span><span class="p">,</span>
+            <span class="n">payload</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+        <span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="PubSubBackend">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.pubsub.PubSubBackend">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">PubSubBackend</span><span class="p">(</span><span class="n">ABC</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Abstract base class for pub/sub backends.</span>
+
+<span class="sd">    Subclasses implement the storage and routing of messages to</span>
+<span class="sd">    topic subscribers.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="PubSubBackend.create_topic">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.pubsub.PubSubBackend.create_topic">[docs]</a>
+    <span class="nd">@abstractmethod</span>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">create_topic</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">topic</span><span class="p">:</span> <span class="n">Topic</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Topic</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a new topic.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            topic: The topic to create.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The created topic.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="PubSubBackend.publish">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.pubsub.PubSubBackend.publish">[docs]</a>
+    <span class="nd">@abstractmethod</span>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">publish</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">topic</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="n">PubSubMessage</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Publish a message to a topic.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            topic: Topic name.</span>
+<span class="sd">            message: The message to publish.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="PubSubBackend.publish_batch">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.pubsub.PubSubBackend.publish_batch">[docs]</a>
+    <span class="nd">@abstractmethod</span>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">publish_batch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">topic</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">messages</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">PubSubMessage</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Publish multiple messages to a topic.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            topic: Topic name.</span>
+<span class="sd">            messages: Messages to publish.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="PubSubBackend.subscribe">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.pubsub.PubSubBackend.subscribe">[docs]</a>
+    <span class="nd">@abstractmethod</span>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">subscribe</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">topic_pattern</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">handler</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">PubSubMessage</span><span class="p">],</span> <span class="kc">None</span><span class="p">],</span>
+        <span class="n">subscription_id</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Subscription</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Subscribe to a topic pattern.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            topic_pattern: Pattern to match (supports ``*`` wildcards).</span>
+<span class="sd">            handler: Callback for each matching message.</span>
+<span class="sd">            subscription_id: Optional explicit subscription ID.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The created :class:`Subscription`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="PubSubBackend.unsubscribe">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.pubsub.PubSubBackend.unsubscribe">[docs]</a>
+    <span class="nd">@abstractmethod</span>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">unsubscribe</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subscription_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Unsubscribe by subscription ID.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            subscription_id: The subscription to cancel.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="PubSubBackend.acknowledge">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.pubsub.PubSubBackend.acknowledge">[docs]</a>
+    <span class="nd">@abstractmethod</span>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">acknowledge</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Acknowledge that a message has been processed.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            message_id: The message to acknowledge.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="InMemoryPubSub">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.pubsub.InMemoryPubSub">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">InMemoryPubSub</span><span class="p">(</span><span class="n">PubSubBackend</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;In-memory implementation of :class:`PubSubBackend` for testing.</span>
+
+<span class="sd">    Messages are routed synchronously to matching subscribers within</span>
+<span class="sd">    the same process.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize with empty topic and subscription registries.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_topics</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Topic</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_subscriptions</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Subscription</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_pending_acks</span><span class="p">:</span> <span class="n">Set</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">Lock</span><span class="p">()</span>
+
+<div class="viewcode-block" id="InMemoryPubSub.create_topic">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.pubsub.InMemoryPubSub.create_topic">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">create_topic</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">topic</span><span class="p">:</span> <span class="n">Topic</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Topic</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create and register a topic.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            topic: The topic to create.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The registered topic.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_topics</span><span class="p">[</span><span class="n">topic</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">topic</span>
+        <span class="k">return</span> <span class="n">topic</span></div>
+
+
+<div class="viewcode-block" id="InMemoryPubSub.publish">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.pubsub.InMemoryPubSub.publish">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">publish</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">topic</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="n">PubSubMessage</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Publish a message and route it to matching subscribers.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            topic: Topic name.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            ValueError: If the topic has not been created.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">topic</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_topics</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Topic not found: </span><span class="si">{</span><span class="n">topic</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_pending_acks</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">message</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+        <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_route_message</span><span class="p">(</span><span class="n">topic</span><span class="p">,</span> <span class="n">message</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_pending_acks</span><span class="o">.</span><span class="n">discard</span><span class="p">(</span><span class="n">message</span><span class="o">.</span><span class="n">id</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="InMemoryPubSub.publish_batch">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.pubsub.InMemoryPubSub.publish_batch">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">publish_batch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">topic</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">messages</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">PubSubMessage</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Publish multiple messages sequentially.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            topic: Topic name.</span>
+<span class="sd">            messages: Messages to publish.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">msg</span> <span class="ow">in</span> <span class="n">messages</span><span class="p">:</span>
+            <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span><span class="n">topic</span><span class="p">,</span> <span class="n">msg</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="InMemoryPubSub.subscribe">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.pubsub.InMemoryPubSub.subscribe">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">subscribe</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">topic_pattern</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">handler</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">PubSubMessage</span><span class="p">],</span> <span class="kc">None</span><span class="p">],</span>
+        <span class="n">subscription_id</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Subscription</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Subscribe to a topic pattern.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            topic_pattern: Pattern to match.</span>
+<span class="sd">            handler: Callback for matching messages.</span>
+<span class="sd">            subscription_id: Optional explicit ID.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The created :class:`Subscription`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">sub_id</span> <span class="o">=</span> <span class="n">subscription_id</span> <span class="ow">or</span> <span class="nb">str</span><span class="p">(</span><span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">())</span>
+        <span class="n">subscription</span> <span class="o">=</span> <span class="n">Subscription</span><span class="p">(</span>
+            <span class="nb">id</span><span class="o">=</span><span class="n">sub_id</span><span class="p">,</span>
+            <span class="n">topic_pattern</span><span class="o">=</span><span class="n">topic_pattern</span><span class="p">,</span>
+            <span class="n">handler</span><span class="o">=</span><span class="n">handler</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_subscriptions</span><span class="p">[</span><span class="n">sub_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">subscription</span>
+        <span class="k">return</span> <span class="n">subscription</span></div>
+
+
+<div class="viewcode-block" id="InMemoryPubSub.unsubscribe">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.pubsub.InMemoryPubSub.unsubscribe">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">unsubscribe</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subscription_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Remove a subscription.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            subscription_id: The subscription to remove.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_subscriptions</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">subscription_id</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="InMemoryPubSub.acknowledge">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.pubsub.InMemoryPubSub.acknowledge">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">acknowledge</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Acknowledge a message.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            message_id: The message ID.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_pending_acks</span><span class="o">.</span><span class="n">discard</span><span class="p">(</span><span class="n">message_id</span><span class="p">)</span></div>
+
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">_route_message</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">topic</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="n">PubSubMessage</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Route a message to all matching subscriptions.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            topic: Topic name.</span>
+<span class="sd">            message: The message to route.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">sub</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_subscriptions</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_matches_pattern</span><span class="p">(</span><span class="n">message</span><span class="o">.</span><span class="n">topic</span><span class="p">,</span> <span class="n">sub</span><span class="o">.</span><span class="n">topic_pattern</span><span class="p">):</span>
+                <span class="n">handler</span> <span class="o">=</span> <span class="n">sub</span><span class="o">.</span><span class="n">handler</span>
+                <span class="k">if</span> <span class="n">handler</span><span class="p">:</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">result</span> <span class="o">=</span> <span class="n">handler</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">iscoroutine</span><span class="p">(</span><span class="n">result</span><span class="p">):</span>
+                            <span class="k">await</span> <span class="n">result</span>
+                    <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                        <span class="k">pass</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_matches_pattern</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">topic</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">pattern</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check whether a topic matches a subscription pattern.</span>
+
+<span class="sd">        Supports ``*`` as a wildcard within each dot-separated segment.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            topic: The topic name.</span>
+<span class="sd">            pattern: The subscription pattern.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            ``True`` if the topic matches the pattern.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="s1">&#39;*&#39;</span> <span class="ow">in</span> <span class="n">pattern</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="n">topic_parts</span> <span class="o">=</span> <span class="n">topic</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)</span>
+        <span class="n">pattern_parts</span> <span class="o">=</span> <span class="n">pattern</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">topic_parts</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">pattern_parts</span><span class="p">):</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">pattern_parts</span><span class="p">)):</span>
+            <span class="k">if</span> <span class="n">pattern_parts</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">!=</span> <span class="s1">&#39;*&#39;</span> <span class="ow">and</span> <span class="n">pattern_parts</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">!=</span> <span class="n">topic_parts</span><span class="p">[</span><span class="n">i</span><span class="p">]:</span>
+                <span class="k">return</span> <span class="kc">False</span>
+
+        <span class="k">return</span> <span class="kc">True</span></div>
+
+
+
+<div class="viewcode-block" id="PubSubClient">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.pubsub.PubSubClient">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">PubSubClient</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;High-level client for pub/sub messaging.</span>
+
+<span class="sd">    Wraps a :class:`PubSubBackend` and provides convenient methods</span>
+<span class="sd">    for publishing, subscribing, and actor integration.</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; client = PubSubClient()</span>
+<span class="sd">        &gt;&gt;&gt; await client.create_topic(Topic(name=&quot;events&quot;))</span>
+<span class="sd">        &gt;&gt;&gt; msg_id = await client.publish(&quot;events&quot;, {&quot;type&quot;: &quot;user_joined&quot;})</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">backend</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">PubSubBackend</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize the client.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            backend: Optional backend. Defaults to</span>
+<span class="sd">                :class:`InMemoryPubSub`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_backend</span> <span class="o">=</span> <span class="n">backend</span> <span class="ow">or</span> <span class="n">InMemoryPubSub</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_actor_handlers</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Actor</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+
+<div class="viewcode-block" id="PubSubClient.create_topic">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.pubsub.PubSubClient.create_topic">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">create_topic</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">topic</span><span class="p">:</span> <span class="n">Topic</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Topic</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a topic.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            topic: The topic to create.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The created topic.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_backend</span><span class="o">.</span><span class="n">create_topic</span><span class="p">(</span><span class="n">topic</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="PubSubClient.publish">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.pubsub.PubSubClient.publish">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">publish</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">topic</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">value</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
+        <span class="n">key</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">headers</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Publish a value to a topic.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            topic: Topic name.</span>
+<span class="sd">            value: Payload to publish.</span>
+<span class="sd">            key: Optional partitioning key.</span>
+<span class="sd">            headers: Optional headers.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The message ID of the published message.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">message</span> <span class="o">=</span> <span class="n">PubSubMessage</span><span class="p">(</span>
+            <span class="n">topic</span><span class="o">=</span><span class="n">topic</span><span class="p">,</span>
+            <span class="n">value</span><span class="o">=</span><span class="n">value</span><span class="p">,</span>
+            <span class="n">key</span><span class="o">=</span><span class="n">key</span><span class="p">,</span>
+            <span class="n">headers</span><span class="o">=</span><span class="n">headers</span> <span class="ow">or</span> <span class="p">{},</span>
+        <span class="p">)</span>
+        <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_backend</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span><span class="n">topic</span><span class="p">,</span> <span class="n">message</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">message</span><span class="o">.</span><span class="n">id</span></div>
+
+
+<div class="viewcode-block" id="PubSubClient.publish_batch">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.pubsub.PubSubClient.publish_batch">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">publish_batch</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">topic</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">messages</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">PubSubMessage</span><span class="p">],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Publish multiple messages to a topic.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            topic: Topic name.</span>
+<span class="sd">            messages: Messages to publish.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            List of message IDs.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_backend</span><span class="o">.</span><span class="n">publish_batch</span><span class="p">(</span><span class="n">topic</span><span class="p">,</span> <span class="n">messages</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">msg</span><span class="o">.</span><span class="n">id</span> <span class="k">for</span> <span class="n">msg</span> <span class="ow">in</span> <span class="n">messages</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="PubSubClient.subscribe">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.pubsub.PubSubClient.subscribe">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">subscribe</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">topic_pattern</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">handler</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">PubSubMessage</span><span class="p">],</span> <span class="kc">None</span><span class="p">],</span>
+        <span class="n">subscription_id</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Subscription</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Subscribe to a topic pattern with a handler function.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            topic_pattern: Pattern to match.</span>
+<span class="sd">            handler: Callback for matching messages.</span>
+<span class="sd">            subscription_id: Optional explicit ID.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The created :class:`Subscription`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_backend</span><span class="o">.</span><span class="n">subscribe</span><span class="p">(</span>
+            <span class="n">topic_pattern</span><span class="p">,</span>
+            <span class="n">handler</span><span class="p">,</span>
+            <span class="n">subscription_id</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="PubSubClient.subscribe_actor">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.pubsub.PubSubClient.subscribe_actor">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">subscribe_actor</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">topic_pattern</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">actor</span><span class="p">:</span> <span class="n">Actor</span><span class="p">,</span>
+        <span class="n">method_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;handle_event&quot;</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Subscription</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Subscribe an actor to a topic pattern.</span>
+
+<span class="sd">        Messages are delivered by calling *method_name* on the actor.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            topic_pattern: Pattern to match.</span>
+<span class="sd">            actor: The actor to subscribe.</span>
+<span class="sd">            method_name: Name of the method to invoke (default</span>
+<span class="sd">                ``&quot;handle_event&quot;``).</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The created :class:`Subscription`.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            AetherError: If the actor handler raises an exception.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">actor_handler</span><span class="p">(</span><span class="n">msg</span><span class="p">:</span> <span class="n">PubSubMessage</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">method</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">actor</span><span class="p">,</span> <span class="n">method_name</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">method</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Actor method &#39;</span><span class="si">{</span><span class="n">method_name</span><span class="si">}</span><span class="s2">&#39; not found&quot;</span><span class="p">)</span>
+
+                <span class="n">result</span> <span class="o">=</span> <span class="n">method</span><span class="p">(</span><span class="n">actor</span><span class="p">,</span> <span class="n">msg</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">iscoroutine</span><span class="p">(</span><span class="n">result</span><span class="p">):</span>
+                    <span class="k">await</span> <span class="n">result</span>
+
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">AetherError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Actor handler failed: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="n">sub_id</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;actor-</span><span class="si">{</span><span class="nb">id</span><span class="p">(</span><span class="n">actor</span><span class="p">)</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">topic_pattern</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="n">subscription</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">subscribe</span><span class="p">(</span><span class="n">topic_pattern</span><span class="p">,</span> <span class="n">actor_handler</span><span class="p">,</span> <span class="n">sub_id</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_actor_handlers</span><span class="p">[</span><span class="n">sub_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">actor</span>
+        <span class="k">return</span> <span class="n">subscription</span></div>
+
+
+<div class="viewcode-block" id="PubSubClient.unsubscribe">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.pubsub.PubSubClient.unsubscribe">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">unsubscribe</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subscription_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Unsubscribe from a topic.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            subscription_id: The subscription to cancel.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_backend</span><span class="o">.</span><span class="n">unsubscribe</span><span class="p">(</span><span class="n">subscription_id</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_actor_handlers</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">subscription_id</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="PubSubClient.acknowledge">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.pubsub.PubSubClient.acknowledge">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">acknowledge</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Acknowledge a message.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            message_id: The message ID.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_backend</span><span class="o">.</span><span class="n">acknowledge</span><span class="p">(</span><span class="n">message_id</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="subscribe">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.pubsub.subscribe">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">subscribe</span><span class="p">(</span><span class="n">topic_pattern</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">delivery_semantics</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;at_least_once&quot;</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Decorator to mark an actor method as a topic subscriber.</span>
+
+<span class="sd">    Sets the ``_aether_subscribe`` attribute on the method with</span>
+<span class="sd">    the topic pattern and delivery semantics.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        topic_pattern: Pattern to subscribe to.</span>
+<span class="sd">        delivery_semantics: Delivery guarantee (default</span>
+<span class="sd">            ``&quot;at_least_once&quot;``).</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        A decorator function.</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; @subscribe(&quot;orders.*&quot;)</span>
+<span class="sd">        ... def handle_order(self, msg):</span>
+<span class="sd">        ...     pass</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">decorator</span><span class="p">(</span><span class="n">method</span><span class="p">):</span>
+        <span class="n">method</span><span class="o">.</span><span class="n">_aether_subscribe</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;topic_pattern&quot;</span><span class="p">:</span> <span class="n">topic_pattern</span><span class="p">,</span>
+            <span class="s2">&quot;delivery_semantics&quot;</span><span class="p">:</span> <span class="n">delivery_semantics</span>
+        <span class="p">}</span>
+        <span class="k">return</span> <span class="n">method</span>
+    <span class="k">return</span> <span class="n">decorator</span></div>
+
+
+
+<div class="viewcode-block" id="publish">
+<a class="viewcode-back" href="../../../api/event.html#aether_sdk.event.pubsub.publish">[docs]</a>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">publish</span><span class="p">(</span>
+    <span class="n">topic</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">value</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
+    <span class="n">key</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">headers</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">client</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">PubSubClient</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Convenience function for publishing a single message.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        topic: Topic name.</span>
+<span class="sd">        value: Payload to publish.</span>
+<span class="sd">        key: Optional partitioning key.</span>
+<span class="sd">        headers: Optional headers.</span>
+<span class="sd">        client: Optional client (created if not provided).</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        The message ID.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">client</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">client</span> <span class="o">=</span> <span class="n">PubSubClient</span><span class="p">()</span>
+    <span class="k">return</span> <span class="k">await</span> <span class="n">client</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span><span class="n">topic</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">headers</span><span class="p">)</span></div>
+
+
+
+<span class="n">Event</span> <span class="o">=</span> <span class="n">PubSubMessage</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s1">&#39;Topic&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;Subscription&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;PubSubMessage&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;PubSubBackend&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;InMemoryPubSub&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;PubSubClient&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;Publisher&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;Subscriber&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;Event&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;subscribe&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;publish&#39;</span><span class="p">,</span>
+<span class="p">]</span>
+
+<span class="n">Publisher</span> <span class="o">=</span> <span class="n">PubSubClient</span>
+<span class="n">Subscriber</span> <span class="o">=</span> <span class="n">PubSubClient</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 1980 Aether Core Team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

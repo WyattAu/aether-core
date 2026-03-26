@@ -1,0 +1,755 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>aether_sdk.streaming.types &mdash; Aether Python SDK  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Aether Python SDK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../quickstart.html">Quick Start Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/core.html">Core API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/event.html">Event System API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/resilience.html">Resilience API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/streaming.html">Streaming API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/workflow.html">Workflow API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/validation.html">Validation API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Aether Python SDK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">aether_sdk.streaming.types</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for aether_sdk.streaming.types</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Streaming Types and Enums</span>
+
+<span class="sd">Core types for stream processing:</span>
+<span class="sd">- StreamEvent: Individual event in a stream</span>
+<span class="sd">- Watermark: Time marker for event progress</span>
+<span class="sd">- StreamConfig: Configuration for stream actors</span>
+<span class="sd">- Window types and configurations</span>
+
+<span class="sd">Example:</span>
+<span class="sd">    &gt;&gt;&gt; from aether_sdk.streaming.types import Timestamp, Duration, StreamEvent</span>
+<span class="sd">    &gt;&gt;&gt; ts = Timestamp.now()</span>
+<span class="sd">    &gt;&gt;&gt; d = Duration.from_seconds(5)</span>
+<span class="sd">    &gt;&gt;&gt; event = StreamEvent.create(key=&quot;order-1&quot;, value={&quot;total&quot;: 42.0})</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">timedelta</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">enum</span><span class="w"> </span><span class="kn">import</span> <span class="n">Enum</span><span class="p">,</span> <span class="n">auto</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Generic</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">TypeVar</span><span class="p">,</span> <span class="n">Callable</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+
+<span class="n">T</span> <span class="o">=</span> <span class="n">TypeVar</span><span class="p">(</span><span class="s1">&#39;T&#39;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="WindowType">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.types.WindowType">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">WindowType</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Types of windowing strategies.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        TUMBLING: Fixed-size, non-overlapping windows.</span>
+<span class="sd">        SLIDING: Fixed-size, overlapping windows.</span>
+<span class="sd">        SESSION: Dynamic windows based on activity gaps.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">TUMBLING</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">SLIDING</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">SESSION</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span></div>
+
+
+
+<div class="viewcode-block" id="LateDataPolicy">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.types.LateDataPolicy">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">LateDataPolicy</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Policy for handling late-arriving data.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        DROP: Discard events that arrive after the watermark.</span>
+<span class="sd">        SIDE_OUTPUT: Route late events to a side output stream.</span>
+<span class="sd">        REPROCESS: Reprocess the affected windows.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">DROP</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">SIDE_OUTPUT</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">REPROCESS</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span></div>
+
+
+
+<div class="viewcode-block" id="WatermarkStrategy">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.types.WatermarkStrategy">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">WatermarkStrategy</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Strategy for generating watermarks.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        EVENT_TIME: Watermarks based on event timestamps.</span>
+<span class="sd">        PROCESSING_TIME: Watermarks based on wall-clock processing time.</span>
+<span class="sd">        BOUNDED_OUT_OF_ORDER: Allows a bounded amount of lateness.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">EVENT_TIME</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">PROCESSING_TIME</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">BOUNDED_OUT_OF_ORDER</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span></div>
+
+
+
+<div class="viewcode-block" id="BackpressureStrategy">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.types.BackpressureStrategy">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">BackpressureStrategy</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Strategy for handling backpressure.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        BUFFER: Buffer events up to a configured limit.</span>
+<span class="sd">        DROP: Drop new events when overloaded.</span>
+<span class="sd">        FAIL: Raise an error when overloaded.</span>
+<span class="sd">        LATEST: Keep only the most recent events, discarding older ones.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">BUFFER</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">DROP</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">FAIL</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">LATEST</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span></div>
+
+
+
+<div class="viewcode-block" id="DeliverySemantics">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.types.DeliverySemantics">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">DeliverySemantics</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Message delivery guarantees.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        AT_MOST_ONCE: Fire-and-forget; no retries.</span>
+<span class="sd">        AT_LEAST_ONCE: Retries may cause duplicates.</span>
+<span class="sd">        EXACTLY_ONCE: No duplicates, no loss (requires checkpointing).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">AT_MOST_ONCE</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">AT_LEAST_ONCE</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">EXACTLY_ONCE</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span></div>
+
+
+
+<div class="viewcode-block" id="PaneInfo">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.types.PaneInfo">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">PaneInfo</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Window pane type indicating when a window was fired.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        EARLY: Fired before the watermark reached the window end.</span>
+<span class="sd">        ON_TIME: Fired when the watermark reached the window end.</span>
+<span class="sd">        LATE: Fired after the watermark passed the window end.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">EARLY</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">ON_TIME</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
+    <span class="n">LATE</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span></div>
+
+
+
+<div class="viewcode-block" id="Timestamp">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.types.Timestamp">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Timestamp</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Event timestamp with millisecond precision.</span>
+
+<span class="sd">    Supports arithmetic with :class:`Duration` objects and comparison</span>
+<span class="sd">    operators.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        milliseconds: Unix epoch time in milliseconds.</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; ts = Timestamp.now()</span>
+<span class="sd">        &gt;&gt;&gt; later = ts + Duration.from_seconds(10)</span>
+<span class="sd">        &gt;&gt;&gt; ts &lt; later</span>
+<span class="sd">        True</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">milliseconds</span><span class="p">:</span> <span class="nb">int</span>
+
+<div class="viewcode-block" id="Timestamp.now">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.types.Timestamp.now">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">now</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;Timestamp&#39;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a timestamp from the current wall-clock time.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A :class:`Timestamp` set to the current time.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="Timestamp.from_datetime">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.types.Timestamp.from_datetime">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_datetime</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">dt</span><span class="p">:</span> <span class="n">datetime</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;Timestamp&#39;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a timestamp from a :class:`datetime`.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            dt: The datetime to convert.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A :class:`Timestamp` representing the same instant.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">dt</span><span class="o">.</span><span class="n">timestamp</span><span class="p">()</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="Timestamp.from_seconds">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.types.Timestamp.from_seconds">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_seconds</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">seconds</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;Timestamp&#39;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a timestamp from a number of seconds since epoch.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            seconds: Seconds (may be fractional).</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A :class:`Timestamp`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">seconds</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="Timestamp.to_datetime">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.types.Timestamp.to_datetime">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">to_datetime</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">datetime</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Convert to a local :class:`datetime`.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A :class:`datetime` representing the same instant.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">datetime</span><span class="o">.</span><span class="n">fromtimestamp</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">milliseconds</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Timestamp.to_seconds">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.types.Timestamp.to_seconds">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">to_seconds</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Convert to seconds since epoch.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A float representing seconds (may be fractional).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">milliseconds</span> <span class="o">/</span> <span class="mi">1000</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__add__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="s1">&#39;Duration&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;Timestamp&#39;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">Timestamp</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">milliseconds</span> <span class="o">+</span> <span class="n">other</span><span class="o">.</span><span class="n">milliseconds</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__sub__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="s1">&#39;Timestamp&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;Duration&#39;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">Duration</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">milliseconds</span> <span class="o">-</span> <span class="n">other</span><span class="o">.</span><span class="n">milliseconds</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__lt__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="s1">&#39;Timestamp&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">milliseconds</span> <span class="o">&lt;</span> <span class="n">other</span><span class="o">.</span><span class="n">milliseconds</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__le__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="s1">&#39;Timestamp&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">milliseconds</span> <span class="o">&lt;=</span> <span class="n">other</span><span class="o">.</span><span class="n">milliseconds</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__gt__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="s1">&#39;Timestamp&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">milliseconds</span> <span class="o">&gt;</span> <span class="n">other</span><span class="o">.</span><span class="n">milliseconds</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__ge__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="s1">&#39;Timestamp&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">milliseconds</span> <span class="o">&gt;=</span> <span class="n">other</span><span class="o">.</span><span class="n">milliseconds</span></div>
+
+
+
+<div class="viewcode-block" id="Duration">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.types.Duration">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Duration</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Duration with millisecond precision.</span>
+
+<span class="sd">    Supports addition and scalar multiplication.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        ms: Duration in milliseconds.</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; d = Duration.from_minutes(5)</span>
+<span class="sd">        &gt;&gt;&gt; d.to_seconds()</span>
+<span class="sd">        300.0</span>
+<span class="sd">        &gt;&gt;&gt; (d + Duration.from_seconds(10)).to_millis()</span>
+<span class="sd">        310000</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">ms</span><span class="p">:</span> <span class="nb">int</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">milliseconds</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the duration in milliseconds.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">ms</span>
+
+<div class="viewcode-block" id="Duration.from_timedelta">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.types.Duration.from_timedelta">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_timedelta</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">td</span><span class="p">:</span> <span class="n">timedelta</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;Duration&#39;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create from a :class:`datetime.timedelta`.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            td: The timedelta to convert.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A :class:`Duration`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">td</span><span class="o">.</span><span class="n">total_seconds</span><span class="p">()</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="Duration.from_millis">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.types.Duration.from_millis">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_millis</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">ms</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;Duration&#39;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create from milliseconds.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            ms: Milliseconds.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A :class:`Duration`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">ms</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Duration.from_seconds">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.types.Duration.from_seconds">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_seconds</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">s</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;Duration&#39;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create from seconds.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            s: Seconds (may be fractional).</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A :class:`Duration`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">s</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="Duration.from_minutes">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.types.Duration.from_minutes">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_minutes</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">m</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;Duration&#39;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create from minutes.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            m: Minutes (may be fractional).</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A :class:`Duration`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">m</span> <span class="o">*</span> <span class="mi">60</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="Duration.from_hours">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.types.Duration.from_hours">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_hours</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">h</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;Duration&#39;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create from hours.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            h: Hours (may be fractional).</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A :class:`Duration`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">h</span> <span class="o">*</span> <span class="mi">3600</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="Duration.to_timedelta">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.types.Duration.to_timedelta">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">to_timedelta</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">timedelta</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Convert to a :class:`datetime.timedelta`.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A :class:`timedelta` representing the same duration.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">timedelta</span><span class="p">(</span><span class="n">milliseconds</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ms</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Duration.to_seconds">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.types.Duration.to_seconds">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">to_seconds</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Convert to seconds.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A float representing seconds.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">ms</span> <span class="o">/</span> <span class="mi">1000</span></div>
+
+
+<div class="viewcode-block" id="Duration.to_millis">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.types.Duration.to_millis">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">to_millis</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the duration in milliseconds.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Integer milliseconds.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">ms</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__add__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="s1">&#39;Duration&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;Duration&#39;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">Duration</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ms</span> <span class="o">+</span> <span class="n">other</span><span class="o">.</span><span class="n">ms</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__mul__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">factor</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;Duration&#39;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">Duration</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ms</span> <span class="o">*</span> <span class="n">factor</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="StreamEvent">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.types.StreamEvent">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">StreamEvent</span><span class="p">(</span><span class="n">Generic</span><span class="p">[</span><span class="n">T</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;An event in a data stream with associated metadata.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        key: Partition key for routing.</span>
+<span class="sd">        value: Event payload.</span>
+<span class="sd">        timestamp: Event timestamp.</span>
+<span class="sd">        headers: Optional string key-value headers.</span>
+<span class="sd">        partition: Source partition number.</span>
+<span class="sd">        offset: Offset within the partition.</span>
+<span class="sd">        event_type: Optional type identifier for the event.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">key</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">value</span><span class="p">:</span> <span class="n">T</span>
+    <span class="n">timestamp</span><span class="p">:</span> <span class="n">Timestamp</span>
+    <span class="n">headers</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">)</span>
+    <span class="n">partition</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">offset</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">event_type</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="StreamEvent.create">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.types.StreamEvent.create">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">create</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">,</span>
+        <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">value</span><span class="p">:</span> <span class="n">T</span><span class="p">,</span>
+        <span class="n">timestamp</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Timestamp</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;StreamEvent[T]&#39;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a new stream event with defaults for optional fields.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            key: Partition key.</span>
+<span class="sd">            value: Event payload.</span>
+<span class="sd">            timestamp: Event timestamp (defaults to now).</span>
+<span class="sd">            **kwargs: Additional fields (``headers``, ``partition``,</span>
+<span class="sd">                ``offset``, ``event_type``).</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A new :class:`StreamEvent` instance.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span>
+            <span class="n">key</span><span class="o">=</span><span class="n">key</span><span class="p">,</span>
+            <span class="n">value</span><span class="o">=</span><span class="n">value</span><span class="p">,</span>
+            <span class="n">timestamp</span><span class="o">=</span><span class="n">timestamp</span> <span class="ow">or</span> <span class="n">Timestamp</span><span class="o">.</span><span class="n">now</span><span class="p">(),</span>
+            <span class="o">**</span><span class="n">kwargs</span>
+        <span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="Watermark">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.types.Watermark">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Watermark</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A watermark indicating event-time progress for a stream.</span>
+
+<span class="sd">    Events with timestamps before the watermark are considered late.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        timestamp: The watermark timestamp.</span>
+<span class="sd">        stream_id: Identifier of the stream this watermark belongs to.</span>
+<span class="sd">        partition: Optional partition number.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">timestamp</span><span class="p">:</span> <span class="n">Timestamp</span>
+    <span class="n">stream_id</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">partition</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="Watermark.is_late">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.types.Watermark.is_late">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">is_late</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event_timestamp</span><span class="p">:</span> <span class="n">Timestamp</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check whether an event timestamp is late relative to this watermark.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            event_timestamp: The event&#39;s timestamp.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            ``True`` if the event is late.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">event_timestamp</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">timestamp</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="WindowSpec">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.types.WindowSpec">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">WindowSpec</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Specification for a windowing strategy.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        type: The window type (tumbling, sliding, or session).</span>
+<span class="sd">        size: Window duration.</span>
+<span class="sd">        slide: Slide interval (sliding windows only).</span>
+<span class="sd">        gap: Activity gap (session windows only).</span>
+<span class="sd">        late_tolerance: How late an event can arrive and still be</span>
+<span class="sd">            included in the window.</span>
+<span class="sd">        allowed_lateness: Maximum lateness allowed before side-output.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nb">type</span><span class="p">:</span> <span class="n">WindowType</span>
+    <span class="n">size</span><span class="p">:</span> <span class="n">Duration</span>
+    <span class="n">slide</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Duration</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">gap</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Duration</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">late_tolerance</span><span class="p">:</span> <span class="n">Duration</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">Duration</span><span class="o">.</span><span class="n">from_seconds</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span>
+    <span class="n">allowed_lateness</span><span class="p">:</span> <span class="n">Duration</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">Duration</span><span class="o">.</span><span class="n">from_seconds</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Validate the window specification.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            ValueError: If required fields are missing for the window</span>
+<span class="sd">                type.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="n">WindowType</span><span class="o">.</span><span class="n">SLIDING</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">slide</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Sliding window requires &#39;slide&#39; parameter&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="n">WindowType</span><span class="o">.</span><span class="n">SESSION</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">gap</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Session window requires &#39;gap&#39; parameter&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="WindowInfo">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.types.WindowInfo">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">WindowInfo</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Metadata about an active or fired window.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        start: Window start timestamp.</span>
+<span class="sd">        end: Window end timestamp.</span>
+<span class="sd">        max_timestamp: Highest event timestamp in the window.</span>
+<span class="sd">        pane: Which pane triggered (early, on-time, or late).</span>
+<span class="sd">        window_id: Optional unique window identifier.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">start</span><span class="p">:</span> <span class="n">Timestamp</span>
+    <span class="n">end</span><span class="p">:</span> <span class="n">Timestamp</span>
+    <span class="n">max_timestamp</span><span class="p">:</span> <span class="n">Timestamp</span>
+    <span class="n">pane</span><span class="p">:</span> <span class="n">PaneInfo</span>
+    <span class="n">window_id</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="WindowInfo.contains">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.types.WindowInfo.contains">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">contains</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">:</span> <span class="n">Timestamp</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check whether a timestamp falls within this window.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            timestamp: The timestamp to check.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            ``True`` if ``start &lt;= timestamp &lt; end``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">start</span> <span class="o">&lt;=</span> <span class="n">timestamp</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">end</span></div>
+
+
+<div class="viewcode-block" id="WindowInfo.is_late">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.types.WindowInfo.is_late">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">is_late</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">:</span> <span class="n">Timestamp</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check whether a timestamp is before this window.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            timestamp: The timestamp to check.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            ``True`` if the timestamp is before the window start.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">timestamp</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">start</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="StreamConfig">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.types.StreamConfig">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">StreamConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Configuration for a :class:`~aether_sdk.streaming.stream_actor.StreamActor`.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        input_streams: Names of input streams to consume.</span>
+<span class="sd">        output_streams: Names of output streams to produce.</span>
+<span class="sd">        parallelism: Degree of parallelism for the actor.</span>
+<span class="sd">        partition_strategy: Partitioning strategy (``&quot;key&quot;``,</span>
+<span class="sd">            ``&quot;range&quot;``, ``&quot;hash&quot;``, ``&quot;random&quot;``).</span>
+<span class="sd">        watermark_strategy: Strategy for generating watermarks.</span>
+<span class="sd">        watermark_interval: Interval between automatic watermarks.</span>
+<span class="sd">        out_of_orderness: Maximum allowed out-of-order timestamp skew.</span>
+<span class="sd">        checkpointing_enabled: Whether exactly-once checkpointing</span>
+<span class="sd">            is active.</span>
+<span class="sd">        checkpoint_interval: Interval between checkpoints.</span>
+<span class="sd">        late_data_policy: How to handle late-arriving events.</span>
+<span class="sd">        late_data_output: Side output stream name for late events.</span>
+<span class="sd">        buffer_capacity: Maximum buffered events before backpressure.</span>
+<span class="sd">        buffer_timeout: Maximum time to buffer before flushing.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">input_streams</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+    <span class="n">output_streams</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+    <span class="n">parallelism</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">partition_strategy</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;key&#39;</span>
+    <span class="n">watermark_strategy</span><span class="p">:</span> <span class="n">WatermarkStrategy</span> <span class="o">=</span> <span class="n">WatermarkStrategy</span><span class="o">.</span><span class="n">PROCESSING_TIME</span>
+    <span class="n">watermark_interval</span><span class="p">:</span> <span class="n">Duration</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">Duration</span><span class="o">.</span><span class="n">from_seconds</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+    <span class="n">out_of_orderness</span><span class="p">:</span> <span class="n">Duration</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">Duration</span><span class="o">.</span><span class="n">from_seconds</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span>
+    <span class="n">checkpointing_enabled</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">checkpoint_interval</span><span class="p">:</span> <span class="n">Duration</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">Duration</span><span class="o">.</span><span class="n">from_minutes</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+    <span class="n">late_data_policy</span><span class="p">:</span> <span class="n">LateDataPolicy</span> <span class="o">=</span> <span class="n">LateDataPolicy</span><span class="o">.</span><span class="n">DROP</span>
+    <span class="n">late_data_output</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">buffer_capacity</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10000</span>
+    <span class="n">buffer_timeout</span><span class="p">:</span> <span class="n">Duration</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">Duration</span><span class="o">.</span><span class="n">from_seconds</span><span class="p">(</span><span class="mi">30</span><span class="p">))</span></div>
+
+
+
+<div class="viewcode-block" id="BackpressureConfig">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.types.BackpressureConfig">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">BackpressureConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Configuration for backpressure handling.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        strategy: The backpressure strategy to use.</span>
+<span class="sd">        buffer_size: Maximum number of events to buffer.</span>
+<span class="sd">        high_watermark: Buffer fill ratio (0–1) at which backpressure</span>
+<span class="sd">            is signaled.</span>
+<span class="sd">        low_watermark: Buffer fill ratio (0–1) at which backpressure</span>
+<span class="sd">            is relieved.</span>
+<span class="sd">        on_overflow: Callback invoked when the buffer overflows.</span>
+<span class="sd">        on_resume: Callback invoked when the buffer recovers.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">strategy</span><span class="p">:</span> <span class="n">BackpressureStrategy</span> <span class="o">=</span> <span class="n">BackpressureStrategy</span><span class="o">.</span><span class="n">BUFFER</span>
+    <span class="n">buffer_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10000</span>
+    <span class="n">high_watermark</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.9</span>
+    <span class="n">low_watermark</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.5</span>
+    <span class="n">on_overflow</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">[[],</span> <span class="kc">None</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">on_resume</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">[[],</span> <span class="kc">None</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="PartitionConfig">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.types.PartitionConfig">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">PartitionConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Configuration for stream partitioning.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        strategy: Partitioning method (``&quot;key&quot;``, ``&quot;range&quot;``,</span>
+<span class="sd">            ``&quot;hash&quot;``, ``&quot;random&quot;``).</span>
+<span class="sd">        partitions: Number of partitions.</span>
+<span class="sd">        key_extractor: Optional callable to extract partition keys</span>
+<span class="sd">            from events.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">strategy</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;key&#39;</span>
+    <span class="n">partitions</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">key_extractor</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">[[</span><span class="n">Any</span><span class="p">],</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="DeliveryConfig">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.types.DeliveryConfig">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">DeliveryConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Configuration for message delivery guarantees.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        semantics: The delivery guarantee level.</span>
+<span class="sd">        max_retries: Maximum delivery retry attempts.</span>
+<span class="sd">        retry_backoff: Delay between delivery retries.</span>
+<span class="sd">        dead_letter_topic: Topic for undeliverable messages.</span>
+<span class="sd">        enable_idempotence: Whether to deduplicate on the producer</span>
+<span class="sd">            side.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">semantics</span><span class="p">:</span> <span class="n">DeliverySemantics</span> <span class="o">=</span> <span class="n">DeliverySemantics</span><span class="o">.</span><span class="n">AT_LEAST_ONCE</span>
+    <span class="n">max_retries</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span>
+    <span class="n">retry_backoff</span><span class="p">:</span> <span class="n">Duration</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">Duration</span><span class="o">.</span><span class="n">from_seconds</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+    <span class="n">dead_letter_topic</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">enable_idempotence</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span></div>
+
+
+
+<span class="n">EventHandler</span> <span class="o">=</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">StreamEvent</span><span class="p">],</span> <span class="kc">None</span><span class="p">]</span>
+<span class="n">BatchHandler</span> <span class="o">=</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">List</span><span class="p">[</span><span class="n">StreamEvent</span><span class="p">]],</span> <span class="kc">None</span><span class="p">]</span>
+<span class="n">WindowHandler</span> <span class="o">=</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">List</span><span class="p">[</span><span class="n">StreamEvent</span><span class="p">],</span> <span class="n">WindowInfo</span><span class="p">],</span> <span class="kc">None</span><span class="p">]</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 1980 Aether Core Team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

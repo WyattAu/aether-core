@@ -1,0 +1,805 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>aether_sdk.streaming.window &mdash; Aether Python SDK  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Aether Python SDK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../quickstart.html">Quick Start Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/core.html">Core API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/event.html">Event System API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/resilience.html">Resilience API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/streaming.html">Streaming API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/workflow.html">Workflow API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/validation.html">Validation API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Aether Python SDK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">aether_sdk.streaming.window</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for aether_sdk.streaming.window</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Windowing Functions</span>
+
+<span class="sd">Time-based windowing for stream processing:</span>
+<span class="sd">- Tumbling windows: Fixed-size, non-overlapping</span>
+<span class="sd">- Sliding windows: Fixed-size, overlapping</span>
+<span class="sd">- Session windows: Dynamic size based on activity gaps</span>
+
+<span class="sd">Example:</span>
+<span class="sd">    &gt;&gt;&gt; from aether_sdk.streaming.window import TumblingWindow</span>
+<span class="sd">    &gt;&gt;&gt; from aether_sdk.streaming.types import Duration, StreamEvent</span>
+<span class="sd">    &gt;&gt;&gt; tw = TumblingWindow(size=Duration.from_minutes(5), handler=my_handler)</span>
+<span class="sd">    &gt;&gt;&gt; results = tw.process(event, key=&quot;order-1&quot;)</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Generic</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">TypeVar</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">collections</span><span class="w"> </span><span class="kn">import</span> <span class="n">defaultdict</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">heapq</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">.types</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">Duration</span><span class="p">,</span>
+    <span class="n">Timestamp</span><span class="p">,</span>
+    <span class="n">StreamEvent</span><span class="p">,</span>
+    <span class="n">WindowSpec</span><span class="p">,</span>
+    <span class="n">WindowInfo</span><span class="p">,</span>
+    <span class="n">WindowType</span><span class="p">,</span>
+    <span class="n">PaneInfo</span><span class="p">,</span>
+    <span class="n">Watermark</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">K</span> <span class="o">=</span> <span class="n">TypeVar</span><span class="p">(</span><span class="s1">&#39;K&#39;</span><span class="p">)</span>
+<span class="n">V</span> <span class="o">=</span> <span class="n">TypeVar</span><span class="p">(</span><span class="s1">&#39;V&#39;</span><span class="p">)</span>
+<span class="n">R</span> <span class="o">=</span> <span class="n">TypeVar</span><span class="p">(</span><span class="s1">&#39;R&#39;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="WindowState">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.window.WindowState">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">WindowState</span><span class="p">(</span><span class="n">Generic</span><span class="p">[</span><span class="n">K</span><span class="p">,</span> <span class="n">V</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Mutable state for a single window.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        window_id: Unique identifier for this window.</span>
+<span class="sd">        key: Partition key associated with the window.</span>
+<span class="sd">        start: Window start timestamp (inclusive).</span>
+<span class="sd">        end: Window end timestamp (exclusive).</span>
+<span class="sd">        events: Events assigned to this window.</span>
+<span class="sd">        max_timestamp: Highest event timestamp seen so far.</span>
+<span class="sd">        is_closed: Whether the window has been fired and closed.</span>
+<span class="sd">        early_fired: Whether an early firing has occurred.</span>
+<span class="sd">        on_time_fired: Whether the on-time firing has occurred.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">window_id</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">key</span><span class="p">:</span> <span class="n">K</span>
+    <span class="n">start</span><span class="p">:</span> <span class="n">Timestamp</span>
+    <span class="n">end</span><span class="p">:</span> <span class="n">Timestamp</span>
+    <span class="n">events</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">StreamEvent</span><span class="p">[</span><span class="n">V</span><span class="p">]]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+    <span class="n">max_timestamp</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Timestamp</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">is_closed</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">early_fired</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">on_time_fired</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+
+<div class="viewcode-block" id="WindowState.add_event">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.window.WindowState.add_event">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">add_event</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">:</span> <span class="n">StreamEvent</span><span class="p">[</span><span class="n">V</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Add an event to the window if it falls within bounds.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            event: The stream event to add.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            ``True`` if the event was added, ``False`` if the window</span>
+<span class="sd">            is closed or the event is out of range.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_closed</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+        <span class="k">if</span> <span class="n">event</span><span class="o">.</span><span class="n">timestamp</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">start</span> <span class="ow">or</span> <span class="n">event</span><span class="o">.</span><span class="n">timestamp</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">end</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">events</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_timestamp</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">event</span><span class="o">.</span><span class="n">timestamp</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_timestamp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">max_timestamp</span> <span class="o">=</span> <span class="n">event</span><span class="o">.</span><span class="n">timestamp</span>
+
+        <span class="k">return</span> <span class="kc">True</span></div>
+
+
+<div class="viewcode-block" id="WindowState.is_empty">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.window.WindowState.is_empty">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">is_empty</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check whether the window contains no events.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            ``True`` if no events have been added.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">events</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span></div>
+
+
+<div class="viewcode-block" id="WindowState.clear">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.window.WindowState.clear">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">clear</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Clear all events and mark the window as closed.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">events</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">is_closed</span> <span class="o">=</span> <span class="kc">True</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="WindowAssigner">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.window.WindowAssigner">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">WindowAssigner</span><span class="p">(</span><span class="n">Generic</span><span class="p">[</span><span class="n">K</span><span class="p">,</span> <span class="n">V</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Assigns stream events to windows based on a :class:`WindowSpec`.</span>
+
+<span class="sd">    Supports tumbling, sliding, and session windowing strategies.</span>
+<span class="sd">    Events are routed to the appropriate window(s) based on their</span>
+<span class="sd">    timestamp and key.</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; assigner = WindowAssigner(WindowSpec(</span>
+<span class="sd">        ...     type=WindowType.TUMBLING,</span>
+<span class="sd">        ...     size=Duration.from_minutes(5),</span>
+<span class="sd">        ... ))</span>
+<span class="sd">        &gt;&gt;&gt; windows = assigner.assign(event, key=&quot;user-1&quot;)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">spec</span><span class="p">:</span> <span class="n">WindowSpec</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize the assigner.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            spec: The window specification.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">spec</span> <span class="o">=</span> <span class="n">spec</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_windows</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">WindowState</span><span class="p">[</span><span class="n">K</span><span class="p">,</span> <span class="n">V</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_key_windows</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="n">K</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">list</span><span class="p">)</span>
+
+<div class="viewcode-block" id="WindowAssigner.assign">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.window.WindowAssigner.assign">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">assign</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">:</span> <span class="n">StreamEvent</span><span class="p">[</span><span class="n">V</span><span class="p">],</span> <span class="n">key</span><span class="p">:</span> <span class="n">K</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">WindowState</span><span class="p">[</span><span class="n">K</span><span class="p">,</span> <span class="n">V</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Assign an event to one or more windows.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            event: The stream event.</span>
+<span class="sd">            key: The partition key.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A list of :class:`WindowState` instances that the event</span>
+<span class="sd">            was added to.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">windows</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">spec</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="n">WindowType</span><span class="o">.</span><span class="n">TUMBLING</span><span class="p">:</span>
+            <span class="n">window</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_assign_tumbling</span><span class="p">(</span><span class="n">event</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">window</span><span class="p">:</span>
+                <span class="n">windows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">window</span><span class="p">)</span>
+
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">spec</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="n">WindowType</span><span class="o">.</span><span class="n">SLIDING</span><span class="p">:</span>
+            <span class="n">windows</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_assign_sliding</span><span class="p">(</span><span class="n">event</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span>
+
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">spec</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="n">WindowType</span><span class="o">.</span><span class="n">SESSION</span><span class="p">:</span>
+            <span class="n">window</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_assign_session</span><span class="p">(</span><span class="n">event</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">window</span><span class="p">:</span>
+                <span class="n">windows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">window</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">windows</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_assign_tumbling</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">event</span><span class="p">:</span> <span class="n">StreamEvent</span><span class="p">[</span><span class="n">V</span><span class="p">],</span>
+        <span class="n">key</span><span class="p">:</span> <span class="n">K</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">WindowState</span><span class="p">[</span><span class="n">K</span><span class="p">,</span> <span class="n">V</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Assign an event to a tumbling window.&quot;&quot;&quot;</span>
+        <span class="n">size_ms</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">spec</span><span class="o">.</span><span class="n">size</span><span class="o">.</span><span class="n">ms</span>
+        <span class="n">start_ms</span> <span class="o">=</span> <span class="p">(</span><span class="n">event</span><span class="o">.</span><span class="n">timestamp</span><span class="o">.</span><span class="n">milliseconds</span> <span class="o">//</span> <span class="n">size_ms</span><span class="p">)</span> <span class="o">*</span> <span class="n">size_ms</span>
+        <span class="n">end_ms</span> <span class="o">=</span> <span class="n">start_ms</span> <span class="o">+</span> <span class="n">size_ms</span>
+
+        <span class="n">window_id</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">start_ms</span><span class="si">}</span><span class="s2">&quot;</span>
+
+        <span class="k">if</span> <span class="n">window_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_windows</span><span class="p">:</span>
+            <span class="n">window</span> <span class="o">=</span> <span class="n">WindowState</span><span class="p">(</span>
+                <span class="n">window_id</span><span class="o">=</span><span class="n">window_id</span><span class="p">,</span>
+                <span class="n">key</span><span class="o">=</span><span class="n">key</span><span class="p">,</span>
+                <span class="n">start</span><span class="o">=</span><span class="n">Timestamp</span><span class="p">(</span><span class="n">start_ms</span><span class="p">),</span>
+                <span class="n">end</span><span class="o">=</span><span class="n">Timestamp</span><span class="p">(</span><span class="n">end_ms</span><span class="p">),</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_windows</span><span class="p">[</span><span class="n">window_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">window</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_key_windows</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">window_id</span><span class="p">)</span>
+
+        <span class="n">window</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_windows</span><span class="p">[</span><span class="n">window_id</span><span class="p">]</span>
+        <span class="n">window</span><span class="o">.</span><span class="n">add_event</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">window</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_assign_sliding</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">event</span><span class="p">:</span> <span class="n">StreamEvent</span><span class="p">[</span><span class="n">V</span><span class="p">],</span>
+        <span class="n">key</span><span class="p">:</span> <span class="n">K</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">WindowState</span><span class="p">[</span><span class="n">K</span><span class="p">,</span> <span class="n">V</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Assign an event to all overlapping sliding windows.&quot;&quot;&quot;</span>
+        <span class="n">windows</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">size_ms</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">spec</span><span class="o">.</span><span class="n">size</span><span class="o">.</span><span class="n">milliseconds</span>
+        <span class="n">slide_ms</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">spec</span><span class="o">.</span><span class="n">slide</span><span class="o">.</span><span class="n">milliseconds</span>
+
+        <span class="n">event_ts</span> <span class="o">=</span> <span class="n">event</span><span class="o">.</span><span class="n">timestamp</span><span class="o">.</span><span class="n">milliseconds</span>
+
+        <span class="n">window_start</span> <span class="o">=</span> <span class="p">(</span><span class="n">event_ts</span> <span class="o">//</span> <span class="n">slide_ms</span><span class="p">)</span> <span class="o">*</span> <span class="n">slide_ms</span>
+        <span class="k">while</span> <span class="n">window_start</span> <span class="o">+</span> <span class="n">size_ms</span> <span class="o">&gt;</span> <span class="n">event_ts</span> <span class="ow">and</span> <span class="n">window_start</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">window_start</span> <span class="o">-=</span> <span class="n">slide_ms</span>
+        <span class="n">window_start</span> <span class="o">+=</span> <span class="n">slide_ms</span>
+
+        <span class="n">current_start</span> <span class="o">=</span> <span class="n">window_start</span>
+        <span class="k">while</span> <span class="n">current_start</span> <span class="o">&lt;=</span> <span class="n">event_ts</span><span class="p">:</span>
+            <span class="n">window_id</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">current_start</span><span class="si">}</span><span class="s2">&quot;</span>
+
+            <span class="k">if</span> <span class="n">window_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_windows</span><span class="p">:</span>
+                <span class="n">window</span> <span class="o">=</span> <span class="n">WindowState</span><span class="p">(</span>
+                    <span class="n">window_id</span><span class="o">=</span><span class="n">window_id</span><span class="p">,</span>
+                    <span class="n">key</span><span class="o">=</span><span class="n">key</span><span class="p">,</span>
+                    <span class="n">start</span><span class="o">=</span><span class="n">Timestamp</span><span class="p">(</span><span class="n">current_start</span><span class="p">),</span>
+                    <span class="n">end</span><span class="o">=</span><span class="n">Timestamp</span><span class="p">(</span><span class="n">current_start</span> <span class="o">+</span> <span class="n">size_ms</span><span class="p">),</span>
+                <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_windows</span><span class="p">[</span><span class="n">window_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">window</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_key_windows</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">window_id</span><span class="p">)</span>
+
+            <span class="n">window</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_windows</span><span class="p">[</span><span class="n">window_id</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">window</span><span class="o">.</span><span class="n">add_event</span><span class="p">(</span><span class="n">event</span><span class="p">):</span>
+                <span class="n">windows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">window</span><span class="p">)</span>
+
+            <span class="n">current_start</span> <span class="o">+=</span> <span class="n">slide_ms</span>
+
+        <span class="k">return</span> <span class="n">windows</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_assign_session</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">event</span><span class="p">:</span> <span class="n">StreamEvent</span><span class="p">[</span><span class="n">V</span><span class="p">],</span>
+        <span class="n">key</span><span class="p">:</span> <span class="n">K</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">WindowState</span><span class="p">[</span><span class="n">K</span><span class="p">,</span> <span class="n">V</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Assign an event to a session window (merges if within gap).&quot;&quot;&quot;</span>
+        <span class="n">gap_ms</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">spec</span><span class="o">.</span><span class="n">gap</span><span class="o">.</span><span class="n">ms</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">spec</span><span class="o">.</span><span class="n">gap</span> <span class="k">else</span> <span class="mi">0</span>
+        <span class="n">event_ts</span> <span class="o">=</span> <span class="n">event</span><span class="o">.</span><span class="n">timestamp</span><span class="o">.</span><span class="n">milliseconds</span>
+
+        <span class="n">key_window_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_key_windows</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="p">[])</span>
+        <span class="n">merged_window</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">WindowState</span><span class="p">[</span><span class="n">K</span><span class="p">,</span> <span class="n">V</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">for</span> <span class="n">window_id</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">key_window_ids</span><span class="p">):</span>
+            <span class="n">window</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_windows</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">window_id</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">window</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">window</span><span class="o">.</span><span class="n">is_closed</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="k">if</span> <span class="n">window</span><span class="o">.</span><span class="n">max_timestamp</span><span class="p">:</span>
+                <span class="n">time_diff</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">event_ts</span> <span class="o">-</span> <span class="n">window</span><span class="o">.</span><span class="n">max_timestamp</span><span class="o">.</span><span class="n">milliseconds</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">time_diff</span> <span class="o">&lt;=</span> <span class="n">gap_ms</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">merged_window</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="n">window</span><span class="o">.</span><span class="n">add_event</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
+                        <span class="n">merged_window</span> <span class="o">=</span> <span class="n">window</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="k">for</span> <span class="n">evt</span> <span class="ow">in</span> <span class="n">window</span><span class="o">.</span><span class="n">events</span><span class="p">:</span>
+                            <span class="n">merged_window</span><span class="o">.</span><span class="n">add_event</span><span class="p">(</span><span class="n">evt</span><span class="p">)</span>
+                        <span class="n">window</span><span class="o">.</span><span class="n">is_closed</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="k">if</span> <span class="n">merged_window</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">merged_window</span>
+
+        <span class="n">window_id</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">_session_</span><span class="si">{</span><span class="n">event_ts</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="n">window</span> <span class="o">=</span> <span class="n">WindowState</span><span class="p">(</span>
+            <span class="n">window_id</span><span class="o">=</span><span class="n">window_id</span><span class="p">,</span>
+            <span class="n">key</span><span class="o">=</span><span class="n">key</span><span class="p">,</span>
+            <span class="n">start</span><span class="o">=</span><span class="n">Timestamp</span><span class="p">(</span><span class="n">event_ts</span><span class="p">),</span>
+            <span class="n">end</span><span class="o">=</span><span class="n">Timestamp</span><span class="p">(</span><span class="n">event_ts</span> <span class="o">+</span> <span class="n">gap_ms</span> <span class="o">+</span> <span class="mi">1</span><span class="p">),</span>
+        <span class="p">)</span>
+        <span class="n">window</span><span class="o">.</span><span class="n">add_event</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_windows</span><span class="p">[</span><span class="n">window_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">window</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_key_windows</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">window_id</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">window</span>
+
+<div class="viewcode-block" id="WindowAssigner.get_triggered_windows">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.window.WindowAssigner.get_triggered_windows">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_triggered_windows</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">watermark</span><span class="p">:</span> <span class="n">Timestamp</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">WindowState</span><span class="p">[</span><span class="n">K</span><span class="p">,</span> <span class="n">V</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return windows that should fire based on the watermark.</span>
+
+<span class="sd">        A window is triggered when its end timestamp is less than or</span>
+<span class="sd">        equal to the watermark.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            watermark: The current watermark timestamp.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A list of :class:`WindowState` instances ready to fire.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">triggered</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">window</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_windows</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">window</span><span class="o">.</span><span class="n">is_closed</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="k">if</span> <span class="n">window</span><span class="o">.</span><span class="n">end</span> <span class="o">&lt;=</span> <span class="n">watermark</span><span class="p">:</span>
+                <span class="n">window</span><span class="o">.</span><span class="n">on_time_fired</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="n">triggered</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">window</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">triggered</span></div>
+
+
+<div class="viewcode-block" id="WindowAssigner.cleanup_closed">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.window.WindowAssigner.cleanup_closed">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">cleanup_closed</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Remove all closed windows from memory.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The number of windows that were removed.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">to_remove</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">wid</span> <span class="k">for</span> <span class="n">wid</span><span class="p">,</span> <span class="n">w</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_windows</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">w</span><span class="o">.</span><span class="n">is_closed</span>
+        <span class="p">]</span>
+
+        <span class="k">for</span> <span class="n">wid</span> <span class="ow">in</span> <span class="n">to_remove</span><span class="p">:</span>
+            <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">_windows</span><span class="p">[</span><span class="n">wid</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">window_ids</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_key_windows</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">wid</span> <span class="ow">in</span> <span class="n">window_ids</span><span class="p">:</span>
+                    <span class="n">window_ids</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">wid</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="n">to_remove</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="WindowTrigger">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.window.WindowTrigger">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">WindowTrigger</span><span class="p">(</span><span class="n">Generic</span><span class="p">[</span><span class="n">K</span><span class="p">,</span> <span class="n">V</span><span class="p">,</span> <span class="n">R</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Triggers window firing based on watermark progress and early-firing rules.</span>
+
+<span class="sd">    Delegates event assignment to a :class:`WindowAssigner` and invokes</span>
+<span class="sd">    the configured handler when windows are ready to fire.</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; trigger = WindowTrigger(assigner, my_handler, early_firing=Duration.from_seconds(30))</span>
+<span class="sd">        &gt;&gt;&gt; results = trigger.process(event, key=&quot;user-1&quot;)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">assigner</span><span class="p">:</span> <span class="n">WindowAssigner</span><span class="p">[</span><span class="n">K</span><span class="p">,</span> <span class="n">V</span><span class="p">],</span>
+        <span class="n">handler</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">List</span><span class="p">[</span><span class="n">StreamEvent</span><span class="p">[</span><span class="n">V</span><span class="p">]],</span> <span class="n">WindowInfo</span><span class="p">],</span> <span class="n">R</span><span class="p">],</span>
+        <span class="n">early_firing</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Duration</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize the trigger.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            assigner: The window assigner to use.</span>
+<span class="sd">            handler: Callable invoked with ``(events, window_info)``</span>
+<span class="sd">                when a window fires.</span>
+<span class="sd">            early_firing: If set, windows fire early after this</span>
+<span class="sd">                duration from the window start.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assigner</span> <span class="o">=</span> <span class="n">assigner</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">handler</span> <span class="o">=</span> <span class="n">handler</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">early_firing</span> <span class="o">=</span> <span class="n">early_firing</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_results</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">R</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+
+<div class="viewcode-block" id="WindowTrigger.process">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.window.WindowTrigger.process">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">:</span> <span class="n">StreamEvent</span><span class="p">[</span><span class="n">V</span><span class="p">],</span> <span class="n">key</span><span class="p">:</span> <span class="n">K</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">R</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Process an event and return any triggered results.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            event: The stream event.</span>
+<span class="sd">            key: The partition key.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A (possibly empty) list of results from early firings.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">windows</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">assigner</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span><span class="n">event</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">early_firing</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">window</span> <span class="ow">in</span> <span class="n">windows</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">window</span><span class="o">.</span><span class="n">early_fired</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">window</span><span class="o">.</span><span class="n">is_empty</span><span class="p">():</span>
+                    <span class="k">if</span> <span class="n">window</span><span class="o">.</span><span class="n">max_timestamp</span><span class="p">:</span>
+                        <span class="n">elapsed</span> <span class="o">=</span> <span class="n">event</span><span class="o">.</span><span class="n">timestamp</span><span class="o">.</span><span class="n">milliseconds</span> <span class="o">-</span> <span class="n">window</span><span class="o">.</span><span class="n">start</span><span class="o">.</span><span class="n">milliseconds</span>
+                        <span class="k">if</span> <span class="n">elapsed</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">early_firing</span><span class="o">.</span><span class="n">milliseconds</span><span class="p">:</span>
+                            <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fire_window</span><span class="p">(</span><span class="n">window</span><span class="p">,</span> <span class="n">PaneInfo</span><span class="o">.</span><span class="n">EARLY</span><span class="p">)</span>
+                            <span class="k">if</span> <span class="n">result</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                                <span class="n">results</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+                            <span class="n">window</span><span class="o">.</span><span class="n">early_fired</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="k">return</span> <span class="n">results</span></div>
+
+
+<div class="viewcode-block" id="WindowTrigger.advance_watermark">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.window.WindowTrigger.advance_watermark">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">advance_watermark</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">watermark</span><span class="p">:</span> <span class="n">Timestamp</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">R</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Advance the watermark and fire completed windows.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            watermark: The new watermark timestamp.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A (possibly empty) list of results from fired windows.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">triggered</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">assigner</span><span class="o">.</span><span class="n">get_triggered_windows</span><span class="p">(</span><span class="n">watermark</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">window</span> <span class="ow">in</span> <span class="n">triggered</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">window</span><span class="o">.</span><span class="n">is_empty</span><span class="p">():</span>
+                <span class="n">pane</span> <span class="o">=</span> <span class="n">PaneInfo</span><span class="o">.</span><span class="n">LATE</span> <span class="k">if</span> <span class="n">window</span><span class="o">.</span><span class="n">on_time_fired</span> <span class="k">else</span> <span class="n">PaneInfo</span><span class="o">.</span><span class="n">ON_TIME</span>
+                <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fire_window</span><span class="p">(</span><span class="n">window</span><span class="p">,</span> <span class="n">pane</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">result</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">results</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">results</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_fire_window</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">window</span><span class="p">:</span> <span class="n">WindowState</span><span class="p">[</span><span class="n">K</span><span class="p">,</span> <span class="n">V</span><span class="p">],</span>
+        <span class="n">pane</span><span class="p">:</span> <span class="n">PaneInfo</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">R</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Fire a window by invoking the handler.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            window: The window state to fire.</span>
+<span class="sd">            pane: The pane type (EARLY, ON_TIME, or LATE).</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The handler&#39;s result, or ``None`` if the window is empty.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">window</span><span class="o">.</span><span class="n">is_empty</span><span class="p">():</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+        <span class="n">info</span> <span class="o">=</span> <span class="n">WindowInfo</span><span class="p">(</span>
+            <span class="n">start</span><span class="o">=</span><span class="n">window</span><span class="o">.</span><span class="n">start</span><span class="p">,</span>
+            <span class="n">end</span><span class="o">=</span><span class="n">window</span><span class="o">.</span><span class="n">end</span><span class="p">,</span>
+            <span class="n">max_timestamp</span><span class="o">=</span><span class="n">window</span><span class="o">.</span><span class="n">max_timestamp</span> <span class="ow">or</span> <span class="n">window</span><span class="o">.</span><span class="n">start</span><span class="p">,</span>
+            <span class="n">pane</span><span class="o">=</span><span class="n">pane</span><span class="p">,</span>
+            <span class="n">window_id</span><span class="o">=</span><span class="n">window</span><span class="o">.</span><span class="n">window_id</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">handler</span><span class="p">(</span><span class="n">window</span><span class="o">.</span><span class="n">events</span><span class="o">.</span><span class="n">copy</span><span class="p">(),</span> <span class="n">info</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">result</span></div>
+
+
+
+<div class="viewcode-block" id="TumblingWindow">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.window.TumblingWindow">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">TumblingWindow</span><span class="p">(</span><span class="n">Generic</span><span class="p">[</span><span class="n">K</span><span class="p">,</span> <span class="n">V</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Convenience class for tumbling (fixed-size, non-overlapping) windows.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        size: Window duration.</span>
+<span class="sd">        handler: Callable invoked with ``(events, window_info)`` when</span>
+<span class="sd">            the window fires.</span>
+<span class="sd">        late_tolerance: Maximum lateness allowed for events.</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; tw = TumblingWindow(Duration.from_minutes(5), aggregate_fn)</span>
+<span class="sd">        &gt;&gt;&gt; results = tw.process(event, key=&quot;k1&quot;)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">size</span><span class="p">:</span> <span class="n">Duration</span><span class="p">,</span>
+        <span class="n">handler</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">List</span><span class="p">[</span><span class="n">StreamEvent</span><span class="p">[</span><span class="n">V</span><span class="p">]],</span> <span class="n">WindowInfo</span><span class="p">],</span> <span class="n">R</span><span class="p">],</span>
+        <span class="n">late_tolerance</span><span class="p">:</span> <span class="n">Duration</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="n">spec</span> <span class="o">=</span> <span class="n">WindowSpec</span><span class="p">(</span>
+            <span class="nb">type</span><span class="o">=</span><span class="n">WindowType</span><span class="o">.</span><span class="n">TUMBLING</span><span class="p">,</span>
+            <span class="n">size</span><span class="o">=</span><span class="n">size</span><span class="p">,</span>
+            <span class="n">late_tolerance</span><span class="o">=</span><span class="n">late_tolerance</span> <span class="ow">or</span> <span class="n">Duration</span><span class="o">.</span><span class="n">from_seconds</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assigner</span> <span class="o">=</span> <span class="n">WindowAssigner</span><span class="p">(</span><span class="n">spec</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">trigger</span> <span class="o">=</span> <span class="n">WindowTrigger</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">assigner</span><span class="p">,</span> <span class="n">handler</span><span class="p">)</span>
+
+<div class="viewcode-block" id="TumblingWindow.process">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.window.TumblingWindow.process">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">:</span> <span class="n">StreamEvent</span><span class="p">[</span><span class="n">V</span><span class="p">],</span> <span class="n">key</span><span class="p">:</span> <span class="n">K</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">R</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Process an event and return any early-firing results.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            event: The stream event.</span>
+<span class="sd">            key: The partition key.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A (possibly empty) list of results.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">trigger</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">event</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="TumblingWindow.advance_watermark">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.window.TumblingWindow.advance_watermark">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">advance_watermark</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">watermark</span><span class="p">:</span> <span class="n">Timestamp</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">R</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Advance the watermark and fire completed windows.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            watermark: The new watermark.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A (possibly empty) list of results.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">trigger</span><span class="o">.</span><span class="n">advance_watermark</span><span class="p">(</span><span class="n">watermark</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="SlidingWindow">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.window.SlidingWindow">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">SlidingWindow</span><span class="p">(</span><span class="n">Generic</span><span class="p">[</span><span class="n">K</span><span class="p">,</span> <span class="n">V</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Convenience class for sliding (fixed-size, overlapping) windows.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        size: Window duration.</span>
+<span class="sd">        slide: Slide interval.</span>
+<span class="sd">        handler: Callable invoked when windows fire.</span>
+<span class="sd">        late_tolerance: Maximum lateness allowed for events.</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; sw = SlidingWindow(Duration.from_minutes(10), Duration.from_minutes(1), fn)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">size</span><span class="p">:</span> <span class="n">Duration</span><span class="p">,</span>
+        <span class="n">slide</span><span class="p">:</span> <span class="n">Duration</span><span class="p">,</span>
+        <span class="n">handler</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">List</span><span class="p">[</span><span class="n">StreamEvent</span><span class="p">[</span><span class="n">V</span><span class="p">]],</span> <span class="n">WindowInfo</span><span class="p">],</span> <span class="n">R</span><span class="p">],</span>
+        <span class="n">late_tolerance</span><span class="p">:</span> <span class="n">Duration</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="n">spec</span> <span class="o">=</span> <span class="n">WindowSpec</span><span class="p">(</span>
+            <span class="nb">type</span><span class="o">=</span><span class="n">WindowType</span><span class="o">.</span><span class="n">SLIDING</span><span class="p">,</span>
+            <span class="n">size</span><span class="o">=</span><span class="n">size</span><span class="p">,</span>
+            <span class="n">slide</span><span class="o">=</span><span class="n">slide</span><span class="p">,</span>
+            <span class="n">late_tolerance</span><span class="o">=</span><span class="n">late_tolerance</span> <span class="ow">or</span> <span class="n">Duration</span><span class="o">.</span><span class="n">from_seconds</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assigner</span> <span class="o">=</span> <span class="n">WindowAssigner</span><span class="p">(</span><span class="n">spec</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">trigger</span> <span class="o">=</span> <span class="n">WindowTrigger</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">assigner</span><span class="p">,</span> <span class="n">handler</span><span class="p">)</span>
+
+<div class="viewcode-block" id="SlidingWindow.process">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.window.SlidingWindow.process">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">:</span> <span class="n">StreamEvent</span><span class="p">[</span><span class="n">V</span><span class="p">],</span> <span class="n">key</span><span class="p">:</span> <span class="n">K</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">R</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Process an event and return any early-firing results.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">trigger</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">event</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="SlidingWindow.advance_watermark">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.window.SlidingWindow.advance_watermark">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">advance_watermark</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">watermark</span><span class="p">:</span> <span class="n">Timestamp</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">R</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Advance the watermark and fire completed windows.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">trigger</span><span class="o">.</span><span class="n">advance_watermark</span><span class="p">(</span><span class="n">watermark</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="SessionWindow">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.window.SessionWindow">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">SessionWindow</span><span class="p">(</span><span class="n">Generic</span><span class="p">[</span><span class="n">K</span><span class="p">,</span> <span class="n">V</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Convenience class for session (activity-gap-based) windows.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        gap: Maximum inactivity gap before a new session starts.</span>
+<span class="sd">        handler: Callable invoked when windows fire.</span>
+<span class="sd">        late_tolerance: Maximum lateness allowed for events.</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; sw = SessionWindow(Duration.from_minutes(5), fn)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">gap</span><span class="p">:</span> <span class="n">Duration</span><span class="p">,</span>
+        <span class="n">handler</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">List</span><span class="p">[</span><span class="n">StreamEvent</span><span class="p">[</span><span class="n">V</span><span class="p">]],</span> <span class="n">WindowInfo</span><span class="p">],</span> <span class="n">R</span><span class="p">],</span>
+        <span class="n">late_tolerance</span><span class="p">:</span> <span class="n">Duration</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="n">spec</span> <span class="o">=</span> <span class="n">WindowSpec</span><span class="p">(</span>
+            <span class="nb">type</span><span class="o">=</span><span class="n">WindowType</span><span class="o">.</span><span class="n">SESSION</span><span class="p">,</span>
+            <span class="n">gap</span><span class="o">=</span><span class="n">gap</span><span class="p">,</span>
+            <span class="n">size</span><span class="o">=</span><span class="n">Duration</span><span class="o">.</span><span class="n">from_seconds</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span>
+            <span class="n">late_tolerance</span><span class="o">=</span><span class="n">late_tolerance</span> <span class="ow">or</span> <span class="n">Duration</span><span class="o">.</span><span class="n">from_seconds</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assigner</span> <span class="o">=</span> <span class="n">WindowAssigner</span><span class="p">(</span><span class="n">spec</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">trigger</span> <span class="o">=</span> <span class="n">WindowTrigger</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">assigner</span><span class="p">,</span> <span class="n">handler</span><span class="p">)</span>
+
+<div class="viewcode-block" id="SessionWindow.process">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.window.SessionWindow.process">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">:</span> <span class="n">StreamEvent</span><span class="p">[</span><span class="n">V</span><span class="p">],</span> <span class="n">key</span><span class="p">:</span> <span class="n">K</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">R</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Process an event and return any early-firing results.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">trigger</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">event</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="SessionWindow.advance_watermark">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.window.SessionWindow.advance_watermark">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">advance_watermark</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">watermark</span><span class="p">:</span> <span class="n">Timestamp</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">R</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Advance the watermark and fire completed windows.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">trigger</span><span class="o">.</span><span class="n">advance_watermark</span><span class="p">(</span><span class="n">watermark</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="window">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.window.window">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">window</span><span class="p">(</span>
+    <span class="nb">type</span><span class="p">:</span> <span class="n">WindowType</span><span class="p">,</span>
+    <span class="n">size</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Duration</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">slide</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Duration</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">gap</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Duration</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Decorator for marking a function as a window-based processor.</span>
+
+<span class="sd">    The decorated function receives ``(events: List[StreamEvent],</span>
+<span class="sd">    info: WindowInfo)`` and its ``_window_config`` attribute is set</span>
+<span class="sd">    to the constructed :class:`WindowSpec`.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        type: The window type.</span>
+<span class="sd">        size: Window size (required for tumbling and sliding).</span>
+<span class="sd">        slide: Slide interval (required for sliding).</span>
+<span class="sd">        gap: Activity gap (required for session).</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        A decorator function.</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; @window(type=WindowType.TUMBLING, size=Duration.from_minutes(5))</span>
+<span class="sd">        ... def process_batch(events, info):</span>
+<span class="sd">        ...     return sum(e.value for e in events)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">decorator</span><span class="p">(</span><span class="n">func</span><span class="p">:</span> <span class="n">Callable</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">:</span>
+        <span class="n">func</span><span class="o">.</span><span class="n">_window_config</span> <span class="o">=</span> <span class="n">WindowSpec</span><span class="p">(</span>
+            <span class="nb">type</span><span class="o">=</span><span class="nb">type</span><span class="p">,</span>
+            <span class="n">size</span><span class="o">=</span><span class="n">size</span> <span class="k">if</span> <span class="n">size</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">Duration</span><span class="o">.</span><span class="n">from_seconds</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span>
+            <span class="n">slide</span><span class="o">=</span><span class="n">slide</span><span class="p">,</span>
+            <span class="n">gap</span><span class="o">=</span><span class="n">gap</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">func</span>
+    <span class="k">return</span> <span class="n">decorator</span></div>
+
+
+
+<div class="viewcode-block" id="tumbling">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.window.tumbling">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">tumbling</span><span class="p">(</span><span class="n">size</span><span class="p">:</span> <span class="n">Duration</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Decorator shorthand for a tumbling window.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        size: Window size.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        A decorator function.</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; @tumbling(size=Duration.from_minutes(5))</span>
+<span class="sd">        ... def process(events, info):</span>
+<span class="sd">        ...     pass</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">window</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="n">WindowType</span><span class="o">.</span><span class="n">TUMBLING</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">size</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="sliding">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.window.sliding">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">sliding</span><span class="p">(</span><span class="n">size</span><span class="p">:</span> <span class="n">Duration</span><span class="p">,</span> <span class="n">slide</span><span class="p">:</span> <span class="n">Duration</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Decorator shorthand for a sliding window.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        size: Window size.</span>
+<span class="sd">        slide: Slide interval.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        A decorator function.</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; @sliding(size=Duration.from_minutes(10), slide=Duration.from_minutes(1))</span>
+<span class="sd">        ... def process(events, info):</span>
+<span class="sd">        ...     pass</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">window</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="n">WindowType</span><span class="o">.</span><span class="n">SLIDING</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">size</span><span class="p">,</span> <span class="n">slide</span><span class="o">=</span><span class="n">slide</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="session">
+<a class="viewcode-back" href="../../../api/streaming.html#aether_sdk.streaming.window.session">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">session</span><span class="p">(</span><span class="n">gap</span><span class="p">:</span> <span class="n">Duration</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Decorator shorthand for a session window.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        gap: Maximum inactivity gap.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        A decorator function.</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; @session(gap=Duration.from_minutes(5))</span>
+<span class="sd">        ... def process(events, info):</span>
+<span class="sd">        ...     pass</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">window</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="n">WindowType</span><span class="o">.</span><span class="n">SESSION</span><span class="p">,</span> <span class="n">gap</span><span class="o">=</span><span class="n">gap</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 1980 Aether Core Team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

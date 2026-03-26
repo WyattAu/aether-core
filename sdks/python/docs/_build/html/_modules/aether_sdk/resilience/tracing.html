@@ -1,0 +1,561 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>aether_sdk.resilience.tracing &mdash; Aether Python SDK  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Aether Python SDK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../quickstart.html">Quick Start Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/core.html">Core API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/event.html">Event System API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/resilience.html">Resilience API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/streaming.html">Streaming API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/workflow.html">Workflow API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/validation.html">Validation API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Aether Python SDK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">aether_sdk.resilience.tracing</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for aether_sdk.resilience.tracing</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">OpenTelemetry Tracing Integration for Resilience Patterns</span>
+
+<span class="sd">Provides tracing spans for all resilience patterns to integrate with OpenTelemetry.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">contextlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">contextmanager</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">functools</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+
+<span class="c1"># Check if OpenTelemetry is available</span>
+<span class="n">TRACING_AVAILABLE</span> <span class="o">=</span> <span class="kc">False</span>
+<span class="n">_tracer_module</span> <span class="o">=</span> <span class="kc">None</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">opentelemetry</span><span class="w"> </span><span class="kn">import</span> <span class="n">trace</span> <span class="k">as</span> <span class="n">_tracer_module</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">opentelemetry.trace</span><span class="w"> </span><span class="kn">import</span> <span class="n">SpanKind</span><span class="p">,</span> <span class="n">Status</span><span class="p">,</span> <span class="n">StatusCode</span>
+    <span class="n">TRACING_AVAILABLE</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="k">pass</span>
+
+
+<div class="viewcode-block" id="TracingContext">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.tracing.TracingContext">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">TracingContext</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Context manager for tracing spans.&quot;&quot;&quot;</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">tracer</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
+        <span class="n">span_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">attributes</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tracer</span> <span class="o">=</span> <span class="n">tracer</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">span_name</span> <span class="o">=</span> <span class="n">span_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span> <span class="o">=</span> <span class="n">attributes</span> <span class="ow">or</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">span</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">start_time</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="fm">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">TRACING_AVAILABLE</span> <span class="ow">or</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">tracer</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span>
+        
+        <span class="c1"># Start span</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">span</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tracer</span><span class="o">.</span><span class="n">start_span</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">span_name</span><span class="p">,</span>
+            <span class="n">kind</span><span class="o">=</span><span class="n">SpanKind</span><span class="o">.</span><span class="n">INTERNAL</span> <span class="k">if</span> <span class="n">TRACING_AVAILABLE</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">attributes</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">start_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="fm">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exc_type</span><span class="p">,</span> <span class="n">exc_val</span><span class="p">,</span> <span class="n">exc_tb</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">span</span><span class="p">:</span>
+            <span class="k">return</span>
+        
+        <span class="k">if</span> <span class="n">TRACING_AVAILABLE</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">exc_type</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">span</span><span class="o">.</span><span class="n">set_status</span><span class="p">(</span><span class="n">Status</span><span class="p">(</span><span class="n">StatusCode</span><span class="o">.</span><span class="n">ERROR</span><span class="p">))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">span</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span><span class="s2">&quot;error.type&quot;</span><span class="p">,</span> <span class="n">exc_type</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">span</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span><span class="s2">&quot;error.message&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">exc_val</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">span</span><span class="o">.</span><span class="n">set_status</span><span class="p">(</span><span class="n">Status</span><span class="p">(</span><span class="n">StatusCode</span><span class="o">.</span><span class="n">OK</span><span class="p">))</span>
+            
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_time</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">span</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span>
+                    <span class="s2">&quot;duration_ms&quot;</span><span class="p">,</span>
+                    <span class="nb">int</span><span class="p">((</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_time</span><span class="p">)</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">)</span>
+                <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">span</span><span class="o">.</span><span class="n">end</span><span class="p">()</span>
+    
+<div class="viewcode-block" id="TracingContext.set_attribute">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.tracing.TracingContext.set_attribute">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">set_attribute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">span</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">span</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span></div>
+
+    
+<div class="viewcode-block" id="TracingContext.add_event">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.tracing.TracingContext.add_event">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">add_event</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">attributes</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">span</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">span</span><span class="o">.</span><span class="n">add_event</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">attributes</span><span class="o">=</span><span class="n">attributes</span> <span class="ow">or</span> <span class="p">{})</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="get_tracer">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.tracing.get_tracer">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_tracer</span><span class="p">(</span><span class="n">service_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;aether-resilience&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Any</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Get or create a tracer for resilience patterns.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">TRACING_AVAILABLE</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">_tracer_module</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">tracer_provider</span> <span class="o">=</span> <span class="n">_tracer_module</span><span class="o">.</span><span class="n">get_tracer_provider</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">tracer_provider</span><span class="o">.</span><span class="n">get_tracer</span><span class="p">(</span><span class="n">service_name</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span></div>
+
+
+
+<span class="c1"># ============================================</span>
+<span class="c1"># Traced Decorators</span>
+<span class="c1"># ============================================</span>
+
+<div class="viewcode-block" id="traced_circuit_breaker">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.tracing.traced_circuit_breaker">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">traced_circuit_breaker</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;default&quot;</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Decorator to add tracing to circuit breaker operations.&quot;&quot;&quot;</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">decorator</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
+        <span class="nd">@functools</span><span class="o">.</span><span class="n">wraps</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+        <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">wrapper</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">TRACING_AVAILABLE</span><span class="p">:</span>
+                <span class="k">return</span> <span class="k">await</span> <span class="n">func</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            
+            <span class="n">tracer</span> <span class="o">=</span> <span class="n">get_tracer</span><span class="p">()</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">tracer</span><span class="p">:</span>
+                <span class="k">return</span> <span class="k">await</span> <span class="n">func</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            
+            <span class="n">state_val</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">value</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;state&#39;</span><span class="p">)</span> <span class="k">else</span> <span class="s2">&quot;unknown&quot;</span>
+            <span class="k">with</span> <span class="n">TracingContext</span><span class="p">(</span>
+                <span class="n">tracer</span><span class="p">,</span>
+                <span class="sa">f</span><span class="s2">&quot;circuit_breaker.</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">func</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="p">{</span>
+                    <span class="s2">&quot;circuit_breaker.name&quot;</span><span class="p">:</span> <span class="n">name</span><span class="p">,</span>
+                    <span class="s2">&quot;circuit_breaker.state&quot;</span><span class="p">:</span> <span class="n">state_val</span><span class="p">,</span>
+                <span class="p">},</span>
+            <span class="p">)</span> <span class="k">as</span> <span class="n">ctx</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">func</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+                    <span class="n">ctx</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span><span class="s2">&quot;circuit_breaker.result&quot;</span><span class="p">,</span> <span class="s2">&quot;success&quot;</span><span class="p">)</span>
+                    <span class="k">return</span> <span class="n">result</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                    <span class="n">ctx</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span><span class="s2">&quot;circuit_breaker.result&quot;</span><span class="p">,</span> <span class="s2">&quot;rejected&quot;</span><span class="p">)</span>
+                    <span class="k">raise</span>
+        
+        <span class="k">return</span> <span class="n">wrapper</span>
+    <span class="k">return</span> <span class="n">decorator</span></div>
+
+
+
+<div class="viewcode-block" id="traced_retry">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.tracing.traced_retry">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">traced_retry</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;default&quot;</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Decorator to add tracing to retry operations.&quot;&quot;&quot;</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">decorator</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
+        <span class="nd">@functools</span><span class="o">.</span><span class="n">wraps</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+        <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">wrapper</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">TRACING_AVAILABLE</span><span class="p">:</span>
+                <span class="k">return</span> <span class="k">await</span> <span class="n">func</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            
+            <span class="n">tracer</span> <span class="o">=</span> <span class="n">get_tracer</span><span class="p">()</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">tracer</span><span class="p">:</span>
+                <span class="k">return</span> <span class="k">await</span> <span class="n">func</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            
+            <span class="n">max_attempts</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">max_attempts</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;_config&#39;</span><span class="p">)</span> <span class="k">else</span> <span class="mi">0</span>
+            <span class="k">with</span> <span class="n">TracingContext</span><span class="p">(</span>
+                <span class="n">tracer</span><span class="p">,</span>
+                <span class="sa">f</span><span class="s2">&quot;retry.</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">func</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="p">{</span>
+                    <span class="s2">&quot;retry.name&quot;</span><span class="p">:</span> <span class="n">name</span><span class="p">,</span>
+                    <span class="s2">&quot;retry.max_attempts&quot;</span><span class="p">:</span> <span class="n">max_attempts</span><span class="p">,</span>
+                <span class="p">},</span>
+            <span class="p">)</span> <span class="k">as</span> <span class="n">ctx</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">func</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+                    <span class="n">ctx</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span><span class="s2">&quot;retry.result&quot;</span><span class="p">,</span> <span class="s2">&quot;success&quot;</span><span class="p">)</span>
+                    <span class="k">return</span> <span class="n">result</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                    <span class="n">ctx</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span><span class="s2">&quot;retry.result&quot;</span><span class="p">,</span> <span class="s2">&quot;exhausted&quot;</span><span class="p">)</span>
+                    <span class="k">raise</span>
+        
+        <span class="k">return</span> <span class="n">wrapper</span>
+    <span class="k">return</span> <span class="n">decorator</span></div>
+
+
+
+<div class="viewcode-block" id="traced_rate_limiter">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.tracing.traced_rate_limiter">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">traced_rate_limiter</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;default&quot;</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Decorator to add tracing to rate limiter operations.&quot;&quot;&quot;</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">decorator</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
+        <span class="nd">@functools</span><span class="o">.</span><span class="n">wraps</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+        <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">wrapper</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">TRACING_AVAILABLE</span><span class="p">:</span>
+                <span class="k">return</span> <span class="k">await</span> <span class="n">func</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            
+            <span class="n">tracer</span> <span class="o">=</span> <span class="n">get_tracer</span><span class="p">()</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">tracer</span><span class="p">:</span>
+                <span class="k">return</span> <span class="k">await</span> <span class="n">func</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            
+            <span class="k">with</span> <span class="n">TracingContext</span><span class="p">(</span>
+                <span class="n">tracer</span><span class="p">,</span>
+                <span class="sa">f</span><span class="s2">&quot;rate_limiter.</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">func</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="p">{</span>
+                    <span class="s2">&quot;rate_limiter.name&quot;</span><span class="p">:</span> <span class="n">name</span><span class="p">,</span>
+                <span class="p">},</span>
+            <span class="p">)</span> <span class="k">as</span> <span class="n">ctx</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">func</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="s1">&#39;allowed&#39;</span><span class="p">):</span>
+                        <span class="n">ctx</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span><span class="s2">&quot;rate_limiter.allowed&quot;</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">allowed</span><span class="p">)</span>
+                    <span class="k">return</span> <span class="n">result</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                    <span class="n">ctx</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span><span class="s2">&quot;rate_limiter.allowed&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+                    <span class="k">raise</span>
+        
+        <span class="k">return</span> <span class="n">wrapper</span>
+    <span class="k">return</span> <span class="n">decorator</span></div>
+
+
+
+<div class="viewcode-block" id="traced_bulkhead">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.tracing.traced_bulkhead">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">traced_bulkhead</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;default&quot;</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Decorator to add tracing to bulkhead operations.&quot;&quot;&quot;</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">decorator</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
+        <span class="nd">@functools</span><span class="o">.</span><span class="n">wraps</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+        <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">wrapper</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">TRACING_AVAILABLE</span><span class="p">:</span>
+                <span class="k">return</span> <span class="k">await</span> <span class="n">func</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            
+            <span class="n">tracer</span> <span class="o">=</span> <span class="n">get_tracer</span><span class="p">()</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">tracer</span><span class="p">:</span>
+                <span class="k">return</span> <span class="k">await</span> <span class="n">func</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            
+            <span class="k">with</span> <span class="n">TracingContext</span><span class="p">(</span>
+                <span class="n">tracer</span><span class="p">,</span>
+                <span class="sa">f</span><span class="s2">&quot;bulkhead.</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">func</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="p">{</span>
+                    <span class="s2">&quot;bulkhead.name&quot;</span><span class="p">:</span> <span class="n">name</span><span class="p">,</span>
+                <span class="p">},</span>
+            <span class="p">)</span> <span class="k">as</span> <span class="n">ctx</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">func</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+                    <span class="n">ctx</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span><span class="s2">&quot;bulkhead.result&quot;</span><span class="p">,</span> <span class="s2">&quot;success&quot;</span><span class="p">)</span>
+                    <span class="k">return</span> <span class="n">result</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                    <span class="n">ctx</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span><span class="s2">&quot;bulkhead.result&quot;</span><span class="p">,</span> <span class="s2">&quot;rejected&quot;</span><span class="p">)</span>
+                    <span class="k">raise</span>
+        
+        <span class="k">return</span> <span class="n">wrapper</span>
+    <span class="k">return</span> <span class="n">decorator</span></div>
+
+
+
+<span class="c1"># ============================================</span>
+<span class="c1"># Helper Functions</span>
+<span class="c1"># ============================================</span>
+
+<div class="viewcode-block" id="create_resilience_span">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.tracing.create_resilience_span">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">create_resilience_span</span><span class="p">(</span>
+    <span class="n">operation</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">pattern_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">pattern_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">attributes</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">TracingContext</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create a tracing span for resilience operations.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">TRACING_AVAILABLE</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    
+    <span class="n">tracer</span> <span class="o">=</span> <span class="n">get_tracer</span><span class="p">()</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">tracer</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    
+    <span class="k">return</span> <span class="n">TracingContext</span><span class="p">(</span>
+        <span class="n">tracer</span><span class="p">,</span>
+        <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">pattern_type</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">pattern_name</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">operation</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+        <span class="n">attributes</span> <span class="ow">or</span> <span class="p">{},</span>
+    <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="record_resilience_event">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.tracing.record_resilience_event">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">record_resilience_event</span><span class="p">(</span>
+    <span class="n">pattern_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">event_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">attributes</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Record a resilience event in the current span.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">TRACING_AVAILABLE</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">_tracer_module</span><span class="p">:</span>
+        <span class="k">return</span>
+    
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">span</span> <span class="o">=</span> <span class="n">_tracer_module</span><span class="o">.</span><span class="n">get_current_span</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">span</span><span class="p">:</span>
+            <span class="n">span</span><span class="o">.</span><span class="n">add_event</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">pattern_type</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">event_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="n">attributes</span><span class="o">=</span><span class="n">attributes</span> <span class="ow">or</span> <span class="p">{},</span>
+            <span class="p">)</span>
+    <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+        <span class="k">pass</span></div>
+
+
+
+<div class="viewcode-block" id="set_resilience_attribute">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.tracing.set_resilience_attribute">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">set_resilience_attribute</span><span class="p">(</span><span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Set an attribute on the current span.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">TRACING_AVAILABLE</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">_tracer_module</span><span class="p">:</span>
+        <span class="k">return</span>
+    
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">span</span> <span class="o">=</span> <span class="n">_tracer_module</span><span class="o">.</span><span class="n">get_current_span</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">span</span><span class="p">:</span>
+            <span class="n">span</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+        <span class="k">pass</span></div>
+
+
+
+<span class="c1"># ============================================</span>
+<span class="c1"># Instrumentation Class</span>
+<span class="c1"># ============================================</span>
+
+<div class="viewcode-block" id="ResilienceInstrumentation">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.tracing.ResilienceInstrumentation">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">ResilienceInstrumentation</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Provides instrumentation utilities for resilience patterns.&quot;&quot;&quot;</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">service_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;aether-resilience&quot;</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tracer</span> <span class="o">=</span> <span class="n">get_tracer</span><span class="p">(</span><span class="n">service_name</span><span class="p">)</span>
+    
+<div class="viewcode-block" id="ResilienceInstrumentation.trace_circuit_breaker">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.tracing.ResilienceInstrumentation.trace_circuit_breaker">[docs]</a>
+    <span class="nd">@contextmanager</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">trace_circuit_breaker</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">state</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">operation</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a circuit breaker trace context.&quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="n">TracingContext</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">tracer</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s2">&quot;circuit_breaker.</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">operation</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="p">{</span>
+                <span class="s2">&quot;circuit_breaker.name&quot;</span><span class="p">:</span> <span class="n">name</span><span class="p">,</span>
+                <span class="s2">&quot;circuit_breaker.state&quot;</span><span class="p">:</span> <span class="n">state</span><span class="p">,</span>
+            <span class="p">},</span>
+        <span class="p">)</span> <span class="k">as</span> <span class="n">ctx</span><span class="p">:</span>
+            <span class="k">yield</span> <span class="n">ctx</span></div>
+
+    
+<div class="viewcode-block" id="ResilienceInstrumentation.trace_retry">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.tracing.ResilienceInstrumentation.trace_retry">[docs]</a>
+    <span class="nd">@contextmanager</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">trace_retry</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">attempt</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">max_attempts</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">operation</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a retry trace context.&quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="n">TracingContext</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">tracer</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s2">&quot;retry.</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">operation</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="p">{</span>
+                <span class="s2">&quot;retry.name&quot;</span><span class="p">:</span> <span class="n">name</span><span class="p">,</span>
+                <span class="s2">&quot;retry.attempt&quot;</span><span class="p">:</span> <span class="n">attempt</span><span class="p">,</span>
+                <span class="s2">&quot;retry.max_attempts&quot;</span><span class="p">:</span> <span class="n">max_attempts</span><span class="p">,</span>
+            <span class="p">},</span>
+        <span class="p">)</span> <span class="k">as</span> <span class="n">ctx</span><span class="p">:</span>
+            <span class="k">yield</span> <span class="n">ctx</span></div>
+
+    
+<div class="viewcode-block" id="ResilienceInstrumentation.trace_rate_limiter">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.tracing.ResilienceInstrumentation.trace_rate_limiter">[docs]</a>
+    <span class="nd">@contextmanager</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">trace_rate_limiter</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">operation</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">requests_per_second</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a rate limiter trace context.&quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="n">TracingContext</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">tracer</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s2">&quot;rate_limiter.</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">operation</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="p">{</span>
+                <span class="s2">&quot;rate_limiter.name&quot;</span><span class="p">:</span> <span class="n">name</span><span class="p">,</span>
+                <span class="s2">&quot;rate_limiter.requests_per_second&quot;</span><span class="p">:</span> <span class="n">requests_per_second</span><span class="p">,</span>
+            <span class="p">},</span>
+        <span class="p">)</span> <span class="k">as</span> <span class="n">ctx</span><span class="p">:</span>
+            <span class="k">yield</span> <span class="n">ctx</span></div>
+
+    
+<div class="viewcode-block" id="ResilienceInstrumentation.trace_bulkhead">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.tracing.ResilienceInstrumentation.trace_bulkhead">[docs]</a>
+    <span class="nd">@contextmanager</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">trace_bulkhead</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">operation</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">active</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="n">max_concurrent</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a bulkhead trace context.&quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="n">TracingContext</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">tracer</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s2">&quot;bulkhead.</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">operation</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="p">{</span>
+                <span class="s2">&quot;bulkhead.name&quot;</span><span class="p">:</span> <span class="n">name</span><span class="p">,</span>
+                <span class="s2">&quot;bulkhead.active&quot;</span><span class="p">:</span> <span class="n">active</span><span class="p">,</span>
+                <span class="s2">&quot;bulkhead.max_concurrent&quot;</span><span class="p">:</span> <span class="n">max_concurrent</span><span class="p">,</span>
+            <span class="p">},</span>
+        <span class="p">)</span> <span class="k">as</span> <span class="n">ctx</span><span class="p">:</span>
+            <span class="k">yield</span> <span class="n">ctx</span></div>
+
+    
+<div class="viewcode-block" id="ResilienceInstrumentation.trace_health_check">
+<a class="viewcode-back" href="../../../api/resilience.html#aether_sdk.resilience.tracing.ResilienceInstrumentation.trace_health_check">[docs]</a>
+    <span class="nd">@contextmanager</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">trace_health_check</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">check_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a health check trace context.&quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="n">TracingContext</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">tracer</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s2">&quot;health_check.</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">check_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="p">{</span>
+                <span class="s2">&quot;health_check.name&quot;</span><span class="p">:</span> <span class="n">name</span><span class="p">,</span>
+                <span class="s2">&quot;health_check.check&quot;</span><span class="p">:</span> <span class="n">check_name</span><span class="p">,</span>
+            <span class="p">},</span>
+        <span class="p">)</span> <span class="k">as</span> <span class="n">ctx</span><span class="p">:</span>
+            <span class="k">yield</span> <span class="n">ctx</span></div>
+</div>
+
+
+
+<span class="c1"># ============================================</span>
+<span class="c1"># Exports</span>
+<span class="c1"># ============================================</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s1">&#39;TRACING_AVAILABLE&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;TracingContext&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;get_tracer&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;traced_circuit_breaker&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;traced_retry&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;traced_rate_limiter&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;traced_bulkhead&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;create_resilience_span&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;record_resilience_event&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;set_resilience_attribute&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;ResilienceInstrumentation&#39;</span><span class="p">,</span>
+<span class="p">]</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 1980 Aether Core Team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,14 @@
+apiVersion: v2
+name: aether
+description: Aether Core - Actor-based distributed computing platform
+type: application
+version: 1.6.0
+appVersion: "1.6.0"
+maintainers:
+  - name: aether
+keywords:
+  - actors
+  - distributed
+  - wasm
+  - edge-computing
+home: https://github.com/aether/aether-core

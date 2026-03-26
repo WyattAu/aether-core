@@ -81,7 +81,7 @@ export {
   removeControlChars,
   trimAndNormalizeWhitespace,
   sanitizePhone,
-  sanitizeAlphaNumeric,
+  sanitizeAlphanumeric,
   sanitizeSlug,
   redactSensitive,
   escapeRegex,

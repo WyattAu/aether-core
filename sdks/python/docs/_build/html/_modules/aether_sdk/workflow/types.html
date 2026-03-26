@@ -1,0 +1,666 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>aether_sdk.workflow.types &mdash; Aether Python SDK  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Aether Python SDK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../quickstart.html">Quick Start Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/core.html">Core API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/event.html">Event System API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/resilience.html">Resilience API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/streaming.html">Streaming API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/workflow.html">Workflow API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/validation.html">Validation API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Aether Python SDK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">aether_sdk.workflow.types</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for aether_sdk.workflow.types</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Core Types for Workflow Engine</span>
+
+<span class="sd">Provides foundational types for the workflow engine including</span>
+<span class="sd">saga patterns, state machines, and human tasks.</span>
+
+<span class="sd">Example:</span>
+<span class="sd">    from aether_sdk.workflow import (</span>
+<span class="sd">        SagaStep,</span>
+<span class="sd">        SagaContext,</span>
+<span class="sd">        WorkflowState,</span>
+<span class="sd">        HumanTask,</span>
+<span class="sd">    )</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">timedelta</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">enum</span><span class="w"> </span><span class="kn">import</span> <span class="n">Enum</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">Any</span><span class="p">,</span>
+    <span class="n">Callable</span><span class="p">,</span>
+    <span class="n">Dict</span><span class="p">,</span>
+    <span class="n">Generic</span><span class="p">,</span>
+    <span class="n">List</span><span class="p">,</span>
+    <span class="n">Optional</span><span class="p">,</span>
+    <span class="n">TypeVar</span><span class="p">,</span>
+    <span class="n">Union</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">ABC</span><span class="p">,</span> <span class="n">abstractmethod</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">uuid</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">..exceptions</span><span class="w"> </span><span class="kn">import</span> <span class="n">AetherError</span>
+
+
+<span class="c1"># ============================================</span>
+<span class="c1"># Enums</span>
+<span class="c1"># ============================================</span>
+
+<div class="viewcode-block" id="SagaStatus">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.SagaStatus">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">SagaStatus</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Status of a saga execution.&quot;&quot;&quot;</span>
+    <span class="n">PENDING</span> <span class="o">=</span> <span class="s2">&quot;pending&quot;</span>
+    <span class="n">RUNNING</span> <span class="o">=</span> <span class="s2">&quot;running&quot;</span>
+    <span class="n">COMPLETED</span> <span class="o">=</span> <span class="s2">&quot;completed&quot;</span>
+    <span class="n">COMPENSATING</span> <span class="o">=</span> <span class="s2">&quot;compensating&quot;</span>
+    <span class="n">COMPENSATED</span> <span class="o">=</span> <span class="s2">&quot;compensated&quot;</span>
+    <span class="n">FAILED</span> <span class="o">=</span> <span class="s2">&quot;failed&quot;</span></div>
+
+
+
+<div class="viewcode-block" id="StepStatus">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.StepStatus">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">StepStatus</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Status of an individual saga step.&quot;&quot;&quot;</span>
+    <span class="n">PENDING</span> <span class="o">=</span> <span class="s2">&quot;pending&quot;</span>
+    <span class="n">RUNNING</span> <span class="o">=</span> <span class="s2">&quot;running&quot;</span>
+    <span class="n">COMPLETED</span> <span class="o">=</span> <span class="s2">&quot;completed&quot;</span>
+    <span class="n">COMPENSATING</span> <span class="o">=</span> <span class="s2">&quot;compensating&quot;</span>
+    <span class="n">COMPENSATED</span> <span class="o">=</span> <span class="s2">&quot;compensated&quot;</span>
+    <span class="n">FAILED</span> <span class="o">=</span> <span class="s2">&quot;failed&quot;</span>
+    <span class="n">SKIPPED</span> <span class="o">=</span> <span class="s2">&quot;skipped&quot;</span></div>
+
+
+
+<div class="viewcode-block" id="WorkflowStatus">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.WorkflowStatus">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">WorkflowStatus</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Status of a workflow execution.&quot;&quot;&quot;</span>
+    <span class="n">CREATED</span> <span class="o">=</span> <span class="s2">&quot;created&quot;</span>
+    <span class="n">RUNNING</span> <span class="o">=</span> <span class="s2">&quot;running&quot;</span>
+    <span class="n">SUSPENDED</span> <span class="o">=</span> <span class="s2">&quot;suspended&quot;</span>
+    <span class="n">COMPLETED</span> <span class="o">=</span> <span class="s2">&quot;completed&quot;</span>
+    <span class="n">FAILED</span> <span class="o">=</span> <span class="s2">&quot;failed&quot;</span>
+    <span class="n">CANCELLED</span> <span class="o">=</span> <span class="s2">&quot;cancelled&quot;</span></div>
+
+
+
+<div class="viewcode-block" id="TransitionStatus">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.TransitionStatus">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">TransitionStatus</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Status of a state transition.&quot;&quot;&quot;</span>
+    <span class="n">PENDING</span> <span class="o">=</span> <span class="s2">&quot;pending&quot;</span>
+    <span class="n">SUCCESS</span> <span class="o">=</span> <span class="s2">&quot;success&quot;</span>
+    <span class="n">FAILED</span> <span class="o">=</span> <span class="s2">&quot;failed&quot;</span>
+    <span class="n">ROLLED_BACK</span> <span class="o">=</span> <span class="s2">&quot;rolled_back&quot;</span></div>
+
+
+
+<div class="viewcode-block" id="HumanTaskStatus">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.HumanTaskStatus">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">HumanTaskStatus</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Status of a human task.&quot;&quot;&quot;</span>
+    <span class="n">PENDING</span> <span class="o">=</span> <span class="s2">&quot;pending&quot;</span>
+    <span class="n">ASSIGNED</span> <span class="o">=</span> <span class="s2">&quot;assigned&quot;</span>
+    <span class="n">IN_PROGRESS</span> <span class="o">=</span> <span class="s2">&quot;in_progress&quot;</span>
+    <span class="n">COMPLETED</span> <span class="o">=</span> <span class="s2">&quot;completed&quot;</span>
+    <span class="n">REJECTED</span> <span class="o">=</span> <span class="s2">&quot;rejected&quot;</span>
+    <span class="n">TIMEOUT</span> <span class="o">=</span> <span class="s2">&quot;timeout&quot;</span>
+    <span class="n">ESCALATED</span> <span class="o">=</span> <span class="s2">&quot;escalated&quot;</span></div>
+
+
+
+<div class="viewcode-block" id="RetryPolicy">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.RetryPolicy">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">RetryPolicy</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Retry policy for saga steps.&quot;&quot;&quot;</span>
+    <span class="n">NONE</span> <span class="o">=</span> <span class="s2">&quot;none&quot;</span>
+    <span class="n">FIXED</span> <span class="o">=</span> <span class="s2">&quot;fixed&quot;</span>
+    <span class="n">EXPONENTIAL</span> <span class="o">=</span> <span class="s2">&quot;exponential&quot;</span>
+    <span class="n">EXPONENTIAL_JITTER</span> <span class="o">=</span> <span class="s2">&quot;exponential_jitter&quot;</span></div>
+
+
+
+<span class="c1"># ============================================</span>
+<span class="c1"># Value Types</span>
+<span class="c1"># ============================================</span>
+
+<div class="viewcode-block" id="Duration">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.Duration">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Duration</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Represents a duration of time.</span>
+<span class="sd">    </span>
+<span class="sd">    Provides a type-safe way to work with time durations.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">milliseconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    
+<div class="viewcode-block" id="Duration.from_seconds">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.Duration.from_seconds">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_seconds</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">seconds</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Duration</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create duration from seconds.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">milliseconds</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">seconds</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">))</span></div>
+
+    
+<div class="viewcode-block" id="Duration.from_minutes">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.Duration.from_minutes">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_minutes</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">minutes</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Duration</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create duration from minutes.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">milliseconds</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">minutes</span> <span class="o">*</span> <span class="mi">60</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">))</span></div>
+
+    
+<div class="viewcode-block" id="Duration.from_hours">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.Duration.from_hours">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_hours</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">hours</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Duration</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create duration from hours.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">milliseconds</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">hours</span> <span class="o">*</span> <span class="mi">60</span> <span class="o">*</span> <span class="mi">60</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">))</span></div>
+
+    
+<div class="viewcode-block" id="Duration.from_days">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.Duration.from_days">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_days</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">days</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Duration</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create duration from days.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">milliseconds</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">days</span> <span class="o">*</span> <span class="mi">24</span> <span class="o">*</span> <span class="mi">60</span> <span class="o">*</span> <span class="mi">60</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">))</span></div>
+
+    
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">total_seconds</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Total duration in seconds.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">milliseconds</span> <span class="o">/</span> <span class="mi">1000</span>
+    
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">total_minutes</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Total duration in minutes.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">milliseconds</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1000</span> <span class="o">*</span> <span class="mi">60</span><span class="p">)</span>
+    
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">total_hours</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Total duration in hours.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">milliseconds</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1000</span> <span class="o">*</span> <span class="mi">60</span> <span class="o">*</span> <span class="mi">60</span><span class="p">)</span>
+    
+<div class="viewcode-block" id="Duration.to_timedelta">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.Duration.to_timedelta">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">to_timedelta</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">timedelta</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Convert to Python timedelta.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">timedelta</span><span class="p">(</span><span class="n">milliseconds</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">milliseconds</span><span class="p">)</span></div>
+
+    
+    <span class="k">def</span><span class="w"> </span><span class="fm">__add__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="n">Duration</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Duration</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">Duration</span><span class="p">(</span><span class="n">milliseconds</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">milliseconds</span> <span class="o">+</span> <span class="n">other</span><span class="o">.</span><span class="n">milliseconds</span><span class="p">)</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="fm">__sub__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="n">Duration</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Duration</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">Duration</span><span class="p">(</span><span class="n">milliseconds</span><span class="o">=</span><span class="nb">max</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">milliseconds</span> <span class="o">-</span> <span class="n">other</span><span class="o">.</span><span class="n">milliseconds</span><span class="p">))</span></div>
+
+
+
+<div class="viewcode-block" id="RetryConfig">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.RetryConfig">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">RetryConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Configuration for retry behavior.</span>
+<span class="sd">    </span>
+<span class="sd">    Attributes:</span>
+<span class="sd">        max_attempts: Maximum number of retry attempts</span>
+<span class="sd">        policy: Retry policy type</span>
+<span class="sd">        initial_delay: Initial delay before first retry</span>
+<span class="sd">        max_delay: Maximum delay between retries</span>
+<span class="sd">        multiplier: Multiplier for exponential backoff</span>
+<span class="sd">        jitter: Jitter factor (0.0 to 1.0)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">max_attempts</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span>
+    <span class="n">policy</span><span class="p">:</span> <span class="n">RetryPolicy</span> <span class="o">=</span> <span class="n">RetryPolicy</span><span class="o">.</span><span class="n">EXPONENTIAL</span>
+    <span class="n">initial_delay</span><span class="p">:</span> <span class="n">Duration</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">Duration</span><span class="o">.</span><span class="n">from_seconds</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+    <span class="n">max_delay</span><span class="p">:</span> <span class="n">Duration</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">Duration</span><span class="o">.</span><span class="n">from_seconds</span><span class="p">(</span><span class="mi">60</span><span class="p">))</span>
+    <span class="n">multiplier</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">2.0</span>
+    <span class="n">jitter</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.1</span></div>
+
+
+
+<span class="c1"># ============================================</span>
+<span class="c1"># Context Types</span>
+<span class="c1"># ============================================</span>
+
+<span class="n">T</span> <span class="o">=</span> <span class="n">TypeVar</span><span class="p">(</span><span class="s1">&#39;T&#39;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="SagaContext">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.SagaContext">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">SagaContext</span><span class="p">(</span><span class="n">Generic</span><span class="p">[</span><span class="n">T</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Context passed through saga execution.</span>
+<span class="sd">    </span>
+<span class="sd">    Contains input data, accumulated state, and execution metadata.</span>
+<span class="sd">    </span>
+<span class="sd">    Type Parameters:</span>
+<span class="sd">        T: Type of the input data</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">saga_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">()))</span>
+    <span class="nb">input</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">T</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">state</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">)</span>
+    <span class="n">completed_steps</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+    <span class="n">failed_step</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">error</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">started_at</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">datetime</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">completed_at</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">datetime</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">metadata</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">)</span>
+    
+<div class="viewcode-block" id="SagaContext.set_state">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.SagaContext.set_state">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">set_state</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Set a state value.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span></div>
+
+    
+<div class="viewcode-block" id="SagaContext.get_state">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.SagaContext.get_state">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_state</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">default</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get a state value.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">default</span><span class="p">)</span></div>
+
+    
+<div class="viewcode-block" id="SagaContext.mark_step_completed">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.SagaContext.mark_step_completed">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">mark_step_completed</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">step_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Mark a step as completed.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">step_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">completed_steps</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">completed_steps</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">step_name</span><span class="p">)</span></div>
+
+    
+<div class="viewcode-block" id="SagaContext.is_step_completed">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.SagaContext.is_step_completed">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">is_step_completed</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">step_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check if a step has been completed.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">step_name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">completed_steps</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="WorkflowContext">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.WorkflowContext">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">WorkflowContext</span><span class="p">(</span><span class="n">Generic</span><span class="p">[</span><span class="n">T</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Context passed through workflow execution.</span>
+<span class="sd">    </span>
+<span class="sd">    Contains workflow state, variables, and execution history.</span>
+<span class="sd">    </span>
+<span class="sd">    Type Parameters:</span>
+<span class="sd">        T: Type of the workflow input</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">workflow_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">()))</span>
+    <span class="n">workflow_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">current_state</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">status</span><span class="p">:</span> <span class="n">WorkflowStatus</span> <span class="o">=</span> <span class="n">WorkflowStatus</span><span class="o">.</span><span class="n">RUNNING</span>
+    <span class="nb">input</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">T</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">variables</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">)</span>
+    <span class="n">history</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+    <span class="n">started_at</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">datetime</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">updated_at</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">datetime</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">metadata</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">)</span>
+    
+<div class="viewcode-block" id="WorkflowContext.set_variable">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.WorkflowContext.set_variable">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">set_variable</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Set a workflow variable.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">variables</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span></div>
+
+    
+<div class="viewcode-block" id="WorkflowContext.get_variable">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.WorkflowContext.get_variable">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_variable</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">default</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get a workflow variable.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">variables</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">default</span><span class="p">)</span></div>
+
+    
+<div class="viewcode-block" id="WorkflowContext.add_history_event">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.WorkflowContext.add_history_event">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">add_history_event</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">**</span><span class="n">details</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Add an event to the history.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+            <span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="n">event_type</span><span class="p">,</span>
+            <span class="s2">&quot;timestamp&quot;</span><span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span><span class="o">.</span><span class="n">isoformat</span><span class="p">(),</span>
+            <span class="s2">&quot;details&quot;</span><span class="p">:</span> <span class="n">details</span><span class="p">,</span>
+        <span class="p">})</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="HumanTaskContext">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.HumanTaskContext">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">HumanTaskContext</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Context for a human task.</span>
+<span class="sd">    </span>
+<span class="sd">    Contains task information, assignment, and completion status.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">task_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">()))</span>
+    <span class="n">task_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">workflow_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">step_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">title</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">description</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">assignee</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">candidate_users</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+    <span class="n">candidate_groups</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+    <span class="n">priority</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span>  <span class="c1"># 1 (highest) to 10 (lowest)</span>
+    <span class="n">due_date</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">datetime</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">form_data</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">)</span>
+    <span class="n">result</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">status</span><span class="p">:</span> <span class="n">HumanTaskStatus</span> <span class="o">=</span> <span class="n">HumanTaskStatus</span><span class="o">.</span><span class="n">PENDING</span>
+    <span class="n">created_at</span><span class="p">:</span> <span class="n">datetime</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">)</span>
+    <span class="n">updated_at</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">datetime</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">completed_at</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">datetime</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">completed_by</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">metadata</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">)</span></div>
+
+
+
+<span class="c1"># ============================================</span>
+<span class="c1"># Result Types</span>
+<span class="c1"># ============================================</span>
+
+<div class="viewcode-block" id="SagaResult">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.SagaResult">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">SagaResult</span><span class="p">(</span><span class="n">Generic</span><span class="p">[</span><span class="n">T</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Result of a saga execution.</span>
+<span class="sd">    </span>
+<span class="sd">    Type Parameters:</span>
+<span class="sd">        T: Type of the output data</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">saga_id</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">status</span><span class="p">:</span> <span class="n">SagaStatus</span>
+    <span class="n">output</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">T</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">error</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">completed_steps</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+    <span class="n">compensated_steps</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+    <span class="n">started_at</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">datetime</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">completed_at</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">datetime</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">duration_ms</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="WorkflowResult">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.WorkflowResult">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">WorkflowResult</span><span class="p">(</span><span class="n">Generic</span><span class="p">[</span><span class="n">T</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Result of a workflow execution.</span>
+<span class="sd">    </span>
+<span class="sd">    Type Parameters:</span>
+<span class="sd">        T: Type of the output data</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">workflow_id</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">status</span><span class="p">:</span> <span class="n">WorkflowStatus</span>
+    <span class="n">output</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">T</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">error</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">current_state</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">history</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+    <span class="n">started_at</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">datetime</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">updated_at</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">datetime</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">completed_at</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">datetime</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">duration_ms</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="TransitionResult">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.TransitionResult">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">TransitionResult</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Result of a state transition.&quot;&quot;&quot;</span>
+    <span class="n">success</span><span class="p">:</span> <span class="nb">bool</span>
+    <span class="n">from_state</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">to_state</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">error</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">timestamp</span><span class="p">:</span> <span class="n">datetime</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">)</span></div>
+
+
+
+<span class="c1"># ============================================</span>
+<span class="c1"># Exceptions</span>
+<span class="c1"># ============================================</span>
+
+<div class="viewcode-block" id="SagaError">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.SagaError">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">SagaError</span><span class="p">(</span><span class="n">AetherError</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Base exception for saga errors.&quot;&quot;&quot;</span>
+    <span class="k">pass</span></div>
+
+
+
+<div class="viewcode-block" id="SagaStepFailedError">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.SagaStepFailedError">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">SagaStepFailedError</span><span class="p">(</span><span class="n">SagaError</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Raised when a saga step fails.&quot;&quot;&quot;</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">step_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">cause</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="ne">Exception</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">step_name</span> <span class="o">=</span> <span class="n">step_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cause</span> <span class="o">=</span> <span class="n">cause</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Saga step &#39;</span><span class="si">{</span><span class="n">step_name</span><span class="si">}</span><span class="s2">&#39; failed: </span><span class="si">{</span><span class="n">cause</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="s1">&#39;unknown error&#39;</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="SagaCompensationFailedError">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.SagaCompensationFailedError">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">SagaCompensationFailedError</span><span class="p">(</span><span class="n">SagaError</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Raised when saga compensation fails.&quot;&quot;&quot;</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">step_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">cause</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="ne">Exception</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">step_name</span> <span class="o">=</span> <span class="n">step_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cause</span> <span class="o">=</span> <span class="n">cause</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Saga compensation for &#39;</span><span class="si">{</span><span class="n">step_name</span><span class="si">}</span><span class="s2">&#39; failed: </span><span class="si">{</span><span class="n">cause</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="s1">&#39;unknown error&#39;</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="WorkflowError">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.WorkflowError">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">WorkflowError</span><span class="p">(</span><span class="n">AetherError</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Base exception for workflow errors.&quot;&quot;&quot;</span>
+    <span class="k">pass</span></div>
+
+
+
+<div class="viewcode-block" id="InvalidTransitionError">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.InvalidTransitionError">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">InvalidTransitionError</span><span class="p">(</span><span class="n">WorkflowError</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Raised when an invalid state transition is attempted.&quot;&quot;&quot;</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">from_state</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">to_state</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">from_state</span> <span class="o">=</span> <span class="n">from_state</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">to_state</span> <span class="o">=</span> <span class="n">to_state</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">workflow_id</span> <span class="o">=</span> <span class="n">workflow_id</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid transition from &#39;</span><span class="si">{</span><span class="n">from_state</span><span class="si">}</span><span class="s2">&#39; to &#39;</span><span class="si">{</span><span class="n">to_state</span><span class="si">}</span><span class="s2">&#39; in workflow </span><span class="si">{</span><span class="n">workflow_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="WorkflowSuspendedError">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.WorkflowSuspendedError">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">WorkflowSuspendedError</span><span class="p">(</span><span class="n">WorkflowError</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Raised when attempting to execute a suspended workflow.&quot;&quot;&quot;</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workflow_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">reason</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">workflow_id</span> <span class="o">=</span> <span class="n">workflow_id</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Workflow </span><span class="si">{</span><span class="n">workflow_id</span><span class="si">}</span><span class="s2"> is suspended: </span><span class="si">{</span><span class="n">reason</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="HumanTaskError">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.HumanTaskError">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">HumanTaskError</span><span class="p">(</span><span class="n">AetherError</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Base exception for human task errors.&quot;&quot;&quot;</span>
+    <span class="k">pass</span></div>
+
+
+
+<div class="viewcode-block" id="HumanTaskTimeoutError">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.HumanTaskTimeoutError">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">HumanTaskTimeoutError</span><span class="p">(</span><span class="n">HumanTaskError</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Raised when a human task times out.&quot;&quot;&quot;</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">task_id</span> <span class="o">=</span> <span class="n">task_id</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Human task </span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2"> timed out&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="HumanTaskNotAssignedError">
+<a class="viewcode-back" href="../../../api/workflow.html#aether_sdk.workflow.saga.HumanTaskNotAssignedError">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">HumanTaskNotAssignedError</span><span class="p">(</span><span class="n">HumanTaskError</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Raised when attempting to complete an unassigned task.&quot;&quot;&quot;</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">task_id</span> <span class="o">=</span> <span class="n">task_id</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Human task </span><span class="si">{</span><span class="n">task_id</span><span class="si">}</span><span class="s2"> is not assigned&quot;</span><span class="p">)</span></div>
+
+
+
+<span class="c1"># ============================================</span>
+<span class="c1"># Handler Types</span>
+<span class="c1"># ============================================</span>
+
+<span class="n">ActionHandler</span> <span class="o">=</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">SagaContext</span><span class="p">[</span><span class="n">T</span><span class="p">]],</span> <span class="n">Any</span><span class="p">]</span>
+<span class="n">CompensationHandler</span> <span class="o">=</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">SagaContext</span><span class="p">[</span><span class="n">T</span><span class="p">]],</span> <span class="n">Any</span><span class="p">]</span>
+<span class="n">TransitionHandler</span> <span class="o">=</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">WorkflowContext</span><span class="p">[</span><span class="n">T</span><span class="p">]],</span> <span class="n">Any</span><span class="p">]</span>
+<span class="n">TaskFormValidator</span> <span class="o">=</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]],</span> <span class="nb">bool</span><span class="p">]</span>
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="c1"># Enums</span>
+    <span class="s2">&quot;SagaStatus&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;StepStatus&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;WorkflowStatus&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;TransitionStatus&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;HumanTaskStatus&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;RetryPolicy&quot;</span><span class="p">,</span>
+    
+    <span class="c1"># Value types</span>
+    <span class="s2">&quot;Duration&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;RetryConfig&quot;</span><span class="p">,</span>
+    
+    <span class="c1"># Context types</span>
+    <span class="s2">&quot;SagaContext&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;WorkflowContext&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;HumanTaskContext&quot;</span><span class="p">,</span>
+    
+    <span class="c1"># Result types</span>
+    <span class="s2">&quot;SagaResult&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;WorkflowResult&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;TransitionResult&quot;</span><span class="p">,</span>
+    
+    <span class="c1"># Exceptions</span>
+    <span class="s2">&quot;SagaError&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;SagaStepFailedError&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;SagaCompensationFailedError&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;WorkflowError&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;InvalidTransitionError&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;WorkflowSuspendedError&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;HumanTaskError&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;HumanTaskTimeoutError&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;HumanTaskNotAssignedError&quot;</span><span class="p">,</span>
+    
+    <span class="c1"># Handler types</span>
+    <span class="s2">&quot;ActionHandler&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;CompensationHandler&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;TransitionHandler&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;TaskFormValidator&quot;</span><span class="p">,</span>
+<span class="p">]</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 1980 Aether Core Team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

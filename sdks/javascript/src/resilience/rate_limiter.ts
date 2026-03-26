@@ -12,9 +12,24 @@ import {
 import { withTracing } from './tracing';
 
 /**
- * Error thrown when rate limit is exceeded.
+ * Error thrown when the rate limit is exceeded and no wait is possible.
+ *
+ * @example
+ * ```typescript
+ * try {
+ *   await limiter.acquire();
+ * } catch (e) {
+ *   if (e instanceof RateLimitExhaustedError) {
+ *     console.log(`Retry after ${e.retryAfter}ms`);
+ *   }
+ * }
+ * ```
  */
 export class RateLimitExhaustedError extends Error {
+  /**
+   * @param retryAfter - Minimum time to wait before retrying (ms).
+   * @param message    - Optional custom message.
+   */
   constructor(
     public readonly retryAfter: number,
     message?: string
@@ -36,13 +51,22 @@ const DEFAULT_CONFIG: RateLimitConfig = {
 };
 
 /**
- * Token Bucket Rate Limiter.
- * Uses tokens that refill at a constant rate.
+ * Token Bucket rate limiter implementation.
+ *
+ * Maintains a pool of tokens that refill at a constant rate.
+ * Each request consumes one or more tokens; if insufficient tokens
+ * are available the request is rejected.
+ *
+ * @internal
  */
 class TokenBucket {
   private tokens: number;
   private lastRefill: number;
 
+  /**
+   * @param maxTokens  - Maximum token capacity.
+   * @param refillRate - Tokens added per second.
+   */
   constructor(
     private readonly maxTokens: number,
     private readonly refillRate: number
@@ -51,6 +75,12 @@ class TokenBucket {
     this.lastRefill = Date.now();
   }
 
+  /**
+   * Try to acquire tokens from the bucket.
+   *
+   * @param tokens - Number of tokens to acquire (default: 1).
+   * @returns A {@link RateLimitResult} indicating whether the request is allowed.
+   */
   tryAcquire(tokens = 1): RateLimitResult {
     this.refill();
 
@@ -76,6 +106,9 @@ class TokenBucket {
     };
   }
 
+  /**
+   * Refill tokens based on elapsed time.
+   */
   private refill(): void {
     const now = Date.now();
     const elapsed = (now - this.lastRefill) / 1000;
@@ -87,17 +120,31 @@ class TokenBucket {
 }
 
 /**
- * Sliding Window Rate Limiter.
- * Tracks requests in a sliding time window.
+ * Sliding Window rate limiter implementation.
+ *
+ * Tracks individual request timestamps within a sliding time window.
+ * Allows requests while the count of timestamps within the window is
+ * below the maximum.
+ *
+ * @internal
  */
 class SlidingWindow {
   private requests: number[] = [];
 
+  /**
+   * @param maxRequests - Maximum requests per window.
+   * @param windowMs    - Window duration in milliseconds.
+   */
   constructor(
     private readonly maxRequests: number,
     private readonly windowMs: number
   ) {}
 
+  /**
+   * Try to acquire a permit.
+   *
+   * @returns A {@link RateLimitResult} indicating whether the request is allowed.
+   */
   tryAcquire(): RateLimitResult {
     const now = Date.now();
     const windowStart = now - this.windowMs;
@@ -129,13 +176,21 @@ class SlidingWindow {
 }
 
 /**
- * Fixed Window Rate Limiter.
- * Tracks requests in fixed time windows.
+ * Fixed Window rate limiter implementation.
+ *
+ * Divides time into fixed-size windows and resets the counter at
+ * the start of each new window.
+ *
+ * @internal
  */
 class FixedWindow {
   private count = 0;
   private windowStart: number;
 
+  /**
+   * @param maxRequests - Maximum requests per window.
+   * @param windowMs    - Window duration in milliseconds.
+   */
   constructor(
     private readonly maxRequests: number,
     private readonly windowMs: number
@@ -143,6 +198,11 @@ class FixedWindow {
     this.windowStart = Date.now();
   }
 
+  /**
+   * Try to acquire a permit.
+   *
+   * @returns A {@link RateLimitResult} indicating whether the request is allowed.
+   */
   tryAcquire(): RateLimitResult {
     const now = Date.now();
 
@@ -174,6 +234,15 @@ class FixedWindow {
 /**
  * Rate Limiter implementation.
  *
+ * Supports three strategies selected via {@link RateLimitConfig.strategy}:
+ *
+ * - **TokenBucket** — Tokens refill at a constant rate; bursty traffic is
+ *   allowed up to the bucket capacity.
+ * - **SlidingWindow** — Counts requests in a sliding time window for
+ *   smoother rate control.
+ * - **FixedWindow** — Resets a counter at fixed intervals; simpler but
+ *   may allow brief bursts at window boundaries.
+ *
  * @example
  * ```typescript
  * const limiter = new RateLimiter({
@@ -186,7 +255,7 @@ class FixedWindow {
  * if (result.allowed) {
  *   // Process request
  * } else {
- *   // Reject or wait
+ *   // Reject or wait using result.retryAfter
  * }
  * ```
  */
@@ -196,6 +265,11 @@ export class RateLimiter {
   private slidingWindow: SlidingWindow | null = null;
   private fixedWindow: FixedWindow | null = null;
 
+  /**
+   * Create a new RateLimiter.
+   *
+   * @param config - Partial configuration; unspecified fields use defaults.
+   */
   constructor(config: Partial<RateLimitConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
 
@@ -224,10 +298,12 @@ export class RateLimiter {
   }
 
   /**
-   * Try to acquire a permit.
+   * Try to acquire a permit without blocking.
    *
-   * @param tokens - Number of tokens to acquire (for token bucket)
-   * @returns Rate limit result
+   * @param tokens - Number of tokens to acquire (only meaningful for
+   *                 TokenBucket strategy; default: 1).
+   * @returns A {@link RateLimitResult} with `allowed`, `remaining`,
+   *          `resetIn`, and `retryAfter` fields.
    */
   tryAcquire(tokens = 1): RateLimitResult {
     return withTracingSync(
@@ -257,8 +333,12 @@ export class RateLimiter {
   /**
    * Wait until a permit is available, then acquire it.
    *
-   * @param tokens - Number of tokens to acquire
-   * @returns Promise that resolves when permit is acquired
+   * This method polls using `retryAfter` from {@link tryAcquire} and
+   * sleeps between attempts.
+   *
+   * @param tokens - Number of tokens to acquire (default: 1).
+   * @returns A promise that resolves when the permit is acquired.
+   * @throws RateLimitExhaustedError If the rate limit cannot be satisfied.
    */
   async acquire(tokens = 1): Promise<void> {
     const result = this.tryAcquire(tokens);
@@ -278,9 +358,12 @@ export class RateLimiter {
   /**
    * Execute a function with rate limiting.
    *
-   * @param fn - Function to execute
-   * @returns Result of the function
-   * @throws RateLimitExhaustedError if rate limit exceeded
+   * Waits for a permit before invoking the function.
+   *
+   * @typeParam T - The return type of the function.
+   * @param fn - Async function to execute.
+   * @returns Result of the function.
+   * @throws RateLimitExhaustedError If rate limit is exceeded.
    */
   async execute<T>(fn: () => Promise<T>): Promise<T> {
     await this.acquire();
@@ -290,6 +373,12 @@ export class RateLimiter {
 
 /**
  * Helper for synchronous tracing (returns value directly).
+ *
+ * @typeParam T - The return type.
+ * @param spanName - Name of the tracing span.
+ * @param fn       - Function receiving a span and returning a value.
+ * @returns The function result.
+ * @internal
  */
 function withTracingSync<T>(
   spanName: string,
@@ -304,6 +393,10 @@ function withTracingSync<T>(
   return fn(span);
 }
 
+/**
+ * Minimal tracing span interface.
+ * @internal
+ */
 interface TracingSpan {
   setAttribute: (key: string, value: unknown) => void;
   addEvent: (name: string, attributes?: Record<string, unknown>) => void;
@@ -312,6 +405,9 @@ interface TracingSpan {
 
 /**
  * Sleep helper.
+ *
+ * @param ms - Duration in milliseconds.
+ * @internal
  */
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -319,17 +415,33 @@ function sleep(ms: number): Promise<void> {
 
 /**
  * Manager for multiple rate limiters.
+ *
+ * @example
+ * ```typescript
+ * const manager = new RateLimiterManager({ maxRequests: 100 });
+ * const api = manager.getLimiter('api');
+ * const email = manager.getLimiter('email', { maxRequests: 10 });
+ * ```
  */
 export class RateLimiterManager {
   private limiters: Map<string, RateLimiter> = new Map();
   private defaultConfig: RateLimitConfig;
 
+  /**
+   * Create a new RateLimiterManager.
+   *
+   * @param defaultConfig - Default configuration for new limiters.
+   */
   constructor(defaultConfig: Partial<RateLimitConfig> = {}) {
     this.defaultConfig = { ...DEFAULT_CONFIG, ...defaultConfig };
   }
 
   /**
    * Get or create a rate limiter by name.
+   *
+   * @param name   - Unique name for the rate limiter.
+   * @param config - Optional per-limiter configuration overrides.
+   * @returns The existing or newly created RateLimiter.
    */
   getLimiter(name: string, config?: Partial<RateLimitConfig>): RateLimiter {
     if (!this.limiters.has(name)) {
@@ -346,14 +458,16 @@ export class RateLimiterManager {
   }
 
   /**
-   * Get all rate limiter names.
+   * Get all registered rate limiter names.
+   *
+   * @returns An array of limiter names.
    */
   getNames(): string[] {
     return Array.from(this.limiters.keys());
   }
 
   /**
-   * Clear all rate limiters.
+   * Remove all rate limiters.
    */
   clear(): void {
     this.limiters.clear();
@@ -361,7 +475,9 @@ export class RateLimiterManager {
 }
 
 /**
- * Pre-configured API rate limiter (100 req/s).
+ * Create a pre-configured API rate limiter (100 req/s, sliding window).
+ *
+ * @returns A RateLimiter tuned for typical API rate limits.
  */
 export function apiRateLimiter(): RateLimiter {
   return new RateLimiter({
@@ -373,7 +489,9 @@ export function apiRateLimiter(): RateLimiter {
 }
 
 /**
- * Pre-configured strict rate limiter (10 req/s).
+ * Create a pre-configured strict rate limiter (10 req/s, token bucket).
+ *
+ * @returns A RateLimiter suitable for strict per-second rate limiting.
  */
 export function strictRateLimiter(): RateLimiter {
   return new RateLimiter({
@@ -386,7 +504,9 @@ export function strictRateLimiter(): RateLimiter {
 }
 
 /**
- * Pre-configured bursty rate limiter (1000 burst, 50 req/s sustained).
+ * Create a pre-configured bursty rate limiter (1000 burst, 50 req/s sustained).
+ *
+ * @returns A RateLimiter that allows initial bursts but sustains at 50 req/s.
  */
 export function burstyRateLimiter(): RateLimiter {
   return new RateLimiter({
