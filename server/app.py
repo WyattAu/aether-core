@@ -6,6 +6,7 @@ from typing import Optional
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import PlainTextResponse
 
 from .config import ServerConfig
 from .actor_manager import ActorManager
@@ -52,8 +53,24 @@ def get_event_store() -> EventStore:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global _actor_manager, _message_router, _state_store, _pubsub_service, _event_store
-    setup_tracing()
     config = getattr(app.state, "server_config", ServerConfig())
+
+    # Setup structured logging
+    from .logging_config import setup_logging
+    setup_logging(level=config.log_level, json_enabled=config.json_logging_enabled)
+
+    setup_tracing()
+
+    # Setup graceful shutdown
+    from .shutdown import ShutdownManager
+    shutdown_mgr = ShutdownManager(drain_timeout_seconds=config.drain_timeout_seconds)
+    app.state.shutdown_manager = shutdown_mgr
+
+    # Setup metrics
+    from .metrics import MetricsCollector
+    metrics = MetricsCollector()
+    app.state.metrics = metrics
+
     _actor_manager = ActorManager(config)
     _message_router = MessageRouter(message_ttl=config.message_ttl_seconds)
     _state_store = create_state_store(
@@ -65,7 +82,10 @@ async def lifespan(app: FastAPI):
     _pubsub_service = PubSubService()
     _event_store = EventStore()
     logger.info("Aether server started (auth=%s, state=%s)", config.auth_enabled, config.state_backend)
+
     yield
+
+    # Shutdown phase
     logger.info("Aether server shutting down")
 
 
@@ -99,12 +119,29 @@ def create_app(config: Optional[ServerConfig] = None) -> FastAPI:
         app.add_middleware(AuthMiddleware, config=auth_config)
         logger.info("Authentication middleware enabled")
 
+    # Add rate limiting middleware if enabled
+    if config.rate_limit_enabled:
+        from .rate_limit import RateLimitMiddleware, RateLimitConfig
+        rl_config = RateLimitConfig(
+            enabled=True,
+            requests_per_second=config.rate_limit_rps,
+            burst=config.rate_limit_burst,
+            default_limit=config.rate_limit_rps,
+            default_burst=config.rate_limit_burst,
+            per_endpoint=config.rate_limit_per_endpoint,
+            endpoint_limits=config.rate_limit_endpoint_overrides,
+        )
+        app.add_middleware(RateLimitMiddleware, config=rl_config)
+        logger.info("Rate limiting enabled (%.0f rps, burst=%d)", config.rate_limit_rps, config.rate_limit_burst)
+
     app.state.server_config = config
 
     @app.middleware("http")
     async def request_id_middleware(request: Request, call_next):
+        import time as _time
         request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
         trace_id = None
+        start = _time.perf_counter()
         with trace_span(
             f"HTTP {request.method} {request.url.path}",
             attributes={"http.method": request.method, "http.url": str(request.url.path)},
@@ -114,6 +151,18 @@ def create_app(config: Optional[ServerConfig] = None) -> FastAPI:
         response.headers["X-Request-ID"] = request_id
         if trace_id:
             response.headers["X-Trace-Id"] = trace_id
+
+        # Record metrics if enabled
+        metrics = getattr(app.state, "metrics", None)
+        if metrics is not None:
+            duration = _time.perf_counter() - start
+            metrics.observe_request(
+                method=request.method,
+                path=str(request.url.path),
+                status=response.status_code,
+                duration=duration,
+            )
+
         return response
 
     from .api.actors import router as actors_router
@@ -127,6 +176,18 @@ def create_app(config: Optional[ServerConfig] = None) -> FastAPI:
     app.include_router(events_router)
     app.include_router(health_router)
     app.include_router(ws_router)
+
+    # Metrics endpoint (Prometheus text format)
+    if config.metrics_enabled:
+        @app.get("/metrics", include_in_schema=False)
+        async def metrics_endpoint():
+            metrics = getattr(app.state, "metrics", None)
+            if metrics is None:
+                return PlainTextResponse("# Metrics not enabled", status_code=503)
+            return PlainTextResponse(
+                content=metrics.collect(),
+                media_type="text/plain; version=0.0.4; charset=utf-8",
+            )
 
     try:
         from .api.graphql import graphql_app

@@ -113,7 +113,8 @@ class TestAuthConfig:
 
     def test_short_secret_warning(self, caplog):
         import logging
-        with caplog.at_level(logging.WARNING):
+        # Ensure the aether-server.auth logger propagates to root for caplog
+        with caplog.at_level(logging.WARNING, logger="aether-server.auth"):
             config = AuthConfig(enabled=True, secret="short")
             assert "less than 16 characters" in caplog.text
 

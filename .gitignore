@@ -46,3 +46,4 @@ coverage/
 
 # Docs build output (regenerate from source)
 sdks/python/docs/_build/
+pytestdebug.log
