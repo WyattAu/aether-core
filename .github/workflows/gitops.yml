@@ -1,0 +1,31 @@
+name: GitOps Deploy
+on:
+  push:
+    branches: [main]
+    paths: ['deploy/**']
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options: [staging, production]
+      version:
+        description: 'Version to deploy'
+        required: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'staging' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+      - name: Deploy with Helm
+        run: |
+          helm upgrade --install aether deploy/helm/aether/ \
+            --namespace aether --create-namespace \
+            --set image.tag=${{ github.event.inputs.version || 'latest' }} \
+            --wait --timeout 5m

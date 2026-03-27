@@ -1,0 +1,71 @@
+name: Publish SDKs
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  publish-python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install and build
+        run: |
+          cd sdks/python
+          pip install build
+          python -m build
+      - name: Publish to PyPI
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: sdks/python/dist/
+
+  publish-javascript:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+      - name: Install and build
+        run: |
+          cd sdks/javascript
+          pnpm install --frozen-lockfile
+          pnpm build
+      - name: Publish to npm
+        if: startsWith(github.ref, 'refs/tags/')
+        run: cd sdks/javascript && pnpm publish --no-git-checks --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  publish-go:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+      - name: Run tests
+        run: cd sdks/go && go test ./...
+      - name: Tag and push (Go modules are tag-published)
+        if: startsWith(github.ref, 'refs/tags/')
+        run: echo "Go module published via git tag"
+
+  publish-java:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      - name: Publish to Maven Central
+        if: startsWith(github.ref, 'refs/tags/')
+        run: echo "Maven Central publishing requires GPG signing setup"
