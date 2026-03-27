@@ -18,6 +18,22 @@
         "wasm",
         "serverless"
     ],
+    "files": [
+        "dist/",
+        "src/"
+    ],
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/WyattAu/aether-core.git",
+        "directory": "sdks/javascript"
+    },
+    "homepage": "https://github.com/WyattAu/aether-core#readme",
+    "bugs": {
+        "url": "https://github.com/WyattAu/aether-core/issues"
+    },
+    "publishConfig": {
+        "access": "public"
+    },
     "license": "MIT",
     "devDependencies": {
         "@types/jest": "^29.0.0",

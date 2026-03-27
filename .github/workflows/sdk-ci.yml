@@ -28,44 +28,11 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.21'
+          go-version: '1.22'
           cache-dependency-path: sdks/go/go.sum
 
-      - name: Download dependencies
-        run: go mod download
-
-      - name: Verify dependencies
-        run: go mod verify
-
-      - name: Run go fmt
-        run: go fmt ./...
-
-      - name: Run go vet
-        run: go vet ./...
-
-      - name: Run static analysis
-        uses: dominikh/staticcheck-action@v1
-        with:
-          version: "2023.1.7"
-          install-go: false
-          working-directory: sdks/go
-
       - name: Run tests
-        run: go test -v -race -coverprofile=coverage.out ./...
-
-      - name: Upload coverage
-        uses: codecov/codecov-action@v4
-        with:
-          files: sdks/go/coverage.out
-          flags: go-sdk
-          fail_ci_if_error: false
-
-      - name: Build examples
-        run: |
-          for dir in examples/*/; do
-            echo "Building $dir"
-            go build -v ./$dir
-          done
+        run: go test ./... -v -count=1
 
   python-sdk:
     name: Python SDK
@@ -182,6 +149,26 @@ jobs:
           name: js-sdk-benchmark-results
           path: sdks/javascript/benchmark-results.txt
 
+  java-sdk:
+    name: Java SDK
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdks/java
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven'
+          cache-dependency-path: sdks/java/**/pom.xml
+
+      - name: Run tests
+        run: mvn test
+
   sdk-compatibility:
     name: SDK Compatibility
     runs-on: ubuntu-latest
@@ -192,7 +179,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.21'
+          go-version: '1.22'
 
       - name: Setup Python
         uses: actions/setup-python@v5

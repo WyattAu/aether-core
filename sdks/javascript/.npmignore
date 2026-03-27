@@ -1,0 +1,13 @@
+tests/
+examples/
+coverage/
+docs/
+node_modules/
+src/
+tsconfig.json
+jest.config.js
+typedoc.json
+*.ts
+!*.d.ts
+CHANGELOG.md
+.gitignore

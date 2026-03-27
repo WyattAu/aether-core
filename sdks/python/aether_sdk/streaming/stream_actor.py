@@ -25,6 +25,7 @@ from abc import abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, Generic, List, Optional, TypeVar, Union
 import asyncio
+import inspect
 
 from ..actor import Actor
 from ..messaging import Message, MessageType
@@ -521,7 +522,7 @@ class StreamActor(Actor, Generic[K, V]):
         """Internal emit implementation that dispatches to registered handlers."""
         if stream in self._output_handlers:
             handler = self._output_handlers[stream]
-            if asyncio.iscoroutinefunction(handler):
+            if inspect.iscoroutinefunction(handler):
                 await handler(event)
             else:
                 handler(event)
