@@ -77,6 +77,8 @@ aether deploy
 
 ## 📚 Documentation
 
+📖 [API Documentation](https://wyattau.github.io/aether-core/) — Python SDK (Sphinx) and JavaScript SDK (TypeDoc)
+
 - [Architecture Guide](.docs/architecture_overview.md)
 - [User Guide](.docs/user_guide.md)
 - [API Reference](.docs/api_reference.md)

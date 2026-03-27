@@ -13,6 +13,7 @@ from .message_router import MessageRouter
 from .state_store import StateStore
 from .pubsub_service import PubSubService
 from .event_store import EventStore
+from .tracing import TRACING_AVAILABLE, setup_tracing, trace_span, get_trace_id_hex
 
 logger = logging.getLogger("aether-server")
 
@@ -51,6 +52,7 @@ def get_event_store() -> EventStore:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global _actor_manager, _message_router, _state_store, _pubsub_service, _event_store
+    setup_tracing()
     config = ServerConfig()
     _actor_manager = ActorManager(config)
     _message_router = MessageRouter(message_ttl=config.message_ttl_seconds)
@@ -81,8 +83,16 @@ def create_app() -> FastAPI:
     @app.middleware("http")
     async def request_id_middleware(request: Request, call_next):
         request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
-        response: Response = await call_next(request)
+        trace_id = None
+        with trace_span(
+            f"HTTP {request.method} {request.url.path}",
+            attributes={"http.method": request.method, "http.url": str(request.url.path)},
+        ):
+            response: Response = await call_next(request)
+            trace_id = get_trace_id_hex()
         response.headers["X-Request-ID"] = request_id
+        if trace_id:
+            response.headers["X-Trace-Id"] = trace_id
         return response
 
     from .api.actors import router as actors_router
@@ -96,6 +106,14 @@ def create_app() -> FastAPI:
     app.include_router(events_router)
     app.include_router(health_router)
     app.include_router(ws_router)
+
+    try:
+        from .api.graphql import graphql_app
+        if graphql_app is not None:
+            app.include_router(graphql_app, prefix="/graphql")
+            logger.info("GraphQL API mounted at /graphql")
+    except Exception as e:
+        logger.warning("GraphQL not available: %s", e)
 
     @app.exception_handler(ValueError)
     async def value_error_handler(request, exc):

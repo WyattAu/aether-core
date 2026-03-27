@@ -7,6 +7,7 @@ from ..models import (
     MessageEnvelope,
     DeliveryReceipt,
 )
+from ..tracing import trace_span, TRACING_AVAILABLE
 
 router = APIRouter(prefix="/api/v1/actors", tags=["actors"])
 
@@ -23,34 +24,37 @@ def _get_message_router():
 
 @router.post("", response_model=ActorInfo, status_code=201)
 async def register_actor(reg: ActorRegistration):
-    mgr = _get_actor_manager()
-    try:
-        return mgr.register(
-            actor_id=reg.actor_id,
-            actor_type=reg.actor_type,
-            capabilities=reg.capabilities,
-            metadata=reg.metadata,
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=409, detail=str(e))
-    except RuntimeError as e:
-        raise HTTPException(status_code=507, detail=str(e))
+    with trace_span("actors.register", {"actor.id": reg.actor_id, "actor.type": reg.actor_type}):
+        mgr = _get_actor_manager()
+        try:
+            return mgr.register(
+                actor_id=reg.actor_id,
+                actor_type=reg.actor_type,
+                capabilities=reg.capabilities,
+                metadata=reg.metadata,
+            )
+        except ValueError as e:
+            raise HTTPException(status_code=409, detail=str(e))
+        except RuntimeError as e:
+            raise HTTPException(status_code=507, detail=str(e))
 
 
 @router.delete("/{actor_id}", status_code=204)
 async def unregister_actor(actor_id: str):
-    mgr = _get_actor_manager()
-    if not mgr.unregister(actor_id):
-        raise HTTPException(status_code=404, detail=f"Actor {actor_id} not found")
+    with trace_span("actors.unregister", {"actor.id": actor_id}):
+        mgr = _get_actor_manager()
+        if not mgr.unregister(actor_id):
+            raise HTTPException(status_code=404, detail=f"Actor {actor_id} not found")
 
 
 @router.get("/{actor_id}", response_model=ActorInfo)
 async def get_actor(actor_id: str):
-    mgr = _get_actor_manager()
-    actor = mgr.get_actor(actor_id)
-    if actor is None:
-        raise HTTPException(status_code=404, detail=f"Actor {actor_id} not found")
-    return actor
+    with trace_span("actors.get", {"actor.id": actor_id}):
+        mgr = _get_actor_manager()
+        actor = mgr.get_actor(actor_id)
+        if actor is None:
+            raise HTTPException(status_code=404, detail=f"Actor {actor_id} not found")
+        return actor
 
 
 @router.get("", response_model=List[ActorInfo])
@@ -65,9 +69,14 @@ async def list_actors(
 @router.post("/{actor_id}/messages", response_model=DeliveryReceipt, status_code=202)
 async def send_message(actor_id: str, envelope: MessageEnvelope):
     envelope.target_actor = actor_id
-    router = _get_message_router()
-    receipt = await router.route(envelope)
-    return receipt
+    with trace_span("actors.send_message", {
+        "actor.id": actor_id,
+        "message.type": envelope.message_type,
+        "message.source": envelope.source_actor,
+    }):
+        router = _get_message_router()
+        receipt = await router.route(envelope)
+        return receipt
 
 
 @router.get("/{actor_id}/messages", response_model=List[MessageEnvelope])
