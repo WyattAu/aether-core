@@ -6,7 +6,7 @@ Tests for delivery guarantees, retry policies, outbox pattern, and dead letter q
 
 import pytest
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 from aether_sdk.event.delivery import (
@@ -196,9 +196,9 @@ class TestOutboxEntry:
     
     def test_entry_timestamp_auto_generated(self):
         """Test that created_at is auto-generated."""
-        before = datetime.utcnow()
+        before = datetime.now(timezone.utc)
         entry = OutboxEntry()
-        after = datetime.utcnow()
+        after = datetime.now(timezone.utc)
         
         assert before <= entry.created_at <= after
 

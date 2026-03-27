@@ -17,7 +17,7 @@ Example:
 
 from __future__ import annotations
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import (
     Any,
     Callable,
@@ -428,8 +428,8 @@ class WorkflowExecutor:
             workflow_type=workflow.name,
             current_state=workflow.initial_state,
             input=input,
-            started_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
+            started_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
         )
 
         self._workflows[wf_id] = context
@@ -503,7 +503,7 @@ class WorkflowExecutor:
                 await transition.action(context)
 
             context.current_state = to_state
-            context.updated_at = datetime.utcnow()
+            context.updated_at = datetime.now(timezone.utc)
 
             new_state_def = workflow._states.get(to_state)
             if new_state_def and new_state_def.on_enter:
@@ -553,7 +553,7 @@ class WorkflowExecutor:
             raise WorkflowError(f"Unknown workflow: {workflow_id}")
 
         context.status = WorkflowStatus.SUSPENDED
-        context.updated_at = datetime.utcnow()
+        context.updated_at = datetime.now(timezone.utc)
         context.add_history_event("suspended", reason=reason)
 
     async def resume(self, workflow_id: str) -> None:
@@ -573,7 +573,7 @@ class WorkflowExecutor:
             raise WorkflowError(f"Workflow {workflow_id} is not suspended")
 
         context.status = WorkflowStatus.RUNNING
-        context.updated_at = datetime.utcnow()
+        context.updated_at = datetime.now(timezone.utc)
         context.add_history_event("resumed")
 
     async def cancel(self, workflow_id: str, reason: str = "") -> None:
@@ -591,7 +591,7 @@ class WorkflowExecutor:
             raise WorkflowError(f"Unknown workflow: {workflow_id}")
 
         context.status = WorkflowStatus.CANCELLED
-        context.updated_at = datetime.utcnow()
+        context.updated_at = datetime.now(timezone.utc)
         context.add_history_event("cancelled", reason=reason)
 
     async def get_status(self, workflow_id: str) -> Optional[WorkflowResult]:

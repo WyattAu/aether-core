@@ -14,7 +14,7 @@ Example:
 
 from __future__ import annotations
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from enum import Enum
 from abc import ABC, abstractmethod
@@ -53,7 +53,7 @@ class OutboxEntry:
     key: Optional[str] = None
     value: Any = None
     headers: Dict[str, str] = field(default_factory=dict)
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     attempts: int = 0
     last_error: Optional[str] = None
     next_retry_at: Optional[datetime] = None
@@ -162,7 +162,7 @@ class InMemoryOutbox(Outbox):
             if entry_id in self._pending:
                 del self._pending[entry_id]
                 self._stats.total_sent += 1
-                self._stats.last_sent_at = datetime.utcnow()
+                self._stats.last_sent_at = datetime.now(timezone.utc)
     
     async def mark_failed(self, entry_id: str, error: Exception) -> None:
         async with self._lock:
@@ -174,7 +174,7 @@ class InMemoryOutbox(Outbox):
                 if entry.attempts >= self._retry_policy.max_retries:
                     del self._pending[entry_id]
                     self._stats.total_failed += 1
-                    self._stats.last_failed_at = datetime.utcnow()
+                    self._stats.last_failed_at = datetime.now(timezone.utc)
 
 
 __all__ = [

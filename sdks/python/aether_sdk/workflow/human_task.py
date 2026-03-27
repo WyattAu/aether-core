@@ -13,7 +13,7 @@ Example:
 
 from __future__ import annotations
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import (
     Any,
     Callable,
@@ -229,7 +229,7 @@ class HumanTask:
     workflow_id: str = ""
     step_name: str = ""
     status: HumanTaskStatus = HumanTaskStatus.PENDING
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
     completed_by: Optional[str] = None
@@ -330,7 +330,7 @@ class HumanTask:
         """
         if self.due_date is None:
             return False
-        return datetime.utcnow() > self.due_date
+        return datetime.now(timezone.utc) > self.due_date
 
     def is_expired(self) -> bool:
         """Check whether the task has timed out.
@@ -341,7 +341,7 @@ class HumanTask:
         if self.timeout is None:
             return False
         expires_at = self.created_at + self.timeout.to_timedelta()
-        return datetime.utcnow() > expires_at
+        return datetime.now(timezone.utc) > expires_at
 
     def to_context(self) -> HumanTaskContext:
         """Convert to a :class:`HumanTaskContext` for storage.
@@ -446,7 +446,7 @@ class HumanTaskManager:
         task.workflow_id = workflow_id
         task.step_name = step_name
         task.status = HumanTaskStatus.PENDING
-        task.created_at = datetime.utcnow()
+        task.created_at = datetime.now(timezone.utc)
 
         self._tasks[task.task_id] = task
 
@@ -496,7 +496,7 @@ class HumanTaskManager:
 
         task.assignee = user
         task.status = HumanTaskStatus.IN_PROGRESS
-        task.updated_at = datetime.utcnow()
+        task.updated_at = datetime.now(timezone.utc)
 
         logger.info(f"Task {task_id} claimed by {user}")
 
@@ -542,9 +542,9 @@ class HumanTaskManager:
 
         task.result = result
         task.status = HumanTaskStatus.COMPLETED
-        task.completed_at = datetime.utcnow()
+        task.completed_at = datetime.now(timezone.utc)
         task.completed_by = user or task.assignee
-        task.updated_at = datetime.utcnow()
+        task.updated_at = datetime.now(timezone.utc)
 
         if task_id in self._pending_timeouts:
             self._pending_timeouts[task_id].cancel()
@@ -582,9 +582,9 @@ class HumanTaskManager:
 
         task.status = HumanTaskStatus.REJECTED
         task.result = {"rejected": True, "reason": reason}
-        task.completed_at = datetime.utcnow()
+        task.completed_at = datetime.now(timezone.utc)
         task.completed_by = user or task.assignee
-        task.updated_at = datetime.utcnow()
+        task.updated_at = datetime.now(timezone.utc)
 
         if task_id in self._pending_timeouts:
             self._pending_timeouts[task_id].cancel()
@@ -619,7 +619,7 @@ class HumanTaskManager:
             raise HumanTaskError(f"Task not found: {task_id}")
 
         task.status = HumanTaskStatus.ESCALATED
-        task.updated_at = datetime.utcnow()
+        task.updated_at = datetime.now(timezone.utc)
 
         if escalate_to:
             if "@" in escalate_to:
@@ -654,7 +654,7 @@ class HumanTaskManager:
 
         old_assignee = task.assignee
         task.assignee = delegate_to
-        task.updated_at = datetime.utcnow()
+        task.updated_at = datetime.now(timezone.utc)
 
         logger.info(f"Task {task_id} delegated from {old_assignee} to {delegate_to}")
 
@@ -750,13 +750,13 @@ class HumanTaskManager:
 
         async def timeout_handler():
             try:
-                await asyncio.sleep(task.timeout.total_seconds)
-                task = self._tasks.get(task_id)
-                if task and task.status not in (
+                await asyncio.sleep(task.timeout.total_seconds())
+                current_task = self._tasks.get(task_id)
+                if current_task and current_task.status not in (
                     HumanTaskStatus.COMPLETED,
                     HumanTaskStatus.REJECTED,
                 ):
-                    await self._handle_timeout(task)
+                    await self._handle_timeout(current_task)
             except asyncio.CancelledError:
                 pass
 
@@ -772,7 +772,7 @@ class HumanTaskManager:
         logger.warning(f"Task {task.task_id} timed out")
 
         task.status = HumanTaskStatus.TIMEOUT
-        task.updated_at = datetime.utcnow()
+        task.updated_at = datetime.now(timezone.utc)
 
         if task.timeout_action == "escalate":
             await self.escalate_task(task.task_id)

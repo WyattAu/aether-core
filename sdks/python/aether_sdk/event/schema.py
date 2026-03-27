@@ -32,7 +32,7 @@ Example:
 
 from __future__ import annotations
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import (
     Any,
     Dict,
@@ -73,7 +73,7 @@ class SchemaVersion:
     version: str  # Semantic version like "1.0.0"
     schema_id: str
     definition: Dict[str, Any]
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     deprecated: bool = False
     compatibility: Compatibility = Compatibility.BACKWARD
     
@@ -100,8 +100,8 @@ class Schema:
     version: str = "1.0.0"
     namespace: Optional[str] = None
     owner: Optional[str] = None
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     
     def to_dict(self) -> Dict[str, Any]:
         """Serialize schema to dictionary."""
@@ -128,8 +128,8 @@ class Schema:
             version=data.get("version", "1.0.0"),
             namespace=data.get("namespace"),
             owner=data.get("owner"),
-            created_at=datetime.fromisoformat(data["created_at"]) if "created_at" in data else datetime.utcnow(),
-            updated_at=datetime.fromisoformat(data["updated_at"]) if "updated_at" in data else datetime.utcnow(),
+            created_at=datetime.fromisoformat(data["created_at"]) if "created_at" in data else datetime.now(timezone.utc),
+            updated_at=datetime.fromisoformat(data["updated_at"]) if "updated_at" in data else datetime.now(timezone.utc),
         )
 
 

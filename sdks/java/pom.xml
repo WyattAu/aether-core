@@ -15,6 +15,7 @@
 
     <modules>
         <module>aether-sdk</module>
+        <module>aether-client</module>
     </modules>
 
     <properties>

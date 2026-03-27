@@ -296,7 +296,7 @@ class RetryPolicy:
             'temporary',
         ]
         message = str(error).lower()
-        return any(m in message for m in transient_messages)
+        return any(m.lower() in message for m in transient_messages)
 
 
 # ============================================

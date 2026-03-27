@@ -15,7 +15,7 @@ Example:
 
 from __future__ import annotations
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import (
     Any,
@@ -253,7 +253,7 @@ class WorkflowContext(Generic[T]):
         """Add an event to the history."""
         self.history.append({
             "type": event_type,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "details": details,
         })
 
@@ -279,7 +279,7 @@ class HumanTaskContext:
     form_data: Dict[str, Any] = field(default_factory=dict)
     result: Optional[Dict[str, Any]] = None
     status: HumanTaskStatus = HumanTaskStatus.PENDING
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
     completed_by: Optional[str] = None
@@ -336,7 +336,7 @@ class TransitionResult:
     from_state: str
     to_state: str
     error: Optional[str] = None
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 # ============================================

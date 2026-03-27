@@ -7,6 +7,96 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.7.0] - 2026-03-27
+
+### Added
+
+#### Reference Server
+- Redis state backend with pluggable architecture (memory/redis)
+- JWT authentication middleware with HMAC-SHA256 token signing
+- Token TTL, configurable secret, and public path bypasses
+- Configurable server state backend via `ServerConfig.state_backend`
+- Redis optional dependency (`pip install 'aether-server[redis]'`)
+
+#### SDK Server Clients
+- Python `AetherClient` — async HTTP client (httpx) with 31 tests
+- JavaScript `AetherClient` — TypeScript client (fetch) with 40 tests
+- Go `Client` — HTTP client (net/http) with 26 tests
+- Java `AetherClient` — HTTP client (java.net.http) with 30 tests in new `aether-client` Maven module
+- All clients support: actors, messaging, state, pub/sub, event sourcing, health
+
+#### Python SDK
+- Full validation module: `sanitize.py` (18 functions), `validators.py` (fluent API)
+- JavaScript workflow module: saga, state_machine, human_task (142 tests)
+- JavaScript event module: pubsub, event_sourcing, schema (112 tests)
+- 39 new tests (1,190 total, up from 1,151)
+
+#### JavaScript SDK
+- Workflow module (types, saga, state_machine, human_task) — 2,463 lines
+- Event module (types, pubsub, event_sourcing, schema) — 1,831 lines
+- 294 new tests (1,004 total, up from 710)
+
+#### Go SDK
+- 347 new tests across 20 test files (table-driven)
+- Server client with full API coverage
+
+#### Java SDK
+- 357 JUnit 5 tests across 20 test files
+- New `aether-client` Maven module with HTTP client
+
+#### Server Tests
+- 56 new server tests (125 total, up from 69)
+- State store contract tests (28 tests with abstract base class)
+- Auth middleware tests (34 tests: unit + integration)
+
+#### Infrastructure
+- Docker: Dockerfile, docker-compose.yml (dev), docker-compose.prod.yml
+- CI: Go + Java test jobs in sdk-ci.yml
+- Publishing: PyPI + npm configs, publish.yml workflow
+- Docs: GitHub Pages deployment workflow (docs.yml)
+- GitOps: gitops.yml workflow
+
+#### Demo & Documentation
+- `examples/order_system/demo.py` — Full order processing pipeline with 5 service actors
+- `.docs/ROADMAP_v1.7.md` — 5-phase v1.7.0 roadmap
+- `.docs/ARCHITECTURE.md` — Comprehensive architecture overview
+- `docs/PERFORMANCE_REPORT.md` — Benchmark results
+
+### Changed
+
+- Python SDK test count: 1,151 → 1,190 (+39)
+- JavaScript SDK test count: 710 → 1,004 (+294)
+- Server test count: 69 → 125 (+56)
+- Go SDK test count: 3 → 350 (+347)
+- Java SDK test count: 0 → 387 (+387)
+- `StateStore` refactored to abstract base class with pluggable backends
+- `ServerConfig` updated with auth and Redis configuration options
+
+### Fixed
+
+- Python retry case-sensitivity bug: patterns not lowered, so `RuntimeError('ECONNRESET')` was not retryable
+- `human_task.py` `_schedule_timeout` had `total_seconds` (missing parens) and `task_id` used before assignment
+- 29 occurrences of deprecated `datetime.utcnow()` replaced with `datetime.now(timezone.utc)` across 7 files
+- `asyncio.iscoroutinefunction` replaced with `inspect.iscoroutinefunction` in stream_actor.py
+- JS `HealthChecker` had untracked setTimeout for initial delay — added `timeoutId` tracking
+
+### Deprecated
+
+- Nothing deprecated in this release
+
+### Removed
+
+- Nothing removed in this release
+
+### Security
+
+- JWT authentication middleware available for server (opt-in, disabled by default)
+- Token signature verification with HMAC-SHA256
+- Token expiration with configurable TTL
+- Configurable public paths (health, info bypass auth)
+
+---
+
 ## [1.6.0] - 2026-03-26
 
 ### Added
@@ -994,6 +1084,7 @@ Each SDK includes 5 comprehensive examples:
 
 | Version | Date | Phase | Description |
 |---------|------|-------|-------------|
+| 1.7.0 | 2026-03-27 | 22 | Server Hardening & Ecosystem — "Atlas" |
 | 1.6.0 | 2026-03-26 | 21 | Enhancement & Polish — "Horizon" |
 | 1.4.0 | 2026-03-18 | 20 | Resilience — Circuit Breaker, Observability, Security |
 | 1.3.1 | 2026-03-16 | 18 | SDK Publishing & Examples |
@@ -1064,5 +1155,5 @@ Planned features:
 
 ---
 
-**Last Updated:** 2026-03-26
-**Next Release:** 1.6.1 (Go/Java SDK test coverage)
+**Last Updated:** 2026-03-27
+**Next Release:** 1.7.1 (gRPC transport, PostgreSQL backend, clustering)

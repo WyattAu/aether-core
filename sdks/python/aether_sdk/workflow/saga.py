@@ -19,7 +19,7 @@ Example:
 
 from __future__ import annotations
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import (
     Any,
     Callable,
@@ -386,7 +386,7 @@ class SagaExecutor:
         context = SagaContext[T](
             saga_id=context_id or str(uuid.uuid4()),
             input=input,
-            started_at=datetime.utcnow(),
+            started_at=datetime.now(timezone.utc),
         )
 
         self._running_sagas[context.saga_id] = context
@@ -395,7 +395,7 @@ class SagaExecutor:
             for step in saga.steps:
                 await self._execute_step(step, context, saga)
 
-            context.completed_at = datetime.utcnow()
+            context.completed_at = datetime.now(timezone.utc)
 
             return SagaResult(
                 saga_id=context.saga_id,
@@ -416,7 +416,7 @@ class SagaExecutor:
 
             await self._compensate(saga, context)
 
-            context.completed_at = datetime.utcnow()
+            context.completed_at = datetime.now(timezone.utc)
 
             return SagaResult(
                 saga_id=context.saga_id,
@@ -434,7 +434,7 @@ class SagaExecutor:
         except Exception as e:
             logger.error(f"Saga execution failed: {e}", exc_info=True)
             context.error = str(e)
-            context.completed_at = datetime.utcnow()
+            context.completed_at = datetime.now(timezone.utc)
 
             return SagaResult(
                 saga_id=context.saga_id,
@@ -478,7 +478,7 @@ class SagaExecutor:
         timeout = step.timeout or self.default_timeout
 
         step.status = StepStatus.RUNNING
-        step.started_at = datetime.utcnow()
+        step.started_at = datetime.now(timezone.utc)
 
         for attempt in range(1, retry_config.max_attempts + 1):
             try:
@@ -493,7 +493,7 @@ class SagaExecutor:
                     context.set_state(f"step_{step.name}_result", result)
 
                 step.status = StepStatus.COMPLETED
-                step.completed_at = datetime.utcnow()
+                step.completed_at = datetime.now(timezone.utc)
                 context.mark_step_completed(step.name)
 
                 logger.info(f"Step '{step.name}' completed successfully")

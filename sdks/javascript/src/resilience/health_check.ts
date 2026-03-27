@@ -37,6 +37,7 @@ interface HealthCheckState {
   lastResult: HealthCheckResult | null;
   status: HealthStatus;
   running: boolean;
+  timeoutId: NodeJS.Timeout | null;
   intervalId: NodeJS.Timeout | null;
 }
 
@@ -111,6 +112,7 @@ export class HealthChecker {
       lastResult: null,
       status: HealthStatus.Starting,
       running: false,
+      timeoutId: null,
       intervalId: null,
     });
   }
@@ -125,6 +127,9 @@ export class HealthChecker {
    */
   removeCheck(name: string): boolean {
     const state = this.checks.get(name);
+    if (state?.timeoutId) {
+      clearTimeout(state.timeoutId);
+    }
     if (state?.intervalId) {
       clearInterval(state.intervalId);
     }
@@ -146,7 +151,9 @@ export class HealthChecker {
 
     for (const [name, state] of this.checks) {
       // Apply initial delay
-      setTimeout(() => {
+      state.timeoutId = setTimeout(() => {
+        state.timeoutId = null;
+        if (!this.started) return;
         this.runCheck(name);
         // Start periodic checks
         state.intervalId = setInterval(
@@ -164,6 +171,10 @@ export class HealthChecker {
     this.started = false;
 
     for (const state of this.checks.values()) {
+      if (state.timeoutId) {
+        clearTimeout(state.timeoutId);
+        state.timeoutId = null;
+      }
       if (state.intervalId) {
         clearInterval(state.intervalId);
         state.intervalId = null;

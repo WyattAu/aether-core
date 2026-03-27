@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .config import ServerConfig
 from .actor_manager import ActorManager
 from .message_router import MessageRouter
-from .state_store import StateStore
+from .state_store import StateStore, create_state_store
 from .pubsub_service import PubSubService
 from .event_store import EventStore
 from .tracing import TRACING_AVAILABLE, setup_tracing, trace_span, get_trace_id_hex
@@ -53,18 +53,26 @@ def get_event_store() -> EventStore:
 async def lifespan(app: FastAPI):
     global _actor_manager, _message_router, _state_store, _pubsub_service, _event_store
     setup_tracing()
-    config = ServerConfig()
+    config = getattr(app.state, "server_config", ServerConfig())
     _actor_manager = ActorManager(config)
     _message_router = MessageRouter(message_ttl=config.message_ttl_seconds)
-    _state_store = StateStore()
+    _state_store = create_state_store(
+        config.state_backend,
+        redis_url=config.redis_url,
+        key_prefix=config.redis_key_prefix,
+        ttl_seconds=config.redis_ttl_seconds,
+    )
     _pubsub_service = PubSubService()
     _event_store = EventStore()
-    logger.info("Aether server started")
+    logger.info("Aether server started (auth=%s, state=%s)", config.auth_enabled, config.state_backend)
     yield
     logger.info("Aether server shutting down")
 
 
-def create_app() -> FastAPI:
+def create_app(config: Optional[ServerConfig] = None) -> FastAPI:
+    if config is None:
+        config = ServerConfig()
+
     app = FastAPI(
         title="Aether Server",
         description="Aether protocol reference server",
@@ -79,6 +87,19 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # Add authentication middleware if enabled
+    if config.auth_enabled:
+        from .auth import AuthMiddleware, AuthConfig
+        auth_config = AuthConfig(
+            enabled=True,
+            secret=config.auth_secret,
+            token_ttl=config.auth_token_ttl,
+        )
+        app.add_middleware(AuthMiddleware, config=auth_config)
+        logger.info("Authentication middleware enabled")
+
+    app.state.server_config = config
 
     @app.middleware("http")
     async def request_id_middleware(request: Request, call_next):

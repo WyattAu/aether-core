@@ -25,7 +25,7 @@ Example:
 
 from __future__ import annotations
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import (
     Any,
     Generic,
@@ -86,7 +86,7 @@ class BatchResult(Generic[T]):
     size_bytes: int = 0
     processing_time_ms: float = 0.0
     batch_id: str = ""
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     aggregated: Optional[Any] = None
     aggregation_key: Optional[str] = None
     checksum: Optional[str] = None
@@ -184,7 +184,7 @@ class BatchCollector(Generic[T]):
             size_bytes=self._current_bytes,
             processing_time_ms=processing_time,
             batch_id=batch_id,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
         )
         
         # Reset
