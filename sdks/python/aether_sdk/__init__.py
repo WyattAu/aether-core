@@ -14,6 +14,7 @@ from .client import (
     EventRecord,
     ServerInfo,
 )
+from .grpc_client import AetherGrpcClient, AetherGrpcError
 from ._version import __version__
 
 __all__ = [
@@ -24,6 +25,7 @@ __all__ = [
     "HttpClient",
     "AetherError", "CapabilityDenied", "ActorNotFound",
     "AetherClient", "AetherServerError",
+    "AetherGrpcClient", "AetherGrpcError",
     "ActorInfo", "MessageEnvelope", "DeliveryReceipt",
     "StateEntry", "EventRecord", "ServerInfo",
 ]

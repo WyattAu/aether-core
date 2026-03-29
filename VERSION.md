@@ -1,5 +1,55 @@
 # Project Aether Version Tracking
 
+# v1.8.0 - In Progress 2026-03-29
+current_phase: post-v1.8.0-distribution
+current_version: 1.8.0
+status: In Progress
+  - Dead Letter Queue (DLQ): ✅ COMPLETE (API + 448 lines of tests)
+  - Distributed Pub/Sub: ✅ COMPLETE (cluster propagation + 718 lines of tests)
+  - Leader Election: ✅ COMPLETE (40 tests: 29 unit + 11 integration)
+  - Actor Migration: ✅ COMPLETE (3-phase handoff, 64 tests)
+  - GraphQL Subscriptions: ✅ COMPLETE (pubsub_events subscription)
+  - WebSocket Authentication: ✅ COMPLETE (token via query param or message)
+  - Docker/K8s Deployment: ✅ COMPLETE
+    - Root Dockerfile converted from Rust to Python/FastAPI
+    - docker-compose.cluster.yml (3-node cluster with gossip)
+    - Helm chart updated with gossip port + clustering env vars
+    - Chart version bumped to 1.8.0
+  - Reference Server: 651 tests passing (6 skipped)
+  - Python SDK: 1,223 tests passing
+  - JavaScript SDK: ~1,096 tests passing
+last_updated: 2026-03-29
+error_level: null
+rollback_checkpoint: v1.7.1
+recovery_time_estimate: null
+actual_recovery_time: null
+capability_matrix_status: complete
+
+# v1.7.1 - Released 2026-03-29
+current_phase: post-v1.7.0-clustering
+current_version: 1.7.1
+status: Released
+  - Production Hardening: ✅ COMPLETE (metrics, logging, shutdown wiring)
+  - gRPC Metrics Interceptor: ✅ COMPLETE (28 tests, fixed protobuf deserialization)
+  - gRPC SDK Clients: ✅ COMPLETE (Python 33, JavaScript 35 tests)
+  - Multi-Node Clustering: ✅ COMPLETE (102 tests)
+    - Consistent Hash Ring: 28 tests
+    - Cluster Membership (SWIM gossip): 30 tests
+    - Cluster Node & Config: 25 tests
+    - Cluster Router: 11 tests
+    - Cluster API: 8 tests
+  - Reference Server: 456 tests passing (6 skipped)
+  - Python SDK: 1,223 tests passing
+  - JavaScript SDK: ~1,096 tests passing
+  - Go SDK: 373 tests written (not compiled)
+  - Java SDK: 387 tests written (not compiled)
+last_updated: 2026-03-29
+error_level: null
+rollback_checkpoint: v1.7.0
+recovery_time_estimate: null
+actual_recovery_time: null
+capability_matrix_status: complete
+
 # v1.7.0 "Atlas" - Released 2026-03-27
 current_phase: 7.0
 current_version: 1.7.0

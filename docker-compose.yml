@@ -1,15 +1,21 @@
-version: '3.8'
-
 services:
   aether-server:
     build:
-      context: ./server
+      context: .
       dockerfile: Dockerfile
     ports:
       - "8080:8080"
+      - "50051:50051"
+      - "7946:7946"
     environment:
       - AETHER_STATE_BACKEND=memory
       - AETHER_LOG_LEVEL=info
+      # Uncomment below to enable clustering
+      # - AETHER_CLUSTER_ENABLED=true
+      # - AETHER_CLUSTER_NODE_ID=node-1
+      # - AETHER_CLUSTER_SEED_NODES=node-1:8080
+      # - AETHER_CLUSTER_GOSSIP_PORT=7946
+      # - AETHER_CLUSTER_SECRET=dev-cluster-secret
     volumes:
       - ./server:/app
     restart: unless-stopped
@@ -19,3 +25,35 @@ services:
       timeout: 5s
       retries: 3
       start_period: 5s
+
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=aether
+      - POSTGRES_PASSWORD=aether
+      - POSTGRES_DB=aether
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aether"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  postgres_data:
+  redis_data:

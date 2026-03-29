@@ -55,3 +55,27 @@ class EventStore:
 
     def get_version(self, aggregate_id: str) -> int:
         return self._versions.get(aggregate_id, 0)
+
+
+def create_event_store(backend: str = "memory", **kwargs) -> EventStore:
+    """Factory function for creating event store backends.
+
+    Args:
+        backend: Backend type (``"memory"`` or ``"postgres"``).
+        **kwargs: Additional arguments passed to the backend constructor.
+            For ``"postgres"``: ``postgres_url``, ``pool_min_size``,
+            ``pool_max_size``, ``pool``.
+
+    Returns:
+        An ``EventStore`` (or ``PostgresEventStore``) instance.
+
+    Raises:
+        ValueError: If the backend name is unknown.
+    """
+    if backend == "memory":
+        return EventStore()
+    elif backend == "postgres":
+        from .postgres_store import PostgresEventStore
+        return PostgresEventStore(**kwargs)
+    else:
+        raise ValueError(f"Unknown event backend: {backend}. Use 'memory' or 'postgres'.")

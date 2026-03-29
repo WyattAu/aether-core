@@ -1,3 +1,20 @@
+# =============================================================================
+# Aether Development Environment
+# =============================================================================
+#
+# Usage:
+#   docker compose -f deploy/docker-compose.dev.yml up --build
+#
+# With persistence backends:
+#   docker compose -f deploy/docker-compose.dev.yml --profile streaming up --build
+#
+# With monitoring:
+#   docker compose -f deploy/docker-compose.dev.yml --profile monitoring up --build
+#
+# All profiles:
+#   docker compose -f deploy/docker-compose.dev.yml --profile streaming --profile monitoring up --build
+# =============================================================================
+
 services:
   aether-core:
     build:
@@ -5,24 +22,24 @@ services:
       dockerfile: Dockerfile
     container_name: aether-dev
     ports:
-      - "9000:9000/udp"
-      - "9001:9001/tcp"
-      - "8080:8080/tcp"
+      - "8080:8080"    # REST API
+      - "50051:50051"  # gRPC
+      - "7946:7946"    # Cluster gossip (optional)
     volumes:
-      - ../target:/app/target:cached
-      - ../aether.toml:/etc/aether/aether.toml:ro
-      - aether-dev-data:/var/lib/aether
-      - aether-dev-logs:/var/log/aether
+      - ../server:/app
     environment:
-      - AETHER_NODE_ID=dev-node-1
-      - RUST_LOG=debug,aether=trace
-      - AETHER_CONFIG=/etc/aether/aether.toml
-      - AETHER_DATA=/var/lib/aether
-      - AETHER_LOGS=/var/log/aether
+      - AETHER_STATE_BACKEND=memory
+      - AETHER_LOG_LEVEL=debug
+      # Uncomment for local clustering
+      # - AETHER_CLUSTER_ENABLED=true
+      # - AETHER_CLUSTER_NODE_ID=dev-node-1
+      # - AETHER_CLUSTER_SEED_NODES=dev-node-1:8080
+      # - AETHER_CLUSTER_GOSSIP_PORT=7946
+      # - AETHER_CLUSTER_SECRET=dev-cluster-secret
     networks:
       - aether-dev
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
       interval: 15s
       timeout: 5s
       retries: 3
@@ -88,8 +105,6 @@ services:
       - monitoring
 
 volumes:
-  aether-dev-data:
-  aether-dev-logs:
   redis-data:
   prometheus-data:
   grafana-data:

@@ -13,6 +13,7 @@ class MessageRouter:
         self._receipts: Dict[str, DeliveryReceipt] = {}
         self._message_ttl = message_ttl
         self._total_messages = 0
+        self._dlq = None
 
     def register_handler(self, actor_id: str, handler_fn: Callable):
         self._handlers[actor_id] = handler_fn
@@ -34,6 +35,8 @@ class MessageRouter:
             except Exception:
                 status = "failed"
                 self._pending[envelope.target_actor].append(envelope)
+                if hasattr(self, '_dlq') and self._dlq is not None:
+                    self._dlq.enqueue(envelope, reason="Handler raised exception")
         else:
             status = "buffered"
             self._pending[envelope.target_actor].append(envelope)

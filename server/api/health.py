@@ -2,7 +2,7 @@ import time
 
 from fastapi import APIRouter, Request
 
-from ..models import HealthResponse
+from ..models import HealthResponse, InfoResponse
 
 router = APIRouter(tags=["health"])
 
@@ -51,14 +51,14 @@ async def ready(request: Request):
     )
 
 
-@router.get("/api/v1/info")
+@router.get("/api/v1/info", response_model=InfoResponse)
 async def info(request: Request):
     mgr = _get_actor_manager()
     mr = _get_message_router()
-    return {
-        "version": "0.1.0",
-        "status": _get_shutdown_state(request),
-        "uptime": round(time.time() - _start_time, 2),
-        "actor_count": mgr.count(),
-        "message_count": mr.total_message_count(),
-    }
+    return InfoResponse(
+        version="0.1.0",
+        status=_get_shutdown_state(request),
+        uptime=round(time.time() - _start_time, 2),
+        actor_count=mgr.count(),
+        message_count=mr.total_message_count(),
+    )

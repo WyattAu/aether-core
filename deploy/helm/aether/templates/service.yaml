@@ -11,13 +11,19 @@ metadata:
 spec:
   type: {{ .Values.service.type }}
   ports:
-    - port: {{ .Values.service.port }}
+    - port: {{ .Values.service.httpPort }}
       targetPort: http
       protocol: TCP
       name: http
-    - port: {{ .Values.service.quicPort }}
-      targetPort: quic
-      protocol: UDP
-      name: quic
+    - port: {{ .Values.service.grpcPort }}
+      targetPort: grpc
+      protocol: TCP
+      name: grpc
+    {{- if .Values.cluster.enabled }}
+    - port: {{ .Values.service.gossipPort }}
+      targetPort: gossip
+      protocol: TCP
+      name: gossip
+    {{- end }}
   selector:
     {{- include "aether.selectorLabels" . | nindent 4 }}

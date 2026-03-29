@@ -1,14 +1,18 @@
 apiVersion: v2
 name: aether
-description: Aether Core - Actor-based distributed computing platform
+description: Aether Core - Actor-based distributed systems framework (Python reference server)
 type: application
-version: 1.6.0
-appVersion: "1.6.0"
+version: 1.8.0
+appVersion: "1.8.0"
 maintainers:
   - name: aether
 keywords:
   - actors
   - distributed
-  - wasm
-  - edge-computing
+  - clustering
+  - grpc
+  - event-sourcing
+  - pubsub
+  - leader-election
+  - migration
 home: https://github.com/aether/aether-core

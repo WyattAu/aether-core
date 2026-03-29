@@ -11,10 +11,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest", "pytest-asyncio", "httpx", "websockets"]
+dev = ["pytest", "pytest-asyncio", "httpx", "websockets", "grpcio>=1.78.0", "grpcio-tools>=1.78.0"]
 tracing = ["opentelemetry-api>=1.28.0", "opentelemetry-sdk>=1.28.0"]
 graphql = ["strawberry-graphql[fastapi]>=0.239.0"]
 redis = ["redis>=5.0.0"]
+grpc = ["grpcio>=1.78.0", "grpcio-tools>=1.78.0"]
+postgres = ["psycopg[binary,pool]>=3.1.0"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

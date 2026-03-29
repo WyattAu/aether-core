@@ -1,0 +1,229 @@
+# =============================================================================
+# Aether Cluster — 3-Node Development/Testing Setup
+# =============================================================================
+#
+# Usage:
+#   docker compose -f docker-compose.cluster.yml up --build
+#
+# This spins up 3 Aether nodes with clustering enabled, plus optional
+# Postgres and Redis persistence backends.
+#
+# Node 1: http://localhost:8081  (gRPC: 50051, gossip: 7946)
+# Node 2: http://localhost:8082  (gRPC: 50052, gossip: 7947)
+# Node 3: http://localhost:8083  (gRPC: 50053, gossip: 7948)
+#
+# All nodes share a Docker network and use internal DNS for cluster discovery.
+# Node 1 is the seed node.
+#
+# With persistence:
+#   docker compose -f docker-compose.cluster.yml --profile persistence up --build
+#
+# With monitoring:
+#   docker compose -f docker-compose.cluster.yml --profile monitoring up --build
+#
+# Cleanup:
+#   docker compose -f docker-compose.cluster.yml down -v
+# =============================================================================
+
+services:
+  aether-node-1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: aether-cluster-node-1
+    hostname: aether-node-1
+    ports:
+      - "8081:8080"
+      - "50051:50051"
+      - "7946:7946"
+    environment:
+      - AETHER_STATE_BACKEND=memory
+      - AETHER_EVENT_BACKEND=memory
+      - AETHER_LOG_LEVEL=debug
+      - AETHER_CLUSTER_ENABLED=true
+      - AETHER_CLUSTER_NODE_ID=aether-node-1
+      - AETHER_CLUSTER_SEED_NODES=aether-node-1:8080
+      - AETHER_CLUSTER_GOSSIP_PORT=7946
+      - AETHER_CLUSTER_BIND_HOST=aether-node-1
+      - AETHER_CLUSTER_SECRET=dev-cluster-shared-secret
+      - AETHER_CLUSTER_GOSSIP_INTERVAL=0.5
+      - AETHER_CLUSTER_FAILURE_TIMEOUT=2.0
+      - AETHER_CLUSTER_DEAD_TIMEOUT=5.0
+      - AETHER_AUTH_ENABLED=false
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - aether-cluster
+
+  aether-node-2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: aether-cluster-node-2
+    hostname: aether-node-2
+    ports:
+      - "8082:8080"
+      - "50052:50051"
+      - "7947:7946"
+    environment:
+      - AETHER_STATE_BACKEND=memory
+      - AETHER_EVENT_BACKEND=memory
+      - AETHER_LOG_LEVEL=debug
+      - AETHER_CLUSTER_ENABLED=true
+      - AETHER_CLUSTER_NODE_ID=aether-node-2
+      - AETHER_CLUSTER_SEED_NODES=aether-node-1:8080
+      - AETHER_CLUSTER_GOSSIP_PORT=7946
+      - AETHER_CLUSTER_BIND_HOST=aether-node-2
+      - AETHER_CLUSTER_SECRET=dev-cluster-shared-secret
+      - AETHER_CLUSTER_GOSSIP_INTERVAL=0.5
+      - AETHER_CLUSTER_FAILURE_TIMEOUT=2.0
+      - AETHER_CLUSTER_DEAD_TIMEOUT=5.0
+      - AETHER_AUTH_ENABLED=false
+    restart: unless-stopped
+    depends_on:
+      aether-node-1:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - aether-cluster
+
+  aether-node-3:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: aether-cluster-node-3
+    hostname: aether-node-3
+    ports:
+      - "8083:8080"
+      - "50053:50051"
+      - "7948:7946"
+    environment:
+      - AETHER_STATE_BACKEND=memory
+      - AETHER_EVENT_BACKEND=memory
+      - AETHER_LOG_LEVEL=debug
+      - AETHER_CLUSTER_ENABLED=true
+      - AETHER_CLUSTER_NODE_ID=aether-node-3
+      - AETHER_CLUSTER_SEED_NODES=aether-node-1:8080
+      - AETHER_CLUSTER_GOSSIP_PORT=7946
+      - AETHER_CLUSTER_BIND_HOST=aether-node-3
+      - AETHER_CLUSTER_SECRET=dev-cluster-shared-secret
+      - AETHER_CLUSTER_GOSSIP_INTERVAL=0.5
+      - AETHER_CLUSTER_FAILURE_TIMEOUT=2.0
+      - AETHER_CLUSTER_DEAD_TIMEOUT=5.0
+      - AETHER_AUTH_ENABLED=false
+    restart: unless-stopped
+    depends_on:
+      aether-node-1:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - aether-cluster
+
+  # ---------------------------------------------------------------------------
+  # Optional: Postgres backend
+  # Enable with: --profile persistence
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: aether-cluster-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=aether
+      - POSTGRES_PASSWORD=aether
+      - POSTGRES_DB=aether
+    volumes:
+      - cluster_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aether"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - aether-cluster
+    profiles:
+      - persistence
+
+  # ---------------------------------------------------------------------------
+  # Optional: Redis backend
+  # Enable with: --profile persistence
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: aether-cluster-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - cluster_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - aether-cluster
+    profiles:
+      - persistence
+
+  # ---------------------------------------------------------------------------
+  # Optional: Monitoring stack
+  # Enable with: --profile monitoring
+  # ---------------------------------------------------------------------------
+  prometheus:
+    image: prom/prometheus:v2.50.0
+    container_name: aether-cluster-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./deploy/prometheus.dev.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - aether-cluster
+    profiles:
+      - monitoring
+
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: aether-cluster-grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    networks:
+      - aether-cluster
+    depends_on:
+      - prometheus
+    profiles:
+      - monitoring
+
+volumes:
+  cluster_postgres_data:
+  cluster_redis_data:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  aether-cluster:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.0.0/16

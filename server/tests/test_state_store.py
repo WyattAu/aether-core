@@ -176,11 +176,12 @@ class TestCreateStateStore:
 
     def test_creates_memory_backend(self):
         store = create_state_store("memory")
-        assert isinstance(store, MemoryStateStore)
+        # Use type check instead of isinstance to handle module reloads in other tests
+        assert type(store).__name__ == "MemoryStateStore"
 
     def test_creates_memory_by_default(self):
         store = create_state_store()
-        assert isinstance(store, MemoryStateStore)
+        assert type(store).__name__ == "MemoryStateStore"
 
     def test_unknown_backend_raises(self):
         with pytest.raises(ValueError, match="Unknown state backend"):

@@ -12,10 +12,34 @@ class PubSubService:
         self._subscriptions: Dict[str, Dict[str, Subscription]] = defaultdict(dict)
         self._history: Dict[str, deque] = defaultdict(lambda: deque(maxlen=history_size))
         self._sub_counter = 0
+        # Publish listeners for real-time subscription support
+        self._publish_listeners: List[Callable] = []
+
+    def add_publish_listener(self, callback: Callable) -> None:
+        """Register a callback invoked on every publish.
+
+        The callback receives (topic: str, message: PubSubMessage).
+        Used by GraphQL subscriptions to push events to WebSocket clients.
+        """
+        self._publish_listeners.append(callback)
+
+    def remove_publish_listener(self, callback: Callable) -> None:
+        """Remove a previously registered publish listener."""
+        try:
+            self._publish_listeners.remove(callback)
+        except ValueError:
+            pass
 
     def publish(self, topic: str, payload: Any = None, headers: Optional[Dict[str, str]] = None) -> int:
         msg = PubSubMessage(topic=topic, payload=payload, headers=headers or {})
         self._history[topic].append(msg)
+
+        # Notify publish listeners
+        for listener in self._publish_listeners:
+            try:
+                listener(topic, msg)
+            except Exception:
+                pass
 
         count = 0
         for sub_id, sub in self._subscriptions.get(topic, {}).items():

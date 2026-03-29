@@ -23,7 +23,7 @@ import server.app as _app_mod
 from server.config import ServerConfig
 from server.actor_manager import ActorManager
 from server.message_router import MessageRouter
-from server.state_store import StateStore
+from server.state_store import MemoryStateStore
 from server.pubsub_service import PubSubService
 from server.event_store import EventStore
 
@@ -33,7 +33,7 @@ def app():
     """Create a fresh FastAPI app with initialized state for each test."""
     _app_mod._actor_manager = ActorManager(ServerConfig())
     _app_mod._message_router = MessageRouter()
-    _app_mod._state_store = StateStore()
+    _app_mod._state_store = MemoryStateStore()
     _app_mod._pubsub_service = PubSubService()
     _app_mod._event_store = EventStore()
     return create_app()

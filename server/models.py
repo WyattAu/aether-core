@@ -101,3 +101,37 @@ class AppendEventRequest(BaseModel):
     event_type: str
     data: Any = None
     expected_version: Optional[int] = None
+
+
+class GetStateResponse(BaseModel):
+    """Response for GET /api/v1/state/{actor_id}/{key}."""
+    actor_id: str
+    key: str
+    value: Any = None
+
+
+class GetAllStateResponse(BaseModel):
+    """Response for GET /api/v1/state/{actor_id}."""
+    actor_id: str
+    state: Dict[str, Any] = Field(default_factory=dict)
+
+
+class PublishResponse(BaseModel):
+    """Response for POST /api/v1/events/publish."""
+    topic: str
+    subscriber_count: int = 0
+
+
+class SubscribeResponse(BaseModel):
+    """Response for POST /api/v1/events/subscribe."""
+    subscription_id: str
+    topic: str
+
+
+class InfoResponse(BaseModel):
+    """Response for GET /api/v1/info."""
+    version: str = "0.1.0"
+    status: str = "ok"
+    uptime: float = 0.0
+    actor_count: int = 0
+    message_count: int = 0

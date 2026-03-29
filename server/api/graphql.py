@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from typing import Optional
+import asyncio
+import logging
+from typing import AsyncGenerator, Optional
 
 GRAPHQL_AVAILABLE = False
 
@@ -8,6 +10,7 @@ try:
     import strawberry
     from strawberry.fastapi import GraphQLRouter
     from strawberry.tools import merge_types
+    from strawberry.subscriptions import GRAPHQL_TRANSPORT_WS_PROTOCOL
     GRAPHQL_AVAILABLE = True
 except ImportError:
     strawberry = None
@@ -37,6 +40,20 @@ def _get_pubsub_service():
 def _get_message_router():
     from ..app import get_message_router
     return get_message_router()
+
+
+def _get_context():
+    """Build the GraphQL context with auth info.
+
+    The Strawberry FastAPI router automatically provides 'request',
+    'background_tasks', and 'response' in the context dict. We
+    augment it with 'auth' claims when available.
+
+    Note: this function must take NO parameters — Strawberry wraps
+    it as a FastAPI Depends, and any parameter would become a query
+    param in the request validation schema.
+    """
+    return {"auth": None}
 
 
 if GRAPHQL_AVAILABLE and strawberry is not None:
@@ -235,8 +252,72 @@ if GRAPHQL_AVAILABLE and strawberry is not None:
                 updated_at=entry.updated_at.isoformat(),
             )
 
-    schema = strawberry.Schema(query=Query, mutation=Mutation)
-    graphql_app = GraphQLRouter(schema)
+    @strawberry.type
+    class Subscription:
+        """GraphQL subscription for receiving pub/sub events in real-time.
+
+        Requires WebSocket transport (graphql-transport-ws protocol).
+
+        Example with GraphQL client::
+
+            const ws = new GraphQLWebSocket('ws://localhost:8080/graphql', {
+                connectionParams: { token: 'your-token-here' },
+            });
+            ws.subscribe({
+                query: 'subscription { pubsub_events(topic: "my-topic") { '
+                       + 'messageId sourceActor payload timestamp } }',
+            });
+        """
+
+        @strawberry.subscription
+        async def pubsub_events(
+            self,
+            topic: str,
+        ) -> AsyncGenerator[MessageType, None]:
+            """Subscribe to pub/sub events for a topic.
+
+            Args:
+                topic: The pub/sub topic to subscribe to.
+                    Supports wildcards (e.g., "events.*").
+            """
+            import fnmatch
+
+            pubsub = _get_pubsub_service()
+            queue: asyncio.Queue = asyncio.Queue()
+
+            def _on_publish(pub_topic: str, msg) -> None:
+                if fnmatch.fnmatch(pub_topic, topic):
+                    try:
+                        queue.put_nowait(msg)
+                    except asyncio.QueueFull:
+                        pass  # Drop if consumer is slow
+
+            pubsub.add_publish_listener(_on_publish)
+            try:
+                while True:
+                    msg = await queue.get()
+                    yield MessageType(
+                        message_id=msg.message_id,
+                        source_actor=msg.headers.get("source_actor", ""),
+                        target_actor=msg.headers.get("target_actor", ""),
+                        message_type=msg.headers.get("message_type", ""),
+                        payload=str(msg.payload) if msg.payload is not None else "",
+                        timestamp=msg.timestamp.isoformat(),
+                    )
+            except asyncio.CancelledError:
+                pass
+            finally:
+                pubsub.remove_publish_listener(_on_publish)
+
+    schema = strawberry.Schema(
+        query=Query,
+        mutation=Mutation,
+        subscription=Subscription,
+    )
+    graphql_app = GraphQLRouter(
+        schema,
+        context_getter=_get_context,
+    )
 else:
     schema = None
     graphql_app = None

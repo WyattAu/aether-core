@@ -1,0 +1,309 @@
+syntax = "proto3";
+package aether.server.v1;
+
+option go_package = "github.com/aether/aether-core/server/proto;aetherv1";
+option java_multiple_files = true;
+option java_package = "io.aether.server.proto.v1";
+
+// ============================================================
+// Common Types
+// ============================================================
+
+message Timestamp {
+    int64 seconds = 1;
+    int32 nanos = 2;
+}
+
+message Empty {}
+
+// ============================================================
+// Actor Service
+// ============================================================
+
+service ActorService {
+    // Register a new actor
+    rpc Register(RegisterActorRequest) returns (ActorInfo);
+
+    // Unregister an actor
+    rpc Unregister(UnregisterActorRequest) returns (UnregisterResponse);
+
+    // Get a single actor's info
+    rpc GetActor(GetActorRequest) returns (ActorInfo);
+
+    // List actors with optional filters
+    rpc ListActors(ListActorsRequest) returns (ListActorsResponse);
+
+    // Heartbeat (keep-alive for an actor)
+    rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
+}
+
+message RegisterActorRequest {
+    string actor_id = 1;
+    string actor_type = 2;
+    repeated string capabilities = 3;
+    map<string, string> metadata = 4;
+}
+
+message ActorInfo {
+    string actor_id = 1;
+    string actor_type = 2;
+    repeated string capabilities = 3;
+    map<string, string> metadata = 4;
+    string status = 5;
+    Timestamp created_at = 6;
+    Timestamp last_heartbeat = 7;
+}
+
+message UnregisterActorRequest {
+    string actor_id = 1;
+}
+
+message UnregisterResponse {
+    bool success = 1;
+}
+
+message GetActorRequest {
+    string actor_id = 1;
+}
+
+message ListActorsRequest {
+    string actor_type = 1;   // optional filter
+    string status = 2;       // optional filter
+    int32 limit = 3;         // optional pagination
+    int32 offset = 4;
+}
+
+message ListActorsResponse {
+    repeated ActorInfo actors = 1;
+    int32 total = 2;
+}
+
+message HeartbeatRequest {
+    string actor_id = 1;
+}
+
+message HeartbeatResponse {
+    bool success = 1;
+}
+
+// ============================================================
+// Message Service
+// ============================================================
+
+service MessageService {
+    // Send a message to an actor
+    rpc Send(SendMessageRequest) returns (DeliveryReceipt);
+
+    // Get pending messages for an actor
+    rpc GetPending(GetPendingMessagesRequest) returns (GetPendingMessagesResponse);
+}
+
+message SendMessageRequest {
+    string source_actor = 1;
+    string target_actor = 2;
+    string message_type = 3;
+    bytes payload = 4;       // arbitrary payload bytes
+    string correlation_id = 5;
+    int32 priority = 6;
+}
+
+message DeliveryReceipt {
+    string message_id = 1;
+    string status = 2;        // "delivered", "buffered", "failed"
+    Timestamp delivered_at = 3;
+    string correlation_id = 4;
+}
+
+message GetPendingMessagesRequest {
+    string actor_id = 1;
+}
+
+message PendingMessage {
+    string message_id = 1;
+    string source_actor = 2;
+    string target_actor = 3;
+    string message_type = 4;
+    bytes payload = 5;
+    string correlation_id = 6;
+    int32 priority = 7;
+    Timestamp timestamp = 8;
+}
+
+message GetPendingMessagesResponse {
+    repeated PendingMessage messages = 1;
+}
+
+// ============================================================
+// State Service
+// ============================================================
+
+service StateService {
+    // Get a state entry
+    rpc GetState(GetStateRequest) returns (GetStateResponse);
+
+    // Set a state entry (create or update)
+    rpc SetState(SetStateRequest) returns (StateEntry);
+
+    // Delete a state entry
+    rpc DeleteState(DeleteStateRequest) returns (DeleteStateResponse);
+
+    // Get all state for an actor
+    rpc GetAllState(GetAllStateRequest) returns (GetAllStateResponse);
+}
+
+message GetStateRequest {
+    string actor_id = 1;
+    string key = 2;
+}
+
+message GetStateResponse {
+    string key = 3;
+    bytes value = 4;          // JSON-encoded value as bytes
+    int32 version = 5;
+    Timestamp updated_at = 6;
+    bool found = 7;
+}
+
+message SetStateRequest {
+    string actor_id = 1;
+    string key = 2;
+    bytes value = 3;          // JSON-encoded value as bytes
+    int32 expected_version = 4;  // 0 = new, >0 = optimistic concurrency
+}
+
+message StateEntry {
+    string actor_id = 1;
+    string key = 2;
+    bytes value = 3;
+    int32 version = 4;
+    Timestamp updated_at = 5;
+}
+
+message DeleteStateRequest {
+    string actor_id = 1;
+    string key = 2;
+}
+
+message DeleteStateResponse {
+    bool deleted = 1;
+}
+
+message GetAllStateRequest {
+    string actor_id = 1;
+}
+
+message GetAllStateResponse {
+    map<string, bytes> state = 1;  // key -> JSON-encoded value
+}
+
+// ============================================================
+// Event / PubSub Service
+// ============================================================
+
+service EventService {
+    // Publish a pub/sub message
+    rpc Publish(PublishRequest) returns (PublishResponse);
+
+    // Subscribe to a topic
+    rpc Subscribe(SubscribeRequest) returns (SubscribeResponse);
+
+    // Unsubscribe
+    rpc Unsubscribe(UnsubscribeRequest) returns (UnsubscribeResponse);
+
+    // List topics
+    rpc ListTopics(ListTopicsRequest) returns (ListTopicsResponse);
+
+    // Append an event to an event-sourced aggregate
+    rpc AppendEvent(AppendEventRequest) returns (EventRecord);
+
+    // Get events for an aggregate
+    rpc GetEvents(GetEventsRequest) returns (GetEventsResponse);
+}
+
+message PublishRequest {
+    string topic = 1;
+    bytes payload = 2;
+    map<string, string> headers = 3;
+}
+
+message PublishResponse {
+    int32 subscribers_notified = 1;
+}
+
+message SubscribeRequest {
+    string topic = 1;
+    string subscriber_id = 2;
+    string filter = 3;         // optional wildcard filter
+}
+
+message SubscribeResponse {
+    string subscription_id = 1;
+}
+
+message UnsubscribeRequest {
+    string subscription_id = 1;
+}
+
+message UnsubscribeResponse {
+    bool success = 1;
+}
+
+message ListTopicsRequest {}
+
+message ListTopicsResponse {
+    repeated string topics = 1;
+}
+
+message AppendEventRequest {
+    string aggregate_id = 1;
+    string event_type = 2;
+    bytes data = 3;
+    int32 expected_version = 4;
+}
+
+message EventRecord {
+    string event_id = 1;
+    string aggregate_id = 2;
+    string event_type = 3;
+    bytes data = 4;
+    int32 version = 5;
+    Timestamp timestamp = 6;
+}
+
+message GetEventsRequest {
+    string aggregate_id = 1;
+}
+
+message GetEventsResponse {
+    repeated EventRecord events = 1;
+}
+
+// ============================================================
+// Health Service
+// ============================================================
+
+service HealthService {
+    // Liveness check
+    rpc Health(Empty) returns (HealthResponse);
+
+    // Readiness check
+    rpc Ready(Empty) returns (HealthResponse);
+
+    // Server info
+    rpc Info(Empty) returns (InfoResponse);
+}
+
+message HealthResponse {
+    string status = 1;         // "ok", "draining"
+    double uptime = 2;
+    int32 actor_count = 3;
+    int32 message_count = 4;
+}
+
+message InfoResponse {
+    string version = 1;
+    string status = 2;
+    double uptime = 3;
+    int32 actor_count = 4;
+    int32 message_count = 5;
+}

@@ -1,15 +1,25 @@
-version: '3.8'
-
 services:
   aether-server:
     build:
-      context: ./server
+      context: .
       dockerfile: Dockerfile
     ports:
       - "8080:8080"
+      - "50051:50051"
+      - "7946:7946"
     environment:
-      - AETHER_STATE_BACKEND=memory
+      - AETHER_STATE_BACKEND=postgres
+      - AETHER_EVENT_BACKEND=postgres
+      - POSTGRES_URL=postgresql://aether:aether@postgres:5432/aether
       - AETHER_LOG_LEVEL=warning
+      - AETHER_AUTH_ENABLED=true
+      - AETHER_AUTH_SECRET=change-me-in-production-16ch!
+      # Clustering (uncomment for multi-node)
+      # - AETHER_CLUSTER_ENABLED=true
+      # - AETHER_CLUSTER_NODE_ID=${AETHER_CLUSTER_NODE_ID:-node-1}
+      # - AETHER_CLUSTER_SEED_NODES=${AETHER_CLUSTER_SEED_NODES:-node-1:8080}
+      # - AETHER_CLUSTER_GOSSIP_PORT=7946
+      # - AETHER_CLUSTER_SECRET=${AETHER_CLUSTER_SECRET:-change-me-cluster-secret}
     deploy:
       resources:
         limits:
@@ -19,6 +29,9 @@ services:
           cpus: '0.5'
           memory: 128M
     restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
       interval: 30s
@@ -30,3 +43,28 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=aether
+      - POSTGRES_PASSWORD=aether
+      - POSTGRES_DB=aether
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aether"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+volumes:
+  postgres_data:

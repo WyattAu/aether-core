@@ -42,20 +42,83 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: http
-              containerPort: {{ .Values.service.port }}
+              containerPort: 8080
               protocol: TCP
-            - name: quic
-              containerPort: {{ .Values.service.quicPort }}
-              protocol: UDP
+            - name: grpc
+              containerPort: 50051
+              protocol: TCP
+            {{- if .Values.cluster.enabled }}
+            - name: gossip
+              containerPort: {{ .Values.cluster.gossipPort }}
+              protocol: TCP
+            {{- end }}
           env:
-            - name: AETHER_CONFIG
-              value: /etc/aether/aether.toml
-            - name: AETHER_DATA
-              value: /var/lib/aether
-            - name: AETHER_LOGS
-              value: /var/log/aether
-            - name: RUST_LOG
-              value: "info"
+            - name: AETHER_STATE_BACKEND
+              value: {{ .Values.config.stateBackend | quote }}
+            - name: AETHER_EVENT_BACKEND
+              value: {{ .Values.config.eventBackend | quote }}
+            - name: AETHER_AUTH_ENABLED
+              value: {{ .Values.config.authEnabled | quote }}
+            - name: AETHER_AUTH_SECRET
+              value: {{ .Values.config.authSecret | quote }}
+            - name: AETHER_AUTH_TOKEN_TTL
+              value: {{ .Values.config.authTokenTtl | quote }}
+            - name: AETHER_LOG_LEVEL
+              value: {{ .Values.config.logLevel | quote }}
+            - name: AETHER_METRICS_ENABLED
+              value: {{ .Values.config.metricsEnabled | quote }}
+            - name: AETHER_RATE_LIMIT_ENABLED
+              value: {{ .Values.config.rateLimitEnabled | quote }}
+            - name: AETHER_RATE_LIMIT_RPS
+              value: {{ .Values.config.rateLimitRps | quote }}
+            - name: AETHER_RATE_LIMIT_BURST
+              value: {{ .Values.config.rateLimitBurst | quote }}
+            - name: AETHER_DRAIN_TIMEOUT_SECONDS
+              value: {{ .Values.config.drainTimeoutSeconds | quote }}
+            {{- if .Values.cluster.enabled }}
+            - name: AETHER_CLUSTER_ENABLED
+              value: "true"
+            - name: AETHER_CLUSTER_NODE_ID
+              value: {{ .Values.cluster.nodeId | default (printf "%s-%s" (include "aether.fullname" .) (randAlphaNum 5)) | quote }}
+            - name: AETHER_CLUSTER_SEED_NODES
+              value: {{ join "," .Values.cluster.seedNodes | quote }}
+            - name: AETHER_CLUSTER_GOSSIP_PORT
+              value: {{ .Values.cluster.gossipPort | quote }}
+            - name: AETHER_CLUSTER_GOSSIP_INTERVAL
+              value: {{ .Values.cluster.gossipIntervalSeconds | quote }}
+            - name: AETHER_CLUSTER_FAILURE_TIMEOUT
+              value: {{ .Values.cluster.failureTimeoutSeconds | quote }}
+            - name: AETHER_CLUSTER_DEAD_TIMEOUT
+              value: {{ .Values.cluster.deadTimeoutSeconds | quote }}
+            - name: AETHER_CLUSTER_SUSPICION_MAX
+              value: {{ .Values.cluster.suspicionMax | quote }}
+            - name: AETHER_CLUSTER_VIRTUAL_NODES
+              value: {{ .Values.cluster.virtualNodes | quote }}
+            - name: AETHER_CLUSTER_TRANSPORT
+              value: {{ .Values.cluster.transport | quote }}
+            - name: AETHER_CLUSTER_SECRET
+              value: {{ .Values.cluster.clusterSecret | quote }}
+            - name: AETHER_MIGRATION_ENABLED
+              value: {{ .Values.cluster.migrationEnabled | quote }}
+            - name: AETHER_MIGRATION_TIMEOUT_SECONDS
+              value: {{ .Values.cluster.migrationTimeoutSeconds | quote }}
+            - name: AETHER_MIGRATION_DRAIN_TIMEOUT_SECONDS
+              value: {{ .Values.cluster.migrationDrainTimeoutSeconds | quote }}
+            - name: AETHER_MIGRATION_BATCH_SIZE
+              value: {{ .Values.cluster.migrationBatchSize | quote }}
+            {{- end }}
+            {{- if and (eq .Values.config.stateBackend "postgres") .Values.postgres.url }}
+            - name: POSTGRES_URL
+              value: {{ .Values.postgres.url | quote }}
+            {{- end }}
+            {{- if and (eq .Values.config.eventBackend "postgres") .Values.postgres.url }}
+            - name: POSTGRES_URL
+              value: {{ .Values.postgres.url | quote }}
+            {{- end }}
+            {{- if and (eq .Values.config.stateBackend "redis") .Values.redis.url }}
+            - name: REDIS_URL
+              value: {{ .Values.redis.url | quote }}
+            {{- end }}
             {{- with .Values.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
@@ -69,7 +132,7 @@ spec:
             failureThreshold: 3
           readinessProbe:
             httpGet:
-              path: /health
+              path: /health/ready
               port: http
             initialDelaySeconds: 3
             periodSeconds: 5
@@ -77,28 +140,14 @@ spec:
             failureThreshold: 3
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+          {{- with .Values.extraVolumeMounts }}
           volumeMounts:
-            - name: config
-              mountPath: /etc/aether
-              readOnly: true
-            - name: data
-              mountPath: /var/lib/aether
-            - name: logs
-              mountPath: /var/log/aether
-            {{- with .Values.extraVolumeMounts }}
             {{- toYaml . | nindent 12 }}
-            {{- end }}
+          {{- end }}
+      {{- with .Values.extraVolumes }}
       volumes:
-        - name: config
-          configMap:
-            name: {{ include "aether.configmapName" . }}
-        - name: data
-          emptyDir: {}
-        - name: logs
-          emptyDir: {}
-        {{- with .Values.extraVolumes }}
         {{- toYaml . | nindent 8 }}
-        {{- end }}
+      {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

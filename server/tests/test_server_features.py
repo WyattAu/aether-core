@@ -110,10 +110,10 @@ class TestJsonLoggingIntegration:
         config = ServerConfig(json_logging_enabled=True)
         assert config.json_logging_enabled is True
 
-    def test_default_json_logging_disabled(self):
+    def test_default_json_logging_enabled(self):
         from server.config import ServerConfig
         config = ServerConfig()
-        assert config.json_logging_enabled is False
+        assert config.json_logging_enabled is True
 
     def test_log_level_config(self):
         from server.config import ServerConfig
@@ -137,7 +137,7 @@ class TestServerConfigNewFields:
     def test_metrics_enabled_default(self):
         from server.config import ServerConfig
         config = ServerConfig()
-        assert config.metrics_enabled is False
+        assert config.metrics_enabled is True
 
     def test_log_level_default(self):
         from server.config import ServerConfig

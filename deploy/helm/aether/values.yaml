@@ -32,8 +32,9 @@ securityContext:
 
 service:
   type: ClusterIP
-  port: 8080
-  quicPort: 9000
+  httpPort: 8080
+  grpcPort: 50051
+  gossipPort: 7946
   annotations: {}
 
 ingress:
@@ -66,21 +67,53 @@ affinity: {}
 
 topologySpreadConstraints: []
 
+# Server configuration
 config:
-  aether.toml: |
-    [server]
-    host = "0.0.0.0"
-    http_port = 8080
-    quic_port = 9000
+  stateBackend: memory          # "memory", "redis", or "postgres"
+  eventBackend: memory          # "memory" or "postgres"
+  authEnabled: false
+  authSecret: "change-me-in-production"
+  authTokenTtl: 3600
+  logLevel: info
+  metricsEnabled: true
+  rateLimitEnabled: false
+  rateLimitRps: 100
+  rateLimitBurst: 200
+  drainTimeoutSeconds: 30
 
-    [logging]
-    level = "info"
+# Clustering configuration
+cluster:
+  enabled: false                # Set to true for multi-node deployments
+  nodeId: ""                    # Auto-generated if empty (uses pod name)
+  seedNodes: []                 # List of "host:port" seed nodes (API port)
+  gossipPort: 7946              # Port for inter-node gossip protocol
+  gossipIntervalSeconds: 1.0
+  failureTimeoutSeconds: 3.0
+  deadTimeoutSeconds: 10.0
+  suspicionMax: 3
+  virtualNodes: 150             # Virtual nodes per physical node on hash ring
+  transport: http               # "http" or "grpc"
+  clusterSecret: "change-me-cluster-secret"
+  # Actor migration
+  migrationEnabled: true
+  migrationTimeoutSeconds: 30.0
+  migrationDrainTimeoutSeconds: 5.0
+  migrationBatchSize: 10
 
-    [storage]
-    path = "/var/lib/aether"
+# PostgreSQL configuration (used when stateBackend or eventBackend is "postgres")
+postgres:
+  url: ""                       # e.g. "postgresql://aether:aether@postgres:5432/aether"
+  poolMinSize: 2
+  poolMaxSize: 10
+  # Set to true to deploy a PostgreSQL instance alongside the server
+  enabled: false
 
-    [cluster]
-    enabled = false
+# Redis configuration (used when stateBackend is "redis")
+redis:
+  url: ""                       # e.g. "redis://redis:6379/0"
+  keyPrefix: "aether:state:"
+  # Set to true to deploy a Redis instance alongside the server
+  enabled: false
 
 monitoring:
   prometheus:

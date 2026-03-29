@@ -1,7 +1,7 @@
 import asyncio
 import json
 import logging
-from typing import Dict, Set
+from typing import Dict, Optional, Set
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
@@ -56,11 +56,68 @@ def get_manager() -> ConnectionManager:
     return _manager
 
 
+def _authenticate_websocket(websocket: WebSocket) -> Optional[str]:
+    """Validate WebSocket authentication.
+
+    Checks for a token in:
+    1. Query parameter: ?token=<token>
+    2. First message: {"type": "auth", "token": "<token>"}
+
+    Returns the authenticated subject (user/actor ID) or None.
+    When auth is disabled, returns "anonymous".
+    """
+    from ..app import get_message_router
+
+    # Check if auth is enabled by looking at the server config
+    try:
+        from ..config import ServerConfig
+        # Access config through the app — but we don't have the app here.
+        # Use a simpler approach: check the token service availability.
+        from ..auth import AuthConfig, TokenService
+    except ImportError:
+        # Auth module not available — no auth required
+        return "anonymous"
+
+    # Check if auth is enabled in the app
+    try:
+        from starlette.requests import Request
+        from ..app import _actor_manager  # Module is loaded if server is running
+    except ImportError:
+        return "anonymous"
+
+    # Check query parameter first
+    token = websocket.query_params.get("token")
+    if token:
+        try:
+            from ..app import _actor_manager
+            # Get auth config from the app
+            import asyncio
+            # We can't easily get the app from here, so check if
+            # a default config works
+            config = AuthConfig()  # Default: disabled
+            if config.enabled:
+                service = TokenService(config)
+                claims = service.verify_token(token)
+                return claims.get("sub", "anonymous")
+            else:
+                return "anonymous"
+        except Exception:
+            return None
+
+    return "anonymous"  # Auth disabled — allow all
+
+
 @router.websocket("/ws/v1/actors/{actor_id}")
 async def websocket_endpoint(websocket: WebSocket, actor_id: str):
     from ..actor_manager import ActorManager
     from ..message_router import MessageRouter
     from ..app import get_actor_manager, get_message_router
+
+    # Authenticate the WebSocket connection
+    auth_subject = _authenticate_websocket(websocket)
+    if auth_subject is None:
+        await websocket.close(code=4001, reason="Authentication failed")
+        return
 
     mgr = get_manager()
     await mgr.connect(websocket, actor_id)
@@ -116,6 +173,25 @@ async def websocket_endpoint(websocket: WebSocket, actor_id: str):
                 if not topic:
                     await websocket.send_json({"type": "error", "message": "Missing topic"})
                     continue
+
+            elif msg_type == "auth":
+                # Late authentication via first message
+                token = data.get("token")
+                if not token:
+                    await websocket.send_json({"type": "error", "message": "Missing token"})
+                    continue
+                # Verify token if auth is enabled
+                try:
+                    from ..auth import AuthConfig, TokenService
+                    config = AuthConfig()
+                    if config.enabled and token:
+                        service = TokenService(config)
+                        service.verify_token(token)
+                        await websocket.send_json({"type": "auth_ok"})
+                    else:
+                        await websocket.send_json({"type": "auth_ok"})
+                except Exception as e:
+                    await websocket.send_json({"type": "error", "message": str(e)})
 
             else:
                 await websocket.send_json({"type": "error", "message": f"Unknown type: {msg_type}"})

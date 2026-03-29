@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from typing import Dict, Any
 
-from ..models import StateEntry, SetStateRequest
+from ..models import StateEntry, SetStateRequest, GetStateResponse, GetAllStateResponse
 from ..tracing import trace_span
 
 router = APIRouter(prefix="/api/v1/state", tags=["state"])
@@ -12,14 +12,14 @@ def _get_state_store():
     return get_state_store()
 
 
-@router.get("/{actor_id}/{key:path}")
+@router.get("/{actor_id}/{key:path}", response_model=GetStateResponse)
 async def get_state(actor_id: str, key: str):
     with trace_span("state.get", {"actor.id": actor_id, "state.key": key}):
         store = _get_state_store()
         value = store.get(actor_id, key)
         if value is None:
             raise HTTPException(status_code=404, detail=f"State {key} for actor {actor_id} not found")
-        return {"actor_id": actor_id, "key": key, "value": value}
+        return GetStateResponse(actor_id=actor_id, key=key, value=value)
 
 
 @router.put("/{actor_id}/{key:path}", response_model=StateEntry)
@@ -40,7 +40,7 @@ async def delete_state(actor_id: str, key: str):
             raise HTTPException(status_code=404, detail=f"State {key} for actor {actor_id} not found")
 
 
-@router.get("/{actor_id}")
-async def get_all_state(actor_id: str) -> Dict[str, Any]:
+@router.get("/{actor_id}", response_model=GetAllStateResponse)
+async def get_all_state(actor_id: str):
     store = _get_state_store()
-    return {"actor_id": actor_id, "state": store.get_all(actor_id)}
+    return GetAllStateResponse(actor_id=actor_id, state=store.get_all(actor_id))

@@ -260,8 +260,10 @@ def create_state_store(backend: str = "memory", **kwargs) -> StateStore:
     """Factory function for creating state store backends.
 
     Args:
-        backend: Backend type (``"memory"`` or ``"redis"``).
+        backend: Backend type (``"memory"``, ``"redis"``, or ``"postgres"``).
         **kwargs: Additional arguments passed to the backend constructor.
+            For ``"postgres"``: ``postgres_url``, ``pool_min_size``,
+            ``pool_max_size``, ``pool``.
 
     Returns:
         A ``StateStore`` instance.
@@ -273,5 +275,8 @@ def create_state_store(backend: str = "memory", **kwargs) -> StateStore:
         return MemoryStateStore()
     elif backend == "redis":
         return RedisStateStore(**kwargs)
+    elif backend == "postgres":
+        from .postgres_state_store import PostgresStateStore
+        return PostgresStateStore(**kwargs)
     else:
-        raise ValueError(f"Unknown state backend: {backend}. Use 'memory' or 'redis'.")
+        raise ValueError(f"Unknown state backend: {backend}. Use 'memory', 'redis', or 'postgres'.")

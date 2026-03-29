@@ -7,6 +7,177 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.0] - 2026-03-29
+
+### Added
+
+#### Dead Letter Queue (DLQ)
+- REST API endpoints for DLQ management (`server/api/dlq.py`)
+  - `GET /dlq/stats` — queue size, total processed, reprocessing count
+  - `GET /dlq/messages` — paginated list of dead-lettered messages
+  - `GET /dlq/messages/{message_id}` — inspect individual message
+  - `POST /dlq/messages/{message_id}/retry` — replay message to original actor
+  - `POST /dlq/messages/{message_id}/discard` — permanently remove
+  - `POST /dlq/purge` — clear entire queue
+- DLQ configuration: `dlq_max_size` (default 10,000), `dlq_ttl_seconds` (0 = no expiry)
+- 448 lines of tests
+
+#### Distributed Pub/Sub (`server/cluster/pubsub.py`)
+- Cross-node pub/sub message propagation via cluster transport
+- `DistributedPubSub` wraps `PubSubService` with gossip-based distribution
+- Remote subscriptions forwarded to topic owner node (determined by hash ring)
+- Local subscriptions served directly; remote ones forwarded via HTTP
+- Message deduplication with configurable retention
+- Automatic cleanup on node leave (subscriptions re-registered on new owner)
+- 718 lines of tests (distributed + cluster pub/sub)
+
+#### Leader Election (`server/cluster/election.py`)
+- Bully algorithm-based leader election integrated with SWIM gossip
+- `LeaderElection` tracks election rounds, vote requests, and leader state
+- Automatic election on cluster formation and leader failure detection
+- Step-down support with proper gossip propagation (`stepped_down` flag on nodes)
+- Force election API: `POST /cluster/leader/force` (fixed from `@router.get`)
+- 40 tests (29 unit + 11 integration)
+
+#### Actor Migration (`server/cluster/`)
+- **MigrationCoordinator** (`migration.py`, ~531 lines) — three-phase handoff protocol
+  - Phase 1: Quiesce — drain actor mailbox, stop accepting new messages
+  - Phase 2: Transfer — snapshot state + mailbox, send to target node via HTTP
+  - Phase 3: Activate — restore actor on target node, resume message processing
+- **MigrationStateTracker** (`migration_state.py`, ~235 lines) — thread-safe migration tracking
+  - `MigrationRecord` with status lifecycle: PENDING → QUIESCING → TRANSFERRING → COMPLETED / FAILED
+  - Per-actor migration history and statistics
+- Actor runtime extensions: `snapshot_actor`, `quiesce_actor`, `drain_actor`, `restore_actor`, `get_registered_actor_ids`
+- Migration-aware cluster router (buffers messages for migrating actors)
+- REST API: `POST /internal/migrate/receive`, `GET /migration/status`, `GET /migration/stats`, `POST /migration/rebalance`
+- 64 tests (27 state + 28 coordinator + 9 integration)
+
+#### GraphQL Subscriptions & WebSocket Auth
+- GraphQL `Subscription` type with `pubsub_events(topic: String!, filter: String)` subscription
+- Real-time pub/sub event streaming via `graphql-transport-ws` protocol
+- `PubSubService.add_publish_listener()` / `remove_publish_listener()` for event push
+- WebSocket authentication: token via query param (`?token=...`) or `{"type": "auth", "token": "..."}` message
+- Auth context available in GraphQL resolvers via `_get_context()` (no-param function)
+
+#### Docker & Kubernetes Deployment
+- **Root `Dockerfile`** — converted from Rust to Python/FastAPI multi-stage build
+- **`server/Dockerfile`** — added gossip port (7946) exposure
+- **`docker-compose.cluster.yml`** — new 3-node cluster dev/testing setup
+  - Nodes 1-3 on ports 8081-8083 with gossip on 7946-7948
+  - Optional Postgres + Redis (via `--profile persistence`)
+  - Optional Prometheus + Grafana (via `--profile monitoring`)
+- **`docker-compose.yml`** — updated context to root, added gossip port, added cluster env var comments
+- **`docker-compose.prod.yml`** — added gossip port, added clustering env var template
+- **`deploy/docker-compose.dev.yml`** — converted from Rust to Python, added gossip port
+- **Helm chart** (`deploy/helm/aether/`)
+  - `Chart.yaml` bumped to v1.8.0
+  - `values.yaml`: new `cluster` section with all clustering + migration config fields
+  - `deployment.yaml`: gossip port container, cluster env vars (conditionally rendered)
+  - `service.yaml`: gossip port service mapping (conditionally rendered)
+
+### Changed
+- Leader election `elect()` no longer clears `_stepped_down` on leader change (prevented step-down from sticking)
+- `ClusterNode` now has `stepped_down: bool` field for gossip propagation
+- Step-down API returns correct `previous_leader` (was returning local node_id)
+- `POST /cluster/leader/force` fixed from `@router.get` to `@router.post`
+
+### Test Counts
+| Suite | Before (v1.7.1) | After (v1.8.0) |
+|-------|:-:|:-:|
+| Server | 456 | 651 (+195) |
+| Python SDK | 1,223 | 1,223 |
+| JavaScript SDK | ~1,096 | ~1,096 |
+
+---
+
+## [1.7.1] - 2026-03-29
+
+### Added
+
+#### Production Hardening
+- Signal handlers wired into FastAPI lifespan (main-thread guarded)
+- Cleanup callbacks registered for all 4 backends (LIFO order)
+- `ShutdownManager` wired into gRPC main entry point
+- Metrics enabled by default (`metrics_enabled=True`)
+- JSON logging enabled by default (`json_logging_enabled=True`)
+- gRPC metrics interceptor — records call count, duration, and status codes per method
+  - Prometheus-compatible output via `MetricsCollector`
+  - gRPC-to-HTTP status code mapping
+  - Thread-safe concurrent recording
+  - 28 tests (24 unit + 4 integration with real gRPC server)
+
+#### gRPC SDK Clients
+- Python `AetherGrpcClient` — full gRPC client with async unary calls
+- JavaScript `AetherGrpcClient` — full gRPC client with in-process server for testing
+- Both clients support: actors, messaging, state, pub/sub, events, health
+- `grpcio` optional dependency in Python SDK (`pip install aether-sdk[grpc]`)
+- `@grpc/grpc-js` + `@grpc/proto-loader` dependencies in JavaScript SDK
+- 33 Python tests + 35 JavaScript tests
+
+#### Multi-Node Clustering (`server/cluster/`)
+- **Consistent Hash Ring** (`hash_ring.py`) — SHA-1 based ring with virtual nodes
+  - Uniform key distribution across nodes (tested with up to 10 nodes, 10K keys)
+  - Minimal key migration on node add/remove (~1/N relocation)
+  - Replica-aware: `get_nodes(key, count)` for replication placement
+  - 28 tests
+- **Cluster Membership** (`membership.py`) — SWIM-inspired gossip protocol
+  - Ping → Ack, Ping-Req via intermediary on failure
+  - Suspect → Dead lifecycle with configurable thresholds
+  - Incarnation-based conflict resolution (prevents split-brain)
+  - Full state sync (periodic membership table exchange)
+  - Seed node bootstrap for cluster join
+  - Node join/leave/failure/recovery callbacks
+  - Graceful shutdown with LEAVING broadcast
+  - 30 tests
+- **Cluster Node** (`node.py`) — `ClusterNode` dataclass with `NodeStatus` enum
+  - ALIVE, SUSPECT, DEAD, LEAVING, JOINING states
+  - Serialization (`to_dict`/`from_dict`) for gossip transport
+  - Incarnation tracking for conflict resolution
+  - 18 tests
+- **Cluster Config** (`config.py`) — `ClusterConfig` dataclass
+  - Gossip interval, failure timeout, dead timeout, suspicion max
+  - Virtual nodes count, transport type, cluster secret
+  - Seed nodes list for bootstrap
+  - 7 tests
+- **HTTP Transport** (`transport.py`) — `ClusterTransport` for inter-node communication
+  - Ping, ping-req, sync, and message forwarding via HTTP
+  - Connection pooling via httpx
+  - Cluster secret authentication header
+- **Cluster Router** (`router.py`) — `ClusterRouter` wrapping `MessageRouter`
+  - Local-first delivery (checks for local handler before hash ring lookup)
+  - Cross-node message forwarding via HTTP transport
+  - Stats tracking: forwarded count, failed forward count
+  - Transparent delegation of all `MessageRouter` methods
+  - 11 tests
+- **Cluster API** (`api/cluster.py`) — REST endpoints
+  - `GET /cluster/info` — cluster state summary
+  - `GET /cluster/nodes` — list all members
+  - `GET /cluster/nodes/{id}` — specific node details
+  - `GET /cluster/ring` — hash ring distribution stats
+  - `GET /cluster/router-stats` — forwarding statistics
+  - `POST /cluster/internal/ping` — gossip ping handler
+  - `POST /cluster/internal/ping-req` — probe suspect on behalf of another node
+  - `POST /cluster/internal/sync` — full membership state exchange
+  - `POST /cluster/internal/message` — receive forwarded messages
+  - 8 tests
+- **ServerConfig** — 12 new cluster configuration fields
+- **App Lifecycle** — Cluster auto-starts/stops with FastAPI lifespan when enabled
+- **gRPC Main** — Cluster support in standalone gRPC server entry point
+
+### Changed
+- Fixed `server/tests/conftest.py` bug: `StateStore()` → `MemoryStateStore()` (unblocked 27 Python SDK tests)
+- Fixed gRPC metrics interceptor: preserved `request_deserializer`/`response_serializer` from original handler
+- Updated `test_server_features.py`: test defaults match new `True` values for metrics and JSON logging
+
+### Test Counts
+| Suite | Before | After |
+|-------|--------|-------|
+| Server | 356 | 456 (+100) |
+| Python SDK | 1,196 | 1,223 (+27) |
+| JavaScript SDK | ~1,061 | ~1,096 (+35) |
+
+---
+
 ## [1.7.0] - 2026-03-27
 
 ### Added
@@ -1084,6 +1255,8 @@ Each SDK includes 5 comprehensive examples:
 
 | Version | Date | Phase | Description |
 |---------|------|-------|-------------|
+| 1.8.0 | 2026-03-29 | 23 | Clustering & Distribution — DLQ, Pub/Sub, Leader Election, Migration |
+| 1.7.1 | 2026-03-29 | 22 | Production Hardening & gRPC SDK Clients |
 | 1.7.0 | 2026-03-27 | 22 | Server Hardening & Ecosystem — "Atlas" |
 | 1.6.0 | 2026-03-26 | 21 | Enhancement & Polish — "Horizon" |
 | 1.4.0 | 2026-03-18 | 20 | Resilience — Circuit Breaker, Observability, Security |
@@ -1155,5 +1328,5 @@ Planned features:
 
 ---
 
-**Last Updated:** 2026-03-27
-**Next Release:** 1.7.1 (gRPC transport, PostgreSQL backend, clustering)
+**Last Updated:** 2026-03-29
+**Next Release:** TBD

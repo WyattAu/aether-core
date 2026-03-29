@@ -19,6 +19,9 @@ export type {
   ServerInfo,
 } from './client';
 
+// gRPC Client
+export { AetherGrpcClient, AetherGrpcError } from './grpc_client';
+
 // Resilience Module
 export * from './resilience';
 
