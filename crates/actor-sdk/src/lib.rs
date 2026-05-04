@@ -27,7 +27,6 @@ pub use state::StateHandle;
 // TODO: Uncomment when aether-actor-macros crate is created
 // #[cfg(feature = "std")]
 // pub use aether_actor_macros::aether_actor;
-
 /// Actor result type
 pub type ActorResult<T> = core::result::Result<T, ActorError>;
 
