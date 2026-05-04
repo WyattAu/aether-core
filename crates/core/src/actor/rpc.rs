@@ -500,7 +500,7 @@ trait ErasedHandler: Send + Sync {
     ) -> std::pin::Pin<
         Box<dyn std::future::Future<Output = Result<Vec<u8>, RpcError>> + Send + 'static>,
     >;
-    
+
     /// Clone the handler into a boxed trait object
     fn clone_boxed(&self) -> Box<dyn ErasedHandler>;
 }
@@ -549,7 +549,7 @@ where
             response.to_bytes()
         })
     }
-    
+
     fn clone_boxed(&self) -> Box<dyn ErasedHandler> {
         Box::new(Self {
             handler: Arc::clone(&self.handler),

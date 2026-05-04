@@ -269,7 +269,7 @@ impl Session {
         }
         let count = messages.len();
         drop(messages);
-        
+
         let mut meta = self.metadata.write();
         meta.message_count = count;
         meta.updated_at = SystemTime::now()
@@ -301,17 +301,17 @@ impl Session {
         let last = messages
             .last()
             .ok_or_else(|| Error::internal("No messages to checkpoint"))?;
-        
+
         let mut checkpoint = Checkpoint::new(name, &last.id);
-        
+
         if let Some(memory) = &self.memory {
             let snapshot_path = self.storage_path.with_extension("memory.json");
             memory.create_snapshot(&snapshot_path)?;
             checkpoint.memory_snapshot = Some(snapshot_path.to_string_lossy().to_string());
         }
-        
+
         self.checkpoints.write().push(checkpoint.clone());
-        
+
         let mut meta = self.metadata.write();
         meta.active_checkpoint = Some(checkpoint.id.clone());
         meta.updated_at = SystemTime::now()
@@ -323,7 +323,7 @@ impl Session {
         if self.auto_save {
             self.save()?;
         }
-        
+
         Ok(checkpoint)
     }
 
@@ -339,13 +339,14 @@ impl Session {
 
     /// Restore to checkpoint
     pub fn restore_checkpoint(&self, checkpoint_id: &str) -> Result<()> {
-        let checkpoint = self.get_checkpoint(checkpoint_id)
+        let checkpoint = self
+            .get_checkpoint(checkpoint_id)
             .ok_or_else(|| Error::internal("Checkpoint not found"))?;
-        
+
         if let (Some(memory), Some(path)) = (&self.memory, &checkpoint.memory_snapshot) {
             memory.restore_snapshot(Path::new(path))?;
         }
-        
+
         {
             let mut messages = self.messages.write();
             let pos = messages
@@ -353,7 +354,7 @@ impl Session {
                 .position(|m| m.id == checkpoint.message_id)
                 .ok_or_else(|| Error::internal("Checkpoint message not found"))?;
             messages.truncate(pos + 1);
-            
+
             let mut meta = self.metadata.write();
             meta.message_count = messages.len();
             meta.active_checkpoint = Some(checkpoint_id.to_string());
@@ -374,15 +375,16 @@ impl Session {
         if self.branches.read().len() >= MAX_BRANCHES {
             return Err(Error::internal("Maximum branches reached"));
         }
-        
-        let _checkpoint = self.get_checkpoint(checkpoint_id)
+
+        let _checkpoint = self
+            .get_checkpoint(checkpoint_id)
             .ok_or_else(|| Error::internal("Checkpoint not found"))?;
-        
+
         let mut branches = self.branches.write();
         for b in branches.iter_mut() {
             b.is_active = false;
         }
-        
+
         let branch = Branch::new(name, checkpoint_id);
         branches.push(branch.clone());
         drop(branches);
@@ -405,11 +407,11 @@ impl Session {
             .iter()
             .position(|b| b.id == branch_id)
             .ok_or_else(|| Error::internal("Branch not found"))?;
-        
+
         if branches[pos].is_active {
             return Err(Error::internal("Cannot delete active branch"));
         }
-        
+
         branches.remove(pos);
         drop(branches);
 
@@ -445,7 +447,7 @@ impl Session {
     pub fn import(&self, json: &str) -> Result<()> {
         let data: SessionData = serde_json::from_str(json)
             .map_err(|e| Error::internal(format!("Import failed: {}", e)))?;
-        
+
         *self.messages.write() = data.messages;
         *self.checkpoints.write() = data.checkpoints;
         *self.branches.write() = data.branches;
@@ -464,7 +466,7 @@ impl Session {
             std::fs::create_dir_all(parent)
                 .map_err(|e| Error::storage_write(format!("Failed to create directory: {}", e)))?;
         }
-        
+
         let json = self.export()?;
         std::fs::write(&self.storage_path, json)
             .map_err(|e| Error::storage_write(format!("Failed to save: {}", e)))?;
@@ -484,7 +486,7 @@ impl Session {
         *self.checkpoints.write() = Vec::new();
         *self.branches.write() = Vec::new();
         *self.system_prompt.write() = None;
-        
+
         let mut meta = self.metadata.write();
         meta.message_count = 0;
         meta.active_checkpoint = None;
@@ -563,7 +565,7 @@ impl SessionManager {
         if !session_path.exists() {
             return Err(Error::internal(format!("Session not found: {}", id)));
         }
-        
+
         let session = Arc::new(Session::with_options(
             "loading",
             &self.storage_dir,
@@ -571,25 +573,28 @@ impl SessionManager {
             self.auto_save,
         ));
         session.load()?;
-        
-        self.sessions.write().insert(id.to_string(), session.clone());
+
+        self.sessions
+            .write()
+            .insert(id.to_string(), session.clone());
         Ok(session)
     }
 
     /// List all sessions
     pub fn list_sessions(&self) -> Result<Vec<SessionMetadata>> {
         let mut sessions = Vec::new();
-        
+
         if !self.storage_dir.exists() {
             return Ok(sessions);
         }
-        
+
         for entry in std::fs::read_dir(&self.storage_dir)
             .map_err(|e| Error::storage_read(format!("Failed to read directory: {}", e)))?
         {
-            let entry = entry.map_err(|e| Error::storage_read(format!("Failed to read entry: {}", e)))?;
+            let entry =
+                entry.map_err(|e| Error::storage_read(format!("Failed to read entry: {}", e)))?;
             let path = entry.path();
-            
+
             if path.extension().map(|e| e == "json").unwrap_or(false) {
                 if let Ok(content) = std::fs::read_to_string(&path) {
                     if let Ok(data) = serde_json::from_str::<SessionData>(&content) {
@@ -598,7 +603,7 @@ impl SessionManager {
                 }
             }
         }
-        
+
         sessions.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
         Ok(sessions)
     }
@@ -606,13 +611,13 @@ impl SessionManager {
     /// Delete a session
     pub fn delete_session(&self, id: &str) -> Result<()> {
         self.sessions.write().remove(id);
-        
+
         let session_path = self.storage_dir.join(id).with_extension("json");
         if session_path.exists() {
             std::fs::remove_file(&session_path)
                 .map_err(|e| Error::storage_write(format!("Failed to delete: {}", e)))?;
         }
-        
+
         let memory_path = self.storage_dir.join(id).with_extension("memory.json");
         if memory_path.exists() {
             std::fs::remove_file(&memory_path)
@@ -659,10 +664,10 @@ mod tests {
     fn test_session_add_messages() {
         let temp_dir = TempDir::new().unwrap();
         let session = Session::new("Test", temp_dir.path());
-        
+
         session.add_message(Message::new(MessageRole::User, "Hello"));
         session.add_message(Message::new(MessageRole::Assistant, "Hi"));
-        
+
         let messages = session.messages();
         assert_eq!(messages.len(), 2);
         assert_eq!(messages[1].parent_id, Some(messages[0].id.clone()));
@@ -672,10 +677,10 @@ mod tests {
     fn test_session_checkpoint() {
         let temp_dir = TempDir::new().unwrap();
         let session = Session::new("Test", temp_dir.path());
-        
+
         session.add_message(Message::new(MessageRole::User, "Msg 1"));
         let checkpoint = session.create_checkpoint("Initial").unwrap();
-        
+
         assert_eq!(session.checkpoints().len(), 1);
         assert_eq!(session.metadata().active_checkpoint, Some(checkpoint.id));
     }
@@ -684,13 +689,13 @@ mod tests {
     fn test_session_restore_checkpoint() {
         let temp_dir = TempDir::new().unwrap();
         let session = Session::new("Test", temp_dir.path());
-        
+
         session.add_message(Message::new(MessageRole::User, "Msg 1"));
         let checkpoint = session.create_checkpoint("Initial").unwrap();
         session.add_message(Message::new(MessageRole::User, "Msg 2"));
-        
+
         assert_eq!(session.messages().len(), 2);
-        
+
         session.restore_checkpoint(&checkpoint.id).unwrap();
         assert_eq!(session.messages().len(), 1);
     }
@@ -699,10 +704,10 @@ mod tests {
     fn test_session_branch() {
         let temp_dir = TempDir::new().unwrap();
         let session = Session::new("Test", temp_dir.path());
-        
+
         session.add_message(Message::new(MessageRole::User, "Base"));
         let checkpoint = session.create_checkpoint("Branch point").unwrap();
-        
+
         let branch = session.create_branch("Alt", &checkpoint.id).unwrap();
         assert_eq!(branch.name, "Alt");
         assert_eq!(session.branches().len(), 1);
@@ -712,10 +717,10 @@ mod tests {
     fn test_session_replay() {
         let temp_dir = TempDir::new().unwrap();
         let session = Session::new("Test", temp_dir.path());
-        
+
         session.add_message(Message::new(MessageRole::User, "Q1"));
         session.add_message(Message::new(MessageRole::Assistant, "A1"));
-        
+
         let replay = session.replay();
         assert_eq!(replay.len(), 2);
         assert_eq!(replay[0].0, MessageRole::User);
@@ -725,12 +730,12 @@ mod tests {
     fn test_session_manager() {
         let temp_dir = TempDir::new().unwrap();
         let manager = SessionManager::new(temp_dir.path());
-        
+
         let session = manager.create_session("Test");
         let id = session.id();
         assert!(manager.get_session(&id).is_some());
         assert_eq!(manager.active_count(), 1);
-        
+
         manager.close_all();
         assert_eq!(manager.active_count(), 0);
     }

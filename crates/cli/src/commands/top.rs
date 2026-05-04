@@ -8,7 +8,7 @@ use std::time::Duration;
 use thiserror::Error;
 
 use crossterm::{
-    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyModifiers},
+    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
     execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
@@ -62,6 +62,7 @@ struct SystemMetrics {
     total_actors: u32,
     running: u32,
     pending: u32,
+    #[allow(dead_code)]
     stopped: u32,
     cpu_total: u16,
     memory_total_mb: u64,

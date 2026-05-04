@@ -14,8 +14,7 @@ pub use reload::{
 };
 
 /// Root configuration structure
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct AetherConfig {
     /// Project metadata
     #[serde(default)]
@@ -25,7 +24,6 @@ pub struct AetherConfig {
     #[serde(default)]
     pub actor: Vec<ActorConfig>,
 }
-
 
 /// Project metadata
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

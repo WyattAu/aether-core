@@ -11,7 +11,8 @@ mod transport;
 mod types;
 
 pub use context::{
-    AiSessionManager, AiSessionState, ContextResourceProvider, GetContextSectionTool, LoadContextTool,
+    AiSessionManager, AiSessionState, ContextResourceProvider, GetContextSectionTool,
+    LoadContextTool,
 };
 pub use file_tools::{
     DeleteFileTool, ListDirectoryTool, ReadFileTool, SearchFilesTool, WriteFileTool,

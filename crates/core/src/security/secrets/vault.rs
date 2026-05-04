@@ -9,14 +9,12 @@ use tracing::{debug, info, warn};
 
 use super::providers::{ExternalSecretValue, SecretsProvider};
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum VaultApiVersion {
     V1,
     #[default]
     V2,
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VaultConfig {
@@ -355,7 +353,11 @@ impl VaultProvider {
         Error::security(format!("Vault error ({}): {}", status, error_msg))
     }
 
-    fn add_headers(&self, builder: reqwest::RequestBuilder, token: &str) -> reqwest::RequestBuilder {
+    fn add_headers(
+        &self,
+        builder: reqwest::RequestBuilder,
+        token: &str,
+    ) -> reqwest::RequestBuilder {
         let builder = builder
             .header("X-Vault-Token", token)
             .header("X-Vault-Request", "true");

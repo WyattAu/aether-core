@@ -15,25 +15,27 @@ use super::types::{Tool, ToolResult};
 /// Base path resolver for file tools
 fn resolve_path(root_dir: &Path, path_str: &str) -> Result<PathBuf> {
     let path = PathBuf::from(path_str);
-    
+
     if path.is_absolute() {
         if !path.starts_with(root_dir) {
-            return Err(Error::capability_denied_simple(
-                format!("Path '{}' is outside root directory", path_str)
-            ));
+            return Err(Error::capability_denied_simple(format!(
+                "Path '{}' is outside root directory",
+                path_str
+            )));
         }
         return Ok(path);
     }
-    
+
     let resolved = root_dir.join(path_str);
-    
+
     // Try to canonicalize - if file doesn't exist, just return resolved path
     match resolved.canonicalize() {
         Ok(canonical) => {
             if !canonical.starts_with(root_dir) {
-                return Err(Error::capability_denied_simple(
-                    format!("Path '{}' resolves outside root directory", path_str)
-                ));
+                return Err(Error::capability_denied_simple(format!(
+                    "Path '{}' resolves outside root directory",
+                    path_str
+                )));
             }
             Ok(canonical)
         }
@@ -42,9 +44,10 @@ fn resolve_path(root_dir: &Path, path_str: &str) -> Result<PathBuf> {
             if let Some(parent) = resolved.parent() {
                 if let Ok(canonical_parent) = parent.canonicalize() {
                     if !canonical_parent.starts_with(root_dir) {
-                        return Err(Error::capability_denied_simple(
-                            format!("Path '{}' resolves outside root directory", path_str)
-                        ));
+                        return Err(Error::capability_denied_simple(format!(
+                            "Path '{}' resolves outside root directory",
+                            path_str
+                        )));
                     }
                 }
             }
@@ -81,7 +84,7 @@ impl ToolExecutor for ReadFileTool {
         };
 
         let path = resolve_path(&self.root_dir, path_str)?;
-        
+
         match tokio::fs::read_to_string(&path).await {
             Ok(content) => Ok(ToolResult::text(content)),
             Err(e) => Ok(ToolResult::error(format!("Failed to read file: {}", e))),
@@ -91,7 +94,8 @@ impl ToolExecutor for ReadFileTool {
     fn definition(&self) -> Tool {
         Tool {
             name: "read_file".to_string(),
-            description: "Read the contents of a file. Path is relative to project root.".to_string(),
+            description: "Read the contents of a file. Path is relative to project root."
+                .to_string(),
             input_schema: serde_json::json!({
                 "type": "object",
                 "properties": {
@@ -139,11 +143,14 @@ impl ToolExecutor for WriteFileTool {
         };
 
         let path = resolve_path(&self.root_dir, path_str)?;
-        
+
         // Create parent directories if needed
         if let Some(parent) = path.parent() {
             if let Err(e) = tokio::fs::create_dir_all(parent).await {
-                return Ok(ToolResult::error(format!("Failed to create directories: {}", e)));
+                return Ok(ToolResult::error(format!(
+                    "Failed to create directories: {}",
+                    e
+                )));
             }
         }
 
@@ -160,7 +167,8 @@ impl ToolExecutor for WriteFileTool {
     fn definition(&self) -> Tool {
         Tool {
             name: "write_file".to_string(),
-            description: "Write content to a file. Creates parent directories if needed.".to_string(),
+            description: "Write content to a file. Creates parent directories if needed."
+                .to_string(),
             input_schema: serde_json::json!({
                 "type": "object",
                 "properties": {
@@ -198,7 +206,9 @@ impl ListDirectoryTool {
 impl ToolExecutor for ListDirectoryTool {
     async fn execute(&self, args: serde_json::Value) -> Result<ToolResult> {
         if !self.capabilities.has_fs_read() {
-            return Ok(ToolResult::error("Permission denied: cannot list directories"));
+            return Ok(ToolResult::error(
+                "Permission denied: cannot list directories",
+            ));
         }
 
         let path_str = args.get("path").and_then(|p| p.as_str()).unwrap_or(".");
@@ -206,7 +216,12 @@ impl ToolExecutor for ListDirectoryTool {
 
         let entries = match std::fs::read_dir(&path) {
             Ok(e) => e,
-            Err(e) => return Ok(ToolResult::error(format!("Failed to read directory: {}", e))),
+            Err(e) => {
+                return Ok(ToolResult::error(format!(
+                    "Failed to read directory: {}",
+                    e
+                )));
+            }
         };
 
         let mut dirs = Vec::new();
@@ -225,7 +240,7 @@ impl ToolExecutor for ListDirectoryTool {
         files.sort();
 
         let mut result = format!("Contents of {}:\n\n", path_str);
-        
+
         if !dirs.is_empty() {
             result.push_str("Directories:\n");
             for dir in &dirs {
@@ -294,11 +309,11 @@ impl SearchFilesTool {
         }
 
         let pattern_lower = pattern.to_lowercase();
-        
+
         if let Ok(entries) = std::fs::read_dir(dir) {
             for entry in entries.flatten() {
                 let name = entry.file_name().to_string_lossy().to_string();
-                
+
                 if name.to_lowercase().contains(&pattern_lower) {
                     if let Ok(relative) = entry.path().strip_prefix(&self.root_dir) {
                         results.push(relative.to_string_lossy().to_string());
@@ -341,7 +356,11 @@ impl ToolExecutor for SearchFilesTool {
             )));
         }
 
-        let mut output = format!("Found {} file(s) matching '{}':\n\n", results.len(), pattern);
+        let mut output = format!(
+            "Found {} file(s) matching '{}':\n\n",
+            results.len(),
+            pattern
+        );
         for (i, file) in results.iter().take(50).enumerate() {
             output.push_str(&format!("{}. {}\n", i + 1, file));
         }
@@ -409,13 +428,19 @@ impl ToolExecutor for DeleteFileTool {
         let path = resolve_path(&self.root_dir, path_str)?;
 
         if !path.exists() {
-            return Ok(ToolResult::error(format!("Path '{}' does not exist", path_str)));
+            return Ok(ToolResult::error(format!(
+                "Path '{}' does not exist",
+                path_str
+            )));
         }
 
         if path.is_dir() {
             match std::fs::remove_dir(&path) {
                 Ok(()) => Ok(ToolResult::text(format!("Removed directory: {}", path_str))),
-                Err(e) => Ok(ToolResult::error(format!("Failed to remove directory: {}", e))),
+                Err(e) => Ok(ToolResult::error(format!(
+                    "Failed to remove directory: {}",
+                    e
+                ))),
             }
         } else {
             match std::fs::remove_file(&path) {
@@ -463,12 +488,15 @@ mod tests {
     async fn test_read_file_tool() {
         let temp_dir = TempDir::new().unwrap();
         let caps = CapabilitySet::FS_READ | CapabilitySet::FS_WRITE;
-        
+
         std::fs::write(temp_dir.path().join("test.txt"), "Hello, World!").unwrap();
-        
+
         let tool = ReadFileTool::new(caps, temp_dir.path());
-        let result = tool.execute(serde_json::json!({"path": "test.txt"})).await.unwrap();
-        
+        let result = tool
+            .execute(serde_json::json!({"path": "test.txt"}))
+            .await
+            .unwrap();
+
         let text = get_text_content(&result).unwrap();
         assert!(text.contains("Hello, World!"));
     }
@@ -477,16 +505,19 @@ mod tests {
     async fn test_write_file_tool() {
         let temp_dir = TempDir::new().unwrap();
         let caps = CapabilitySet::FS_READ | CapabilitySet::FS_WRITE;
-        
+
         let tool = WriteFileTool::new(caps, temp_dir.path());
-        let result = tool.execute(serde_json::json!({
-            "path": "new_file.txt",
-            "content": "New content"
-        })).await.unwrap();
-        
+        let result = tool
+            .execute(serde_json::json!({
+                "path": "new_file.txt",
+                "content": "New content"
+            }))
+            .await
+            .unwrap();
+
         let text = get_text_content(&result).unwrap();
         assert!(text.contains("Successfully wrote"));
-        
+
         let content = std::fs::read_to_string(temp_dir.path().join("new_file.txt")).unwrap();
         assert_eq!(content, "New content");
     }
@@ -495,14 +526,17 @@ mod tests {
     async fn test_list_directory_tool() {
         let temp_dir = TempDir::new().unwrap();
         let caps = CapabilitySet::FS_READ;
-        
+
         std::fs::create_dir_all(temp_dir.path().join("subdir")).unwrap();
         std::fs::write(temp_dir.path().join("file1.txt"), "content1").unwrap();
         std::fs::write(temp_dir.path().join("file2.txt"), "content2").unwrap();
-        
+
         let tool = ListDirectoryTool::new(caps, temp_dir.path());
-        let result = tool.execute(serde_json::json!({"path": "."})).await.unwrap();
-        
+        let result = tool
+            .execute(serde_json::json!({"path": "."}))
+            .await
+            .unwrap();
+
         let text = get_text_content(&result).unwrap();
         assert!(text.contains("file1.txt"));
         assert!(text.contains("file2.txt"));
@@ -513,18 +547,21 @@ mod tests {
     async fn test_search_files_tool() {
         let temp_dir = TempDir::new().unwrap();
         let caps = CapabilitySet::FS_READ;
-        
+
         std::fs::create_dir_all(temp_dir.path().join("src")).unwrap();
         std::fs::write(temp_dir.path().join("src/main.rs"), "fn main() {}").unwrap();
         std::fs::write(temp_dir.path().join("src/lib.rs"), "fn lib() {}").unwrap();
         std::fs::write(temp_dir.path().join("README.md"), "# Test").unwrap();
-        
+
         let tool = SearchFilesTool::new(caps, temp_dir.path());
-        let result = tool.execute(serde_json::json!({
-            "pattern": ".rs",
-            "path": "."
-        })).await.unwrap();
-        
+        let result = tool
+            .execute(serde_json::json!({
+                "pattern": ".rs",
+                "path": "."
+            }))
+            .await
+            .unwrap();
+
         let text = get_text_content(&result).unwrap();
         assert!(text.contains("main.rs"));
         assert!(text.contains("lib.rs"));
@@ -534,10 +571,13 @@ mod tests {
     async fn test_permission_denied() {
         let temp_dir = TempDir::new().unwrap();
         let caps = CapabilitySet::empty();
-        
+
         let tool = ReadFileTool::new(caps, temp_dir.path());
-        let result = tool.execute(serde_json::json!({"path": "test.txt"})).await.unwrap();
-        
+        let result = tool
+            .execute(serde_json::json!({"path": "test.txt"}))
+            .await
+            .unwrap();
+
         assert_eq!(result.is_error, Some(true));
         let text = get_text_content(&result).unwrap();
         assert!(text.contains("Permission denied"));

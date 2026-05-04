@@ -5,7 +5,7 @@
 //! - Callback-based streaming
 //! - Chunk accumulation
 
-use futures::{pin_mut, StreamExt};
+use futures::{StreamExt, pin_mut};
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast;
@@ -55,9 +55,7 @@ impl StreamAccumulator {
 
     fn process_tool_call_delta(&mut self, delta: &ToolCallDelta) {
         // Find or create tool call builder
-        let builder = self.tool_calls
-            .iter_mut()
-            .find(|b| b.id == delta.id);
+        let builder = self.tool_calls.iter_mut().find(|b| b.id == delta.id);
 
         if let Some(builder) = builder {
             // Append to existing
@@ -392,7 +390,9 @@ mod tests {
         // Process stream
         let manager_clone = manager.clone();
         let handle = tokio::spawn(async move {
-            manager_clone.process_stream("test-stream".to_string(), stream).await
+            manager_clone
+                .process_stream("test-stream".to_string(), stream)
+                .await
         });
 
         // Collect events
@@ -457,7 +457,9 @@ mod tests {
 
         let result = process_with_callback(stream, move |delta| {
             collected_clone.write().push_str(delta);
-        }).await.unwrap();
+        })
+        .await
+        .unwrap();
 
         assert_eq!(result.content(), "ABC");
         assert_eq!(*collected.read(), "ABC");

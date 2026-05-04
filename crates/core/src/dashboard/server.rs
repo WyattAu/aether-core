@@ -131,14 +131,18 @@ impl DashboardServer {
 async fn shutdown_signal(mut rx: broadcast::Receiver<()>) {
     let ctrl_c = async {
         if signal::ctrl_c().await.is_err() {
-            tracing::warn!("Failed to install Ctrl+C handler, graceful shutdown via Ctrl+C unavailable");
+            tracing::warn!(
+                "Failed to install Ctrl+C handler, graceful shutdown via Ctrl+C unavailable"
+            );
         }
     };
 
     #[cfg(unix)]
     let terminate = async {
         match signal::unix::signal(signal::unix::SignalKind::terminate()) {
-            Ok(mut sig) => { sig.recv().await; }
+            Ok(mut sig) => {
+                sig.recv().await;
+            }
             Err(_) => {
                 tracing::warn!("Failed to install terminate signal handler");
             }

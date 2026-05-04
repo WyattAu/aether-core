@@ -56,8 +56,7 @@ use opentelemetry_sdk::trace::TracerProvider as SdkTracerProvider;
 /// Exporter backend configuration
 ///
 /// Selects the backend for trace export.
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub enum TracingExporter {
     /// OpenTelemetry Protocol (OTLP) exporter
     ///
@@ -79,7 +78,6 @@ pub enum TracingExporter {
     #[default]
     None,
 }
-
 
 /// Tracing configuration
 ///

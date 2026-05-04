@@ -30,10 +30,10 @@
 //! }
 //! ```
 
-pub mod providers;
 pub mod delegation;
+pub mod providers;
 pub mod streaming;
 
-pub use providers::*;
 pub use delegation::*;
+pub use providers::*;
 pub use streaming::*;

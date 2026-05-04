@@ -41,9 +41,7 @@ impl TcpSocket {
     /// # Errors
     /// Returns error if connection fails
     pub async fn connect(addr: SocketAddr) -> Result<Self> {
-        let stream = TokioTcpStream::connect(addr)
-            .await
-            .map_err(Error::io)?;
+        let stream = TokioTcpStream::connect(addr).await.map_err(Error::io)?;
 
         let local_addr = stream.local_addr().ok();
         let remote_addr = Some(addr);
@@ -186,9 +184,7 @@ impl TcpListener {
     /// # Errors
     /// Returns error if bind fails
     pub async fn bind(addr: SocketAddr) -> Result<Self> {
-        let listener = TokioTcpListener::bind(addr)
-            .await
-            .map_err(Error::io)?;
+        let listener = TokioTcpListener::bind(addr).await.map_err(Error::io)?;
 
         let local_addr = listener.local_addr().ok();
 

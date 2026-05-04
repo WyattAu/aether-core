@@ -13,7 +13,14 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 /// Type alias for local request handler
-type LocalRequestHandler = Arc<dyn Fn(MeshMessage) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<MeshMessage>> + Send>> + Send + Sync>;
+type LocalRequestHandler = Arc<
+    dyn Fn(
+            MeshMessage,
+        )
+            -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<MeshMessage>> + Send>>
+        + Send
+        + Sync,
+>;
 
 pub struct MeshNode {
     node_id: String,
@@ -102,7 +109,7 @@ impl MeshNode {
     }
 
     /// Set the local request handler for processing requests to local actors.
-    /// 
+    ///
     /// The handler is called when a request targets an actor on this node.
     /// It should process the message and return a response.
     pub async fn set_local_request_handler<F, Fut>(&self, handler: F)
@@ -185,7 +192,7 @@ impl MeshNode {
     /// Handle a request to a local actor.
     async fn request_local(&self, packet: &MeshMessage) -> Result<MeshMessage> {
         let handler = self.local_request_handler.read().await;
-        
+
         if let Some(handler) = handler.as_ref() {
             tracing::trace!(
                 source = %packet.source,

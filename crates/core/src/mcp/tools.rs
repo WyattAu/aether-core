@@ -272,10 +272,7 @@ impl ToolExecutor for GlobTool {
             None => return Ok(ToolResult::error("Missing pattern parameter")),
         };
 
-        let base_path = args
-            .get("path")
-            .and_then(|p| p.as_str())
-            .unwrap_or(".");
+        let base_path = args.get("path").and_then(|p| p.as_str()).unwrap_or(".");
 
         if !self.capabilities.has_fs_read() {
             return Ok(ToolResult::error("Permission denied: cannot read files"));
@@ -332,10 +329,7 @@ impl ToolExecutor for GrepTool {
             None => return Ok(ToolResult::error("Missing pattern parameter")),
         };
 
-        let path = args
-            .get("path")
-            .and_then(|p| p.as_str())
-            .unwrap_or(".");
+        let path = args.get("path").and_then(|p| p.as_str()).unwrap_or(".");
 
         if !self.capabilities.has_fs_read() {
             return Ok(ToolResult::error("Permission denied: cannot read files"));
@@ -426,7 +420,9 @@ impl ToolExecutor for BashTool {
         };
 
         if !self.capabilities.can_spawn() {
-            return Ok(ToolResult::error("Permission denied: cannot execute commands"));
+            return Ok(ToolResult::error(
+                "Permission denied: cannot execute commands",
+            ));
         }
 
         let timeout_ms = args
@@ -451,10 +447,11 @@ impl ToolExecutor for BashTool {
             .stderr(std::process::Stdio::piped());
 
         // Execute with timeout
-        let output = tokio::time::timeout(std::time::Duration::from_millis(timeout_ms), cmd.output())
-            .await
-            .map_err(|_| Error::internal("Command timed out"))?
-            .map_err(|e| Error::internal(format!("Failed to execute command: {}", e)))?;
+        let output =
+            tokio::time::timeout(std::time::Duration::from_millis(timeout_ms), cmd.output())
+                .await
+                .map_err(|_| Error::internal("Command timed out"))?
+                .map_err(|e| Error::internal(format!("Failed to execute command: {}", e)))?;
 
         let stdout = String::from_utf8_lossy(&output.stdout);
         let stderr = String::from_utf8_lossy(&output.stderr);
@@ -501,8 +498,8 @@ impl ToolExecutor for BashTool {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::types::ToolContent;
+    use super::*;
     use tempfile::TempDir;
 
     fn get_text_content(result: &ToolResult) -> Option<&str> {
@@ -535,10 +532,13 @@ mod tests {
 
         let caps = CapabilitySet::FS_READ;
         let tool = ReadFileTool::new(caps);
-        
-        let result = tool.execute(serde_json::json!({
-            "path": file_path.to_str().unwrap()
-        })).await.unwrap();
+
+        let result = tool
+            .execute(serde_json::json!({
+                "path": file_path.to_str().unwrap()
+            }))
+            .await
+            .unwrap();
 
         assert_not_error(&result);
         let text = get_text_content(&result).unwrap();
@@ -549,7 +549,7 @@ mod tests {
     async fn test_read_file_missing_path() {
         let caps = CapabilitySet::FS_READ;
         let tool = ReadFileTool::new(caps);
-        
+
         let result = tool.execute(serde_json::json!({})).await.unwrap();
         assert_is_error(&result);
         let text = get_text_content(&result).unwrap();
@@ -564,10 +564,13 @@ mod tests {
 
         let caps = CapabilitySet::empty(); // No FS_READ
         let tool = ReadFileTool::new(caps);
-        
-        let result = tool.execute(serde_json::json!({
-            "path": file_path.to_str().unwrap()
-        })).await.unwrap();
+
+        let result = tool
+            .execute(serde_json::json!({
+                "path": file_path.to_str().unwrap()
+            }))
+            .await
+            .unwrap();
 
         assert_is_error(&result);
         let text = get_text_content(&result).unwrap();
@@ -578,10 +581,13 @@ mod tests {
     async fn test_read_file_not_found() {
         let caps = CapabilitySet::FS_READ;
         let tool = ReadFileTool::new(caps);
-        
-        let result = tool.execute(serde_json::json!({
-            "path": "/nonexistent/path/file.txt"
-        })).await.unwrap();
+
+        let result = tool
+            .execute(serde_json::json!({
+                "path": "/nonexistent/path/file.txt"
+            }))
+            .await
+            .unwrap();
 
         assert_is_error(&result);
         let text = get_text_content(&result).unwrap();
@@ -607,11 +613,14 @@ mod tests {
 
         let caps = CapabilitySet::FS_WRITE;
         let tool = WriteFileTool::new(caps);
-        
-        let result = tool.execute(serde_json::json!({
-            "path": file_path.to_str().unwrap(),
-            "content": "Test content"
-        })).await.unwrap();
+
+        let result = tool
+            .execute(serde_json::json!({
+                "path": file_path.to_str().unwrap(),
+                "content": "Test content"
+            }))
+            .await
+            .unwrap();
 
         assert_not_error(&result);
         let text = get_text_content(&result).unwrap();
@@ -628,11 +637,14 @@ mod tests {
 
         let caps = CapabilitySet::FS_WRITE;
         let tool = WriteFileTool::new(caps);
-        
-        let result = tool.execute(serde_json::json!({
-            "path": file_path.to_str().unwrap(),
-            "content": "nested content"
-        })).await.unwrap();
+
+        let result = tool
+            .execute(serde_json::json!({
+                "path": file_path.to_str().unwrap(),
+                "content": "nested content"
+            }))
+            .await
+            .unwrap();
 
         assert_not_error(&result);
         assert!(file_path.exists());
@@ -642,10 +654,13 @@ mod tests {
     async fn test_write_file_missing_content() {
         let caps = CapabilitySet::FS_WRITE;
         let tool = WriteFileTool::new(caps);
-        
-        let result = tool.execute(serde_json::json!({
-            "path": "/tmp/test.txt"
-        })).await.unwrap();
+
+        let result = tool
+            .execute(serde_json::json!({
+                "path": "/tmp/test.txt"
+            }))
+            .await
+            .unwrap();
 
         assert_is_error(&result);
         let text = get_text_content(&result).unwrap();
@@ -658,11 +673,14 @@ mod tests {
 
         let caps = CapabilitySet::empty(); // No FS_WRITE
         let tool = WriteFileTool::new(caps);
-        
-        let result = tool.execute(serde_json::json!({
-            "path": temp_dir.path().join("test.txt").to_str().unwrap(),
-            "content": "test"
-        })).await.unwrap();
+
+        let result = tool
+            .execute(serde_json::json!({
+                "path": temp_dir.path().join("test.txt").to_str().unwrap(),
+                "content": "test"
+            }))
+            .await
+            .unwrap();
 
         assert_is_error(&result);
         let text = get_text_content(&result).unwrap();
@@ -681,12 +699,15 @@ mod tests {
 
         let caps = CapabilitySet::FS_READ | CapabilitySet::FS_WRITE;
         let tool = EditFileTool::new(caps);
-        
-        let result = tool.execute(serde_json::json!({
-            "path": file_path.to_str().unwrap(),
-            "old_string": "Hello",
-            "new_string": "Goodbye"
-        })).await.unwrap();
+
+        let result = tool
+            .execute(serde_json::json!({
+                "path": file_path.to_str().unwrap(),
+                "old_string": "Hello",
+                "new_string": "Goodbye"
+            }))
+            .await
+            .unwrap();
 
         assert_not_error(&result);
         let text = get_text_content(&result).unwrap();
@@ -704,13 +725,16 @@ mod tests {
 
         let caps = CapabilitySet::FS_READ | CapabilitySet::FS_WRITE;
         let tool = EditFileTool::new(caps);
-        
-        let result = tool.execute(serde_json::json!({
-            "path": file_path.to_str().unwrap(),
-            "old_string": "foo",
-            "new_string": "qux",
-            "replace_all": true
-        })).await.unwrap();
+
+        let result = tool
+            .execute(serde_json::json!({
+                "path": file_path.to_str().unwrap(),
+                "old_string": "foo",
+                "new_string": "qux",
+                "replace_all": true
+            }))
+            .await
+            .unwrap();
 
         assert_not_error(&result);
         let content = std::fs::read_to_string(&file_path).unwrap();
@@ -725,12 +749,15 @@ mod tests {
 
         let caps = CapabilitySet::FS_READ | CapabilitySet::FS_WRITE;
         let tool = EditFileTool::new(caps);
-        
-        let result = tool.execute(serde_json::json!({
-            "path": file_path.to_str().unwrap(),
-            "old_string": "NonExistent",
-            "new_string": "Replacement"
-        })).await.unwrap();
+
+        let result = tool
+            .execute(serde_json::json!({
+                "path": file_path.to_str().unwrap(),
+                "old_string": "NonExistent",
+                "new_string": "Replacement"
+            }))
+            .await
+            .unwrap();
 
         assert_is_error(&result);
         let text = get_text_content(&result).unwrap();
@@ -745,12 +772,15 @@ mod tests {
 
         let caps = CapabilitySet::FS_READ; // No FS_WRITE
         let tool = EditFileTool::new(caps);
-        
-        let result = tool.execute(serde_json::json!({
-            "path": file_path.to_str().unwrap(),
-            "old_string": "content",
-            "new_string": "new"
-        })).await.unwrap();
+
+        let result = tool
+            .execute(serde_json::json!({
+                "path": file_path.to_str().unwrap(),
+                "old_string": "content",
+                "new_string": "new"
+            }))
+            .await
+            .unwrap();
 
         assert_is_error(&result);
         let text = get_text_content(&result).unwrap();
@@ -770,11 +800,14 @@ mod tests {
 
         let caps = CapabilitySet::FS_READ;
         let tool = GlobTool::new(caps);
-        
-        let result = tool.execute(serde_json::json!({
-            "pattern": "*.rs",
-            "path": temp_dir.path().to_str().unwrap()
-        })).await.unwrap();
+
+        let result = tool
+            .execute(serde_json::json!({
+                "pattern": "*.rs",
+                "path": temp_dir.path().to_str().unwrap()
+            }))
+            .await
+            .unwrap();
 
         assert_not_error(&result);
         let text = get_text_content(&result).unwrap();
@@ -789,11 +822,14 @@ mod tests {
 
         let caps = CapabilitySet::FS_READ;
         let tool = GlobTool::new(caps);
-        
-        let result = tool.execute(serde_json::json!({
-            "pattern": "*.nonexistent",
-            "path": temp_dir.path().to_str().unwrap()
-        })).await.unwrap();
+
+        let result = tool
+            .execute(serde_json::json!({
+                "pattern": "*.nonexistent",
+                "path": temp_dir.path().to_str().unwrap()
+            }))
+            .await
+            .unwrap();
 
         assert_not_error(&result);
         let text = get_text_content(&result).unwrap();
@@ -804,10 +840,13 @@ mod tests {
     async fn test_glob_permission_denied() {
         let caps = CapabilitySet::empty();
         let tool = GlobTool::new(caps);
-        
-        let result = tool.execute(serde_json::json!({
-            "pattern": "*.rs"
-        })).await.unwrap();
+
+        let result = tool
+            .execute(serde_json::json!({
+                "pattern": "*.rs"
+            }))
+            .await
+            .unwrap();
 
         assert_is_error(&result);
         let text = get_text_content(&result).unwrap();
@@ -823,16 +862,20 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         std::fs::write(
             temp_dir.path().join("test.txt"),
-            "Hello World\nRust is great\nGoodbye World"
-        ).unwrap();
+            "Hello World\nRust is great\nGoodbye World",
+        )
+        .unwrap();
 
         let caps = CapabilitySet::FS_READ;
         let tool = GrepTool::new(caps);
-        
-        let result = tool.execute(serde_json::json!({
-            "pattern": "World",
-            "path": temp_dir.path().to_str().unwrap()
-        })).await.unwrap();
+
+        let result = tool
+            .execute(serde_json::json!({
+                "pattern": "World",
+                "path": temp_dir.path().to_str().unwrap()
+            }))
+            .await
+            .unwrap();
 
         assert_not_error(&result);
         let text = get_text_content(&result).unwrap();
@@ -844,16 +887,20 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         std::fs::write(
             temp_dir.path().join("test.txt"),
-            "fn main() {}\nfn test() {}\nconst X: i32 = 1;"
-        ).unwrap();
+            "fn main() {}\nfn test() {}\nconst X: i32 = 1;",
+        )
+        .unwrap();
 
         let caps = CapabilitySet::FS_READ;
         let tool = GrepTool::new(caps);
-        
-        let result = tool.execute(serde_json::json!({
-            "pattern": "fn \\w+",
-            "path": temp_dir.path().join("test.txt").to_str().unwrap()
-        })).await.unwrap();
+
+        let result = tool
+            .execute(serde_json::json!({
+                "pattern": "fn \\w+",
+                "path": temp_dir.path().join("test.txt").to_str().unwrap()
+            }))
+            .await
+            .unwrap();
 
         assert_not_error(&result);
         let text = get_text_content(&result).unwrap();
@@ -868,11 +915,14 @@ mod tests {
 
         let caps = CapabilitySet::FS_READ;
         let tool = GrepTool::new(caps);
-        
-        let result = tool.execute(serde_json::json!({
-            "pattern": "NonExistent",
-            "path": temp_dir.path().to_str().unwrap()
-        })).await.unwrap();
+
+        let result = tool
+            .execute(serde_json::json!({
+                "pattern": "NonExistent",
+                "path": temp_dir.path().to_str().unwrap()
+            }))
+            .await
+            .unwrap();
 
         assert_not_error(&result);
         let text = get_text_content(&result).unwrap();
@@ -883,10 +933,12 @@ mod tests {
     async fn test_grep_invalid_regex() {
         let caps = CapabilitySet::FS_READ;
         let tool = GrepTool::new(caps);
-        
-        let result = tool.execute(serde_json::json!({
-            "pattern": "[invalid(regex"
-        })).await;
+
+        let result = tool
+            .execute(serde_json::json!({
+                "pattern": "[invalid(regex"
+            }))
+            .await;
 
         // Should return an error from the Result, not a ToolResult error
         assert!(result.is_err());
@@ -896,10 +948,13 @@ mod tests {
     async fn test_grep_permission_denied() {
         let caps = CapabilitySet::empty();
         let tool = GrepTool::new(caps);
-        
-        let result = tool.execute(serde_json::json!({
-            "pattern": "test"
-        })).await.unwrap();
+
+        let result = tool
+            .execute(serde_json::json!({
+                "pattern": "test"
+            }))
+            .await
+            .unwrap();
 
         assert_is_error(&result);
         let text = get_text_content(&result).unwrap();
@@ -914,10 +969,13 @@ mod tests {
     async fn test_bash_echo_command() {
         let caps = CapabilitySet::PROCESS_SPAWN;
         let tool = BashTool::new(caps);
-        
-        let result = tool.execute(serde_json::json!({
-            "command": "echo 'Hello from bash'"
-        })).await.unwrap();
+
+        let result = tool
+            .execute(serde_json::json!({
+                "command": "echo 'Hello from bash'"
+            }))
+            .await
+            .unwrap();
 
         assert_not_error(&result);
         let text = get_text_content(&result).unwrap();
@@ -927,14 +985,17 @@ mod tests {
     #[tokio::test]
     async fn test_bash_with_workdir() {
         let temp_dir = TempDir::new().unwrap();
-        
+
         let caps = CapabilitySet::PROCESS_SPAWN;
         let tool = BashTool::new(caps);
-        
-        let result = tool.execute(serde_json::json!({
-            "command": "pwd",
-            "workdir": temp_dir.path().to_str().unwrap()
-        })).await.unwrap();
+
+        let result = tool
+            .execute(serde_json::json!({
+                "command": "pwd",
+                "workdir": temp_dir.path().to_str().unwrap()
+            }))
+            .await
+            .unwrap();
 
         assert_not_error(&result);
         let text = get_text_content(&result).unwrap();
@@ -945,7 +1006,7 @@ mod tests {
     async fn test_bash_missing_command() {
         let caps = CapabilitySet::PROCESS_SPAWN;
         let tool = BashTool::new(caps);
-        
+
         let result = tool.execute(serde_json::json!({})).await.unwrap();
 
         assert_is_error(&result);
@@ -957,10 +1018,13 @@ mod tests {
     async fn test_bash_permission_denied() {
         let caps = CapabilitySet::empty();
         let tool = BashTool::new(caps);
-        
-        let result = tool.execute(serde_json::json!({
-            "command": "echo test"
-        })).await.unwrap();
+
+        let result = tool
+            .execute(serde_json::json!({
+                "command": "echo test"
+            }))
+            .await
+            .unwrap();
 
         assert_is_error(&result);
         let text = get_text_content(&result).unwrap();
@@ -971,10 +1035,13 @@ mod tests {
     async fn test_bash_failed_command() {
         let caps = CapabilitySet::PROCESS_SPAWN;
         let tool = BashTool::new(caps);
-        
-        let result = tool.execute(serde_json::json!({
-            "command": "exit 1"
-        })).await.unwrap();
+
+        let result = tool
+            .execute(serde_json::json!({
+                "command": "exit 1"
+            }))
+            .await
+            .unwrap();
 
         // Command ran but failed, so result contains exit code
         let text = get_text_content(&result).unwrap();
@@ -988,7 +1055,7 @@ mod tests {
     #[test]
     fn test_all_tool_definitions() {
         let caps = CapabilitySet::all();
-        
+
         let read_tool = ReadFileTool::new(caps);
         assert_eq!(read_tool.definition().name, "read_file");
 

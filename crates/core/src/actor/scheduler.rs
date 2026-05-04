@@ -238,7 +238,10 @@ impl ActorScheduler {
                 Ok(h) => handles.push(h),
                 Err(e) => {
                     tracing::error!("Failed to spawn worker thread {}: {}", id, e);
-                    return Err(Error::internal(format!("Failed to spawn worker thread {}: {}", id, e)));
+                    return Err(Error::internal(format!(
+                        "Failed to spawn worker thread {}: {}",
+                        id, e
+                    )));
                 }
             }
         }
@@ -272,7 +275,9 @@ impl ActorScheduler {
     /// Kill an actor.
     pub fn kill(&self, id: &ActorId) -> crate::Result<()> {
         self.registry.set_state(id, ActorState::Stopped)?;
-        if let Some(m) = self.registry.get_mailbox(id) { m.clear() }
+        if let Some(m) = self.registry.get_mailbox(id) {
+            m.clear()
+        }
         self.registry.unregister(id)
     }
 

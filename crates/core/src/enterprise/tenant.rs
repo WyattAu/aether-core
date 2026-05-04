@@ -80,7 +80,6 @@ pub enum ActorKind {
     Stream,
 }
 
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 #[derive(Default)]
@@ -90,7 +89,6 @@ pub enum IsolationLevel {
     SoftIsolated,
     HardIsolated,
 }
-
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct FeatureFlags {
@@ -168,11 +166,12 @@ impl TenantConfig {
 pub enum TenantState {
     #[default]
     Active,
-    Suspended { reason: String },
+    Suspended {
+        reason: String,
+    },
     Terminating,
     Terminated,
 }
-
 
 #[derive(Debug, Clone)]
 pub struct Tenant {

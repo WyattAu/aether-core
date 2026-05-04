@@ -5,7 +5,7 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use clap::Args;
-use futures_util::{SinkExt, StreamExt};
+use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;

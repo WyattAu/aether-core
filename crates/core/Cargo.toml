@@ -29,6 +29,7 @@ foundationdb = { version = "0.9", features = ["embedded-fdb-include", "fdb-7_3"]
 rcgen = "0.13"
 zstd = "0.13"
 bytes = "1.9"
+libc = "0.2"
 lru = "0.13"
 parking_lot = "0.12"
 dashmap = "6.1"

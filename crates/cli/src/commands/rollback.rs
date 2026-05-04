@@ -282,7 +282,7 @@ pub async fn execute(args: RollbackArgs) -> Result<(), Error> {
     Ok(())
 }
 
-async fn run_health_check(actor: &str) -> Result<bool, Error> {
+async fn run_health_check(_actor: &str) -> Result<bool, Error> {
     tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
     Ok(true)
 }

@@ -36,14 +36,23 @@ impl super::server::ResourceProvider for ContextResourceProvider {
         for file in files {
             resources.push(Resource {
                 uri: format!("context://{}", file.path.display()),
-                name: file.path.file_name().and_then(|n| n.to_str()).unwrap_or("context").to_string(),
+                name: file
+                    .path
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("context")
+                    .to_string(),
                 description: Some(format!("Project context file ({:?})", file.file_type)),
                 mime_type: Some("text/markdown".to_string()),
             });
 
             for section in &file.sections {
                 resources.push(Resource {
-                    uri: format!("context://{}/sections/{}", file.path.display(), section.heading.to_lowercase().replace(' ', "-")),
+                    uri: format!(
+                        "context://{}/sections/{}",
+                        file.path.display(),
+                        section.heading.to_lowercase().replace(' ', "-")
+                    ),
                     name: section.heading.clone(),
                     description: Some(format!("Section from {}", file.path.display())),
                     mime_type: Some("text/markdown".to_string()),
@@ -105,7 +114,10 @@ pub struct LoadContextTool {
 impl LoadContextTool {
     /// Create a new load context tool
     pub fn new(loader: Arc<ContextLoader>, capabilities: CapabilitySet) -> Self {
-        Self { loader, capabilities }
+        Self {
+            loader,
+            capabilities,
+        }
     }
 }
 
@@ -113,10 +125,15 @@ impl LoadContextTool {
 impl ToolExecutor for LoadContextTool {
     async fn execute(&self, args: serde_json::Value) -> Result<ToolResult> {
         if !self.capabilities.has_fs_read() {
-            return Ok(ToolResult::error("Permission denied: cannot read context files"));
+            return Ok(ToolResult::error(
+                "Permission denied: cannot read context files",
+            ));
         }
 
-        let reload = args.get("reload").and_then(|r| r.as_bool()).unwrap_or(false);
+        let reload = args
+            .get("reload")
+            .and_then(|r| r.as_bool())
+            .unwrap_or(false);
 
         if reload {
             match self.loader.reload() {
@@ -129,7 +146,10 @@ impl ToolExecutor for LoadContextTool {
                     )));
                 }
                 Err(e) => {
-                    return Ok(ToolResult::error(format!("Failed to reload context: {}", e)));
+                    return Ok(ToolResult::error(format!(
+                        "Failed to reload context: {}",
+                        e
+                    )));
                 }
             }
         } else {
@@ -140,7 +160,7 @@ impl ToolExecutor for LoadContextTool {
                     Ok(loaded) => {
                         if loaded.is_empty() {
                             return Ok(ToolResult::text(
-                                "No context files found. Create AETHER.md, MEMORY.md, or CONTEXT.md in the project root."
+                                "No context files found. Create AETHER.md, MEMORY.md, or CONTEXT.md in the project root.",
                             ));
                         }
                         let summary = format_context_summary(&loaded);
@@ -168,7 +188,8 @@ impl ToolExecutor for LoadContextTool {
     fn definition(&self) -> Tool {
         Tool {
             name: "load_context".to_string(),
-            description: "Load or reload project context files (AETHER.md, MEMORY.md, etc.)".to_string(),
+            description: "Load or reload project context files (AETHER.md, MEMORY.md, etc.)"
+                .to_string(),
             input_schema: serde_json::json!({
                 "type": "object",
                 "properties": {
@@ -214,7 +235,8 @@ impl ToolExecutor for GetContextSectionTool {
                 Ok(ToolResult::text(result))
             }
             None => {
-                let available: Vec<String> = self.loader
+                let available: Vec<String> = self
+                    .loader
                     .get_all_sections()
                     .iter()
                     .map(|s| s.heading.clone())
@@ -223,7 +245,8 @@ impl ToolExecutor for GetContextSectionTool {
                 Ok(ToolResult::text(format!(
                     "Section '{}' not found.\n\nAvailable sections:\n{}",
                     section_name,
-                    available.iter()
+                    available
+                        .iter()
                         .map(|s| format!("  - {}", s))
                         .collect::<Vec<_>>()
                         .join("\n")
@@ -269,8 +292,7 @@ fn format_context_summary(files: &[ContextFile]) -> String {
             for section in &file.sections {
                 summary.push_str(&format!(
                     "  - {} (level {})\n",
-                    section.heading,
-                    section.level
+                    section.heading, section.level
                 ));
             }
         }

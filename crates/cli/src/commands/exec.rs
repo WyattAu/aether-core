@@ -3,8 +3,8 @@
 //! Execute commands inside a running actor.
 
 use clap::Args;
-use std::io::{self, BufRead, Write};
-use std::process::{Command, Stdio};
+use std::io::{self, BufRead};
+use std::process::Command;
 use thiserror::Error;
 
 #[derive(Args, Debug)]
@@ -85,7 +85,7 @@ async fn execute_interactive(args: &ExecArgs) -> Result<(), Error> {
     println!("Type 'exit' or press Ctrl+D to end session.");
     println!();
 
-    let shell = if args.command.is_empty() {
+    let _shell = if args.command.is_empty() {
         &args.shell
     } else {
         &args.shell

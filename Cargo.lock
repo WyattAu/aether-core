@@ -76,6 +76,7 @@ dependencies = [
  "http-body-util",
  "hyper",
  "hyper-util",
+ "libc",
  "lru 0.13.0",
  "mime_guess",
  "monoio",

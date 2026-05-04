@@ -323,8 +323,8 @@ impl AiActorProcessor {
                 Message::user(&request.prompt),
             ];
 
-            let completion = CompletionRequest::new(&self.default_model, messages)
-                .with_max_tokens(2048);
+            let completion =
+                CompletionRequest::new(&self.default_model, messages).with_max_tokens(2048);
 
             // Process with AI
             let result = self.provider.complete(completion).await;

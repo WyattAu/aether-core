@@ -93,6 +93,7 @@
 //! 3. Workers steal from each other for balance
 //! 4. Priority queue for critical messages
 
+pub mod ai_integration;
 mod executor;
 mod handle;
 mod mailbox;
@@ -102,8 +103,11 @@ mod registry;
 pub mod rpc;
 mod scheduler;
 pub mod supervisor;
-pub mod ai_integration;
 
+pub use ai_integration::{
+    ActorAiBridge, ActorAiTool, AiActorTool, AiRequest, AiResponse, AiToActorMcpTool,
+    ToolCallRecord,
+};
 #[cfg(feature = "wasm")]
 pub use executor::WasmActorExecutor;
 pub use executor::{ActorExecutor, ExecutionResult, NullExecutor};
@@ -124,10 +128,6 @@ pub use supervisor::{
     ActorConfig, ChildSpec, ChildState, EscalationAction, ExitReason, RestartPolicy,
     SupervisedChild, SupervisionStrategy, Supervisor, SupervisorError, SupervisorHandle,
     SupervisorStats, SupervisorTree, SupervisorTreeStats,
-};
-pub use ai_integration::{
-    ActorAiBridge, ActorAiTool, AiActorTool, AiRequest, AiResponse,
-    AiToActorMcpTool, ToolCallRecord,
 };
 
 use std::sync::Arc;
@@ -151,8 +151,7 @@ impl Default for ActorId {
 }
 
 /// Priority level for actor messages.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub enum Priority {
     /// Low priority (background tasks)
     Low = 0,
@@ -164,7 +163,6 @@ pub enum Priority {
     /// Critical priority (system messages)
     Critical = 3,
 }
-
 
 /// A message sent to an actor.
 #[derive(Debug, Clone)]

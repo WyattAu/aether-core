@@ -248,8 +248,7 @@ impl From<MigrationError> for Error {
 }
 
 /// State of an ongoing migration.
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub enum MigrationState {
     #[default]
     Idle,
@@ -306,7 +305,6 @@ impl MigrationState {
         }
     }
 }
-
 
 /// Serializable actor state for migration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -365,14 +363,12 @@ impl Checkpoint {
 }
 
 /// Metadata for a migration checkpoint.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct CheckpointMetadata {
     pub actor_name: String,
     pub capabilities: CapabilitySet,
     pub fuel_remaining: u64,
 }
-
 
 /// Serializable message for migration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -646,7 +642,7 @@ impl MigrationCoordinator {
         );
 
         let checkpoint = if request.preserve_state {
-            Some(Self::create_checkpoint_stub(&request.actor_id)?)
+            Some(Self::create_checkpoint(&request.actor_id, state_store)?)
         } else {
             None
         };
@@ -670,10 +666,42 @@ impl MigrationCoordinator {
         Ok(())
     }
 
-    fn create_checkpoint_stub(
+    fn create_checkpoint(
         actor_id: &ActorId,
+        state_store: &Arc<dyn KeyValueStore>,
     ) -> std::result::Result<Checkpoint, MigrationError> {
-        Ok(Checkpoint::new(*actor_id, 1, vec![]))
+        // Synchronous checkpoint creation for use in phase 2.
+        // Uses tokio::runtime::Handle::try_current to avoid blocking.
+        let state_key = format!("actor:{}:state", actor_id.0);
+        let sequence_key = format!("actor:{}:sequence", actor_id.0);
+
+        let rt = tokio::runtime::Handle::try_current().map_err(|e| {
+            MigrationError::CheckpointFailed {
+                reason: e.to_string(),
+            }
+        })?;
+
+        let state = rt.block_on(async {
+            state_store
+                .get(state_key.as_bytes())
+                .await
+                .unwrap_or_default()
+                .unwrap_or_default()
+        });
+
+        let sequence = rt.block_on(async {
+            state_store
+                .get(sequence_key.as_bytes())
+                .await
+                .unwrap_or_default()
+                .and_then(|b| {
+                    let arr: [u8; 8] = b.as_slice().try_into().ok()?;
+                    Some(u64::from_be_bytes(arr))
+                })
+                .unwrap_or(1)
+        });
+
+        Ok(Checkpoint::new(*actor_id, sequence, state))
     }
 
     pub async fn prepare_checkpoint(&self, actor_id: &ActorId) -> Result<Checkpoint> {

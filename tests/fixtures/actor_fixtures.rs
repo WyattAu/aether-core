@@ -2,8 +2,6 @@
 //!
 //! Reusable actor definitions for testing.
 
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use std::collections::HashMap;
 
 /// Re-export core Message type for convenience

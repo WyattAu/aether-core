@@ -11,7 +11,7 @@ mod session;
 
 pub use loader::{ContextConfig, ContextFile, ContextLoadError, ContextLoader, ContextSection};
 pub use memory::{
-    MemoryEntry, MemoryStats, MemoryStore, MAX_ENTRIES, MAX_ENTRY_AGE, MAX_TOTAL_SIZE,
+    MAX_ENTRIES, MAX_ENTRY_AGE, MAX_TOTAL_SIZE, MemoryEntry, MemoryStats, MemoryStore,
 };
 pub use persistent_memory::{PersistentMemoryEntry, PersistentMemoryStore};
 pub use session::{

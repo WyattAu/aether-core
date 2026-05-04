@@ -195,7 +195,6 @@ pub fn extract_context(headers: &HashMap<String, String>) -> Context {
     let parent_context = Context::new();
 
     let context = trace_propagator.extract_with_context(&parent_context, &HeaderExtractor(headers));
-    
 
     baggage_propagator.extract_with_context(&context, &HeaderExtractor(headers))
 }

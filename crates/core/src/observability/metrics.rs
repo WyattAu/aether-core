@@ -3,8 +3,8 @@
 //! Collects and exposes runtime metrics in Prometheus format.
 
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 /// Metrics collector
 pub struct MetricsCollector {

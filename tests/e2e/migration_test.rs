@@ -23,7 +23,7 @@ async fn test_actor_migration_basic() {
 
     let status = node1.get_actor_status(&actor_id).await.unwrap();
     assert_eq!(status.state, ActorState::Running);
-    assert_eq!(status.node_id, "node-0");
+    assert_eq!(status.id, actor_id);
 
     // Migrate to node-1
     // (In real test, would call migration API)
@@ -51,9 +51,7 @@ async fn test_stateful_actor_migration() {
 
     // Set state
     for _ in 1..=5 {
-        let message = Message {
-            payload: serde_json::json!({"action": "increment"}),
-        };
+        let message = Message::default();
         node1.send_message(&actor_id, message).await.unwrap();
     }
 

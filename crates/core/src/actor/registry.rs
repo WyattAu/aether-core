@@ -7,8 +7,8 @@ use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::actor::{ActorId, Mailbox, MailboxConfig};
 use crate::Error;
+use crate::actor::{ActorId, Mailbox, MailboxConfig};
 
 /// State of an actor.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]

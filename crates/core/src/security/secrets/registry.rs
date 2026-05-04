@@ -1,7 +1,5 @@
 use crate::error::{Error, Result};
-use crate::security::secret_reference::{
-    SecretProvider as SecretProviderType, SecretReference,
-};
+use crate::security::secret_reference::{SecretProvider as SecretProviderType, SecretReference};
 use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -135,7 +133,10 @@ impl SecretsProviderRegistry {
         // Collect providers to check before releasing the lock
         let providers_to_check: Vec<(String, Arc<dyn SecretsProvider>)> = {
             let providers = self.providers.read();
-            providers.iter().map(|(k, v)| (k.clone(), Arc::clone(v))).collect()
+            providers
+                .iter()
+                .map(|(k, v)| (k.clone(), Arc::clone(v)))
+                .collect()
         }; // Guard dropped here
 
         let mut results = HashMap::new();

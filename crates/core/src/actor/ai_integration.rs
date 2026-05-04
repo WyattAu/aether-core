@@ -250,7 +250,7 @@ impl ActorAiTool {
         if !self.capabilities.contains(CapabilitySet::AI_USE) {
             return Err(Error::internal("AI_USE capability required"));
         }
-        
+
         let id = request.id.clone();
         self.bridge.submit_request(request)?;
         Ok(id)
@@ -260,7 +260,7 @@ impl ActorAiTool {
     pub fn poll_response(&self, request_id: &str, timeout_ms: u64) -> Option<AiResponse> {
         let start = std::time::Instant::now();
         let timeout = std::time::Duration::from_millis(timeout_ms);
-        
+
         while start.elapsed() < timeout {
             if let Some(response) = self.bridge.get_response(request_id) {
                 return Some(response);
@@ -370,22 +370,22 @@ impl AiToActorMcpTool {
 
     /// Execute the tool
     pub async fn execute(&self, args: serde_json::Value) -> Result<ToolResult> {
-        let action = args.get("action")
+        let action = args
+            .get("action")
             .and_then(|v| v.as_str())
             .ok_or_else(|| Error::internal("Missing action"))?;
 
         match action {
             "get_context" => {
-                let query = args.get("query")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("");
+                let query = args.get("query").and_then(|v| v.as_str()).unwrap_or("");
                 let entries = self.bridge.get_context(query);
-                let content = serde_json::to_string_pretty(&entries)
-                    .unwrap_or_else(|_| "[]".to_string());
+                let content =
+                    serde_json::to_string_pretty(&entries).unwrap_or_else(|_| "[]".to_string());
                 Ok(ToolResult::text(content))
             }
             "store" => {
-                let entry_data = args.get("memory_entry")
+                let entry_data = args
+                    .get("memory_entry")
                     .ok_or_else(|| Error::internal("Missing memory_entry"))?;
                 let entry: MemoryEntry = serde_json::from_value(entry_data.clone())
                     .map_err(|e| Error::internal(format!("Invalid entry: {}", e)))?;
@@ -393,13 +393,12 @@ impl AiToActorMcpTool {
                 Ok(ToolResult::text("Stored successfully"))
             }
             "respond" => {
-                let request_id = args.get("request_id")
+                let request_id = args
+                    .get("request_id")
                     .and_then(|v| v.as_str())
                     .ok_or_else(|| Error::internal("Missing request_id"))?;
-                let content = args.get("content")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("");
-                
+                let content = args.get("content").and_then(|v| v.as_str()).unwrap_or("");
+
                 let response = AiResponse {
                     request_id: request_id.to_string(),
                     content: content.to_string(),
@@ -412,19 +411,17 @@ impl AiToActorMcpTool {
             }
             "pending" => {
                 let requests = self.bridge.pending_requests();
-                let content = serde_json::to_string_pretty(&requests)
-                    .unwrap_or_else(|_| "[]".to_string());
+                let content =
+                    serde_json::to_string_pretty(&requests).unwrap_or_else(|_| "[]".to_string());
                 Ok(ToolResult::text(content))
             }
             "history" => {
                 let history = self.bridge.get_history();
-                let content = serde_json::to_string_pretty(&history)
-                    .unwrap_or_else(|_| "[]".to_string());
+                let content =
+                    serde_json::to_string_pretty(&history).unwrap_or_else(|_| "[]".to_string());
                 Ok(ToolResult::text(content))
             }
-            _ => {
-                Ok(ToolResult::error(format!("Unknown action: {}", action)))
-            }
+            _ => Ok(ToolResult::error(format!("Unknown action: {}", action))),
         }
     }
 }
@@ -437,8 +434,7 @@ mod tests {
     #[test]
     fn test_ai_request_creation() {
         let actor_id = ActorId::new();
-        let request = AiRequest::new(actor_id, "What is 2+2?")
-            .with_context("language", "en");
+        let request = AiRequest::new(actor_id, "What is 2+2?").with_context("language", "en");
 
         assert!(!request.id.is_empty());
         assert_eq!(request.prompt, "What is 2+2?");
@@ -462,16 +458,16 @@ mod tests {
     #[test]
     fn test_bridge_request_response() {
         let bridge = Arc::new(ActorAiBridge::new());
-        
+
         let actor_id = ActorId::new();
         let request = AiRequest::new(actor_id, "Hello");
         let request_id = request.id.clone();
-        
+
         bridge.submit_request(request).unwrap();
-        
+
         let pending = bridge.pending_requests();
         assert_eq!(pending.len(), 1);
-        
+
         let response = AiResponse {
             request_id: request_id.clone(),
             content: "Hi there!".to_string(),
@@ -479,9 +475,9 @@ mod tests {
             success: true,
             error: None,
         };
-        
+
         bridge.submit_response(response).unwrap();
-        
+
         let retrieved = bridge.get_response(&request_id).unwrap();
         assert_eq!(retrieved.content, "Hi there!");
     }
@@ -489,14 +485,16 @@ mod tests {
     #[test]
     fn test_bridge_with_memory() {
         let temp_dir = TempDir::new().unwrap();
-        let memory = Arc::new(PersistentMemoryStore::new(temp_dir.path().join("memory.json")));
-        
+        let memory = Arc::new(PersistentMemoryStore::new(
+            temp_dir.path().join("memory.json"),
+        ));
+
         // Store something
         let entry = MemoryEntry::new("test-1", "user", "Hello world");
         memory.add(entry);
-        
+
         let bridge = ActorAiBridge::with_memory(memory);
-        
+
         let results = bridge.get_context("hello");
         assert_eq!(results.len(), 1);
     }
@@ -520,34 +518,37 @@ mod tests {
         // 5. Verify the response is delivered
 
         let temp_dir = TempDir::new().unwrap();
-        let memory = Arc::new(PersistentMemoryStore::new(temp_dir.path().join("memory.json")));
-        
+        let memory = Arc::new(PersistentMemoryStore::new(
+            temp_dir.path().join("memory.json"),
+        ));
+
         // Create bridge with memory
         let bridge = Arc::new(ActorAiBridge::with_memory(memory.clone()));
-        
+
         // Store context in memory
-        let mut context_entry = MemoryEntry::new("ctx-1", "system", "User is working on a Rust project");
+        let mut context_entry =
+            MemoryEntry::new("ctx-1", "system", "User is working on a Rust project");
         context_entry.tags.push("context".to_string());
         memory.add(context_entry);
-        
+
         // Create AI request from actor
         let actor_id = ActorId::new();
         let request = AiRequest::new(actor_id, "Help me with my Rust code")
             .with_context("project_type", "rust")
             .with_capabilities(CapabilitySet::AI_USE);
-        
+
         let request_id = request.id.clone();
         bridge.submit_request(request).unwrap();
-        
+
         // Verify request is pending
         let pending = bridge.pending_requests();
         assert_eq!(pending.len(), 1);
         assert_eq!(pending[0].prompt, "Help me with my Rust code");
-        
+
         // Get context for AI
         let context = bridge.get_context("rust");
         assert!(!context.is_empty());
-        
+
         // Submit AI response
         let response = AiResponse {
             request_id: request_id.clone(),
@@ -562,24 +563,27 @@ mod tests {
             error: None,
         };
         bridge.submit_response(response).unwrap();
-        
+
         // Retrieve response
         let retrieved = bridge.get_response(&request_id).unwrap();
         assert!(retrieved.success);
-        assert_eq!(retrieved.content, "I'd be happy to help with your Rust code!");
+        assert_eq!(
+            retrieved.content,
+            "I'd be happy to help with your Rust code!"
+        );
         assert_eq!(retrieved.tool_calls.len(), 1);
     }
 
     #[test]
     fn test_actor_ai_tool_with_capability_check() {
         let bridge = Arc::new(ActorAiBridge::new());
-        
+
         // Tool without AI_USE capability should fail
         let tool_no_cap = ActorAiTool::new(bridge.clone(), CapabilitySet::empty());
         let request = AiRequest::new(ActorId::new(), "Test");
         let result = tool_no_cap.request(request);
         assert!(result.is_err());
-        
+
         // Tool with AI_USE capability should succeed
         let tool_with_cap = ActorAiTool::new(bridge, CapabilitySet::AI_USE);
         let request = AiRequest::new(ActorId::new(), "Test");
@@ -590,16 +594,18 @@ mod tests {
     #[test]
     fn test_ai_actor_tool_context_operations() {
         let temp_dir = TempDir::new().unwrap();
-        let memory = Arc::new(PersistentMemoryStore::new(temp_dir.path().join("memory.json")));
+        let memory = Arc::new(PersistentMemoryStore::new(
+            temp_dir.path().join("memory.json"),
+        ));
         let bridge = Arc::new(ActorAiBridge::with_memory(memory));
-        
+
         let tool = AiActorTool::new(bridge.clone());
-        
+
         // Store memory
         let mut entry = MemoryEntry::new("test-1", "user", "Important information");
         entry.tags.push("important".to_string());
         tool.store(entry);
-        
+
         // Get context
         let results = tool.get_context("important");
         assert_eq!(results.len(), 1);
@@ -609,29 +615,30 @@ mod tests {
     #[test]
     fn test_ai_actor_tool_response_handling() {
         let bridge = Arc::new(ActorAiBridge::new());
-        
+
         // Submit a request first
         let request = AiRequest::new(ActorId::new(), "Question");
         let request_id = request.id.clone();
         bridge.submit_request(request).unwrap();
-        
+
         let tool = AiActorTool::new(bridge.clone());
-        
+
         // Respond to request
         tool.respond(&request_id, "Answer").unwrap();
-        
+
         // Verify response
         let response = bridge.get_response(&request_id).unwrap();
         assert!(response.success);
         assert_eq!(response.content, "Answer");
-        
+
         // Test error response
         let request2 = AiRequest::new(ActorId::new(), "Bad question");
         let request_id2 = request2.id.clone();
         bridge.submit_request(request2).unwrap();
-        
-        tool.respond_error(&request_id2, "Invalid question").unwrap();
-        
+
+        tool.respond_error(&request_id2, "Invalid question")
+            .unwrap();
+
         let response2 = bridge.get_response(&request_id2).unwrap();
         assert!(!response2.success);
         assert_eq!(response2.error, Some("Invalid question".to_string()));

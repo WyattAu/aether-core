@@ -11,7 +11,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 
-use super::memory::{MemoryEntry, MemoryStats, MAX_ENTRIES, MAX_TOTAL_SIZE};
+use super::memory::{MAX_ENTRIES, MAX_TOTAL_SIZE, MemoryEntry, MemoryStats};
 use crate::error::{Error, Result};
 
 /// Default TTL (7 days)

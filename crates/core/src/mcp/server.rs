@@ -13,8 +13,8 @@ use crate::error::{Error, Result};
 
 use super::transport::{StdioTransport, Transport};
 use super::types::{
-    InitializeResult, JsonRpcError, JsonRpcRequest, JsonRpcResponse, Prompt, Resource,
-    ResourceContents, ServerCapabilities, ServerInfo, Tool, ToolResult, MCP_VERSION,
+    InitializeResult, JsonRpcError, JsonRpcRequest, JsonRpcResponse, MCP_VERSION, Prompt, Resource,
+    ResourceContents, ServerCapabilities, ServerInfo, Tool, ToolResult,
 };
 
 /// Tool executor trait
@@ -183,12 +183,7 @@ impl McpServer {
     }
 
     async fn handle_tools_list(&self, request: JsonRpcRequest) -> JsonRpcResponse {
-        let tools: Vec<Tool> = self
-            .tools
-            .read()
-            .values()
-            .map(|t| t.definition())
-            .collect();
+        let tools: Vec<Tool> = self.tools.read().values().map(|t| t.definition()).collect();
 
         JsonRpcResponse::success(request.id, json!({ "tools": tools }))
     }
@@ -201,7 +196,7 @@ impl McpServer {
                 return JsonRpcResponse::error_response(
                     Some(request.id),
                     JsonRpcError::invalid_params("Missing tool name"),
-                )
+                );
             }
         };
 
@@ -214,7 +209,7 @@ impl McpServer {
                     return JsonRpcResponse::error_response(
                         Some(request.id),
                         JsonRpcError::invalid_params(format!("Tool not found: {}", name)),
-                    )
+                    );
                 }
             }
         }; // Guard dropped here
@@ -245,7 +240,7 @@ impl McpServer {
         let mut resources = Vec::new();
 
         // Collect providers into a Vec to avoid holding lock across await
-        let providers: Vec<Arc<dyn ResourceProvider>> = 
+        let providers: Vec<Arc<dyn ResourceProvider>> =
             self.resources.read().values().map(Arc::clone).collect();
 
         for provider in providers {
@@ -268,7 +263,7 @@ impl McpServer {
                 return JsonRpcResponse::error_response(
                     Some(request.id),
                     JsonRpcError::invalid_params("Missing uri parameter"),
-                )
+                );
             }
         };
 
@@ -279,10 +274,7 @@ impl McpServer {
         // Find resource
         for provider in providers {
             if let Ok(Some(contents)) = provider.read(uri).await {
-                return JsonRpcResponse::success(
-                    request.id,
-                    json!({ "contents": vec![contents] }),
-                );
+                return JsonRpcResponse::success(request.id, json!({ "contents": vec![contents] }));
             }
         }
 
@@ -296,7 +288,7 @@ impl McpServer {
         let mut prompts = Vec::new();
 
         // Clone providers to avoid holding lock across await
-        let providers: Vec<Arc<dyn PromptProvider>> = 
+        let providers: Vec<Arc<dyn PromptProvider>> =
             self.prompts.read().values().map(Arc::clone).collect();
 
         for provider in providers {
@@ -319,7 +311,7 @@ impl McpServer {
                 return JsonRpcResponse::error_response(
                     Some(request.id),
                     JsonRpcError::invalid_params("Missing prompt name"),
-                )
+                );
             }
         };
 
@@ -330,7 +322,7 @@ impl McpServer {
             .unwrap_or_default();
 
         // Clone providers to avoid holding lock across await
-        let providers: Vec<Arc<dyn PromptProvider>> = 
+        let providers: Vec<Arc<dyn PromptProvider>> =
             self.prompts.read().values().map(Arc::clone).collect();
 
         // Find prompt

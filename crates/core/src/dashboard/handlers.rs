@@ -85,7 +85,9 @@ pub fn create_router(state: Arc<DashboardState>) -> Router {
     ),
     tag = "runtime"
 )]
-async fn get_status(State(state): State<Arc<DashboardState>>) -> DashboardResult<Json<RuntimeStatus>> {
+async fn get_status(
+    State(state): State<Arc<DashboardState>>,
+) -> DashboardResult<Json<RuntimeStatus>> {
     let metrics = state.observability.metrics();
 
     Ok(Json(RuntimeStatus {
@@ -105,7 +107,9 @@ async fn get_status(State(state): State<Arc<DashboardState>>) -> DashboardResult
     ),
     tag = "actors"
 )]
-async fn list_actors(State(state): State<Arc<DashboardState>>) -> DashboardResult<Json<Vec<ActorInfo>>> {
+async fn list_actors(
+    State(state): State<Arc<DashboardState>>,
+) -> DashboardResult<Json<Vec<ActorInfo>>> {
     let metrics = state.observability.metrics();
     let actors = get_actor_metrics(&metrics);
     Ok(Json(actors))
@@ -148,7 +152,9 @@ async fn get_actor(
     ),
     tag = "observability"
 )]
-async fn get_metrics(State(state): State<Arc<DashboardState>>) -> DashboardResult<Json<MetricsResponse>> {
+async fn get_metrics(
+    State(state): State<Arc<DashboardState>>,
+) -> DashboardResult<Json<MetricsResponse>> {
     let prometheus = state.observability.metrics().export_prometheus();
     Ok(Json(MetricsResponse { prometheus }))
 }
@@ -161,7 +167,9 @@ async fn get_metrics(State(state): State<Arc<DashboardState>>) -> DashboardResul
     ),
     tag = "observability"
 )]
-async fn get_health(State(state): State<Arc<DashboardState>>) -> DashboardResult<Json<HealthResponse>> {
+async fn get_health(
+    State(state): State<Arc<DashboardState>>,
+) -> DashboardResult<Json<HealthResponse>> {
     let health = state.observability.health();
 
     if health.needs_check() {

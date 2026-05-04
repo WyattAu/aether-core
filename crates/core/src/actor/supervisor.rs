@@ -150,8 +150,7 @@ impl Default for SupervisionStrategy {
 }
 
 /// Restart policy for a supervised child.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum RestartPolicy {
     /// Always restart the child, regardless of exit reason.
     #[default]
@@ -161,7 +160,6 @@ pub enum RestartPolicy {
     /// Never restart the child.
     Temporary,
 }
-
 
 /// Why an actor terminated.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -310,8 +308,7 @@ pub struct SupervisorStats {
 }
 
 /// Action to take when max restarts are exceeded.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum EscalationAction {
     /// Escalate to parent supervisor.
     #[default]
@@ -321,7 +318,6 @@ pub enum EscalationAction {
     /// Ignore and stop restarting.
     GiveUp,
 }
-
 
 /// Error type for supervisor operations.
 #[derive(Debug, Clone)]

@@ -33,16 +33,16 @@ impl ToolExecutor for StoreMemoryTool {
             None => return Ok(ToolResult::error("Missing content parameter")),
         };
 
-        let role = args.get("role")
-            .and_then(|r| r.as_str())
-            .unwrap_or("user");
+        let role = args.get("role").and_then(|r| r.as_str()).unwrap_or("user");
 
-        let importance = args.get("importance")
+        let importance = args
+            .get("importance")
             .and_then(|i| i.as_f64())
             .map(|v| v as f32)
             .unwrap_or(0.5);
 
-        let tags: Vec<String> = args.get("tags")
+        let tags: Vec<String> = args
+            .get("tags")
             .and_then(|t| t.as_array())
             .map(|arr| {
                 arr.iter()
@@ -68,7 +68,11 @@ impl ToolExecutor for StoreMemoryTool {
             id,
             role,
             importance,
-            if tags.is_empty() { "(none)".to_string() } else { tags.join(", ") }
+            if tags.is_empty() {
+                "(none)".to_string()
+            } else {
+                tags.join(", ")
+            }
         )))
     }
 
@@ -127,9 +131,7 @@ impl ToolExecutor for RecallMemoryTool {
         let query = args.get("query").and_then(|q| q.as_str());
         let tag = args.get("tag").and_then(|t| t.as_str());
         let role = args.get("role").and_then(|r| r.as_str());
-        let limit = args.get("limit")
-            .and_then(|l| l.as_u64())
-            .unwrap_or(10) as usize;
+        let limit = args.get("limit").and_then(|l| l.as_u64()).unwrap_or(10) as usize;
 
         let entries = if let Some(query_text) = query {
             self.memory.search(query_text)
@@ -150,11 +152,13 @@ impl ToolExecutor for RecallMemoryTool {
         entries.sort_by(|a, b| {
             let score_a = a.importance + (a.access_count as f32 * 0.01);
             let score_b = b.importance + (b.access_count as f32 * 0.01);
-            score_b.partial_cmp(&score_a).unwrap_or(std::cmp::Ordering::Equal)
+            score_b
+                .partial_cmp(&score_a)
+                .unwrap_or(std::cmp::Ordering::Equal)
         });
 
         let mut result = format!("Found {} memories:\n\n", entries.len().min(limit));
-        
+
         for (i, entry) in entries.iter().take(limit).enumerate() {
             result.push_str(&format!(
                 "{}. [{}] {} (importance: {:.2}, accessed {} times)\n",
@@ -168,7 +172,7 @@ impl ToolExecutor for RecallMemoryTool {
                 entry.importance,
                 entry.access_count
             ));
-            
+
             if !entry.tags.is_empty() {
                 result.push_str(&format!("   Tags: {}\n", entry.tags.join(", ")));
             }
@@ -232,9 +236,7 @@ impl ToolExecutor for SearchMemoryTool {
             None => return Ok(ToolResult::error("Missing query parameter")),
         };
 
-        let limit = args.get("limit")
-            .and_then(|l| l.as_u64())
-            .unwrap_or(10) as usize;
+        let limit = args.get("limit").and_then(|l| l.as_u64()).unwrap_or(10) as usize;
 
         let entries = self.memory.search(query);
 
@@ -246,7 +248,7 @@ impl ToolExecutor for SearchMemoryTool {
         }
 
         let mut result = format!("Found {} memories matching '{}':\n\n", entries.len(), query);
-        
+
         for (i, entry) in entries.iter().take(limit).enumerate() {
             result.push_str(&format!(
                 "{}. [{}] {}\n   ID: {}\n   Importance: {:.2}\n\n",
@@ -352,13 +354,14 @@ impl ClearMemoryTool {
 #[async_trait]
 impl ToolExecutor for ClearMemoryTool {
     async fn execute(&self, args: Value) -> Result<ToolResult> {
-        let confirm = args.get("confirm")
+        let confirm = args
+            .get("confirm")
             .and_then(|c| c.as_bool())
             .unwrap_or(false);
 
         if !confirm {
             return Ok(ToolResult::error(
-                "Memory clear requires confirmation. Set 'confirm' to true."
+                "Memory clear requires confirmation. Set 'confirm' to true.",
             ));
         }
 
@@ -388,8 +391,8 @@ impl ToolExecutor for ClearMemoryTool {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::types::ToolContent;
+    use super::*;
 
     fn get_text_content(result: &ToolResult) -> Option<&str> {
         result.content.first().and_then(|c| {
@@ -406,41 +409,53 @@ mod tests {
         let memory = Arc::new(MemoryStore::new());
         let tool = StoreMemoryTool::new(memory.clone());
 
-        let result = tool.execute(serde_json::json!({
-            "content": "Test memory content",
-            "role": "user",
-            "importance": 0.8,
-            "tags": ["test", "example"]
-        })).await.unwrap();
+        let result = tool
+            .execute(serde_json::json!({
+                "content": "Test memory content",
+                "role": "user",
+                "importance": 0.8,
+                "tags": ["test", "example"]
+            }))
+            .await
+            .unwrap();
 
         assert_eq!(result.is_error, Some(false));
         let text = get_text_content(&result).unwrap();
         assert!(text.contains("Stored memory"));
-        
+
         assert_eq!(memory.len(), 1);
     }
 
     #[tokio::test]
     async fn test_recall_memory() {
         let memory = Arc::new(MemoryStore::new());
-        
+
         // Store some memories
         let store_tool = StoreMemoryTool::new(memory.clone());
-        store_tool.execute(serde_json::json!({
-            "content": "Important fact: The sky is blue",
-            "tags": ["fact"]
-        })).await.unwrap();
+        store_tool
+            .execute(serde_json::json!({
+                "content": "Important fact: The sky is blue",
+                "tags": ["fact"]
+            }))
+            .await
+            .unwrap();
 
-        store_tool.execute(serde_json::json!({
-            "content": "Remember to check tests",
-            "tags": ["todo"]
-        })).await.unwrap();
+        store_tool
+            .execute(serde_json::json!({
+                "content": "Remember to check tests",
+                "tags": ["todo"]
+            }))
+            .await
+            .unwrap();
 
         // Recall
         let recall_tool = RecallMemoryTool::new(memory.clone());
-        let result = recall_tool.execute(serde_json::json!({
-            "query": "sky"
-        })).await.unwrap();
+        let result = recall_tool
+            .execute(serde_json::json!({
+                "query": "sky"
+            }))
+            .await
+            .unwrap();
 
         let text = get_text_content(&result).unwrap();
         assert!(text.contains("Found"));
@@ -449,16 +464,22 @@ mod tests {
     #[tokio::test]
     async fn test_search_memory() {
         let memory = Arc::new(MemoryStore::new());
-        
+
         let store_tool = StoreMemoryTool::new(memory.clone());
-        store_tool.execute(serde_json::json!({
-            "content": "Rust is a systems programming language"
-        })).await.unwrap();
+        store_tool
+            .execute(serde_json::json!({
+                "content": "Rust is a systems programming language"
+            }))
+            .await
+            .unwrap();
 
         let search_tool = SearchMemoryTool::new(memory.clone());
-        let result = search_tool.execute(serde_json::json!({
-            "query": "Rust"
-        })).await.unwrap();
+        let result = search_tool
+            .execute(serde_json::json!({
+                "query": "Rust"
+            }))
+            .await
+            .unwrap();
 
         let text = get_text_content(&result).unwrap();
         assert!(text.contains("Found"));
@@ -467,11 +488,14 @@ mod tests {
     #[tokio::test]
     async fn test_memory_stats() {
         let memory = Arc::new(MemoryStore::new());
-        
+
         let store_tool = StoreMemoryTool::new(memory.clone());
-        store_tool.execute(serde_json::json!({
-            "content": "Test"
-        })).await.unwrap();
+        store_tool
+            .execute(serde_json::json!({
+                "content": "Test"
+            }))
+            .await
+            .unwrap();
 
         let stats_tool = MemoryStatsTool::new(memory.clone());
         let result = stats_tool.execute(serde_json::json!({})).await.unwrap();
@@ -483,27 +507,36 @@ mod tests {
     #[tokio::test]
     async fn test_clear_memory_requires_confirmation() {
         let memory = Arc::new(MemoryStore::new());
-        
+
         let store_tool = StoreMemoryTool::new(memory.clone());
-        store_tool.execute(serde_json::json!({
-            "content": "Test"
-        })).await.unwrap();
+        store_tool
+            .execute(serde_json::json!({
+                "content": "Test"
+            }))
+            .await
+            .unwrap();
 
         let clear_tool = ClearMemoryTool::new(memory.clone());
-        
+
         // Without confirmation
-        let result = clear_tool.execute(serde_json::json!({
-            "confirm": false
-        })).await.unwrap();
-        
+        let result = clear_tool
+            .execute(serde_json::json!({
+                "confirm": false
+            }))
+            .await
+            .unwrap();
+
         assert_eq!(result.is_error, Some(true));
         assert_eq!(memory.len(), 1);
 
         // With confirmation
-        let result = clear_tool.execute(serde_json::json!({
-            "confirm": true
-        })).await.unwrap();
-        
+        let result = clear_tool
+            .execute(serde_json::json!({
+                "confirm": true
+            }))
+            .await
+            .unwrap();
+
         assert_eq!(result.is_error, Some(false));
         assert_eq!(memory.len(), 0);
     }

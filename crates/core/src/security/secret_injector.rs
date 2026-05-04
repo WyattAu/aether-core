@@ -225,13 +225,50 @@ impl SecureMemoryRegion {
         &self.injection_id
     }
 
-    /// Locks the memory region as read-only (placeholder for mprotect).
+    /// Locks the memory region as read-only using `mprotect`.
+    ///
+    /// On Linux, this calls `mprotect` with `PROT_READ` to prevent writes
+    /// to the secret's memory region. On non-Linux platforms, this is a no-op.
     pub fn lock_readonly(&self) -> Result<()> {
+        #[cfg(target_os = "linux")]
+        {
+            let addr = self.data.as_ptr() as usize;
+            let page_size = unsafe { libc::sysconf(libc::_SC_PAGESIZE) as usize };
+            let aligned = addr & !(page_size - 1);
+            let len = self.data.len() + (addr - aligned);
+            let result =
+                unsafe { libc::mprotect(aligned as *mut libc::c_void, len, libc::PROT_READ) };
+            if result != 0 {
+                return Err(Error::internal(format!(
+                    "mprotect PROT_READ failed: {}",
+                    std::io::Error::last_os_error()
+                )));
+            }
+        }
         Ok(())
     }
 
-    /// Locks the memory region as inaccessible (placeholder for mprotect).
+    /// Locks the memory region as inaccessible using `mprotect`.
+    ///
+    /// On Linux, this calls `mprotect` with `PROT_NONE` to fully prevent
+    /// any access to the secret's memory region. On non-Linux platforms,
+    /// this is a no-op.
     pub fn lock_inaccessible(&self) -> Result<()> {
+        #[cfg(target_os = "linux")]
+        {
+            let addr = self.data.as_ptr() as usize;
+            let page_size = unsafe { libc::sysconf(libc::_SC_PAGESIZE) as usize };
+            let aligned = addr & !(page_size - 1);
+            let len = self.data.len() + (addr - aligned);
+            let result =
+                unsafe { libc::mprotect(aligned as *mut libc::c_void, len, libc::PROT_NONE) };
+            if result != 0 {
+                return Err(Error::internal(format!(
+                    "mprotect PROT_NONE failed: {}",
+                    std::io::Error::last_os_error()
+                )));
+            }
+        }
         Ok(())
     }
 }

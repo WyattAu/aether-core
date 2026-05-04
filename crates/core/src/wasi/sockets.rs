@@ -165,7 +165,7 @@ fn is_ip_private(ip: &IpAddr) -> bool {
         IpAddr::V4(ipv4) => ipv4.is_private(),
         IpAddr::V6(ipv6) => {
             let segments = ipv6.segments();
-            
+
             (segments[0] & 0xfe00) == 0xfc00
         }
     }

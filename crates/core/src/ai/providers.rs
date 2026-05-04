@@ -237,16 +237,16 @@ pub type CompletionStream = Pin<Box<dyn Stream<Item = Result<StreamChunk>> + Sen
 pub trait AiProvider: Send + Sync {
     /// Get provider name
     fn name(&self) -> &str;
-    
+
     /// Get available models
     fn models(&self) -> Vec<String>;
-    
+
     /// Complete a request
     async fn complete(&self, request: CompletionRequest) -> Result<CompletionResponse>;
-    
+
     /// Complete with streaming
     async fn complete_stream(&self, request: CompletionRequest) -> Result<CompletionStream>;
-    
+
     /// Count tokens for a message
     fn count_tokens(&self, messages: &[Message]) -> u64;
 }
@@ -296,18 +296,12 @@ impl ProviderFactory {
     /// Create a provider from configuration
     pub fn create(config: ProviderConfig) -> Result<Arc<dyn AiProvider>> {
         match config.provider {
-            ProviderType::Openai => {
-                Ok(Arc::new(OpenAiProvider::new(config)?))
-            }
-            ProviderType::Anthropic => {
-                Ok(Arc::new(AnthropicProvider::new(config)?))
-            }
-            ProviderType::Ollama => {
-                Ok(Arc::new(OllamaProvider::new(config)?))
-            }
-            ProviderType::Custom => {
-                Err(Error::internal("Custom providers require manual instantiation"))
-            }
+            ProviderType::Openai => Ok(Arc::new(OpenAiProvider::new(config)?)),
+            ProviderType::Anthropic => Ok(Arc::new(AnthropicProvider::new(config)?)),
+            ProviderType::Ollama => Ok(Arc::new(OllamaProvider::new(config)?)),
+            ProviderType::Custom => Err(Error::internal(
+                "Custom providers require manual instantiation",
+            )),
         }
     }
 }
@@ -325,7 +319,9 @@ pub struct OpenAiProvider {
 impl OpenAiProvider {
     /// Create new OpenAI provider
     pub fn new(config: ProviderConfig) -> Result<Self> {
-        let api_key = config.api_key.clone()
+        let api_key = config
+            .api_key
+            .clone()
             .or_else(|| std::env::var("OPENAI_API_KEY").ok())
             .ok_or_else(|| Error::internal("OpenAI API key required"))?;
 
@@ -336,7 +332,7 @@ impl OpenAiProvider {
                 .parse()
                 .map_err(|e| Error::internal(format!("Invalid authorization header: {}", e)))?,
         );
-        
+
         if let Some(org) = &config.organization {
             headers.insert(
                 "OpenAI-Organization",
@@ -355,7 +351,9 @@ impl OpenAiProvider {
     }
 
     fn api_url(&self) -> String {
-        self.config.base_url.clone()
+        self.config
+            .base_url
+            .clone()
             .unwrap_or_else(|| "https://api.openai.com/v1".to_string())
     }
 }
@@ -378,23 +376,27 @@ impl AiProvider for OpenAiProvider {
 
     async fn complete(&self, request: CompletionRequest) -> Result<CompletionResponse> {
         let url = format!("{}/chat/completions", self.api_url());
-        
+
         // Pre-serialize tool calls to avoid unwrap in closure
-        let messages: Vec<serde_json::Value> = request.messages.iter().map(|m| {
-            let mut msg = serde_json::json!({
-                "role": m.role.to_string(),
-                "content": m.content,
-            });
-            if !m.tool_calls.is_empty() {
-                msg["tool_calls"] = serde_json::to_value(&m.tool_calls)
-                    .unwrap_or_else(|_| serde_json::json!([]));
-            }
-            if let Some(id) = &m.tool_call_id {
-                msg["tool_call_id"] = serde_json::json!(id);
-            }
-            msg
-        }).collect();
-        
+        let messages: Vec<serde_json::Value> = request
+            .messages
+            .iter()
+            .map(|m| {
+                let mut msg = serde_json::json!({
+                    "role": m.role.to_string(),
+                    "content": m.content,
+                });
+                if !m.tool_calls.is_empty() {
+                    msg["tool_calls"] = serde_json::to_value(&m.tool_calls)
+                        .unwrap_or_else(|_| serde_json::json!([]));
+                }
+                if let Some(id) = &m.tool_call_id {
+                    msg["tool_call_id"] = serde_json::json!(id);
+                }
+                msg
+            })
+            .collect();
+
         let body = serde_json::json!({
             "model": request.model,
             "messages": messages,
@@ -403,7 +405,8 @@ impl AiProvider for OpenAiProvider {
             "stream": false,
         });
 
-        let response = self.client
+        let response = self
+            .client
             .post(&url)
             .json(&body)
             .send()
@@ -422,10 +425,9 @@ impl AiProvider for OpenAiProvider {
 
         let choice = &json["choices"][0];
         let message = &choice["message"];
-        
+
         let tool_calls: Vec<ToolCall> = if message["tool_calls"].is_array() {
-            serde_json::from_value(message["tool_calls"].clone())
-                .unwrap_or_default()
+            serde_json::from_value(message["tool_calls"].clone()).unwrap_or_default()
         } else {
             Vec::new()
         };
@@ -456,7 +458,7 @@ impl AiProvider for OpenAiProvider {
         // Note: Full streaming implementation would use eventsource or similar
         // For now, we return a single chunk with the complete response
         let response = self.complete(request).await?;
-        
+
         let chunk = StreamChunk {
             delta: response.content.clone(),
             tool_call_delta: None,
@@ -469,9 +471,7 @@ impl AiProvider for OpenAiProvider {
 
     fn count_tokens(&self, messages: &[Message]) -> u64 {
         // Approximate token count (roughly 4 chars per token)
-        messages.iter()
-            .map(|m| (m.content.len() / 4) as u64)
-            .sum()
+        messages.iter().map(|m| (m.content.len() / 4) as u64).sum()
     }
 }
 
@@ -488,24 +488,29 @@ pub struct AnthropicProvider {
 impl AnthropicProvider {
     /// Create new Anthropic provider
     pub fn new(config: ProviderConfig) -> Result<Self> {
-        let api_key = config.api_key.clone()
+        let api_key = config
+            .api_key
+            .clone()
             .or_else(|| std::env::var("ANTHROPIC_API_KEY").ok())
             .ok_or_else(|| Error::internal("Anthropic API key required"))?;
 
         let mut headers = reqwest::header::HeaderMap::new();
         headers.insert(
             "x-api-key",
-            api_key.parse()
+            api_key
+                .parse()
                 .map_err(|e| Error::internal(format!("Invalid API key header: {}", e)))?,
         );
         headers.insert(
             "anthropic-version",
-            "2023-06-01".parse()
+            "2023-06-01"
+                .parse()
                 .map_err(|e| Error::internal(format!("Invalid version header: {}", e)))?,
         );
         headers.insert(
             reqwest::header::CONTENT_TYPE,
-            "application/json".parse()
+            "application/json"
+                .parse()
                 .map_err(|e| Error::internal(format!("Invalid content-type header: {}", e)))?,
         );
 
@@ -519,7 +524,9 @@ impl AnthropicProvider {
     }
 
     fn api_url(&self) -> String {
-        self.config.base_url.clone()
+        self.config
+            .base_url
+            .clone()
             .unwrap_or_else(|| "https://api.anthropic.com/v1".to_string())
     }
 
@@ -581,7 +588,7 @@ impl AiProvider for AnthropicProvider {
 
     async fn complete(&self, request: CompletionRequest) -> Result<CompletionResponse> {
         let url = format!("{}/messages", self.api_url());
-        
+
         let (system, messages) = self.convert_messages(&request.messages);
 
         let mut body = serde_json::json!({
@@ -604,7 +611,8 @@ impl AiProvider for AnthropicProvider {
                 .map_err(|e| Error::internal(format!("Failed to serialize tools: {}", e)))?;
         }
 
-        let response = self.client
+        let response = self
+            .client
             .post(&url)
             .json(&body)
             .send()
@@ -624,7 +632,7 @@ impl AiProvider for AnthropicProvider {
         // Parse Anthropic response format
         let empty_vec = Vec::new();
         let content_blocks = json["content"].as_array().unwrap_or(&empty_vec);
-        
+
         let mut text_content = String::new();
         let mut tool_calls = Vec::new();
         let mut finish_reason = FinishReason::Stop;
@@ -672,7 +680,7 @@ impl AiProvider for AnthropicProvider {
     async fn complete_stream(&self, request: CompletionRequest) -> Result<CompletionStream> {
         // Simplified streaming - return complete response as single chunk
         let response = self.complete(request).await?;
-        
+
         let chunk = StreamChunk {
             delta: response.content.clone(),
             tool_call_delta: None,
@@ -685,9 +693,7 @@ impl AiProvider for AnthropicProvider {
 
     fn count_tokens(&self, messages: &[Message]) -> u64 {
         // Approximate token count (roughly 4 chars per token)
-        messages.iter()
-            .map(|m| (m.content.len() / 4) as u64)
-            .sum()
+        messages.iter().map(|m| (m.content.len() / 4) as u64).sum()
     }
 }
 
@@ -713,7 +719,9 @@ impl OllamaProvider {
     }
 
     fn api_url(&self) -> String {
-        self.config.base_url.clone()
+        self.config
+            .base_url
+            .clone()
             .unwrap_or_else(|| "http://localhost:11434/api".to_string())
     }
 }
@@ -740,14 +748,18 @@ impl AiProvider for OllamaProvider {
 
     async fn complete(&self, request: CompletionRequest) -> Result<CompletionResponse> {
         let url = format!("{}/chat", self.api_url());
-        
+
         // Convert messages to Ollama format
-        let messages: Vec<serde_json::Value> = request.messages.iter().map(|m| {
-            serde_json::json!({
-                "role": m.role.to_string(),
-                "content": m.content,
+        let messages: Vec<serde_json::Value> = request
+            .messages
+            .iter()
+            .map(|m| {
+                serde_json::json!({
+                    "role": m.role.to_string(),
+                    "content": m.content,
+                })
             })
-        }).collect();
+            .collect();
 
         let body = serde_json::json!({
             "model": request.model,
@@ -759,7 +771,8 @@ impl AiProvider for OllamaProvider {
             },
         });
 
-        let response = self.client
+        let response = self
+            .client
             .post(&url)
             .json(&body)
             .send()
@@ -799,13 +812,17 @@ impl AiProvider for OllamaProvider {
 
     async fn complete_stream(&self, request: CompletionRequest) -> Result<CompletionStream> {
         let _url = format!("{}/chat", self.api_url());
-        
-        let messages: Vec<serde_json::Value> = request.messages.iter().map(|m| {
-            serde_json::json!({
-                "role": m.role.to_string(),
-                "content": m.content,
+
+        let messages: Vec<serde_json::Value> = request
+            .messages
+            .iter()
+            .map(|m| {
+                serde_json::json!({
+                    "role": m.role.to_string(),
+                    "content": m.content,
+                })
             })
-        }).collect();
+            .collect();
 
         let _body = serde_json::json!({
             "model": request.model,
@@ -815,10 +832,12 @@ impl AiProvider for OllamaProvider {
 
         // Note: Full streaming would use SSE/eventsource
         // Simplified version returns complete response
-        let response = self.complete(CompletionRequest {
-            stream: false,
-            ..request
-        }).await?;
+        let response = self
+            .complete(CompletionRequest {
+                stream: false,
+                ..request
+            })
+            .await?;
 
         let chunk = StreamChunk {
             delta: response.content.clone(),
@@ -832,9 +851,7 @@ impl AiProvider for OllamaProvider {
 
     fn count_tokens(&self, messages: &[Message]) -> u64 {
         // Approximate token count
-        messages.iter()
-            .map(|m| (m.content.len() / 4) as u64)
-            .sum()
+        messages.iter().map(|m| (m.content.len() / 4) as u64).sum()
     }
 }
 
@@ -908,10 +925,10 @@ mod tests {
     fn test_message_creation() {
         let sys = Message::system("You are helpful");
         assert_eq!(sys.role, MessageRole::System);
-        
+
         let user = Message::user("Hello");
         assert_eq!(user.role, MessageRole::User);
-        
+
         let assistant = Message::assistant("Hi!");
         assert_eq!(assistant.role, MessageRole::Assistant);
     }
@@ -949,7 +966,7 @@ mod tests {
     #[tokio::test]
     async fn test_provider_manager() {
         let manager = ProviderManager::new();
-        
+
         // Register mock provider
         // Note: Can't easily create mock, so just test structure
         assert!(manager.default().await.is_none());

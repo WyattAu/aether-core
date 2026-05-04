@@ -17,7 +17,7 @@ async fn test_scale_up() {
         .unwrap();
 
     let node = cluster.leader();
-    let actor_id = node.deploy_actor(&multi_instance_actor(1)).await.unwrap();
+    let actor_id = node.deploy_actor(multi_instance_actor()).await.unwrap();
 
     let status = node.get_actor_status(&actor_id).await.unwrap();
     assert_eq!(status.state, ActorState::Running);
@@ -41,7 +41,7 @@ async fn test_scale_down() {
         .unwrap();
 
     let node = cluster.leader();
-    let actor_id = node.deploy_actor(&multi_instance_actor(5)).await.unwrap();
+    let actor_id = node.deploy_actor(multi_instance_actor()).await.unwrap();
 
     let status = node.get_actor_status(&actor_id).await.unwrap();
     assert_eq!(status.state, ActorState::Running);
@@ -128,7 +128,7 @@ async fn test_cross_node_scaling() {
         .unwrap();
 
     let node = cluster.leader();
-    let actor_id = node.deploy_actor(&multi_instance_actor(10)).await.unwrap();
+    let actor_id = node.deploy_actor(multi_instance_actor()).await.unwrap();
 
     // Wait for instances to spread across nodes
     tokio::time::sleep(Duration::from_secs(2)).await;

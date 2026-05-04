@@ -57,8 +57,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 /// HTTP request method
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum Method {
     /// GET method
     #[default]
@@ -134,7 +133,6 @@ impl std::fmt::Display for Method {
         write!(f, "{}", self.as_str())
     }
 }
-
 
 /// HTTP headers container
 #[derive(Debug, Clone, Default)]
@@ -820,11 +818,11 @@ async fn handle_connection(
         async move {
             if !caps.contains(CapabilitySet::NETWORK_INBOUND) {
                 return Response::builder()
-                        .status(403)
-                        .body(Full::new(Bytes::from(
-                            "NETWORK_INBOUND capability required",
-                        )))
-                        .map_err(|e| format!("response build failed: {}", e));
+                    .status(403)
+                    .body(Full::new(Bytes::from(
+                        "NETWORK_INBOUND capability required",
+                    )))
+                    .map_err(|e| format!("response build failed: {}", e));
             }
 
             let method = Method::from_str(req.method().as_str()).unwrap_or(Method::Get);
@@ -832,9 +830,9 @@ async fn handle_connection(
                 Ok(u) => u,
                 Err(e) => {
                     return Response::builder()
-                            .status(400)
-                            .body(Full::new(Bytes::from(format!("Invalid URI: {}", e))))
-                            .map_err(|e| format!("response build failed: {}", e));
+                        .status(400)
+                        .body(Full::new(Bytes::from(format!("Invalid URI: {}", e))))
+                        .map_err(|e| format!("response build failed: {}", e));
                 }
             };
             let headers = Headers::from_http(req.headers());
