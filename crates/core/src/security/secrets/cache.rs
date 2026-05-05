@@ -1,3 +1,5 @@
+//! In-memory caching layer for secret providers.
+
 use crate::error::{Error, Result};
 use async_trait::async_trait;
 use parking_lot::RwLock;

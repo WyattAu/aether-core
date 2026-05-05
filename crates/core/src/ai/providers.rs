@@ -283,10 +283,11 @@ pub struct ProviderConfig {
 }
 
 /// Supported provider types
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ProviderType {
     /// OpenAI API provider.
+    #[default]
     Openai,
     /// Anthropic (Claude) API provider.
     Anthropic,
@@ -294,12 +295,6 @@ pub enum ProviderType {
     Ollama,
     /// User-defined custom provider.
     Custom,
-}
-
-impl Default for ProviderType {
-    fn default() -> Self {
-        Self::Openai
-    }
 }
 
 /// Factory for creating AI providers from configuration.

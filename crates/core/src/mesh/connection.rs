@@ -147,7 +147,10 @@ impl ConnectionPool {
     /// * `max_connections` - Maximum number of connections in the pool
     /// * `idle_timeout` - Time after which idle connections are evicted
     pub fn with_config(node_id: &str, max_connections: usize, idle_timeout: Duration) -> Self {
-        let lru_size = NonZeroUsize::new(max_connections).unwrap_or(NonZeroUsize::new(1).unwrap());
+        let lru_size = NonZeroUsize::new(max_connections).unwrap_or_else(|| {
+            #[allow(clippy::unwrap_used)]
+            NonZeroUsize::new(1).unwrap()
+        });
         Self {
             node_id: node_id.to_string(),
             connections: DashMap::new(),

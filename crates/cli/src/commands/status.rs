@@ -42,7 +42,8 @@ pub enum Error {
 pub async fn execute(args: StatusArgs) -> Result<(), Error> {
     match args.format.as_str() {
         "json" => print_json_status(&args).await?,
-        "table" | _ => print_table_status(&args).await?,
+        "table" => print_table_status(&args).await?,
+        _ => print_table_status(&args).await?,
     }
     Ok(())
 }

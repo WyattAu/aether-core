@@ -27,6 +27,7 @@ pub struct ImportArgs {
 }
 
 #[derive(Error, Debug)]
+#[allow(clippy::enum_variant_names)]
 pub enum Error {
     #[error("Input file not found: {0}")]
     InputNotFound(String),

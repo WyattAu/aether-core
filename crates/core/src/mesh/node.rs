@@ -38,6 +38,7 @@ pub struct MeshNode {
 
 impl MeshNode {
     /// Create a new mesh node with the given ID and listen address.
+    #[allow(clippy::expect_used)]
     pub fn new(node_id: &str, addr: SocketAddr) -> Self {
         Self::with_config(MeshConfig {
             node_id: node_id.to_string(),

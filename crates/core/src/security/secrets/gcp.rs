@@ -1,3 +1,5 @@
+//! Google Cloud Secret Manager provider implementation.
+
 use crate::error::{Error, Result};
 use async_trait::async_trait;
 use reqwest::Client;
@@ -152,20 +154,19 @@ impl GcpSecretsProvider {
     }
 
     /// Create a provider with an explicit access token.
-    pub fn with_token(config: GcpSecretsConfig, access_token: String) -> Self {
+    pub fn with_token(config: GcpSecretsConfig, access_token: String) -> Result<Self> {
         let client = Client::builder()
             .timeout(config.timeout)
             .build()
-            .map_err(|e| Error::security(format!("Failed to create HTTP client: {}", e)))
-            .expect("Failed to create HTTP client");
+            .map_err(|e| Error::security(format!("Failed to create HTTP client: {}", e)))?;
 
-        Self {
+        Ok(Self {
             config: GcpSecretsConfig {
                 access_token: Some(access_token),
                 ..config
             },
             client,
-        }
+        })
     }
 
     async fn get_access_token(&self) -> Result<String> {

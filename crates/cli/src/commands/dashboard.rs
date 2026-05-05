@@ -27,6 +27,7 @@ pub struct DashboardArgs {
 
 /// Dashboard command errors
 #[derive(Error, Debug)]
+#[allow(clippy::enum_variant_names)]
 pub enum Error {
     #[error("Failed to bind to address: {0}")]
     BindFailed(String),

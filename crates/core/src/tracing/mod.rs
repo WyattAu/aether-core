@@ -179,6 +179,7 @@ impl Drop for Tracing {
 }
 
 impl Default for Tracing {
+    #[allow(clippy::expect_used)]
     fn default() -> Self {
         Self::new(TracingConfig::default()).expect("Failed to create default tracing")
     }

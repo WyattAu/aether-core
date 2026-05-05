@@ -68,6 +68,7 @@ pub struct SchemaArgs {
 }
 
 #[derive(Error, Debug)]
+#[allow(clippy::enum_variant_names)]
 pub enum Error {
     #[error("Configuration not found: {0}")]
     ConfigNotFound(String),
@@ -167,7 +168,7 @@ async fn config_generate(args: &GenerateArgs) -> Result<(), Error> {
         "minimal" => generate_minimal_config(),
         "web" => generate_web_config(),
         "microservice" => generate_microservice_config(),
-        "default" | _ => generate_default_config(),
+        _ => generate_default_config(),
     };
 
     println!("Generated configuration:");
@@ -274,7 +275,7 @@ async fn config_schema(args: &SchemaArgs) -> Result<(), Error> {
                     }
                 }
             });
-            println!("{}", serde_json::to_string_pretty(&schema).unwrap());
+            println!("{}", serde_json::to_string_pretty(&schema).unwrap_or_else(|_| "{}".to_string()));
         }
         "markdown" => {
             println!("# Aether Configuration Schema");
@@ -451,7 +452,7 @@ fn print_project_section(format: &str) {
             "description": "An Aether application",
             "authors": ["Your Name <you@example.com>"]
         });
-        println!("{}", serde_json::to_string_pretty(&project).unwrap());
+        println!("{}", serde_json::to_string_pretty(&project).unwrap_or_else(|_| "{}".to_string()));
     } else {
         println!("[project]");
         println!("name = \"my-aether-app\"");
@@ -468,7 +469,7 @@ fn print_runtime_section(format: &str) {
             "cpu_limit": 1.0,
             "log_level": "info"
         });
-        println!("{}", serde_json::to_string_pretty(&runtime).unwrap());
+        println!("{}", serde_json::to_string_pretty(&runtime).unwrap_or_else(|_| "{}".to_string()));
     } else {
         println!("[runtime]");
         println!("memory_limit = \"256MB\"");
@@ -493,7 +494,7 @@ fn print_actors_section(format: &str) {
                 "instances": 2
             }
         ]);
-        println!("{}", serde_json::to_string_pretty(&actors).unwrap());
+        println!("{}", serde_json::to_string_pretty(&actors).unwrap_or_else(|_| "{}".to_string()));
     } else {
         println!("[[actors]]");
         println!("name = \"api-server\"");
@@ -518,7 +519,7 @@ fn print_mesh_section(format: &str) {
             "port": 7000,
             "discovery": "multicast"
         });
-        println!("{}", serde_json::to_string_pretty(&mesh).unwrap());
+        println!("{}", serde_json::to_string_pretty(&mesh).unwrap_or_else(|_| "{}".to_string()));
     } else {
         println!("[mesh]");
         println!("enabled = true");
@@ -546,7 +547,7 @@ fn print_full_config(format: &str) {
                 "port": 7000
             }
         });
-        println!("{}", serde_json::to_string_pretty(&full).unwrap());
+        println!("{}", serde_json::to_string_pretty(&full).unwrap_or_else(|_| "{}".to_string()));
     } else {
         println!("{}", generate_default_config());
     }

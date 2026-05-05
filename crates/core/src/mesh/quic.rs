@@ -48,6 +48,7 @@ pub struct QuicConfig {
 impl Default for QuicConfig {
     fn default() -> Self {
         Self {
+            #[allow(clippy::unwrap_used)]
             listen: "0.0.0.0:9000".parse().unwrap(),
             server_name: "localhost".to_string(),
             cert_path: None,
@@ -73,6 +74,7 @@ impl QuicConfig {
     /// Create a client config with ephemeral bind address.
     pub fn client() -> Self {
         Self {
+            #[allow(clippy::unwrap_used)]
             listen: "0.0.0.0:0".parse().unwrap(),
             ..Default::default()
         }
@@ -561,6 +563,7 @@ impl Clone for QuicEndpoint {
         Self {
             endpoint: self.endpoint.clone(),
             config: self.config.clone(),
+            #[allow(clippy::expect_used)]
             cert_config: CertificateConfig::generate_self_signed(&self.config.server_name)
                 .expect("Failed to generate self-signed certificate for QuicEndpoint clone"),
             connection_pool: self.connection_pool.clone(),
@@ -618,6 +621,7 @@ impl QuicClient {
 }
 
 impl Default for QuicClient {
+    #[allow(clippy::expect_used)]
     fn default() -> Self {
         Self::new().expect("Failed to create QUIC client")
     }

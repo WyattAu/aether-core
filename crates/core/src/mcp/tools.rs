@@ -428,7 +428,7 @@ impl ToolExecutor for BashTool {
         let timeout_ms = args
             .get("timeout")
             .and_then(|t| t.as_u64())
-            .unwrap_or(120000) as u64;
+            .unwrap_or(120000);
 
         let workdir = args
             .get("workdir")

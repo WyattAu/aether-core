@@ -1,3 +1,5 @@
+//! Registry for managing and discovering secret providers.
+
 use crate::error::{Error, Result};
 use crate::security::secret_reference::{SecretProvider as SecretProviderType, SecretReference};
 use parking_lot::RwLock;

@@ -127,7 +127,7 @@ async fn inspect_memory(args: &MemoryArgs) -> Result<(), Error> {
             "bytes": 64,
             "data": "0x00000000: 48 65 6C 6C 6F 20 57 6F 72 6C 64 00 00 00 00 00"
         });
-        println!("{}", serde_json::to_string_pretty(&mem).unwrap());
+        println!("{}", serde_json::to_string_pretty(&mem).unwrap_or_else(|_| "{}".to_string()));
     } else {
         println!("Address         Bytes                                            ASCII");
         println!("─────────────────────────────────────────────────────────────────────");
@@ -186,7 +186,7 @@ async fn inspect_state(args: &StateArgs) -> Result<(), Error> {
                     "last_update": "2024-03-06T12:00:00Z"
                 }
             });
-            println!("{}", serde_json::to_string_pretty(&state).unwrap());
+            println!("{}", serde_json::to_string_pretty(&state).unwrap_or_else(|_| "{}".to_string()));
         } else {
             println!("Key: {}", key);
             println!("├── Type:     Object");
@@ -212,7 +212,7 @@ async fn inspect_state(args: &StateArgs) -> Result<(), Error> {
                 "size_bytes": 512,
                 "version": 15
             });
-            println!("{}", serde_json::to_string_pretty(&state).unwrap());
+            println!("{}", serde_json::to_string_pretty(&state).unwrap_or_else(|_| "{}".to_string()));
         } else {
             println!("State Summary");
             println!("├── Version:  15");
@@ -233,7 +233,7 @@ async fn inspect_stack(args: &StackArgs) -> Result<(), Error> {
     println!("────────────────────────────────────────────────────────────");
     println!();
 
-    let frames = vec![
+    let frames = [
         ("handle_request", "src/handler.rs:42", "async fn"),
         ("process_message", "src/processor.rs:128", "async fn"),
         ("validate_input", "src/validation.rs:15", "fn"),
@@ -288,7 +288,7 @@ async fn inspect_metadata(args: &MetadataArgs) -> Result<(), Error> {
                 "cpu_limit": "0.5"
             }
         });
-        println!("{}", serde_json::to_string_pretty(&meta).unwrap());
+        println!("{}", serde_json::to_string_pretty(&meta).unwrap_or_else(|_| "{}".to_string()));
     } else {
         println!("Identity");
         println!("├── ID:       actor-12345-abcde");
@@ -346,12 +346,12 @@ async fn inspect_all(args: &AllArgs) -> Result<(), Error> {
                 "top_frame": "handle_request"
             }
         });
-        println!("{}", serde_json::to_string_pretty(&full).unwrap());
+        println!("{}", serde_json::to_string_pretty(&full).unwrap_or_else(|_| "{}".to_string()));
     } else {
         println!("╔═══════════════════════════════════════════════════════════════╗");
         println!(
-            "║              FULL ACTOR INSPECTION: {}                ",
-            format!("{:<22}", args.actor)
+            "║              FULL ACTOR INSPECTION: {:<22}                ",
+            args.actor
         );
         println!("╠═══════════════════════════════════════════════════════════════╣");
         println!();

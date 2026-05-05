@@ -1,3 +1,5 @@
+//! HashiCorp Vault provider implementation.
+
 use crate::error::{Error, Result};
 use async_trait::async_trait;
 use parking_lot::RwLock;
@@ -214,20 +216,19 @@ impl VaultProvider {
     }
 
     /// Create a Vault provider with a pre-authenticated token.
-    pub fn with_token(config: VaultConfig, token: String) -> Self {
+    pub fn with_token(config: VaultConfig, token: String) -> Result<Self> {
         let client = Client::builder()
             .timeout(config.timeout)
             .danger_accept_invalid_certs(false)
             .build()
-            .map_err(|e| Error::security(format!("Failed to create HTTP client: {}", e)))
-            .expect("Failed to create HTTP client");
+            .map_err(|e| Error::security(format!("Failed to create HTTP client: {}", e)))?;
 
-        Self {
+        Ok(Self {
             config,
             client,
             token: RwLock::new(Some(token)),
             token_lease_duration: RwLock::new(None),
-        }
+        })
     }
 
     async fn get_token(&self) -> Result<String> {

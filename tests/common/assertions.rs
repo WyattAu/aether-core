@@ -9,6 +9,7 @@ use std::time::Duration;
 /// # Panics
 ///
 /// Panics if the condition does not return `true` within the specified timeout.
+#[expect(clippy::panic)]
 pub fn assert_eventually<F>(mut condition: F, timeout: Duration, message: &str)
 where
     F: FnMut() -> bool,
@@ -28,6 +29,7 @@ where
 /// # Panics
 ///
 /// Panics if the condition does not return `true` within the specified timeout.
+#[expect(clippy::panic)]
 pub async fn assert_eventually_async<F, Fut>(mut condition: F, timeout: Duration, message: &str)
 where
     F: FnMut() -> Fut,

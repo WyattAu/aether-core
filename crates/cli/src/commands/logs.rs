@@ -162,6 +162,7 @@ impl LogLevel {
 
 /// Logs command errors
 #[derive(Error, Debug)]
+#[allow(clippy::enum_variant_names)]
 pub enum Error {
     /// Stream failed
     #[error("Failed to stream logs: {0}")]
@@ -735,8 +736,8 @@ fn print_recent_logs(args: &LogsArgs, level_filter: Option<LogLevel>) -> Result<
         .collect();
 
     let count = args.lines.min(filtered_logs.len());
-    for i in 0..count {
-        print_entry(&filtered_logs[i], &args.format);
+    for entry in filtered_logs.iter().take(count) {
+        print_entry(entry, &args.format);
     }
 
     Ok(())

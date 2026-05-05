@@ -103,27 +103,27 @@ impl App {
         }
 
         match self.sort_field.as_str() {
-            "memory" => self.actors.sort_by(|a, b| b.memory_mb.cmp(&a.memory_mb)),
+            "memory" => self.actors.sort_by_key(|b| std::cmp::Reverse(b.memory_mb)),
             "name" => self.actors.sort_by(|a, b| a.name.cmp(&b.name)),
             "status" => self.actors.sort_by(|a, b| a.status.cmp(&b.status)),
             _ => self
                 .actors
-                .sort_by(|a, b| b.cpu_percent.cmp(&a.cpu_percent)),
+                .sort_by_key(|b| std::cmp::Reverse(b.cpu_percent)),
         }
     }
 
     fn handle_key(&mut self, key: KeyCode) {
         match key {
             KeyCode::Char('q') => self.should_quit = true,
-            KeyCode::Left | KeyCode::Char('h') => {
-                if self.selected_tab > 0 {
-                    self.selected_tab -= 1;
-                }
+            KeyCode::Left | KeyCode::Char('h')
+                if self.selected_tab > 0 =>
+            {
+                self.selected_tab -= 1;
             }
-            KeyCode::Right | KeyCode::Char('l') => {
-                if self.selected_tab < self.tabs.len() - 1 {
-                    self.selected_tab += 1;
-                }
+            KeyCode::Right | KeyCode::Char('l')
+                if self.selected_tab < self.tabs.len() - 1 =>
+            {
+                self.selected_tab += 1;
             }
             KeyCode::Up | KeyCode::Char('k') => {}
             KeyCode::Down | KeyCode::Char('j') => {}

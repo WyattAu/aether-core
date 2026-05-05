@@ -1,3 +1,5 @@
+//! Common traits and types for secret providers.
+
 use crate::error::{Error, Result};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};

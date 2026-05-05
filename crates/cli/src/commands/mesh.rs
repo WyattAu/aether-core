@@ -71,6 +71,7 @@ pub struct TopologyArgs {
 }
 
 #[derive(Error, Debug)]
+#[allow(clippy::enum_variant_names)]
 pub enum Error {
     #[error("Mesh not initialized")]
     #[allow(dead_code)] // Reserved for future CLI subcommand expansion
@@ -140,7 +141,7 @@ async fn mesh_status(args: &StatusArgs) -> Result<(), Error> {
                 "messages_per_sec": 10000
             }
         });
-        println!("{}", serde_json::to_string_pretty(&status).unwrap());
+        println!("{}", serde_json::to_string_pretty(&status).unwrap_or_else(|_| "{}".to_string()));
     } else {
         println!("╔═══════════════════════════════════════════════════════════════╗");
         println!("║                     MESH NETWORK STATUS                       ║");
@@ -226,7 +227,7 @@ async fn mesh_peers(args: &PeersArgs) -> Result<(), Error> {
                 "message_rate": rate
             })
         }).collect();
-        println!("{}", serde_json::to_string_pretty(&peers_json).unwrap());
+        println!("{}", serde_json::to_string_pretty(&peers_json).unwrap_or_else(|_| "{}".to_string()));
     } else if args.detailed {
         println!("Peer Details");
         println!("═════════════════════════════════════════════════════════════════════");
@@ -337,7 +338,7 @@ async fn mesh_topology(args: &TopologyArgs) -> Result<(), Error> {
                 "clusters": 1,
                 "diameter": 3
             });
-            println!("{}", serde_json::to_string_pretty(&topo).unwrap());
+            println!("{}", serde_json::to_string_pretty(&topo).unwrap_or_else(|_| "{}".to_string()));
         }
         "dot" => {
             println!("digraph aether_mesh {{");

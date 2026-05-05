@@ -25,9 +25,10 @@ const MAX_ENTRIES: usize = 1000;
 const MAX_ENTRY_AGE: std::time::Duration = Duration::from_secs(60 * 60 * 24 * 7);
 
 /// Type of context file
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub enum ContextFileType {
     /// Main project context (AETHER.md)
+    #[default]
     Project,
     /// Memory/persistent context (MEMORY.md)
     Memory,
@@ -35,12 +36,6 @@ pub enum ContextFileType {
     Session,
     /// Custom context file
     Custom,
-}
-
-impl Default for ContextFileType {
-    fn default() -> Self {
-        Self::Project
-    }
 }
 
 /// A section within a context file
@@ -252,10 +247,8 @@ impl ContextLoader {
         let mut title = None;
         let mut sections = Vec::new();
         let mut current_section: Option<ContextSection> = None;
-        let mut line_number = 0;
-
-        for line in content.lines() {
-            line_number += 1;
+        for (_i, line) in content.lines().enumerate() {
+            let line_number = _i + 1;
 
             // Check for H1 heading (title)
             if line.starts_with("# ") && !line.starts_with("## ") {
@@ -319,7 +312,7 @@ impl ContextLoader {
                 break;
             }
         }
-        if count >= 1 && count <= 6 && line.chars().nth(count as usize) == Some(' ') {
+        if (1..=6).contains(&count) && line.chars().nth(count as usize) == Some(' ') {
             count
         } else {
             0

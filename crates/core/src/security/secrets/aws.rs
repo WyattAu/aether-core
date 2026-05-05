@@ -1,3 +1,5 @@
+//! AWS Secrets Manager provider implementation.
+
 use crate::error::{Error, Result};
 use async_trait::async_trait;
 use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
@@ -218,18 +220,17 @@ impl AwsSecretsProvider {
     }
 
     /// Create a provider with explicit credentials.
-    pub fn with_credentials(config: AwsSecretsConfig, credentials: AwsCredentials) -> Self {
+    pub fn with_credentials(config: AwsSecretsConfig, credentials: AwsCredentials) -> Result<Self> {
         let client = Client::builder()
             .timeout(config.timeout)
             .build()
-            .map_err(|e| Error::security(format!("Failed to create HTTP client: {}", e)))
-            .expect("Failed to create HTTP client");
+            .map_err(|e| Error::security(format!("Failed to create HTTP client: {}", e)))?;
 
-        Self {
+        Ok(Self {
             config,
             client,
             credentials: Some(credentials),
-        }
+        })
     }
 
     /// Get AWS credentials, returning cached credentials or loading from the environment.
@@ -301,9 +302,9 @@ impl AwsSecretsProvider {
         );
 
         let signing_key =
-            get_signature_key(&credentials.secret_access_key, &date_stamp, region, service);
+            get_signature_key(&credentials.secret_access_key, &date_stamp, region, service)?;
 
-        let signature = hex_encode(hmac_sha256(&signing_key, &string_to_sign));
+        let signature = hex_encode(hmac_sha256(&signing_key, &string_to_sign)?);
 
         let authorization = format!(
             "AWS4-HMAC-SHA256 Credential={}/{}/{}/{}/aws4_request, SignedHeaders={}, Signature={}",
@@ -581,19 +582,20 @@ fn hex_encode(bytes: impl AsRef<[u8]>) -> String {
         .collect()
 }
 
-fn hmac_sha256(key: &[u8], msg: &str) -> Vec<u8> {
+fn hmac_sha256(key: &[u8], msg: &str) -> crate::error::Result<Vec<u8>> {
     use hmac::{Hmac, Mac};
     type HmacSha256 = Hmac<Sha256>;
 
-    let mut mac = HmacSha256::new_from_slice(key).expect("HMAC initialization failed");
+    let mut mac =
+        HmacSha256::new_from_slice(key).map_err(|e| Error::internal(format!("HMAC initialization failed: {}", e)))?;
     mac.update(msg.as_bytes());
-    mac.finalize().into_bytes().to_vec()
+    Ok(mac.finalize().into_bytes().to_vec())
 }
 
-fn get_signature_key(key: &str, date_stamp: &str, region: &str, service: &str) -> Vec<u8> {
-    let k_date = hmac_sha256(format!("AWS4{}", key).as_bytes(), date_stamp);
-    let k_region = hmac_sha256(&k_date, region);
-    let k_service = hmac_sha256(&k_region, service);
+fn get_signature_key(key: &str, date_stamp: &str, region: &str, service: &str) -> crate::error::Result<Vec<u8>> {
+    let k_date = hmac_sha256(format!("AWS4{}", key).as_bytes(), date_stamp)?;
+    let k_region = hmac_sha256(&k_date, region)?;
+    let k_service = hmac_sha256(&k_region, service)?;
     hmac_sha256(&k_service, "aws4_request")
 }
 

@@ -1,3 +1,5 @@
+//! Secret management with pluggable provider backends.
+
 mod aws;
 mod cache;
 mod gcp;

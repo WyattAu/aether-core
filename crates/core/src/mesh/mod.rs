@@ -205,9 +205,12 @@ impl Default for MeshConfig {
         Self {
             node_id: format!("node-{}", uuid::Uuid::new_v4()),
             namespace: "default".to_string(),
-            listen_addr: format!("0.0.0.0:{}", DEFAULT_QUIC_PORT)
-                .parse()
-                .unwrap_or_else(|_| "0.0.0.0:0".parse().unwrap()),
+            listen_addr: {
+                #[allow(clippy::unwrap_used)]
+                format!("0.0.0.0:{}", DEFAULT_QUIC_PORT)
+                    .parse()
+                    .unwrap_or_else(|_| "0.0.0.0:0".parse().unwrap())
+            },
             max_connections: DEFAULT_POOL_SIZE,
             idle_timeout: DEFAULT_IDLE_TIMEOUT,
             max_message_size: DEFAULT_MAX_MESSAGE_SIZE,
@@ -226,9 +229,12 @@ impl MeshConfig {
     pub fn server(node_id: &str, port: u16) -> Self {
         Self {
             node_id: node_id.to_string(),
-            listen_addr: format!("0.0.0.0:{}", port)
-                .parse()
-                .unwrap_or_else(|_| "0.0.0.0:0".parse().unwrap()),
+            listen_addr: {
+                #[allow(clippy::unwrap_used)]
+                format!("0.0.0.0:{}", port)
+                    .parse()
+                    .unwrap_or_else(|_| "0.0.0.0:0".parse().unwrap())
+            },
             ..Default::default()
         }
     }
@@ -236,9 +242,12 @@ impl MeshConfig {
     /// Create a client configuration
     pub fn client() -> Self {
         Self {
-            listen_addr: "0.0.0.0:0"
-                .parse()
-                .unwrap_or_else(|_| "0.0.0.0:0".parse().unwrap()),
+            listen_addr: {
+                #[allow(clippy::unwrap_used)]
+                "0.0.0.0:0"
+                    .parse()
+                    .unwrap_or_else(|_| "0.0.0.0:0".parse().unwrap())
+            },
             ..Default::default()
         }
     }

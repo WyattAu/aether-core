@@ -88,11 +88,7 @@ async fn execute_interactive(args: &ExecArgs) -> Result<(), Error> {
     println!("Type 'exit' or press Ctrl+D to end session.");
     println!();
 
-    let _shell = if args.command.is_empty() {
-        &args.shell
-    } else {
-        &args.shell
-    };
+    let _shell = &args.shell;
 
     println!("aether:{}# ", args.actor);
 

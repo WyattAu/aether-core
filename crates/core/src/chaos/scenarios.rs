@@ -371,8 +371,11 @@ pub struct ResourceExhaustionScenario {
 /// Types of resources to exhaust
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ResourceType {
+    /// Exhaust memory allocations.
     Memory,
+    /// Exhaust CPU resources.
     Cpu,
+    /// Exhaust both memory and CPU.
     Both,
 }
 
@@ -686,9 +689,13 @@ pub struct CascadingFailureScenario {
 /// Types of initial failures that trigger cascades
 #[derive(Debug, Clone)]
 pub enum InitialFailure {
+    /// Simulate a network partition between nodes.
     NetworkPartition,
+    /// Simulate resource exhaustion.
     ResourceExhaustion,
+    /// Simulate an actor crash.
     ActorCrash,
+    /// Simulate a disk failure.
     DiskFailure,
 }
 

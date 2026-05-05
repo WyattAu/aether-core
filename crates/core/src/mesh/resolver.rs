@@ -174,8 +174,10 @@ impl ActorResolver {
 
     /// Creates a new resolver with custom configuration.
     pub fn with_config(local_node_id: &str, local_namespace: &str, config: ResolverConfig) -> Self {
-        let lru_size =
-            NonZeroUsize::new(config.cache_size).unwrap_or(NonZeroUsize::new(1).unwrap());
+        let lru_size = NonZeroUsize::new(config.cache_size).unwrap_or_else(|| {
+            #[allow(clippy::unwrap_used)]
+            NonZeroUsize::new(1).unwrap()
+        });
         Self {
             local_node_id: local_node_id.to_string(),
             local_namespace: local_namespace.to_string(),

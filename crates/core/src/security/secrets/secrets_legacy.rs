@@ -600,7 +600,10 @@ impl VaultSecretStore {
 
         let response = self
             .client
-            .request(reqwest::Method::from_bytes(b"LIST").unwrap(), url)
+            .request({
+                #[allow(clippy::unwrap_used)]
+                reqwest::Method::from_bytes(b"LIST").unwrap()
+            }, url)
             .header("X-Vault-Token", token)
             .header("X-Vault-Request", "true")
             .send()

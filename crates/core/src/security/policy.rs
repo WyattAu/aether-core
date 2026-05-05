@@ -380,6 +380,7 @@ impl PolicyEvaluator {
     /// Creates a new policy evaluator with the given cache size and TTL.
     pub fn new(cache_size: usize, cache_ttl: Duration) -> Self {
         let cache = LruCache::new(
+            #[allow(clippy::unwrap_used)]
             NonZeroUsize::new(cache_size.max(1))
                 .unwrap_or_else(|| NonZeroUsize::new(Self::DEFAULT_CACHE_SIZE).unwrap()),
         );
@@ -506,7 +507,6 @@ impl PolicyEvaluator {
 
         let policies = self.policies.read();
         let mut has_allow = false;
-        let mut has_match = false;
 
         for policy in policies.iter() {
             let result = policy.evaluate_detailed(subject, action, resource);
@@ -516,7 +516,6 @@ impl PolicyEvaluator {
                 }
                 PolicyEvaluationResult::Allowed => {
                     has_allow = true;
-                    has_match = true;
                 }
                 PolicyEvaluationResult::NoMatch => {}
             }
@@ -524,8 +523,6 @@ impl PolicyEvaluator {
 
         if has_allow {
             PolicyEvaluationResult::Allowed
-        } else if has_match {
-            PolicyEvaluationResult::NoMatch
         } else {
             PolicyEvaluationResult::NoMatch
         }

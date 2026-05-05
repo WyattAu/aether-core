@@ -36,14 +36,13 @@ impl Permission {
 
     /// Returns `true` if this permission includes `other`.
     pub fn includes(&self, other: &Permission) -> bool {
-        match (self, other) {
-            (Permission::Admin, _) => true,
-            (Permission::Write, Permission::Read) => true,
-            (Permission::Write, Permission::Write) => true,
-            (Permission::Execute, Permission::Execute) => true,
-            (Permission::Read, Permission::Read) => true,
-            _ => false,
-        }
+        matches!(
+            (self, other),
+            (Permission::Admin, _)
+                | (Permission::Write, Permission::Read | Permission::Write)
+                | (Permission::Execute, Permission::Execute)
+                | (Permission::Read, Permission::Read)
+        )
     }
 }
 
@@ -221,6 +220,7 @@ impl RoleName {
     }
 
     /// Parses a role name from a string.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Result<Self> {
         match s.to_lowercase().as_str() {
             "admin" => Ok(RoleName::Admin),

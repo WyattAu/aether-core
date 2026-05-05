@@ -386,7 +386,7 @@ impl FdbClient {
                 .map_err(|e| Error::storage(format!("CAS get failed: {}", e)))?;
 
             let matches = match current {
-                Some(ref v) => &**v == &expected,
+                Some(ref v) => **v == expected,
                 None if expected.is_empty() => true,
                 _ => false,
             };
