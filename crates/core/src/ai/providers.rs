@@ -77,9 +77,13 @@ impl Message {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum MessageRole {
+    /// System message setting behavior.
     System,
+    /// User message.
     User,
+    /// Assistant message.
     Assistant,
+    /// Tool result message.
     Tool,
 }
 
@@ -198,10 +202,15 @@ pub struct CompletionResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum FinishReason {
+    /// Model naturally stopped generating.
     Stop,
+    /// Token limit reached.
     Length,
+    /// Model requested tool calls.
     ToolCalls,
+    /// Content was filtered by safety policy.
     ContentFilter,
+    /// An error occurred during generation.
     Error,
 }
 
@@ -277,9 +286,13 @@ pub struct ProviderConfig {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ProviderType {
+    /// OpenAI API provider.
     Openai,
+    /// Anthropic (Claude) API provider.
     Anthropic,
+    /// Local Ollama provider.
     Ollama,
+    /// User-defined custom provider.
     Custom,
 }
 

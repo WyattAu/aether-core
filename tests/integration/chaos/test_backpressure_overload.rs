@@ -184,7 +184,7 @@ async fn test_packet_loss_with_backpressure() {
     let mut lost = 0usize;
 
     for _ in 0..100 {
-        if runner.injector().network.should_drop_packet() {
+        if runner.injector().should_drop_packet() {
             lost += 1;
         } else {
             sent += 1;

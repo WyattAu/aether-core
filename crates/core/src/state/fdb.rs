@@ -20,17 +20,24 @@ use tracing::{info, warn};
 #[cfg(feature = "fdb")]
 use foundationdb::{Database, RangeOption};
 
+/// Default path to the FoundationDB cluster file.
 pub const DEFAULT_CLUSTER_FILE: &str = "/etc/foundationdb/fdb.cluster";
 const MAX_CONNECTIONS: usize = 100;
 const MAX_RETRIES: usize = 10;
 const DEFAULT_TIMEOUT_MS: u64 = 5000;
 
+/// Configuration for connecting to a FoundationDB cluster.
 #[derive(Debug, Clone)]
 pub struct FdbConfig {
+    /// Path to the FDB cluster file (defaults to [`DEFAULT_CLUSTER_FILE`]).
     pub cluster_path: Option<PathBuf>,
+    /// Logical database name within the cluster.
     pub database_name: String,
+    /// Maximum concurrent transactions.
     pub max_transactions: usize,
+    /// Per-transaction timeout.
     pub transaction_timeout: Duration,
+    /// Enable verbose FoundationDB logging.
     pub enable_logging: bool,
 }
 
@@ -47,30 +54,36 @@ impl Default for FdbConfig {
 }
 
 impl FdbConfig {
+    /// Creates a new configuration with default settings.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Sets the path to the FDB cluster file.
     pub fn with_cluster_path(mut self, path: impl Into<PathBuf>) -> Self {
         self.cluster_path = Some(path.into());
         self
     }
 
+    /// Sets the logical database name.
     pub fn with_database_name(mut self, name: impl Into<String>) -> Self {
         self.database_name = name.into();
         self
     }
 
+    /// Sets the maximum number of concurrent transactions.
     pub fn with_max_transactions(mut self, max: usize) -> Self {
         self.max_transactions = max;
         self
     }
 
+    /// Sets the per-transaction timeout.
     pub fn with_transaction_timeout(mut self, timeout: Duration) -> Self {
         self.transaction_timeout = timeout;
         self
     }
 
+    /// Enables or disables FoundationDB logging.
     pub fn with_logging(mut self, enabled: bool) -> Self {
         self.enable_logging = enabled;
         self
@@ -84,49 +97,66 @@ impl FdbConfig {
     }
 }
 
+/// Health status of a FoundationDB connection.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HealthStatus {
+    /// The database is fully operational.
     Healthy,
+    /// The database is partially available but degraded.
     Degraded,
+    /// The database is unreachable or non-functional.
     Unhealthy,
 }
 
+/// Operational metrics for FoundationDB operations.
 #[derive(Debug, Clone, Default)]
 pub struct FdbMetrics {
+    /// Total number of operations attempted.
     pub total_operations: Arc<AtomicU64>,
+    /// Number of operations that succeeded.
     pub successful_operations: Arc<AtomicU64>,
+    /// Number of operations that failed.
     pub failed_operations: Arc<AtomicU64>,
+    /// Number of transactions currently in-flight.
     pub active_transactions: Arc<AtomicU64>,
+    /// Number of transaction conflicts detected.
     pub conflict_count: Arc<AtomicU64>,
 }
 
 impl FdbMetrics {
+    /// Creates a new zeroed metrics instance.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Records a successful operation.
     pub fn record_success(&self) {
         self.total_operations.fetch_add(1, Ordering::Relaxed);
         self.successful_operations.fetch_add(1, Ordering::Relaxed);
     }
 
+    /// Records a failed operation.
     pub fn record_failure(&self) {
         self.total_operations.fetch_add(1, Ordering::Relaxed);
         self.failed_operations.fetch_add(1, Ordering::Relaxed);
     }
 
+    /// Records a transaction conflict.
     pub fn record_conflict(&self) {
         self.conflict_count.fetch_add(1, Ordering::Relaxed);
     }
 
+    /// Increments the active transaction counter.
     pub fn transaction_started(&self) {
         self.active_transactions.fetch_add(1, Ordering::Relaxed);
     }
 
+    /// Decrements the active transaction counter.
     pub fn transaction_completed(&self) {
         self.active_transactions.fetch_sub(1, Ordering::Relaxed);
     }
 
+    /// Returns the success rate as a value between 0.0 and 1.0.
     pub fn success_rate(&self) -> f64 {
         let total = self.total_operations.load(Ordering::Relaxed);
         if total == 0 {
@@ -138,6 +168,9 @@ impl FdbMetrics {
 }
 
 #[cfg(feature = "fdb")]
+/// FoundationDB client with connection pooling and retry logic.
+///
+/// Requires the `fdb` feature flag. Without it, operations return errors.
 pub struct FdbClient {
     db: Arc<Database>,
     #[allow(dead_code)] // Used for connection pool limiting in future batch operations
@@ -149,6 +182,7 @@ pub struct FdbClient {
 
 #[cfg(feature = "fdb")]
 impl FdbClient {
+    /// Creates a new FDB client from the given configuration.
     pub async fn new(config: FdbConfig) -> Result<Self> {
         let cluster_file = config.cluster_file_str();
 
@@ -173,18 +207,24 @@ impl FdbClient {
         })
     }
 
+    /// Returns a reference to the underlying FDB database handle.
     pub fn database(&self) -> &Database {
         &self.db
     }
 
+    /// Returns a reference to the operational metrics.
     pub fn metrics(&self) -> &FdbMetrics {
         &self.metrics
     }
 
+    /// Returns a reference to the client configuration.
     pub fn config(&self) -> &FdbConfig {
         &self.config
     }
 
+    /// Gets the value for a single key, returning `None` if the key does not exist.
+    ///
+    /// Retries up to [`MAX_RETRIES`] times with exponential backoff.
     pub async fn get(&self, key: &[u8]) -> Result<Option<Vec<u8>>> {
         let key = key.to_vec();
 
@@ -214,6 +254,9 @@ impl FdbClient {
         Err(Error::storage("Get failed after retries"))
     }
 
+    /// Performs a range scan over keys in `[begin, end)`.
+    ///
+    /// Returns up to 1,000,000 key-value pairs sorted by key.
     pub async fn get_range(&self, begin: &[u8], end: &[u8]) -> Result<Vec<(Vec<u8>, Vec<u8>)>> {
         let begin = begin.to_vec();
         let end = end.to_vec();
@@ -249,6 +292,9 @@ impl FdbClient {
         Err(Error::storage("Range scan failed after retries"))
     }
 
+    /// Sets a key to the given value.
+    ///
+    /// Retries up to [`MAX_RETRIES`] times with exponential backoff.
     pub async fn set(&self, key: &[u8], value: &[u8]) -> Result<()> {
         let key = key.to_vec();
         let value = value.to_vec();
@@ -281,6 +327,7 @@ impl FdbClient {
         Err(Error::storage("Set failed after retries"))
     }
 
+    /// Clears (deletes) a single key.
     pub async fn clear(&self, key: &[u8]) -> Result<()> {
         let key = key.to_vec();
 
@@ -312,10 +359,16 @@ impl FdbClient {
         Err(Error::storage("Clear failed after retries"))
     }
 
+    /// Alias for [`FdbClient::clear`].
     pub async fn delete(&self, key: &[u8]) -> Result<()> {
         self.clear(key).await
     }
 
+    /// Atomically compares the current value of `key` with `expected` and,
+    /// if they match, sets it to `new`.
+    ///
+    /// Returns `Ok(true)` if the swap was performed, `Ok(false)` if the
+    /// value did not match.
     pub async fn compare_and_swap(&self, key: &[u8], expected: &[u8], new: &[u8]) -> Result<bool> {
         let key = key.to_vec();
         let expected = expected.to_vec();
@@ -366,6 +419,9 @@ impl FdbClient {
         Err(Error::storage("CAS failed after retries"))
     }
 
+    /// Atomically adds `delta` to an integer stored at `key` (big-endian).
+    ///
+    /// Returns the applied delta value.
     pub async fn atomic_increment(&self, key: &[u8], delta: i64) -> Result<i64> {
         let key = key.to_vec();
 
@@ -398,6 +454,9 @@ impl FdbClient {
         Err(Error::storage("Atomic increment failed after retries"))
     }
 
+    /// Performs a health check by reading a sentinel key.
+    ///
+    /// Returns [`HealthStatus::Healthy`] on success, [`HealthStatus::Unhealthy`] on failure.
     pub async fn health_check(&self) -> HealthStatus {
         match self.get(b"__health_check__").await {
             Ok(_) => {
@@ -414,12 +473,14 @@ impl FdbClient {
         }
     }
 
+    /// Returns the cached health status without performing a check.
     pub async fn health(&self) -> HealthStatus {
         *self.health.lock().await
     }
 }
 
 #[cfg(feature = "fdb")]
+/// Directory layer for managing actor key namespaces in FoundationDB.
 pub struct ActorDirectory {
     client: Arc<FdbClient>,
     namespace: Vec<u8>,
@@ -427,6 +488,7 @@ pub struct ActorDirectory {
 
 #[cfg(feature = "fdb")]
 impl ActorDirectory {
+    /// Creates a new actor directory in the default `actors` namespace.
     pub fn new(client: Arc<FdbClient>) -> Self {
         Self {
             client,
@@ -434,6 +496,7 @@ impl ActorDirectory {
         }
     }
 
+    /// Creates a new actor directory in a custom sub-namespace.
     pub fn with_namespace(client: Arc<FdbClient>, namespace: &[u8]) -> Self {
         let mut full_namespace = b"actors:".to_vec();
         full_namespace.extend_from_slice(namespace);
@@ -450,18 +513,27 @@ impl ActorDirectory {
         key
     }
 
+    /// Opens an existing actor entry, returning its FDB key.
+    ///
+    /// Returns an error if the actor does not exist.
     pub async fn open(&self, actor_id: &str) -> Result<Vec<u8>> {
         let key = self.actor_key(actor_id);
         self.client.get(&key).await?;
         Ok(key)
     }
 
+    /// Creates an actor entry if it does not exist, or opens it if it does.
+    ///
+    /// Returns the FDB key for the actor.
     pub async fn create_or_open(&self, actor_id: &str) -> Result<Vec<u8>> {
         let key = self.actor_key(actor_id);
         self.client.set(&key, b"active").await?;
         Ok(key)
     }
 
+    /// Moves an actor entry from its current namespace to a new one.
+    ///
+    /// Returns the new FDB key for the actor.
     pub async fn move_to(&self, actor_id: &str, new_namespace: &[u8]) -> Result<Vec<u8>> {
         let old_key = self.actor_key(actor_id);
         let value = self.client.get(&old_key).await?;
@@ -477,11 +549,13 @@ impl ActorDirectory {
         Ok(new_key)
     }
 
+    /// Removes an actor entry from the directory.
     pub async fn remove(&self, actor_id: &str) -> Result<()> {
         let key = self.actor_key(actor_id);
         self.client.clear(&key).await
     }
 
+    /// Lists actor IDs matching the given prefix within this directory.
     pub async fn list(&self, prefix: &str) -> Result<Vec<String>> {
         let mut start = self.namespace.clone();
         start.push(b':');
@@ -511,6 +585,7 @@ impl ActorDirectory {
 }
 
 #[cfg(not(feature = "fdb"))]
+/// Stub FDB client that always returns an error when the `fdb` feature is disabled.
 pub struct FdbClient {
     _config: FdbConfig,
     _metrics: FdbMetrics,
@@ -518,34 +593,48 @@ pub struct FdbClient {
 
 #[cfg(not(feature = "fdb"))]
 impl FdbClient {
+    /// Always returns an error indicating the `fdb` feature is not enabled.
     pub async fn new(_config: FdbConfig) -> Result<Self> {
         Err(Error::storage(
             "FoundationDB support not enabled. Enable 'fdb' feature.",
         ))
     }
 
+    /// Returns [`HealthStatus::Unhealthy`] when the feature is disabled.
     pub async fn health_check(&self) -> HealthStatus {
         HealthStatus::Unhealthy
     }
 
+    /// Returns the (non-functional) metrics instance.
     pub fn metrics(&self) -> &FdbMetrics {
         &self._metrics
     }
 }
 
+/// Event emitted when a watched key is modified.
 #[derive(Debug, Clone)]
 pub struct WatchEvent {
+    /// The key that was modified.
     pub key: Vec<u8>,
+    /// The new value, or `None` if the key was deleted.
     pub value: Option<Vec<u8>>,
+    /// The type of modification that occurred.
     pub event_type: WatchEventType,
 }
 
+/// Type of modification that triggered a watch event.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WatchEventType {
+    /// A key was created or updated.
     Set,
+    /// A key was deleted.
     Delete,
 }
 
+/// In-memory FoundationDB stand-in for testing and development.
+///
+/// Provides the same key-value API as [`FdbClient`] backed by a `HashMap`
+/// with watch support and transaction simulation.
 #[derive(Clone)]
 pub struct InMemoryFdb {
     data: Arc<RwLock<HashMap<Vec<u8>, Vec<u8>>>>,
@@ -554,6 +643,7 @@ pub struct InMemoryFdb {
 }
 
 impl InMemoryFdb {
+    /// Creates a new empty in-memory store.
     pub fn new() -> Self {
         Self {
             data: Arc::new(RwLock::new(HashMap::new())),
@@ -562,16 +652,19 @@ impl InMemoryFdb {
         }
     }
 
+    /// Returns a reference to the operational metrics.
     pub fn metrics(&self) -> &FdbMetrics {
         &self.metrics
     }
 
+    /// Gets the value for a single key, returning `None` if absent.
     pub async fn get(&self, key: &[u8]) -> Result<Option<Vec<u8>>> {
         let data = self.data.read().await;
         self.metrics.record_success();
         Ok(data.get(key).cloned())
     }
 
+    /// Sets a key to the given value, notifying any watchers.
     pub async fn set(&self, key: &[u8], value: &[u8]) -> Result<()> {
         {
             let mut data = self.data.write().await;
@@ -583,6 +676,7 @@ impl InMemoryFdb {
         Ok(())
     }
 
+    /// Deletes a key, notifying any watchers.
     pub async fn delete(&self, key: &[u8]) -> Result<()> {
         {
             let mut data = self.data.write().await;
@@ -593,10 +687,12 @@ impl InMemoryFdb {
         Ok(())
     }
 
+    /// Alias for [`InMemoryFdb::delete`].
     pub async fn clear(&self, key: &[u8]) -> Result<()> {
         self.delete(key).await
     }
 
+    /// Performs a range scan over keys in `[start, end)`.
     pub async fn get_range(&self, start: &[u8], end: &[u8]) -> Result<Vec<(Vec<u8>, Vec<u8>)>> {
         let data = self.data.read().await;
         self.metrics.record_success();
@@ -607,6 +703,10 @@ impl InMemoryFdb {
             .collect())
     }
 
+    /// Atomically compares the current value of `key` with `expected` and,
+    /// if they match, sets it to `new`.
+    ///
+    /// An empty `expected` matches a missing key.
     pub async fn compare_and_swap(&self, key: &[u8], expected: &[u8], new: &[u8]) -> Result<bool> {
         let mut data = self.data.write().await;
         match data.get(key) {
@@ -637,6 +737,7 @@ impl InMemoryFdb {
         }
     }
 
+    /// Subscribes to changes on a key, returning a broadcast receiver.
     pub async fn watch(&self, key: &[u8]) -> Result<broadcast::Receiver<WatchEvent>> {
         let mut watchers = self.watchers.write().await;
         let sender = watchers
@@ -656,10 +757,12 @@ impl InMemoryFdb {
         }
     }
 
+    /// Always returns [`HealthStatus::Healthy`] for the in-memory store.
     pub async fn health_check(&self) -> HealthStatus {
         HealthStatus::Healthy
     }
 
+    /// Begins a new in-memory transaction that buffers reads and writes.
     pub async fn begin_transaction(&self) -> InMemoryTransaction {
         self.metrics.transaction_started();
         InMemoryTransaction {
@@ -677,6 +780,9 @@ impl Default for InMemoryFdb {
     }
 }
 
+/// Simulated FoundationDB transaction for the in-memory store.
+///
+/// Buffers reads and writes until [`commit`](InMemoryTransaction::commit) is called.
 pub struct InMemoryTransaction {
     data: Arc<RwLock<HashMap<Vec<u8>, Vec<u8>>>>,
     reads: HashSet<Vec<u8>>,
@@ -685,28 +791,34 @@ pub struct InMemoryTransaction {
 }
 
 impl InMemoryTransaction {
+    /// Reads a key within the transaction.
     pub async fn get(&mut self, key: &[u8]) -> Result<Option<Vec<u8>>> {
         self.reads.insert(key.to_vec());
         let data = self.data.read().await;
         Ok(data.get(key).cloned())
     }
 
+    /// Queues a key-value write in the transaction buffer.
     pub fn set(&mut self, key: &[u8], value: &[u8]) {
         self.writes.insert(key.to_vec(), Some(value.to_vec()));
     }
 
+    /// Queues a key deletion in the transaction buffer.
     pub fn clear(&mut self, key: &[u8]) {
         self.writes.insert(key.to_vec(), None);
     }
 
+    /// Records a read conflict range (no-op for the in-memory store).
     pub fn add_read_conflict_range(&mut self, _begin: &[u8], _end: &[u8]) -> Result<()> {
         Ok(())
     }
 
+    /// Records a write conflict range (no-op for the in-memory store).
     pub fn add_write_conflict_range(&mut self, _begin: &[u8], _end: &[u8]) -> Result<()> {
         Ok(())
     }
 
+    /// Applies all buffered writes to the in-memory store.
     pub async fn commit(self) -> Result<()> {
         let mut data = self.data.write().await;
         for (key, value) in self.writes {
@@ -724,15 +836,18 @@ impl InMemoryTransaction {
         Ok(())
     }
 
+    /// Discards all buffered writes.
     pub fn rollback(self) -> Result<()> {
         self.metrics.transaction_completed();
         Ok(())
     }
 
+    /// Returns the set of keys read during this transaction.
     pub fn reads(&self) -> &HashSet<Vec<u8>> {
         &self.reads
     }
 
+    /// Returns the buffered writes (key → value or `None` for deletes).
     pub fn writes(&self) -> &HashMap<Vec<u8>, Option<Vec<u8>>> {
         &self.writes
     }
@@ -842,8 +957,8 @@ mod tests {
         assert_eq!(metrics.failed_operations.load(Ordering::Relaxed), 0);
     }
 
-    #[tokio::test]
-    async fn test_fdb_config() {
+    #[test]
+    fn test_fdb_config() {
         let config = FdbConfig::new()
             .with_cluster_path("/custom/cluster")
             .with_database_name("testdb")

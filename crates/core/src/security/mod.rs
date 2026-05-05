@@ -143,18 +143,31 @@
 //! - Capability-based access control
 //! - Audit logging for all operations
 
+/// Submodule for security audit logging.
 pub mod audit;
+/// Submodule for authorization (RBAC) enforcement.
 pub mod authorizer;
+/// Submodule for certificate management and signing.
 pub mod certs;
+/// Submodule for security hardening checks and compliance reporting.
 pub mod hardening;
+/// Submodule for actor and node identity management.
 pub mod identity;
+/// Submodule for penetration testing tools.
 pub mod penetration;
+/// Submodule for policy-based authorization.
 pub mod policy;
+/// Submodule for Role-Based Access Control.
 pub mod rbac;
+/// Submodule for memory-mapped secret injection.
 pub mod secret_injector;
+/// Submodule for secret references and metadata.
 pub mod secret_reference;
+/// Submodule for secrets management.
 pub mod secrets;
+/// Submodule for TLS configuration builders.
 pub mod tls;
+/// Submodule for dependency vulnerability scanning.
 pub mod vulnerability;
 
 pub use audit::{

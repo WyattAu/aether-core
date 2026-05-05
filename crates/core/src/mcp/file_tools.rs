@@ -63,6 +63,7 @@ pub struct ReadFileTool {
 }
 
 impl ReadFileTool {
+    /// Creates a new read file tool with the given capabilities and root directory.
     pub fn new(capabilities: CapabilitySet, root_dir: impl Into<PathBuf>) -> Self {
         Self {
             capabilities,
@@ -117,6 +118,7 @@ pub struct WriteFileTool {
 }
 
 impl WriteFileTool {
+    /// Creates a new write file tool with the given capabilities and root directory.
     pub fn new(capabilities: CapabilitySet, root_dir: impl Into<PathBuf>) -> Self {
         Self {
             capabilities,
@@ -194,6 +196,7 @@ pub struct ListDirectoryTool {
 }
 
 impl ListDirectoryTool {
+    /// Creates a new list directory tool with the given capabilities and root directory.
     pub fn new(capabilities: CapabilitySet, root_dir: impl Into<PathBuf>) -> Self {
         Self {
             capabilities,
@@ -287,6 +290,7 @@ pub struct SearchFilesTool {
 }
 
 impl SearchFilesTool {
+    /// Creates a new search files tool with the given capabilities and root directory.
     pub fn new(capabilities: CapabilitySet, root_dir: impl Into<PathBuf>) -> Self {
         Self {
             capabilities,
@@ -405,6 +409,7 @@ pub struct DeleteFileTool {
 }
 
 impl DeleteFileTool {
+    /// Creates a new delete file tool with the given capabilities and root directory.
     pub fn new(capabilities: CapabilitySet, root_dir: impl Into<PathBuf>) -> Self {
         Self {
             capabilities,

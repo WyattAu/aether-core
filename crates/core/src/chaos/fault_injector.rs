@@ -36,15 +36,25 @@ struct ActiveFault {
 /// Types of faults that can be injected
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum FaultType {
+    /// Artificial network latency.
     NetworkLatency,
+    /// Simulated packet loss.
     NetworkPacketLoss,
+    /// Simulated network partition.
     NetworkPartition,
+    /// Simulated memory pressure.
     MemoryPressure,
+    /// Simulated memory leak.
     MemoryLeak,
+    /// Simulated CPU starvation.
     CpuStarvation,
+    /// Artificial disk I/O latency.
     DiskIoLatency,
+    /// Simulated disk I/O errors.
     DiskIoError,
+    /// Forced process termination.
     ProcessKill,
+    /// Process hang simulation.
     ProcessHang,
 }
 
@@ -274,6 +284,11 @@ impl FaultInjector {
             .iter()
             .any(|f| f.fault_type == fault_type)
     }
+
+    /// Check if a packet should be dropped (simulated, delegates to network injector).
+    pub fn should_drop_packet(&self) -> bool {
+        self.network.should_drop_packet()
+    }
 }
 
 /// Network fault types
@@ -310,7 +325,7 @@ struct InjectResult {
     expected_recovery: Option<Duration>,
 }
 
-/// Network fault injector
+/// Network fault injector for simulating latency, packet loss, and partitions.
 pub struct NetworkFaultInjector {
     latency_config: RwLock<Option<NetworkLatencyConfig>>,
     packet_loss_rate: RwLock<f64>,
@@ -459,7 +474,7 @@ pub enum MemoryFault {
     },
 }
 
-/// Memory fault injector
+/// Memory fault injector for simulating memory pressure and leaks.
 pub struct MemoryFaultInjector {
     pressure_active: Arc<AtomicBool>,
     pressure_target: RwLock<f64>,
@@ -593,7 +608,7 @@ pub enum CpuFault {
     },
 }
 
-/// CPU fault injector
+/// CPU fault injector for simulating CPU starvation.
 pub struct CpuFaultInjector {
     starvation_active: Arc<AtomicBool>,
     stop_signal: Arc<Notify>,
@@ -704,12 +719,15 @@ pub enum DiskFault {
 /// Types of disk errors
 #[derive(Debug, Clone, Copy)]
 pub enum DiskErrorType {
+    /// File not found error.
     NotFound,
+    /// Permission denied error.
     PermissionDenied,
+    /// Generic I/O error.
     IoError,
 }
 
-/// Disk fault injector
+/// Disk fault injector for simulating disk I/O latency and errors.
 pub struct DiskFaultInjector {
     latency_config: RwLock<Option<DiskLatencyConfig>>,
     error_rate: RwLock<f64>,
@@ -827,7 +845,7 @@ pub enum ProcessSignal {
     Stop,
 }
 
-/// Process fault injector
+/// Process fault injector for simulating process kills and hangs.
 pub struct ProcessFaultInjector {
     stop_signal: Arc<Notify>,
     hung_processes: Arc<RwLock<Vec<String>>>,

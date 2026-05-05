@@ -30,9 +30,9 @@ pub use fault_injector::{
     MemoryFault, NetworkFault, ProcessFault, ProcessSignal,
 };
 pub use scenarios::{
-    ActorCrashScenario, CascadingFailureScenario, ChaosScenario, NetworkPartitionScenario,
-    ResourceExhaustionScenario, ScenarioMetadata, ScenarioResult, ScenarioStats,
-    SlowNetworkScenario,
+    ActorCrashScenario, CascadingFailureScenario, ChaosScenario, InitialFailure,
+    NetworkPartitionScenario, ResourceExhaustionScenario,     ResourceType, ScenarioMetadata,
+    ScenarioResult, ScenarioStats, SlowNetworkScenario,
 };
 
 use parking_lot::RwLock;

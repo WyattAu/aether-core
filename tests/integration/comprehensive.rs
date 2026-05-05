@@ -479,16 +479,8 @@ async fn test_mesh_network_local_communication() {
     let target = ActorAddress::parse(&actor2_uri).expect("Failed to parse target");
 
     let message = MeshMessage {
-        source,
-        target,
-        payload: vec![1, 2, 3, 4, 5],
-        message_id: 1,
-        correlation_id: None,
-        reply_to: None,
-        message_type: aether_core::mesh::MessageType::Request,
-        compression: aether_core::mesh::CompressionType::None,
-        flags: aether_core::mesh::MessageFlags::empty(),
         id: aether_core::mesh::MessageId::new(),
+        correlation_id: None,
         msg_type: aether_core::mesh::MessageType::Request,
         compression: aether_core::mesh::CompressionType::None,
         source: source.clone(),
@@ -496,10 +488,11 @@ async fn test_mesh_network_local_communication() {
         trace_id: 0,
         timestamp_ns: std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_nanos())
+            .map(|d| d.as_nanos() as u64)
             .unwrap_or(0),
         ttl_ms: 30000,
         priority: 0,
+        payload: vec![1, 2, 3, 4, 5],
     };
 
     // Measure latency for resolution (local cache hit should be very fast)
@@ -1240,7 +1233,7 @@ async fn test_state_persistence_flow() {
 #[cfg(feature = "mesh")]
 async fn test_mesh_message_flow() {
     use aether_core::mesh::{
-        ActorAddress, CompressionType, MeshMessage, MeshNode, MessageFlags, MessageType,
+        ActorAddress, CompressionType, MeshMessage, MeshNode, MessageType,
     };
     use std::net::SocketAddr;
 
@@ -1280,7 +1273,7 @@ async fn test_mesh_message_flow() {
     let target = ActorAddress::parse(&consumer_uri).expect("Failed to parse target");
 
     let message = MeshMessage {
-        id: MessageId::new(),
+        id: aether_core::mesh::MessageId::new(),
         correlation_id: None,
         msg_type: MessageType::Request,
         compression: CompressionType::None,
@@ -1288,8 +1281,9 @@ async fn test_mesh_message_flow() {
         target: target.clone(),
         trace_id: 1,
         timestamp_ns: std::time::SystemTime::now()
-            .duration_since_epoch()
-            .as_nanos(),
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos() as u64)
+            .unwrap_or(0),
         ttl_ms: 30000,
         priority: 1,
         payload: b"hello from producer".to_vec(),
@@ -1297,7 +1291,7 @@ async fn test_mesh_message_flow() {
 
     // Verify message structure
     assert_eq!(message.payload.len(), 19);
-    assert_eq!(message.message_type, MessageType::Request);
+    assert_eq!(message.msg_type, MessageType::Request);
 
     // Check node stats
     let stats = node.stats().await;

@@ -115,11 +115,14 @@ impl ToolCallBuilder {
     }
 }
 
-/// Built tool call from streaming
+/// Built tool call from streaming deltas.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BuiltToolCall {
+    /// Unique tool call identifier.
     pub id: String,
+    /// Tool name.
     pub name: String,
+    /// Parsed JSON arguments for the tool.
     pub arguments: serde_json::Value,
 }
 
@@ -264,7 +267,7 @@ impl Default for StreamManager {
     }
 }
 
-/// Helper to process stream with callback
+/// Helper to process a completion stream, invoking a callback for each content delta.
 pub async fn process_with_callback(
     stream: CompletionStream,
     callback: impl Fn(&str) + Send + Sync + 'static,
@@ -282,13 +285,13 @@ pub async fn process_with_callback(
     Ok(accumulator)
 }
 
-/// Helper to collect stream into string
+/// Helper to collect all chunks from a stream into a single string.
 pub async fn collect_stream(stream: CompletionStream) -> Result<String> {
     let accumulator = collect_stream_full(stream).await?;
     Ok(accumulator.content().to_string())
 }
 
-/// Helper to collect stream with full result
+/// Helper to collect all chunks from a stream into a full accumulator.
 pub async fn collect_stream_full(stream: CompletionStream) -> Result<StreamAccumulator> {
     let mut accumulator = StreamAccumulator::new();
 

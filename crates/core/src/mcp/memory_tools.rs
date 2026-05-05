@@ -20,6 +20,7 @@ pub struct StoreMemoryTool {
 }
 
 impl StoreMemoryTool {
+    /// Creates a new store memory tool backed by the given memory store.
     pub fn new(memory: Arc<MemoryStore>) -> Self {
         Self { memory }
     }
@@ -120,6 +121,7 @@ pub struct RecallMemoryTool {
 }
 
 impl RecallMemoryTool {
+    /// Creates a new recall memory tool backed by the given memory store.
     pub fn new(memory: Arc<MemoryStore>) -> Self {
         Self { memory }
     }
@@ -223,6 +225,7 @@ pub struct SearchMemoryTool {
 }
 
 impl SearchMemoryTool {
+    /// Creates a new search memory tool backed by the given memory store.
     pub fn new(memory: Arc<MemoryStore>) -> Self {
         Self { memory }
     }
@@ -299,6 +302,7 @@ pub struct MemoryStatsTool {
 }
 
 impl MemoryStatsTool {
+    /// Creates a new memory stats tool backed by the given memory store.
     pub fn new(memory: Arc<MemoryStore>) -> Self {
         Self { memory }
     }
@@ -346,6 +350,7 @@ pub struct ClearMemoryTool {
 }
 
 impl ClearMemoryTool {
+    /// Creates a new clear memory tool backed by the given memory store.
     pub fn new(memory: Arc<MemoryStore>) -> Self {
         Self { memory }
     }

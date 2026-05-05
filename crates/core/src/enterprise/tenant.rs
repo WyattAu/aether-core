@@ -12,6 +12,8 @@ const TENANT_ID_MAX_LEN: usize = 64;
 const TENANT_ID_PATTERN: &str = r"^[a-z0-9]([a-z0-9-]*[a-z0-9])?$";
 
 /// Unique identifier for a tenant, validated on construction.
+///
+/// Must be lowercase alphanumeric with hyphens, 1–64 characters.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct TenantId(String);
 
@@ -202,10 +204,13 @@ pub enum TenantState {
     #[default]
     Active,
     /// Tenant has been suspended with a reason.
-    Suspended { reason: String },
+    Suspended {
+        /// Human-readable reason for the suspension.
+        reason: String,
+    },
     /// Tenant is in the process of being terminated.
     Terminating,
-    /// Tenant has been fully terminated.
+    /// Tenant has been fully terminated and cannot be recovered.
     Terminated,
 }
 

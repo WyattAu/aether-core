@@ -14,6 +14,7 @@ mod commands;
 #[command(name = "aether")]
 #[command(author, version, about, long_about = None)]
 pub struct Cli {
+    /// Available CLI subcommands
     #[command(subcommand)]
     pub command: commands::Command,
 }

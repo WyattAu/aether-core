@@ -37,6 +37,7 @@ pub struct PersistentMemoryEntry {
 }
 
 impl PersistentMemoryEntry {
+    /// Creates a new persistent entry from a base memory entry with the given TTL.
     pub fn new(entry: MemoryEntry, ttl: Duration) -> Self {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -67,6 +68,7 @@ impl PersistentMemoryEntry {
         format!("{:x}", hasher.finish())
     }
 
+    /// Returns `true` if this entry has passed its expiration time.
     pub fn is_expired(&self) -> bool {
         if self.expires_at == 0 {
             return false;
@@ -78,6 +80,7 @@ impl PersistentMemoryEntry {
         now > self.expires_at
     }
 
+    /// Verifies that the content hash matches, returning `false` if tampered.
     pub fn verify_integrity(&self) -> bool {
         Self::hash_content(&self.entry.content) == self.content_hash
     }

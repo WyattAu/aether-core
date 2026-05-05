@@ -14,7 +14,6 @@ use aether_core::{
     wasi::{DefaultWasiHost, HostContext, NetworkContext, StateHandle, WasiHost},
 };
 use std::sync::Arc;
-use std::time::Duration;
 
 #[tokio::test]
 async fn test_e2e_capability_deny_by_default() {

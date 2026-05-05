@@ -23,7 +23,11 @@ thiserror = "1.0"
 uuid = { workspace = true }
 
 [features]
+default = ["wasm", "mesh", "chaos"]
 integration-tests = []
+chaos = []
+wasm = []
+mesh = []
 
 [lints]
 workspace = true

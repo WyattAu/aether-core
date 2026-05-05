@@ -349,6 +349,9 @@ impl Default for TestConfig {
 }
 
 /// Comprehensive penetration test suite that runs security tests across multiple categories.
+///
+/// Covers capability bypass, privilege escalation, sandbox escape,
+/// input validation, and resource exhaustion tests.
 pub struct PenetrationTestSuite {
     config: TestConfig,
 }

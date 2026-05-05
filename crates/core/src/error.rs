@@ -171,6 +171,11 @@ pub enum ErrorSeverity {
 }
 
 /// The top-level error type for Aether Core.
+///
+/// Each variant carries an [`ErrorCode`] for programmatic classification
+/// and a human-readable message. Use the convenience constructors
+/// ([`Error::config_parse`], [`Error::capability_denied`], etc.) to create
+/// instances.
 #[derive(Error, Debug)]
 pub enum Error {
     /// A configuration-related error (parsing, validation, or missing config).

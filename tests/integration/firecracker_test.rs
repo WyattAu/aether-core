@@ -3,8 +3,6 @@
 //! Tests for Firecracker VM creation, snapshot, and restore.
 //! Requires Firecracker and KVM access.
 
-use std::time::Duration;
-
 #[tokio::test]
 #[ignore = "requires Firecracker and KVM"]
 async fn test_vm_creation() {

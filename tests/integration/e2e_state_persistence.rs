@@ -11,11 +11,10 @@ use aether_core::{
     Observability,
     actor::{ActorBuilder, ActorScheduler, SchedulerConfig},
     capability::CapabilitySet,
-    state::{Checkpoint, CheckpointManager, CheckpointStore, InMemoryStore, KeyValueStore},
+    state::{Checkpoint, CheckpointManager, CheckpointStore, InMemoryStore},
     wasi::StateHandle,
 };
 use std::sync::Arc;
-use std::time::Duration;
 
 #[tokio::test]
 async fn test_e2e_state_checkpoint_create() {

@@ -2,7 +2,9 @@
 
 #[cfg(feature = "mesh")]
 use aether_core::mesh::MeshNode;
+#[cfg(feature = "mesh")]
 use aether_core::{Host, config::AetherConfig};
+#[cfg(feature = "mesh")]
 use std::net::SocketAddr;
 
 #[tokio::test]

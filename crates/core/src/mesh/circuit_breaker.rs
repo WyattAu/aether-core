@@ -81,17 +81,23 @@ const DEFAULT_CALL_TIMEOUT: Duration = Duration::from_secs(10);
 pub enum CircuitState {
     /// Normal operation - calls pass through
     Closed {
+        /// Number of failures in the current window.
         failure_count: u32,
+        /// Timestamp of the most recent failure.
         last_failure: Option<Instant>,
     },
     /// Circuit is open - calls are rejected
     Open {
+        /// When the circuit was opened.
         opened_at: Instant,
+        /// Number of failures that triggered the open.
         failure_count: u32,
     },
     /// Testing if service has recovered
     HalfOpen {
+        /// When the circuit was originally opened.
         opened_at: Instant,
+        /// Number of successful probe calls so far.
         attempt_count: u32,
     },
 }
@@ -251,7 +257,10 @@ impl std::fmt::Display for CircuitError {
 
 impl std::error::Error for CircuitError {}
 
-/// Circuit breaker implementation
+/// Circuit breaker implementation.
+///
+/// Tracks failures and transitions between Closed, Open, and Half-Open
+/// states to prevent cascading failures in distributed systems.
 #[derive(Debug)]
 pub struct CircuitBreaker {
     /// Name/identifier for this circuit breaker
@@ -496,7 +505,9 @@ impl CircuitBreaker {
     }
 }
 
-/// Registry for managing multiple circuit breakers
+/// Registry for managing multiple circuit breakers.
+///
+/// Provides lookup, creation, and bulk operations across named breakers.
 #[derive(Debug)]
 pub struct CircuitBreakerRegistry {
     /// Circuit breakers indexed by name

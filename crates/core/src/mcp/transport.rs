@@ -17,9 +17,13 @@ use crate::error::{Error, Result};
 /// Transport trait for MCP communication
 #[async_trait]
 pub trait Transport: Send + Sync {
+    /// Send a message string through the transport.
     async fn send(&self, message: &str) -> Result<()>;
+    /// Receive the next message from the transport, or `None` if closed.
     async fn receive(&self) -> Result<Option<String>>;
+    /// Close the transport, preventing further sends/receives.
     async fn close(&self) -> Result<()>;
+    /// Returns `true` if the transport has been closed.
     fn is_closed(&self) -> bool;
 }
 
@@ -36,6 +40,7 @@ pub struct StdioTransport {
 }
 
 impl StdioTransport {
+    /// Creates a new stdio transport reading from stdin and writing to stdout.
     pub fn new() -> Self {
         Self::with_handles(
             Box::pin(BufReader::new(tokio::io::stdin())),
@@ -43,6 +48,7 @@ impl StdioTransport {
         )
     }
 
+    /// Creates a stdio transport with custom reader and writer handles.
     pub fn with_handles(
         reader: Pin<Box<dyn AsyncBufRead + Send>>,
         writer: Pin<Box<dyn AsyncWrite + Send>>,

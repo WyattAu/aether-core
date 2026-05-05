@@ -7,14 +7,15 @@
 //! - Verify delivery and response
 //! - Test backpressure handling
 
+#[cfg(feature = "mesh")]
 use aether_core::{
     Observability,
     actor::{ActorScheduler, SchedulerConfig},
-    mesh::{ActorAddress, CompressionType, MeshMessage, MeshNode, MessageFlags, MessageType},
+    mesh::{ActorAddress, CompressionType, MeshMessage, MeshNode, MessageId, MessageType},
 };
+#[cfg(feature = "mesh")]
 use std::net::SocketAddr;
 use std::sync::Once;
-use std::time::Duration;
 
 static CRYPTO_INIT: Once = Once::new();
 
@@ -22,6 +23,30 @@ fn init_crypto_provider() {
     CRYPTO_INIT.call_once(|| {
         let _ = rustls::crypto::ring::default_provider().install_default();
     });
+}
+
+fn make_test_message(
+    source: ActorAddress,
+    target: ActorAddress,
+    payload: Vec<u8>,
+    id: u64,
+) -> MeshMessage {
+    MeshMessage {
+        id: MessageId(id),
+        correlation_id: None,
+        msg_type: MessageType::Request,
+        compression: CompressionType::None,
+        source,
+        target,
+        trace_id: 0,
+        timestamp_ns: std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos() as u64)
+            .unwrap_or(0),
+        ttl_ms: 30000,
+        priority: 0,
+        payload,
+    }
 }
 
 #[tokio::test]
@@ -61,20 +86,10 @@ async fn test_e2e_mesh_two_node_communication() {
     let source = ActorAddress::parse(&actor1_uri).expect("Failed to parse source address");
     let target = ActorAddress::parse(&actor2_uri).expect("Failed to parse target address");
 
-    let message = MeshMessage {
-        source,
-        target,
-        payload: b"hello from producer to consumer".to_vec(),
-        message_id: 1,
-        correlation_id: None,
-        reply_to: None,
-        message_type: MessageType::Request,
-        compression: CompressionType::None,
-        flags: MessageFlags::empty(),
-    };
+    let message = make_test_message(source, target, b"hello from producer to consumer".to_vec(), 1);
 
     assert_eq!(message.payload.len(), 32);
-    assert_eq!(message.message_type, MessageType::Request);
+    assert_eq!(message.msg_type, MessageType::Request);
 
     node1.unregister_actor(&actor1_uri).await;
     node2.unregister_actor(&actor2_uri).await;
@@ -156,19 +171,9 @@ async fn test_e2e_mesh_message_routing() {
     let source = ActorAddress::parse(&sender_uri).expect("Failed to parse source");
     let target = ActorAddress::parse(&receiver_uri).expect("Failed to parse target");
 
-    let request = MeshMessage {
-        source: source.clone(),
-        target: target.clone(),
-        payload: b"routing-test-payload".to_vec(),
-        message_id: 100,
-        correlation_id: None,
-        reply_to: None,
-        message_type: MessageType::Request,
-        compression: CompressionType::None,
-        flags: MessageFlags::empty(),
-    };
+    let request = make_test_message(source.clone(), target.clone(), b"routing-test-payload".to_vec(), 100);
 
-    assert_eq!(request.message_id, 100);
+    assert_eq!(request.id, MessageId(100));
 
     node1.disconnect("router-node-2").await;
 }
@@ -190,17 +195,12 @@ async fn test_e2e_mesh_backpressure_handling() {
     let target = source.clone();
 
     for i in 0..100 {
-        let msg = MeshMessage {
-            source: source.clone(),
-            target: target.clone(),
-            payload: format!("backpressure-test-{}", i).into_bytes(),
-            message_id: i as u64,
-            correlation_id: None,
-            reply_to: None,
-            message_type: MessageType::Request,
-            compression: CompressionType::None,
-            flags: MessageFlags::empty(),
-        };
+        let msg = make_test_message(
+            source.clone(),
+            target.clone(),
+            format!("backpressure-test-{}", i).into_bytes(),
+            i as u64,
+        );
 
         let bp = node.backpressure();
         let msg_size = msg.payload.len() as u64;
@@ -230,30 +230,40 @@ async fn test_e2e_mesh_message_compression() {
     let large_payload = vec![0u8; 2048];
 
     let uncompressed_msg = MeshMessage {
+        id: MessageId(1),
+        correlation_id: None,
+        msg_type: MessageType::Request,
+        compression: CompressionType::None,
         source: address.clone(),
         target: address.clone(),
+        trace_id: 0,
+        timestamp_ns: std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos() as u64)
+            .unwrap_or(0),
+        ttl_ms: 30000,
+        priority: 0,
         payload: large_payload.clone(),
-        message_id: 1,
-        correlation_id: None,
-        reply_to: None,
-        message_type: MessageType::Request,
-        compression: CompressionType::None,
-        flags: MessageFlags::empty(),
     };
 
     assert_eq!(uncompressed_msg.compression, CompressionType::None);
     assert_eq!(uncompressed_msg.payload.len(), 2048);
 
     let compressed_msg = MeshMessage {
+        id: MessageId(2),
+        correlation_id: None,
+        msg_type: MessageType::Request,
+        compression: CompressionType::Zstd,
         source: address.clone(),
         target: address.clone(),
+        trace_id: 0,
+        timestamp_ns: std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos() as u64)
+            .unwrap_or(0),
+        ttl_ms: 30000,
+        priority: 0,
         payload: large_payload,
-        message_id: 2,
-        correlation_id: None,
-        reply_to: None,
-        message_type: MessageType::Request,
-        compression: CompressionType::Zstd,
-        flags: MessageFlags::empty(),
     };
 
     assert_eq!(compressed_msg.compression, CompressionType::Zstd);
@@ -273,15 +283,14 @@ async fn test_e2e_mesh_node_stats() {
     assert_eq!(initial_stats.node_id, "stats-node");
     assert_eq!(initial_stats.local_actors, 0);
 
-    let actor_uris: Vec<String> = (0..5)
-        .map(|i| {
-            tokio_test::block_on(async {
-                node.register_actor(&format!("stats-actor-{}", i), &format!("inst-{}", i))
-                    .await
-                    .expect("Failed to register")
-            })
-        })
-        .collect();
+    let mut actor_uris: Vec<String> = vec![];
+    for i in 0..5 {
+        let uri = node
+            .register_actor(&format!("stats-actor-{}", i), &format!("inst-{}", i))
+            .await
+            .expect("Failed to register");
+        actor_uris.push(uri);
+    }
 
     let mid_stats = node.stats().await;
     assert!(mid_stats.local_actors >= 5);
@@ -341,45 +350,45 @@ async fn test_e2e_mesh_message_types() {
 
     let address = ActorAddress::parse(&actor_uri).expect("Failed to parse address");
 
-    let request_msg = MeshMessage {
-        source: address.clone(),
-        target: address.clone(),
-        payload: b"request".to_vec(),
-        message_id: 1,
-        correlation_id: None,
-        reply_to: None,
-        message_type: MessageType::Request,
-        compression: CompressionType::None,
-        flags: MessageFlags::empty(),
-    };
-    assert_eq!(request_msg.message_type, MessageType::Request);
+    let request_msg = make_test_message(address.clone(), address.clone(), b"request".to_vec(), 1);
+    assert_eq!(request_msg.msg_type, MessageType::Request);
 
     let response_msg = MeshMessage {
+        id: MessageId(2),
+        correlation_id: Some(MessageId(1)),
+        msg_type: MessageType::Response,
+        compression: CompressionType::None,
         source: address.clone(),
         target: address.clone(),
+        trace_id: 0,
+        timestamp_ns: std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos() as u64)
+            .unwrap_or(0),
+        ttl_ms: 30000,
+        priority: 0,
         payload: b"response".to_vec(),
-        message_id: 2,
-        correlation_id: Some(1),
-        reply_to: None,
-        message_type: MessageType::Response,
-        compression: CompressionType::None,
-        flags: MessageFlags::empty(),
     };
-    assert_eq!(response_msg.message_type, MessageType::Response);
-    assert_eq!(response_msg.correlation_id, Some(1));
+    assert_eq!(response_msg.msg_type, MessageType::Response);
+    assert_eq!(response_msg.correlation_id, Some(MessageId(1)));
 
-    let event_msg = MeshMessage {
+    let stream_msg = MeshMessage {
+        id: MessageId(3),
+        correlation_id: None,
+        msg_type: MessageType::Stream,
+        compression: CompressionType::None,
         source: address.clone(),
         target: address.clone(),
-        payload: b"event".to_vec(),
-        message_id: 3,
-        correlation_id: None,
-        reply_to: None,
-        message_type: MessageType::Event,
-        compression: CompressionType::None,
-        flags: MessageFlags::empty(),
+        trace_id: 0,
+        timestamp_ns: std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos() as u64)
+            .unwrap_or(0),
+        ttl_ms: 30000,
+        priority: 0,
+        payload: b"stream".to_vec(),
     };
-    assert_eq!(event_msg.message_type, MessageType::Event);
+    assert_eq!(stream_msg.msg_type, MessageType::Stream);
 
     node.unregister_actor(&actor_uri).await;
 }
@@ -387,12 +396,12 @@ async fn test_e2e_mesh_message_types() {
 #[tokio::test]
 #[cfg(feature = "mesh")]
 async fn test_e2e_mesh_address_parsing() {
-    let addr_str = "aether://default.my-actor.instance-123@node-1";
+    let addr_str = "actor://default/my-actor/instance-123";
     let address = ActorAddress::parse(addr_str).expect("Failed to parse address");
 
-    assert_eq!(address.namespace(), "default");
-    assert_eq!(address.actor_name(), "my-actor");
-    assert_eq!(address.instance_id(), "instance-123");
+    assert_eq!(address.namespace, "default");
+    assert_eq!(address.actor_name, "my-actor");
+    assert_eq!(address.instance_id, "instance-123");
 
     let uri = address.to_uri();
     assert!(uri.contains("my-actor"));
@@ -407,7 +416,7 @@ async fn test_e2e_mesh_connection_pool() {
     let addr2: SocketAddr = "127.0.0.1:19112".parse().unwrap();
 
     let node1 = MeshNode::new("pool-node-1", addr1);
-    let node2 = MeshNode::new("pool-node-2", addr2);
+    let _node2 = MeshNode::new("pool-node-2", addr2);
 
     node1
         .connect("pool-node-2", addr2)

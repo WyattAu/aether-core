@@ -4,6 +4,11 @@
 
 use std::time::Duration;
 
+/// Polls a synchronous condition until it returns `true` or the timeout expires.
+///
+/// # Panics
+///
+/// Panics if the condition does not return `true` within the specified timeout.
 pub fn assert_eventually<F>(mut condition: F, timeout: Duration, message: &str)
 where
     F: FnMut() -> bool,
@@ -18,6 +23,11 @@ where
     panic!("Assertion failed within {:?}: {}", timeout, message);
 }
 
+/// Polls an async condition until it returns `true` or the timeout expires.
+///
+/// # Panics
+///
+/// Panics if the condition does not return `true` within the specified timeout.
 pub async fn assert_eventually_async<F, Fut>(mut condition: F, timeout: Duration, message: &str)
 where
     F: FnMut() -> Fut,
@@ -33,6 +43,7 @@ where
     panic!("Assertion failed within {:?}: {}", timeout, message);
 }
 
+/// Asserts that a `Result` is `Ok`, returning the inner value. Panics on `Err`.
 #[macro_export]
 macro_rules! assert_ok {
     ($expr:expr) => {
@@ -49,6 +60,7 @@ macro_rules! assert_ok {
     };
 }
 
+/// Asserts that a `Result` is `Err`, returning the error value. Panics on `Ok`.
 #[macro_export]
 macro_rules! assert_err {
     ($expr:expr) => {
@@ -59,6 +71,7 @@ macro_rules! assert_err {
     };
 }
 
+/// Asserts that an `Option` is `Some`, returning the inner value. Panics on `None`.
 #[macro_export]
 macro_rules! assert_some {
     ($expr:expr) => {

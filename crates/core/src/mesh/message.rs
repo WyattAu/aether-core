@@ -158,6 +158,9 @@ pub enum CompressionType {
 }
 
 /// Primary message type for actor-to-actor mesh communication.
+///
+/// Supports length-prefixed framing, optional zstd compression, and
+/// message correlation via [`MessageId`].
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MeshMessage {
     /// Unique message identifier.
@@ -501,7 +504,10 @@ pub enum FlowAction {
     /// Resume message delivery.
     Resume,
     /// Update the flow control window size.
-    WindowUpdate { size: u64 },
+    WindowUpdate {
+        /// New window size in bytes.
+        size: u64,
+    },
 }
 
 impl ActorPacket {

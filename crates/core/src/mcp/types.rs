@@ -9,11 +9,15 @@ use serde::{Deserialize, Serialize};
 /// JSON-RPC version
 pub const JSONRPC_VERSION: &str = "2.0";
 
-/// JSON-RPC request ID
+/// JSON-RPC request ID.
+///
+/// Can be a string, number, or null.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum RequestId {
+    /// String identifier.
     String(String),
+    /// Numeric identifier.
     Number(i64),
 }
 
@@ -50,15 +54,23 @@ pub struct JsonRpcRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum JsonRpcResponse {
+    /// Successful response containing the result value.
     Success {
+        /// JSON-RPC protocol version.
         jsonrpc: String,
+        /// Correlating request identifier.
         id: RequestId,
+        /// Result value on success.
         result: serde_json::Value,
     },
+    /// Error response containing error details.
     Error {
+        /// JSON-RPC protocol version.
         jsonrpc: String,
+        /// Correlating request identifier (absent for notifications).
         #[serde(skip_serializing_if = "Option::is_none")]
         id: Option<RequestId>,
+        /// Error details.
         error: JsonRpcError,
     },
 }
@@ -242,23 +254,30 @@ pub enum ToolContent {
     /// Plain text content.
     #[serde(rename = "text")]
     Text {
+        /// The text body.
         text: String,
+        /// MIME type of the text (defaults to `text/plain`).
         #[serde(skip_serializing_if = "Option::is_none")]
         mime_type: Option<String>,
     },
     /// Base64-encoded image content.
     #[serde(rename = "image")]
     Image {
+        /// Base64-encoded image data.
         data: String,
+        /// MIME type of the image (e.g., `image/png`).
         #[serde(skip_serializing_if = "Option::is_none")]
         mime_type: Option<String>,
     },
     /// Resource reference content.
     #[serde(rename = "resource")]
     Resource {
+        /// URI of the resource.
         uri: String,
+        /// Optional inline text of the resource.
         #[serde(skip_serializing_if = "Option::is_none")]
         text: Option<String>,
+        /// MIME type of the resource.
         #[serde(skip_serializing_if = "Option::is_none")]
         mime_type: Option<String>,
     },
@@ -300,16 +319,22 @@ pub enum ResourceContents {
     /// Text-based resource contents.
     #[serde(rename = "text")]
     Text {
+        /// URI identifying the resource.
         uri: String,
+        /// Text content of the resource.
         text: String,
+        /// MIME type of the resource.
         #[serde(skip_serializing_if = "Option::is_none")]
         mime_type: Option<String>,
     },
     /// Base64-encoded binary resource contents.
     #[serde(rename = "blob")]
     Blob {
+        /// URI identifying the resource.
         uri: String,
+        /// Base64-encoded blob data.
         blob: String,
+        /// MIME type of the resource.
         #[serde(skip_serializing_if = "Option::is_none")]
         mime_type: Option<String>,
     },
@@ -398,11 +423,24 @@ pub struct PromptMessage {
 pub enum PromptContent {
     /// Plain text content.
     #[serde(rename = "text")]
-    Text { text: String },
+    Text {
+        /// The text body.
+        text: String,
+    },
     /// Base64-encoded image content.
     #[serde(rename = "image")]
-    Image { data: String, mime_type: String },
+    Image {
+        /// Base64-encoded image data.
+        data: String,
+        /// MIME type of the image.
+        mime_type: String,
+    },
     /// Resource reference content.
     #[serde(rename = "resource")]
-    Resource { uri: String, text: String },
+    Resource {
+        /// URI of the resource.
+        uri: String,
+        /// Inline text of the resource.
+        text: String,
+    },
 }

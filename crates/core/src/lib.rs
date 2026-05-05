@@ -208,9 +208,13 @@ pub mod tracing;
 pub mod vm;
 pub mod wasi;
 
+/// Capability bitmask used throughout the runtime.
 pub use capability::CapabilitySet;
+/// Top-level runtime configuration.
 pub use config::AetherConfig;
+/// Core error and result types.
 pub use error::{Error, Result};
+/// The primary runtime host entry point.
 pub use host::Host;
 
 /// Mesh networking types (requires `mesh` feature)
@@ -254,4 +258,5 @@ pub use enterprise::{
     TenantManager, TenantState,
 };
 
+/// Semantic version of the aether-core crate.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

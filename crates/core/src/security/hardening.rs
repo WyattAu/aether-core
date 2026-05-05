@@ -498,6 +498,9 @@ impl HardeningConfig {
 }
 
 /// Runs security hardening checks and generates a compliance report.
+///
+/// Inspects mTLS, RBAC, audit logging, secrets, certificates, encryption,
+/// network isolation, and runtime security posture.
 pub struct SecurityHardening {
     config: HardeningConfig,
     node_id: String,

@@ -3,8 +3,8 @@
 //! Tests failure propagation and chain reaction scenarios.
 
 use aether_core::chaos::{
-    CascadingFailureScenario, ChaosConfig, ChaosTestRunner, CpuFault, DiskFault, FaultType,
-    InitialFailure, MemoryFault, NetworkFault, ProcessFault,
+    CascadingFailureScenario, ChaosConfig, ChaosScenario, ChaosTestRunner, CpuFault, DiskFault,
+    FaultType, InitialFailure, MemoryFault, NetworkFault, ProcessFault,
 };
 use std::time::Duration;
 
