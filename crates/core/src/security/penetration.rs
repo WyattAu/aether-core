@@ -6,7 +6,7 @@
 //!
 //! This module provides:
 //! - **[`PenetrationTestSuite`]**: Comprehensive security test suite
-//! - **[`CapabilityBypassTest`]**: Tests for capability bypass attempts
+//! - **`CapabilityBypassTest`**: Tests for capability bypass attempts
 //! - **[`EscapeDetector`]**: Container/sandbox escape detection
 //! - **[`WasiFuzzer`]**: WASI boundary fuzzing
 //!

@@ -21,7 +21,7 @@ use std::error::Error as StdError;
 use std::io;
 use thiserror::Error;
 
-/// A specialized `Result` type using [`Error`] as the error variant.
+/// A specialized `Result` type using `` `Error` `` as the error variant.
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// Unique error codes for programmatic error classification.

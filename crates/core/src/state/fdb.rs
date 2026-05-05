@@ -23,7 +23,8 @@ use foundationdb::{Database, RangeOption};
 /// Default path to the FoundationDB cluster file.
 pub const DEFAULT_CLUSTER_FILE: &str = "/etc/foundationdb/fdb.cluster";
 const MAX_CONNECTIONS: usize = 100;
-const MAX_RETRIES: usize = 10;
+/// Maximum number of retry attempts for FDB operations.
+pub const MAX_RETRIES: usize = 10;
 const DEFAULT_TIMEOUT_MS: u64 = 5000;
 
 /// Configuration for connecting to a FoundationDB cluster.

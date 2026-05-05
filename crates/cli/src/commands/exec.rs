@@ -78,7 +78,7 @@ async fn execute_non_interactive(args: &ExecArgs) -> Result<(), Error> {
 }
 
 async fn execute_interactive(args: &ExecArgs) -> Result<(), Error> {
-    if args.tty && !termion::is_tty(&io::stdout()) {
+    if args.tty && !crossterm::tty::IsTty::is_tty(&io::stdout()) {
         return Err(Error::TtyNotAvailable(
             "Standard output is not a TTY. Remove --tty flag or run in a terminal.".into(),
         ));

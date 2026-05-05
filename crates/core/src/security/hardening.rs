@@ -6,7 +6,7 @@
 //!
 //! This module provides:
 //! - **[`SecurityHardening`]**: Secure defaults checker and validator
-//! - **[`SecurityPosture`]**: Security posture scoring
+//! - **[`SecurityGrade`]**: Security posture scoring
 //! - **[`HardeningCheck`]**: Individual security checks
 //! - **[`HardeningReport`]**: Comprehensive hardening report
 //!

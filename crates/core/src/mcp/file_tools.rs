@@ -217,8 +217,8 @@ impl ToolExecutor for ListDirectoryTool {
         let path_str = args.get("path").and_then(|p| p.as_str()).unwrap_or(".");
         let path = resolve_path(&self.root_dir, path_str)?;
 
-        let entries = match std::fs::read_dir(&path) {
-            Ok(e) => e,
+        let mut dir = match tokio::fs::read_dir(&path).await {
+            Ok(d) => d,
             Err(e) => {
                 return Ok(ToolResult::error(format!(
                     "Failed to read directory: {}",
@@ -230,9 +230,9 @@ impl ToolExecutor for ListDirectoryTool {
         let mut dirs = Vec::new();
         let mut files = Vec::new();
 
-        for entry in entries.flatten() {
+        while let Some(entry) = dir.next_entry().await.unwrap_or(None) {
             let name = entry.file_name().to_string_lossy().to_string();
-            if entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
+            if entry.file_type().await.map(|t| t.is_dir()).unwrap_or(false) {
                 dirs.push(name);
             } else {
                 files.push(name);
@@ -440,7 +440,7 @@ impl ToolExecutor for DeleteFileTool {
         }
 
         if path.is_dir() {
-            match std::fs::remove_dir(&path) {
+            match tokio::fs::remove_dir(&path).await {
                 Ok(()) => Ok(ToolResult::text(format!("Removed directory: {}", path_str))),
                 Err(e) => Ok(ToolResult::error(format!(
                     "Failed to remove directory: {}",
@@ -448,7 +448,7 @@ impl ToolExecutor for DeleteFileTool {
                 ))),
             }
         } else {
-            match std::fs::remove_file(&path) {
+            match tokio::fs::remove_file(&path).await {
                 Ok(()) => Ok(ToolResult::text(format!("Removed file: {}", path_str))),
                 Err(e) => Ok(ToolResult::error(format!("Failed to remove file: {}", e))),
             }

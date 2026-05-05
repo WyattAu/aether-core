@@ -317,13 +317,13 @@ impl PolicyDocument {
 
     /// Serializes this policy document to YAML.
     pub fn to_yaml(&self) -> Result<String> {
-        serde_yaml::to_string(self)
+        serde_yml::to_string(self)
             .map_err(|e| Error::serialization(format!("Failed to serialize policy to YAML: {}", e)))
     }
 
     /// Deserializes a policy document from a YAML string.
     pub fn from_yaml(yaml: &str) -> Result<Self> {
-        serde_yaml::from_str(yaml)
+        serde_yml::from_str(yaml)
             .map_err(|e| Error::serialization(format!("Failed to parse policy from YAML: {}", e)))
     }
 
