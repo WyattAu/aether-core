@@ -31,7 +31,7 @@ pub use fault_injector::{
 };
 pub use scenarios::{
     ActorCrashScenario, CascadingFailureScenario, ChaosScenario, InitialFailure,
-    NetworkPartitionScenario, ResourceExhaustionScenario,     ResourceType, ScenarioMetadata,
+    NetworkPartitionScenario, ResourceExhaustionScenario, ResourceType, ScenarioMetadata,
     ScenarioResult, ScenarioStats, SlowNetworkScenario,
 };
 

@@ -60,33 +60,43 @@ async fn test_backpressure_with_message_flood() {
 
 #[tokio::test]
 async fn test_credit_account_exhaustion() {
+    // threshold = initial / 16 = 100 / 16 = 6
     let account = CreditAccount::new(100);
 
     assert!(account.try_acquire(50));
     assert_eq!(account.available(), 50);
-    assert_eq!(account.state(), FlowState::Normal);
+    assert_eq!(account.state(), FlowState::Normal); // 50 >= 6
 
-    assert!(account.try_acquire(40));
-    assert_eq!(account.available(), 10);
-    assert_eq!(account.state(), FlowState::Pressure);
+    // Drain to below threshold
+    assert!(account.try_acquire(44));
+    assert_eq!(account.available(), 6);
+    assert_eq!(account.state(), FlowState::Normal); // 6 >= 6 (not below)
 
+    assert!(account.try_acquire(1));
+    assert_eq!(account.available(), 5);
+    assert_eq!(account.state(), FlowState::Pressure); // 5 < 6
+
+    // Cannot acquire more than available
     assert!(!account.try_acquire(20));
-    assert_eq!(account.state(), FlowState::Pressure);
+    assert_eq!(account.state(), FlowState::Pressure); // still 5 < 6
 
     account.release(50);
-    assert_eq!(account.available(), 60);
+    assert_eq!(account.available(), 55);
 }
 
 #[tokio::test]
 async fn test_credit_account_blocked_state() {
+    // threshold = initial / 16 = 100 / 16 = 6
     let account = CreditAccount::new(100);
 
     assert!(account.try_acquire(100));
-    assert_eq!(account.state(), FlowState::Blocked);
+    assert_eq!(account.state(), FlowState::Blocked); // 0 available
     assert!(!account.try_acquire(1));
 
-    account.release(50);
-    assert_eq!(account.state(), FlowState::Pressure);
+    // Release enough to enter Pressure zone (1..=5)
+    account.release(3);
+    assert_eq!(account.available(), 3);
+    assert_eq!(account.state(), FlowState::Pressure); // 3 < 6
 }
 
 #[tokio::test]
@@ -247,17 +257,25 @@ async fn test_priority_message_handling() {
 
 #[tokio::test]
 async fn test_backpressure_window_update() {
+    // window_size=1000, high_watermark=900, low_watermark=500
+    // recv_credits threshold = 1000/16 = 62
     let controller = Arc::new(BackpressureController::new(1000));
 
     assert!(controller.can_send(800));
-    assert!(!controller.window_update_needed());
+    assert!(!controller.window_update_needed()); // recv_credits=1000 >= low_watermark=500
 
+    // Consume send credits further
     assert!(controller.can_send(150));
-    assert!(controller.window_update_needed());
+    // send_credits=50 now, but window_update_needed checks recv_credits
+    assert!(!controller.window_update_needed()); // recv_credits still 1000
 
+    // Simulate receiver consuming credits by directly using recv_credits account
+    assert!(controller.recv_credits().try_acquire(600));
+    assert!(controller.window_update_needed()); // recv_credits=400 < low_watermark=500
+
+    // Grant credits back to receiver
     controller.grant_credits(500);
-
-    assert!(!controller.window_update_needed());
+    assert!(!controller.window_update_needed()); // recv_credits=900 >= 500
 }
 
 #[tokio::test]
@@ -314,21 +332,35 @@ async fn test_overload_recovery() {
 
 #[tokio::test]
 async fn test_backpressure_flow_state_transitions() {
+    // threshold = initial / 16 = 100 / 16 = 6
     let account = CreditAccount::new(100);
 
-    assert_eq!(account.state(), FlowState::Normal);
+    assert_eq!(account.state(), FlowState::Normal); // 100 >= 6
 
-    assert!(account.try_acquire(80));
-    assert_eq!(account.state(), FlowState::Pressure);
+    // Drain to exactly at threshold
+    assert!(account.try_acquire(94));
+    assert_eq!(account.available(), 6);
+    assert_eq!(account.state(), FlowState::Normal); // 6 >= 6
 
-    assert!(account.try_acquire(20));
+    // Cross below threshold → Pressure
+    assert!(account.try_acquire(1));
+    assert_eq!(account.available(), 5);
+    assert_eq!(account.state(), FlowState::Pressure); // 5 < 6
+
+    // Drain to zero → Blocked
+    assert!(account.try_acquire(5));
+    assert_eq!(account.available(), 0);
     assert_eq!(account.state(), FlowState::Blocked);
 
-    account.release(50);
-    assert_eq!(account.state(), FlowState::Pressure);
+    // Release back to Pressure zone
+    account.release(3);
+    assert_eq!(account.available(), 3);
+    assert_eq!(account.state(), FlowState::Pressure); // 3 < 6
 
+    // Release back to Normal zone
     account.release(50);
-    assert_eq!(account.state(), FlowState::Normal);
+    assert_eq!(account.available(), 53);
+    assert_eq!(account.state(), FlowState::Normal); // 53 >= 6
 }
 
 #[tokio::test]

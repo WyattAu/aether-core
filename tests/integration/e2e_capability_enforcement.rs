@@ -265,10 +265,10 @@ async fn test_e2e_capability_wasm_enforcement() {
                 i32.const 1
                 call $check_capability)
             (func $test_state (export "test_state") (result i32)
-                i32.const 8
+                i32.const 2
                 call $check_capability)
             (func $test_log (export "test_log") (result i32)
-                i32.const 12
+                i32.const 7
                 call $check_capability)
         )
         "#,

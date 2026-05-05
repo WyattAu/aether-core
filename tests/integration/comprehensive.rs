@@ -441,7 +441,7 @@ async fn test_actor_scheduler_with_multiple_actors() {
 #[tokio::test]
 #[cfg(feature = "mesh")]
 async fn test_mesh_network_local_communication() {
-    use aether_core::mesh::{ActorAddress, MeshMessage, MeshNode};
+    use aether_core::mesh::{ActorAddress, ActorLocation, MeshMessage, MeshNode};
     use std::net::SocketAddr;
 
     // Initialize crypto provider
@@ -464,9 +464,18 @@ async fn test_mesh_network_local_communication() {
         .await
         .expect("Failed to register actor2");
 
-    // Verify registration
+    // Verify local registration
     let location1 = node1.resolve_actor(&actor1_uri).await;
     assert!(location1.is_some(), "Actor 1 should be resolvable");
+
+    // Cross-node resolution: register actor2 in node1's resolver
+    // (simulates gossip/registration that would happen in production)
+    let remote_location =
+        ActorLocation::new("node-2".to_string(), "inst-2".to_string()).with_addr(addr2);
+    node1
+        .resolver()
+        .register(&actor2_uri, remote_location)
+        .await;
 
     let location2 = node1.resolve_actor(&actor2_uri).await;
     assert!(
@@ -1232,9 +1241,7 @@ async fn test_state_persistence_flow() {
 #[tokio::test]
 #[cfg(feature = "mesh")]
 async fn test_mesh_message_flow() {
-    use aether_core::mesh::{
-        ActorAddress, CompressionType, MeshMessage, MeshNode, MessageType,
-    };
+    use aether_core::mesh::{ActorAddress, CompressionType, MeshMessage, MeshNode, MessageType};
     use std::net::SocketAddr;
 
     init_crypto_provider();
