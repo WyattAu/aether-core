@@ -26,12 +26,15 @@ pub struct StatusArgs {
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("Failed to get status: {0}")]
+    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
     GetStatus(String),
 
     #[error("Actor not found: {0}")]
+    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
     ActorNotFound(String),
 
     #[error("Connection failed: {0}")]
+    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
     ConnectionFailed(String),
 }
 

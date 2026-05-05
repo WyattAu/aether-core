@@ -79,21 +79,27 @@ pub struct AllArgs {
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("Actor not found: {0}")]
+    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
     ActorNotFound(String),
 
     #[error("Actor not running: {0}")]
+    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
     ActorNotRunning(String),
 
     #[error("Failed to inspect actor: {0}")]
+    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
     InspectFailed(String),
 
     #[error("Invalid memory range: {0}")]
+    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
     InvalidMemoryRange(String),
 
     #[error("State key not found: {0}")]
+    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
     StateKeyNotFound(String),
 
     #[error("Connection failed: {0}")]
+    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
     ConnectionFailed(String),
 }
 

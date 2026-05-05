@@ -4,7 +4,6 @@
 
 use std::collections::HashMap;
 use std::sync::Mutex;
-use std::sync::atomic::{AtomicU64, Ordering};
 
 /// Resilience metrics collector
 pub struct ResilienceMetrics {

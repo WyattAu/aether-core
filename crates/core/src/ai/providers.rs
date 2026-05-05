@@ -289,7 +289,7 @@ impl Default for ProviderType {
     }
 }
 
-/// Provider factory
+/// Factory for creating AI providers from configuration.
 pub struct ProviderFactory;
 
 impl ProviderFactory {

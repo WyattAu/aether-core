@@ -205,7 +205,8 @@ impl std::fmt::Display for ExitReason {
 pub struct ChildSpec {
     /// Unique name for the child within this supervisor.
     pub name: String,
-    /// Configuration for the actor (placeholder for future use).
+    /// Startup and behavioral configuration passed to the child actor on spawn,
+    /// such as mailbox capacity, dispatch priority, and initialization parameters.
     pub actor_config: ActorConfig,
     /// When to restart the child.
     pub restart_policy: RestartPolicy,
@@ -246,10 +247,12 @@ impl ChildSpec {
     }
 }
 
-/// Configuration for an actor (placeholder for future expansion).
+/// Startup and behavioral configuration for a child actor, controlling parameters
+/// such as mailbox capacity, dispatch priority, and initialization arguments.
 #[derive(Debug, Clone, Default)]
 pub struct ActorConfig {
-    /// Placeholder for future configuration options.
+    /// Reserved for additional configuration options (e.g., mailbox bounds,
+    /// dispatch priority, custom metadata) in future releases.
     _future: (),
 }
 

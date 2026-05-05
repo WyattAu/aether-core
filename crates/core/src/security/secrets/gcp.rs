@@ -8,11 +8,16 @@ use tracing::{debug, info};
 
 use super::providers::{ExternalSecretValue, SecretsProvider};
 
+/// Configuration for GCP Secret Manager provider.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GcpSecretsConfig {
+    /// GCP project ID.
     pub project_id: String,
+    /// Custom API endpoint URL.
     pub endpoint: Option<String>,
+    /// GCP access token (defaults to metadata service).
     pub access_token: Option<String>,
+    /// Request timeout.
     #[serde(with = "duration_serde", default = "default_timeout")]
     pub timeout: Duration,
 }
@@ -42,6 +47,7 @@ mod duration_serde {
 }
 
 impl GcpSecretsConfig {
+    /// Create a new config with the given GCP project ID.
     pub fn new(project_id: &str) -> Self {
         Self {
             project_id: project_id.to_string(),
@@ -51,16 +57,19 @@ impl GcpSecretsConfig {
         }
     }
 
+    /// Set a custom API endpoint URL.
     pub fn with_endpoint(mut self, endpoint: &str) -> Self {
         self.endpoint = Some(endpoint.to_string());
         self
     }
 
+    /// Set an explicit GCP access token.
     pub fn with_access_token(mut self, token: &str) -> Self {
         self.access_token = Some(token.to_string());
         self
     }
 
+    /// Set the request timeout.
     pub fn with_timeout(mut self, timeout: Duration) -> Self {
         self.timeout = timeout;
         self
@@ -111,7 +120,9 @@ struct AccessSecretVersionResponse {
 struct SecretMetadata {
     name: String,
     #[serde(rename = "createTime")]
+    #[allow(dead_code)] // Deserialized from API response
     create_time: Option<String>,
+    #[allow(dead_code)] // Deserialized from API response
     labels: Option<HashMap<String, String>>,
 }
 
@@ -119,15 +130,18 @@ struct SecretMetadata {
 struct ListSecretsResponse {
     secrets: Vec<SecretMetadata>,
     #[serde(rename = "nextPageToken")]
+    #[allow(dead_code)] // Deserialized from API response
     next_page_token: Option<String>,
 }
 
+/// GCP Secret Manager provider implementing [`SecretsProvider`].
 pub struct GcpSecretsProvider {
     config: GcpSecretsConfig,
     client: Client,
 }
 
 impl GcpSecretsProvider {
+    /// Create a new GCP secrets provider.
     pub fn new(config: GcpSecretsConfig) -> Result<Self> {
         let client = Client::builder()
             .timeout(config.timeout)
@@ -137,6 +151,7 @@ impl GcpSecretsProvider {
         Ok(Self { config, client })
     }
 
+    /// Create a provider with an explicit access token.
     pub fn with_token(config: GcpSecretsConfig, access_token: String) -> Self {
         let client = Client::builder()
             .timeout(config.timeout)

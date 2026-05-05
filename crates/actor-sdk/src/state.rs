@@ -21,10 +21,11 @@ use crate::ActorResult;
 /// In a real WASM runtime, these would be provided by the host via WASI imports.
 /// The SDK stores function pointers that are resolved at link time.
 mod host {
-    extern "C" {
+    unsafe extern "C" {
         /// Host-provided state read function.
         /// Returns 0 on success (with data written to `out_ptr`), non-zero on error.
         /// Writes the length of the value to `out_len_ptr`.
+        #[allow(dead_code)] // Only used when compiled to wasm32
         pub fn aether_state_read(
             key_ptr: *const u8,
             key_len: u32,
@@ -34,6 +35,7 @@ mod host {
 
         /// Host-provided state write function.
         /// Returns 0 on success, non-zero on error.
+        #[allow(dead_code)] // Only used when compiled to wasm32
         pub fn aether_state_write(
             key_ptr: *const u8,
             key_len: u32,

@@ -15,6 +15,9 @@ use tracing::{debug, info};
 
 use crate::security::secret_reference::{SecretMetadata, SecretProvider, SecretReference};
 
+/// A secret value with associated metadata and secure memory handling.
+///
+/// The underlying bytes are zeroed on drop to prevent secret leakage.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SecretValue {
     data: Vec<u8>,
@@ -23,6 +26,7 @@ pub struct SecretValue {
 }
 
 impl SecretValue {
+    /// Creates a new secret value from raw bytes.
     pub fn new(data: Vec<u8>, reference: SecretReference) -> Self {
         let metadata = SecretMetadata::new(reference);
         Self {
@@ -32,6 +36,7 @@ impl SecretValue {
         }
     }
 
+    /// Creates a secret value from a UTF-8 string.
     pub fn from_string(value: &str, reference: SecretReference) -> Self {
         Self {
             data: value.as_bytes().to_vec(),
@@ -40,6 +45,7 @@ impl SecretValue {
         }
     }
 
+    /// Creates a secret value by serializing a JSON-encodable value.
     pub fn from_json<T: Serialize>(value: &T, reference: SecretReference) -> Result<Self> {
         let data = serde_json::to_vec(value).map_err(|e| Error::serialization(e.to_string()))?;
         Ok(Self {
@@ -49,32 +55,39 @@ impl SecretValue {
         })
     }
 
+    /// Returns the raw secret bytes.
     pub fn data(&self) -> &[u8] {
         &self.data
     }
 
+    /// Returns the secret as a UTF-8 string slice.
     pub fn as_str(&self) -> Result<&str> {
         std::str::from_utf8(&self.data)
             .map_err(|e| Error::serialization(format!("Invalid UTF-8: {}", e)))
     }
 
+    /// Returns the secret as a string, replacing invalid UTF-8 with replacement characters.
     pub fn to_string_lossy(&self) -> String {
         String::from_utf8_lossy(&self.data).to_string()
     }
 
+    /// Returns the MIME content type of this secret value.
     pub fn content_type(&self) -> &str {
         &self.content_type
     }
 
+    /// Returns the secret's metadata.
     pub fn metadata(&self) -> &SecretMetadata {
         &self.metadata
     }
 
+    /// Sets the content type (builder pattern).
     pub fn with_content_type(mut self, content_type: &str) -> Self {
         self.content_type = content_type.to_string();
         self
     }
 
+    /// Sets an expiration time for this secret (builder pattern).
     pub fn with_expiry(mut self, expires_at: SystemTime) -> Self {
         self.metadata.expires_at = Some(expires_at);
         self
@@ -97,32 +110,50 @@ fn zero_memory(data: &mut [u8]) {
     std::sync::atomic::compiler_fence(std::sync::atomic::Ordering::SeqCst);
 }
 
+/// Async interface for secret storage backends.
 #[async_trait]
 pub trait SecretStore: Send + Sync {
+    /// Retrieves a secret value by reference.
     async fn get(&self, reference: &SecretReference) -> Result<SecretValue>;
+    /// Stores a secret value by reference.
     async fn set(&self, reference: &SecretReference, value: SecretValue) -> Result<()>;
+    /// Deletes a secret by reference. Returns `true` if it existed.
     async fn delete(&self, reference: &SecretReference) -> Result<bool>;
+    /// Checks whether a secret exists.
     async fn exists(&self, reference: &SecretReference) -> bool;
+    /// Lists all secrets under a path prefix.
     async fn list(&self, path_prefix: &str) -> Result<Vec<SecretReference>>;
+    /// Rotates a secret by generating a new random value.
     async fn rotate(&self, reference: &SecretReference) -> Result<SecretValue>;
 }
 
+/// A record of a single secret access event for audit purposes.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SecretAccessRecord {
+    /// The secret that was accessed.
     pub reference: SecretReference,
+    /// Who accessed the secret.
     pub accessor: String,
+    /// When the access occurred.
     pub timestamp: DateTime<Utc>,
+    /// The type of access performed.
     pub action: SecretAction,
 }
 
+/// The type of action performed on a secret.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum SecretAction {
+    /// Secret was read.
     Read,
+    /// Secret was written or updated.
     Write,
+    /// Secret was deleted.
     Delete,
+    /// Secret was rotated to a new value.
     Rotate,
 }
 
+/// Audit log that records secret access events.
 pub struct SecretAuditLog {
     records: Arc<RwLock<Vec<SecretAccessRecord>>>,
     max_records: usize,
@@ -130,6 +161,7 @@ pub struct SecretAuditLog {
 }
 
 impl SecretAuditLog {
+    /// Creates a new audit log with the given maximum record capacity.
     pub fn new(max_records: usize) -> Self {
         Self {
             records: Arc::new(RwLock::new(Vec::with_capacity(max_records))),
@@ -138,6 +170,7 @@ impl SecretAuditLog {
         }
     }
 
+    /// Creates a disabled audit log that discards all events.
     pub fn disabled() -> Self {
         Self {
             records: Arc::new(RwLock::new(Vec::new())),
@@ -146,6 +179,7 @@ impl SecretAuditLog {
         }
     }
 
+    /// Records a secret access event.
     pub fn log(&self, reference: SecretReference, accessor: &str, action: SecretAction) {
         if !self.enabled {
             return;
@@ -173,11 +207,13 @@ impl SecretAuditLog {
         records.push(record);
     }
 
+    /// Returns the most recent audit records, up to `limit`.
     pub fn get_records(&self, limit: usize) -> Vec<SecretAccessRecord> {
         let records = self.records.read();
         records.iter().rev().take(limit).cloned().collect()
     }
 
+    /// Returns the most recent audit records for a specific accessor, up to `limit`.
     pub fn get_records_for_accessor(
         &self,
         accessor: &str,
@@ -194,12 +230,14 @@ impl SecretAuditLog {
     }
 }
 
+/// In-memory secret store for testing and development.
 pub struct MemorySecretStore {
     secrets: RwLock<HashMap<String, SecretValue>>,
     audit_log: Arc<SecretAuditLog>,
 }
 
 impl MemorySecretStore {
+    /// Creates a new in-memory secret store with default audit logging.
     pub fn new() -> Self {
         Self {
             secrets: RwLock::new(HashMap::new()),
@@ -207,6 +245,7 @@ impl MemorySecretStore {
         }
     }
 
+    /// Replaces the default audit log with a custom one (builder pattern).
     pub fn with_audit_log(mut self, audit_log: Arc<SecretAuditLog>) -> Self {
         self.audit_log = audit_log;
         self
@@ -301,17 +340,20 @@ impl SecretStore for MemorySecretStore {
     }
 }
 
+/// Secret store backed by environment variables.
 pub struct EnvironmentSecretStore {
     audit_log: Arc<SecretAuditLog>,
 }
 
 impl EnvironmentSecretStore {
+    /// Creates a new environment-backed secret store with default audit logging.
     pub fn new() -> Self {
         Self {
             audit_log: Arc::new(SecretAuditLog::new(10000)),
         }
     }
 
+    /// Replaces the default audit log with a custom one (builder pattern).
     pub fn with_audit_log(mut self, audit_log: Arc<SecretAuditLog>) -> Self {
         self.audit_log = audit_log;
         self
@@ -399,6 +441,7 @@ impl SecretStore for EnvironmentSecretStore {
     }
 }
 
+/// Secret store backed by HashiCorp Vault (KV v2 engine).
 pub struct VaultSecretStore {
     address: String,
     token: Option<String>,
@@ -408,6 +451,7 @@ pub struct VaultSecretStore {
 }
 
 impl VaultSecretStore {
+    /// Creates a new Vault secret store targeting the given address.
     pub fn new(address: &str) -> Self {
         Self {
             address: address.trim_end_matches('/').to_string(),
@@ -418,11 +462,13 @@ impl VaultSecretStore {
         }
     }
 
+    /// Sets the Vault authentication token (builder pattern).
     pub fn with_token(mut self, token: &str) -> Self {
         self.token = Some(token.to_string());
         self
     }
 
+    /// Replaces the default audit log with a custom one (builder pattern).
     pub fn with_audit_log(mut self, audit_log: Arc<SecretAuditLog>) -> Self {
         self.audit_log = audit_log;
         self
@@ -729,6 +775,7 @@ fn generate_random_secret(len: usize) -> Vec<u8> {
     bytes
 }
 
+/// Manages multiple secret store backends and routes operations to the appropriate provider.
 pub struct SecretManager {
     stores: HashMap<SecretProvider, Arc<dyn SecretStore>>,
     default_provider: SecretProvider,
@@ -736,6 +783,7 @@ pub struct SecretManager {
 }
 
 impl SecretManager {
+    /// Creates a new secret manager with memory and environment stores pre-registered.
     pub fn new() -> Self {
         let audit_log = Arc::new(SecretAuditLog::new(10000));
 
@@ -753,16 +801,19 @@ impl SecretManager {
         }
     }
 
+    /// Registers a secret store for a provider (builder pattern).
     pub fn with_store(mut self, provider: SecretProvider, store: Arc<dyn SecretStore>) -> Self {
         self.stores.insert(provider, store);
         self
     }
 
+    /// Sets the default secret provider (builder pattern).
     pub fn with_default_provider(mut self, provider: SecretProvider) -> Self {
         self.default_provider = provider;
         self
     }
 
+    /// Registers a secret store for a provider (imperative API).
     pub fn register_store(&mut self, provider: SecretProvider, store: Arc<dyn SecretStore>) {
         self.stores.insert(provider, store);
     }
@@ -774,21 +825,25 @@ impl SecretManager {
             .ok_or_else(|| Error::security(format!("No store for provider: {:?}", provider)))
     }
 
+    /// Retrieves a secret value by its reference.
     pub async fn get(&self, reference: &SecretReference) -> Result<SecretValue> {
         let store = self.get_store(reference.provider())?;
         store.get(reference).await
     }
 
+    /// Stores a secret value by its reference.
     pub async fn set(&self, reference: &SecretReference, value: SecretValue) -> Result<()> {
         let store = self.get_store(reference.provider())?;
         store.set(reference, value).await
     }
 
+    /// Deletes a secret by its reference.
     pub async fn delete(&self, reference: &SecretReference) -> Result<bool> {
         let store = self.get_store(reference.provider())?;
         store.delete(reference).await
     }
 
+    /// Checks whether a secret exists.
     pub async fn exists(&self, reference: &SecretReference) -> bool {
         if let Ok(store) = self.get_store(reference.provider()) {
             store.exists(reference).await
@@ -797,11 +852,13 @@ impl SecretManager {
         }
     }
 
+    /// Rotates a secret by generating a new random value.
     pub async fn rotate(&self, reference: &SecretReference) -> Result<SecretValue> {
         let store = self.get_store(reference.provider())?;
         store.rotate(reference).await
     }
 
+    /// Returns a clone of the shared audit log.
     pub fn audit_log(&self) -> Arc<SecretAuditLog> {
         Arc::clone(&self.audit_log)
     }
@@ -813,14 +870,22 @@ impl Default for SecretManager {
     }
 }
 
+/// Configuration for the secrets subsystem.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SecretsConfig {
+    /// The default secret provider backend.
     pub default_provider: SecretProvider,
+    /// Vault server address (if using Vault).
     pub vault_address: Option<String>,
+    /// Vault authentication token (if using Vault).
     pub vault_token: Option<String>,
+    /// Whether audit logging is enabled.
     pub audit_enabled: bool,
+    /// Maximum number of audit log records to retain.
     pub audit_max_records: usize,
+    /// Whether automatic secret rotation is enabled.
     pub auto_rotation_enabled: bool,
+    /// Default rotation interval in seconds.
     pub default_rotation_interval_secs: u64,
 }
 
@@ -839,10 +904,12 @@ impl Default for SecretsConfig {
 }
 
 impl SecretsConfig {
+    /// Creates a new secrets config with default values.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Configures Vault as the secret backend (builder pattern).
     pub fn with_vault(mut self, address: &str, token: &str) -> Self {
         self.vault_address = Some(address.to_string());
         self.vault_token = Some(token.to_string());
@@ -850,16 +917,19 @@ impl SecretsConfig {
         self
     }
 
+    /// Configures memory as the default secret backend (builder pattern).
     pub fn with_memory(mut self) -> Self {
         self.default_provider = SecretProvider::Memory;
         self
     }
 
+    /// Configures environment variables as the default secret backend (builder pattern).
     pub fn with_environment(mut self) -> Self {
         self.default_provider = SecretProvider::Environment;
         self
     }
 
+    /// Builds a [`SecretManager`] from this configuration.
     pub fn build_manager(&self) -> SecretManager {
         let audit_log = Arc::new(if self.audit_enabled {
             SecretAuditLog::new(self.audit_max_records)

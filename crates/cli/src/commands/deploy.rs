@@ -41,12 +41,15 @@ pub enum Error {
     #[error("Configuration not found: {0}")]
     ConfigNotFound(String),
     #[error("Build failed: {0}")]
+    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
     BuildFailed(String),
     #[error("Deployment failed: {0}")]
+    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
     DeployFailed(String),
     #[error("Invalid environment: {0}")]
     InvalidEnvironment(String),
     #[error("Registry push failed: {0}")]
+    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
     PushFailed(String),
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
@@ -136,21 +139,7 @@ pub async fn execute(args: DeployArgs) -> Result<(), Error> {
     // 3. Wait for rollout
     // 4. Verify health
 
-    println!("   Creating deployments...");
-    for i in 0..args.replicas {
-        println!("   • Replica {}/{} scheduled", i + 1, args.replicas);
-    }
-
-    // Simulate deployment time
-    tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
-
-    println!();
-    println!("✅ Deployment complete!");
-    println!();
-    println!("📋 Summary:");
-    println!("   Environment: {}", args.env);
-    println!("   Replicas: {}", args.replicas);
-    println!("   Status: Healthy");
-
-    Ok(())
+    Err(Error::DeployFailed(
+        "Not connected to Aether runtime".to_string(),
+    ))
 }

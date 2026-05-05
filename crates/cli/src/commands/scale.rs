@@ -29,15 +29,18 @@ pub struct ScaleArgs {
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("Failed to scale actor: {0}")]
+    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
     ScaleFailed(String),
 
     #[error("Actor not found: {0}")]
+    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
     ActorNotFound(String),
 
     #[error("Invalid replica count: {0}")]
     InvalidReplicaCount(String),
 
     #[error("Connection to daemon failed: {0}")]
+    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
     ConnectionFailed(String),
 }
 
@@ -75,24 +78,7 @@ pub async fn execute(args: ScaleArgs) -> Result<(), Error> {
         }
     }
 
-    // In a real implementation, this would send a scale request to the daemon
-    // For now, simulate success
-    println!("✓ Scale request accepted");
-    println!();
-    println!(
-        "Actor '{}' is now running with {} replica(s)",
-        args.actor, args.replicas
-    );
-    println!();
-    println!("Current Status:");
-    println!("  Replicas: {}", args.replicas);
-    if let Some(min) = args.min {
-        println!("  Min:      {}", min);
-    }
-    if let Some(max) = args.max {
-        println!("  Max:      {}", max);
-    }
-    println!("  Health:   healthy");
-
-    Ok(())
+    Err(Error::ConnectionFailed(
+        "Not connected to Aether runtime".to_string(),
+    ))
 }

@@ -11,12 +11,18 @@ use tracing::{debug, info};
 
 use super::providers::{ExternalSecretValue, SecretsProvider};
 
+/// Configuration for AWS Secrets Manager provider.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AwsSecretsConfig {
+    /// AWS region.
     pub region: String,
+    /// Custom endpoint URL (for local testing).
     pub endpoint: Option<String>,
+    /// IAM role ARN to assume.
     pub assume_role: Option<String>,
+    /// AWS credential profile name.
     pub profile: Option<String>,
+    /// Request timeout.
     #[serde(with = "duration_serde", default = "default_timeout")]
     pub timeout: Duration,
 }
@@ -58,6 +64,7 @@ impl Default for AwsSecretsConfig {
 }
 
 impl AwsSecretsConfig {
+    /// Create a new config with the given AWS region.
     pub fn new(region: &str) -> Self {
         Self {
             region: region.to_string(),
@@ -65,21 +72,25 @@ impl AwsSecretsConfig {
         }
     }
 
+    /// Set a custom endpoint URL.
     pub fn with_endpoint(mut self, endpoint: &str) -> Self {
         self.endpoint = Some(endpoint.to_string());
         self
     }
 
+    /// Set an IAM role ARN to assume.
     pub fn with_assume_role(mut self, role_arn: &str) -> Self {
         self.assume_role = Some(role_arn.to_string());
         self
     }
 
+    /// Set the AWS credential profile name.
     pub fn with_profile(mut self, profile: &str) -> Self {
         self.profile = Some(profile.to_string());
         self
     }
 
+    /// Set the request timeout.
     pub fn with_timeout(mut self, timeout: Duration) -> Self {
         self.timeout = timeout;
         self
@@ -102,34 +113,45 @@ impl AwsSecretsConfig {
     }
 }
 
+/// AWS credentials for Secrets Manager authentication.
 #[derive(Debug, Clone)]
 pub struct AwsCredentials {
+    /// AWS access key ID.
     pub access_key_id: String,
+    /// AWS secret access key.
     pub secret_access_key: String,
+    /// Optional session token (for STS assumed roles).
     pub session_token: Option<String>,
+    /// Credential expiration time.
     pub expiration: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Deserialize)]
 struct GetSecretValueResponse {
+    #[allow(dead_code)] // Deserialized from API response
     name: Option<String>,
     version_id: Option<String>,
     secret_string: Option<String>,
     secret_binary: Option<String>,
+    #[allow(dead_code)] // Deserialized from API response
     version_stages: Option<Vec<String>>,
+    #[allow(dead_code)] // Deserialized from API response
     created_date: Option<f64>,
 }
 
 #[derive(Debug, Deserialize)]
 struct ListSecretsResponse {
     secret_list: Vec<SecretMetadata>,
+    #[allow(dead_code)] // Deserialized from API response
     next_token: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 struct SecretMetadata {
     name: String,
+    #[allow(dead_code)] // Deserialized from API response
     arn: Option<String>,
+    #[allow(dead_code)] // Deserialized from API response
     description: Option<String>,
 }
 
@@ -173,6 +195,7 @@ struct DescribeSecretResponse {
     version_ids_to_stages: Option<HashMap<String, Vec<String>>>,
 }
 
+/// AWS Secrets Manager provider implementing [`SecretsProvider`].
 pub struct AwsSecretsProvider {
     config: AwsSecretsConfig,
     client: Client,
@@ -180,6 +203,7 @@ pub struct AwsSecretsProvider {
 }
 
 impl AwsSecretsProvider {
+    /// Create a new provider, loading credentials from the environment.
     pub fn new(config: AwsSecretsConfig) -> Result<Self> {
         let client = Client::builder()
             .timeout(config.timeout)
@@ -193,6 +217,7 @@ impl AwsSecretsProvider {
         })
     }
 
+    /// Create a provider with explicit credentials.
     pub fn with_credentials(config: AwsSecretsConfig, credentials: AwsCredentials) -> Self {
         let client = Client::builder()
             .timeout(config.timeout)
@@ -207,6 +232,7 @@ impl AwsSecretsProvider {
         }
     }
 
+    /// Get AWS credentials, returning cached credentials or loading from the environment.
     pub async fn get_credentials(&self) -> Result<AwsCredentials> {
         if let Some(creds) = &self.credentials {
             return Ok(creds.clone());
@@ -254,10 +280,16 @@ impl AwsSecretsProvider {
         let canonical_request = format!(
             "{}\n/\n\ncontent-type:{}\nhost:{}\nx-amz-date:{}\nx-amz-target:{}\n\n{}\n{}",
             method,
-            headers.get("content-type").unwrap(),
+            headers
+                .get("content-type")
+                .ok_or_else(|| Error::internal("Missing content-type header".to_string()))?,
             host,
-            headers.get("x-amz-date").unwrap(),
-            headers.get("x-amz-target").unwrap(),
+            headers
+                .get("x-amz-date")
+                .ok_or_else(|| Error::internal("Missing x-amz-date header".to_string()))?,
+            headers
+                .get("x-amz-target")
+                .ok_or_else(|| Error::internal("Missing x-amz-target header".to_string()))?,
             signed_headers,
             content_hash
         );

@@ -20,7 +20,7 @@ pub mod logging;
 pub mod state;
 
 pub use handler::{ActorHandler, Handler};
-pub use logging::{log, LogLevel};
+pub use logging::{LogLevel, log};
 pub use state::StateHandle;
 
 /// Actor initialization macro

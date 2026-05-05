@@ -61,6 +61,7 @@ struct LockEntry {
 struct TransactionMeta {
     state: TransactionState,
     start_time: Instant,
+    #[allow(dead_code)] // Available for inspection/monitoring queries
     isolation_level: IsolationLevel,
     read_set: HashSet<Vec<u8>>,
     write_set: HashMap<Vec<u8>, Vec<u8>>,

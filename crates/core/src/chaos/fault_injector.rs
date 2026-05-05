@@ -13,6 +13,7 @@ use crate::Result;
 
 /// Fault injector for chaos testing
 pub struct FaultInjector {
+    #[allow(dead_code)] // Available for inspection/monitoring queries
     config: ChaosConfig,
     network: NetworkFaultInjector,
     memory: MemoryFaultInjector,
@@ -26,7 +27,9 @@ pub struct FaultInjector {
 #[derive(Debug, Clone)]
 struct ActiveFault {
     fault_type: FaultType,
+    #[allow(dead_code)] // Available for inspection/monitoring queries
     started: std::time::Instant,
+    #[allow(dead_code)] // Available for inspection/monitoring queries
     config: FaultConfig,
 }
 
@@ -45,7 +48,7 @@ pub enum FaultType {
     ProcessHang,
 }
 
-/// Configuration for a specific fault
+/// Configuration for a specific fault to inject.
 #[derive(Debug, Clone)]
 pub struct FaultConfig {
     /// Fault type
@@ -88,7 +91,7 @@ impl FaultConfig {
     }
 }
 
-/// Result of fault injection
+/// Result of a fault injection operation.
 #[derive(Debug, Clone)]
 pub struct FaultResult {
     /// Whether the fault was successfully injected
@@ -319,6 +322,7 @@ pub struct NetworkFaultInjector {
 struct NetworkLatencyConfig {
     min_ms: u64,
     max_ms: u64,
+    #[allow(dead_code)] // Available for inspection/monitoring queries
     jitter: f64,
 }
 

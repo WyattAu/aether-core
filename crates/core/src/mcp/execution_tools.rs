@@ -177,7 +177,7 @@ impl ExecuteWasmTool {
             let guard = self.linker.read();
             if guard.is_some() {
                 // Clone the linker - this is cheap as it's mostly Arc-based
-                return Ok(guard.as_ref().unwrap().clone());
+                return Ok(guard.as_ref().ok_or_else(|| Error::internal("Guard dropped unexpectedly".to_string()))?.clone());
             }
         }
         

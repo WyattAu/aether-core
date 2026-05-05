@@ -28,19 +28,31 @@ use serde::{Deserialize, Serialize};
 use std::time::{Duration, Instant};
 use tracing::info;
 
+/// Maximum number of fuzzing iterations per target.
 pub const MAX_FUZZ_ITERATIONS: usize = 10000;
+
+/// Default timeout in seconds for fuzzing operations.
 pub const FUZZ_TIMEOUT_SECS: u64 = 60;
 
+/// Category of a penetration test.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TestCategory {
+    /// Tests for bypassing the capability system.
     CapabilityBypass,
+    /// Tests for privilege escalation attacks.
     PrivilegeEscalation,
+    /// Tests for sandbox/container escape vectors.
     SandboxEscape,
+    /// Tests for input validation vulnerabilities.
     InputValidation,
+    /// Tests for resource exhaustion (DoS) attacks.
     ResourceExhaustion,
+    /// Tests for information disclosure vulnerabilities.
     InformationDisclosure,
+    /// Tests for data integrity violations.
     IntegrityViolation,
+    /// General-purpose security tests not fitting other categories.
     General,
 }
 
@@ -59,13 +71,19 @@ impl std::fmt::Display for TestCategory {
     }
 }
 
+/// Severity rating for a penetration test finding.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TestSeverity {
+    /// Exploitable vulnerability with severe impact (e.g., RCE).
     Critical,
+    /// Exploitable vulnerability with significant impact.
     High,
+    /// Vulnerability with limited impact or harder to exploit.
     Medium,
+    /// Minor vulnerability with minimal security impact.
     Low,
+    /// Informational finding with no direct vulnerability.
     Info,
 }
 
@@ -81,31 +99,49 @@ impl std::fmt::Display for TestSeverity {
     }
 }
 
+/// Result outcome of an individual penetration test.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TestResult {
+    /// The test passed — the system is secure against this attack.
     Pass,
+    /// The test failed — a vulnerability was found.
     Fail,
+    /// The test was skipped (e.g., not applicable to the environment).
     Skip,
+    /// The test encountered an internal error and could not complete.
     Error,
 }
 
+/// Result of an individual penetration test case.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PenTestResult {
+    /// Unique identifier for this test result.
     pub id: String,
+    /// Human-readable name of the test.
     pub name: String,
+    /// Category this test belongs to.
     pub category: TestCategory,
+    /// Severity if the test fails.
     pub severity: TestSeverity,
+    /// Whether the test passed, failed, was skipped, or errored.
     pub result: TestResult,
+    /// Description of the test outcome.
     pub message: String,
+    /// Additional details about the test execution.
     pub details: Option<String>,
+    /// How long the test took to run, in milliseconds.
     pub duration_ms: u64,
+    /// When this test was executed.
     pub timestamp: DateTime<Utc>,
+    /// The exploit payload used, if applicable.
     pub exploit_payload: Option<String>,
+    /// Recommended remediation if the test failed.
     pub remediation: Option<String>,
 }
 
 impl PenTestResult {
+    /// Creates a new test result with the given name, category, and severity.
     pub fn new(name: &str, category: TestCategory, severity: TestSeverity) -> Self {
         Self {
             id: uuid::Uuid::new_v4().to_string(),
@@ -122,6 +158,7 @@ impl PenTestResult {
         }
     }
 
+    /// Marks this test as passed with the given message.
     pub fn pass(mut self, message: &str) -> Self {
         self.result = TestResult::Pass;
         self.message = message.to_string();
@@ -129,6 +166,7 @@ impl PenTestResult {
         self
     }
 
+    /// Marks this test as failed with the given message.
     pub fn fail(mut self, message: &str) -> Self {
         self.result = TestResult::Fail;
         self.message = message.to_string();
@@ -136,6 +174,7 @@ impl PenTestResult {
         self
     }
 
+    /// Marks this test as skipped with the given reason.
     pub fn skip(mut self, reason: &str) -> Self {
         self.result = TestResult::Skip;
         self.message = reason.to_string();
@@ -143,6 +182,7 @@ impl PenTestResult {
         self
     }
 
+    /// Marks this test as errored with the given message.
     pub fn error(mut self, message: &str) -> Self {
         self.result = TestResult::Error;
         self.message = message.to_string();
@@ -150,51 +190,70 @@ impl PenTestResult {
         self
     }
 
+    /// Adds additional execution details to this result.
     pub fn with_details(mut self, details: &str) -> Self {
         self.details = Some(details.to_string());
         self
     }
 
+    /// Attaches the exploit payload used for this test.
     pub fn with_payload(mut self, payload: &str) -> Self {
         self.exploit_payload = Some(payload.to_string());
         self
     }
 
+    /// Adds a recommended remediation step if the test fails.
     pub fn with_remediation(mut self, remediation: &str) -> Self {
         self.remediation = Some(remediation.to_string());
         self
     }
 
+    /// Sets the execution duration of this test.
     pub fn with_duration(mut self, duration: Duration) -> Self {
         self.duration_ms = duration.as_millis() as u64;
         self
     }
 
+    /// Returns `true` if the test passed.
     pub fn is_passing(&self) -> bool {
         self.result == TestResult::Pass
     }
 
+    /// Returns `true` if the test failed.
     pub fn is_failure(&self) -> bool {
         self.result == TestResult::Fail
     }
 }
 
+/// Aggregated report from a full penetration test suite run.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PenTestReport {
+    /// Unique identifier for this scan.
     pub scan_id: String,
+    /// When the scan was started.
     pub timestamp: DateTime<Utc>,
+    /// Total scan duration in milliseconds.
     pub duration_ms: u64,
+    /// Total number of tests executed.
     pub total_tests: usize,
+    /// Number of tests that passed.
     pub passed: usize,
+    /// Number of tests that failed.
     pub failed: usize,
+    /// Number of tests that were skipped.
     pub skipped: usize,
+    /// Number of tests that encountered an internal error.
     pub errors: usize,
+    /// Number of critical-severity failures.
     pub critical_failures: usize,
+    /// Number of high-severity failures.
     pub high_failures: usize,
+    /// Individual test results.
     pub results: Vec<PenTestResult>,
 }
 
 impl PenTestReport {
+    /// Creates a new empty report.
     pub fn new() -> Self {
         Self {
             scan_id: uuid::Uuid::new_v4().to_string(),
@@ -211,6 +270,7 @@ impl PenTestReport {
         }
     }
 
+    /// Adds a test result to the report and updates summary counters.
     pub fn add_result(&mut self, result: PenTestResult) {
         self.total_tests += 1;
 
@@ -232,10 +292,12 @@ impl PenTestReport {
         self.results.push(result);
     }
 
+    /// Returns all failed test results.
     pub fn failures(&self) -> Vec<&PenTestResult> {
         self.results.iter().filter(|r| r.is_failure()).collect()
     }
 
+    /// Returns all test results matching the given category.
     pub fn by_category(&self, category: TestCategory) -> Vec<&PenTestResult> {
         self.results
             .iter()
@@ -243,10 +305,12 @@ impl PenTestReport {
             .collect()
     }
 
+    /// Returns `true` if there are no critical or high severity failures.
     pub fn is_secure(&self) -> bool {
         self.critical_failures == 0 && self.high_failures == 0
     }
 
+    /// Returns the pass rate as a percentage (0–100).
     pub fn pass_rate(&self) -> f32 {
         if self.total_tests == 0 {
             return 100.0;
@@ -261,10 +325,15 @@ impl Default for PenTestReport {
     }
 }
 
+/// Configuration for the penetration test suite.
 pub struct TestConfig {
+    /// Timeout in seconds for individual test operations.
     pub timeout_secs: u64,
+    /// Number of fuzzing iterations per target.
     pub fuzz_iterations: usize,
+    /// Whether to stop the suite immediately on a critical failure.
     pub stop_on_critical: bool,
+    /// Whether to produce verbose output.
     pub verbose: bool,
 }
 
@@ -279,22 +348,26 @@ impl Default for TestConfig {
     }
 }
 
+/// Comprehensive penetration test suite that runs security tests across multiple categories.
 pub struct PenetrationTestSuite {
     config: TestConfig,
 }
 
 impl PenetrationTestSuite {
+    /// Creates a new test suite with default configuration.
     pub fn new() -> Self {
         Self {
             config: TestConfig::default(),
         }
     }
 
+    /// Applies custom configuration to this test suite.
     pub fn with_config(mut self, config: TestConfig) -> Self {
         self.config = config;
         self
     }
 
+    /// Runs all penetration tests and returns an aggregated report.
     pub fn run_all_tests(&self) -> PenTestReport {
         let start = Instant::now();
         let mut report = PenTestReport::new();
@@ -646,12 +719,14 @@ impl Default for PenetrationTestSuite {
     }
 }
 
+/// WASI boundary fuzzer that tests syscall argument handling.
 pub struct WasiFuzzer {
     iterations: usize,
     timeout: Duration,
 }
 
 impl WasiFuzzer {
+    /// Creates a new fuzzer with default settings.
     pub fn new() -> Self {
         Self {
             iterations: MAX_FUZZ_ITERATIONS,
@@ -659,16 +734,19 @@ impl WasiFuzzer {
         }
     }
 
+    /// Sets the number of fuzzing iterations.
     pub fn with_iterations(mut self, iterations: usize) -> Self {
         self.iterations = iterations;
         self
     }
 
+    /// Sets the timeout for fuzzing operations.
     pub fn with_timeout(mut self, timeout: Duration) -> Self {
         self.timeout = timeout;
         self
     }
 
+    /// Fuzzes WASI path arguments with known malicious payloads.
     pub fn fuzz_path_args(&self) -> Vec<FuzzResult> {
         let mut results = Vec::new();
 
@@ -684,6 +762,7 @@ impl WasiFuzzer {
         results
     }
 
+    /// Fuzzes WASI file descriptor arguments with invalid values.
     pub fn fuzz_fd_args(&self) -> Vec<FuzzResult> {
         let mut results = Vec::new();
 
@@ -699,6 +778,7 @@ impl WasiFuzzer {
         results
     }
 
+    /// Fuzzes WASI buffer arguments with edge-case sizes and content.
     pub fn fuzz_buffer_args(&self) -> Vec<FuzzResult> {
         let mut results = Vec::new();
 
@@ -746,6 +826,7 @@ impl WasiFuzzer {
         ]
     }
 
+    /// Runs all fuzzing targets and returns an aggregated report.
     pub fn run(&self) -> FuzzReport {
         let start = Instant::now();
         let mut report = FuzzReport {
@@ -798,44 +879,63 @@ impl Default for WasiFuzzer {
     }
 }
 
+/// Outcome of a single fuzz input.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum FuzzOutcome {
+    /// The input was handled gracefully (no crash).
     Handled,
+    /// The input caused a crash.
     Crashed,
+    /// Processing the input timed out.
     Timeout,
 }
 
+/// Result of a single fuzz input.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FuzzResult {
+    /// The fuzz input that was tested.
     pub input: String,
+    /// The outcome of processing this input.
     pub outcome: FuzzOutcome,
+    /// Human-readable description of the outcome.
     pub message: String,
 }
 
+/// Aggregated report from a fuzzing run.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FuzzReport {
+    /// Total number of inputs tested.
     pub total_inputs: usize,
+    /// Number of inputs handled without crashing.
     pub handled: usize,
+    /// Number of inputs that caused a crash.
     pub crashed: usize,
+    /// Number of inputs that timed out.
     pub timeout: usize,
+    /// Individual fuzz results.
     pub results: Vec<FuzzResult>,
+    /// Total duration of the fuzzing run in milliseconds.
     pub duration_ms: u64,
 }
 
 impl FuzzReport {
+    /// Returns `true` if no inputs caused a crash.
     pub fn is_clean(&self) -> bool {
         self.crashed == 0
     }
 }
 
+/// Detects sandbox and container escape attempts from security events.
 pub struct EscapeDetector;
 
 impl EscapeDetector {
+    /// Creates a new escape detector.
     pub fn new() -> Self {
         Self
     }
 
+    /// Scans a list of security events and returns detected escape attempts.
     pub fn detect_escape_attempts(events: &[SecurityEvent]) -> Vec<EscapeAttempt> {
         let mut attempts = Vec::new();
 
@@ -887,6 +987,7 @@ impl EscapeDetector {
         }
     }
 
+    /// Checks the current system isolation state.
     pub fn check_system_state() -> SystemState {
         SystemState {
             isolated: true,
@@ -904,52 +1005,81 @@ impl Default for EscapeDetector {
     }
 }
 
+/// A security-related event observed in the system.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SecurityEvent {
+    /// When the event occurred.
     pub timestamp: DateTime<Utc>,
+    /// The type of security event.
     pub event_type: SecurityEventType,
+    /// The actor that triggered the event.
     pub actor_id: String,
+    /// Human-readable description of the event.
     pub details: String,
 }
 
+/// Type of security event.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SecurityEventType {
+    /// A capability was denied to an actor.
     CapabilityDenied,
+    /// A memory access violation was detected.
     MemoryViolation,
+    /// A resource limit was exceeded.
     ResourceLimitExceeded,
+    /// An unauthorized access attempt was detected.
     UnauthorizedAccess,
 }
 
+/// A detected escape or containment violation attempt.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EscapeAttempt {
+    /// When the escape attempt was detected.
     pub timestamp: DateTime<Utc>,
+    /// The actor that attempted the escape.
     pub actor_id: String,
+    /// The type of escape attempt.
     pub attempt_type: EscapeType,
+    /// Details about the attempt.
     pub details: String,
+    /// Whether the attempt was successfully blocked.
     pub blocked: bool,
 }
 
+/// Classification of escape attempt types.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum EscapeType {
+    /// Attempted to bypass the capability system.
     CapabilityBypass,
+    /// Attempted to escape WASM linear memory bounds.
     MemoryEscape,
+    /// Attempted to exhaust system resources.
     ResourceExhaustion,
+    /// Attempted to escape network isolation.
     NetworkEscape,
+    /// Attempted to escape filesystem isolation.
     FilesystemEscape,
 }
 
+/// Current system isolation and security state.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SystemState {
+    /// Whether the system is running in isolation mode.
     pub isolated: bool,
+    /// Whether capabilities are being enforced.
     pub capabilities_enforced: bool,
+    /// Whether network isolation is active.
     pub network_isolated: bool,
+    /// Whether filesystem isolation is active.
     pub filesystem_isolated: bool,
+    /// Whether memory isolation is active.
     pub memory_isolated: bool,
 }
 
 impl SystemState {
+    /// Returns `true` if all isolation mechanisms are active and enforced.
     pub fn is_secure(&self) -> bool {
         self.isolated
             && self.capabilities_enforced

@@ -10,6 +10,7 @@ use std::time::Duration;
 
 use super::{CertificateAuthority, CertificateRevocationList, NodeIdentity};
 
+/// Builder for constructing TLS configurations.
 #[derive(Clone)]
 pub struct TlsConfigBuilder {
     ca_cert: Option<CertificateDer<'static>>,
@@ -23,6 +24,7 @@ pub struct TlsConfigBuilder {
 }
 
 impl TlsConfigBuilder {
+    /// Create a new TLS config builder with default settings.
     pub fn new() -> Self {
         Self {
             ca_cert: None,
@@ -36,55 +38,65 @@ impl TlsConfigBuilder {
         }
     }
 
+    /// Set the CA certificate from a `CertificateAuthority`.
     pub fn with_ca(mut self, ca: &CertificateAuthority) -> Self {
         self.ca_cert = Some(ca.certificate().clone());
         self
     }
 
+    /// Set the CA certificate from raw DER bytes.
     pub fn with_ca_cert(mut self, cert: CertificateDer<'static>) -> Self {
         self.ca_cert = Some(cert);
         self
     }
 
+    /// Set the server identity from a `NodeIdentity`.
     pub fn with_server_identity(mut self, identity: &NodeIdentity) -> Self {
         self.server_cert = Some(identity.certificate().clone());
         self.server_key = Some(identity.private_key().to_vec());
         self
     }
 
+    /// Set the client identity from a `NodeIdentity`.
     pub fn with_client_identity(mut self, identity: &NodeIdentity) -> Self {
         self.client_cert = Some(identity.certificate().clone());
         self.client_key = Some(identity.private_key().to_vec());
         self
     }
 
+    /// Set the server certificate and key from raw DER bytes.
     pub fn with_server_cert(mut self, cert: CertificateDer<'static>, key: Vec<u8>) -> Self {
         self.server_cert = Some(cert);
         self.server_key = Some(key);
         self
     }
 
+    /// Set the client certificate and key from raw DER bytes.
     pub fn with_client_cert(mut self, cert: CertificateDer<'static>, key: Vec<u8>) -> Self {
         self.client_cert = Some(cert);
         self.client_key = Some(key);
         self
     }
 
+    /// Enable or disable client certificate verification.
     pub fn with_client_verification(mut self, verify: bool) -> Self {
         self.verify_client = verify;
         self
     }
 
+    /// Set the certificate revocation list.
     pub fn with_crl(mut self, crl: CertificateRevocationList) -> Self {
         self.crl = Some(crl);
         self
     }
 
+    /// Set ALPN protocol identifiers.
     pub fn with_alpn_protocols(mut self, protocols: Vec<Vec<u8>>) -> Self {
         self.alpn_protocols = protocols;
         self
     }
 
+    /// Build a rustls `ServerConfig`.
     pub fn build_server_config(self) -> Result<Arc<ServerConfig>> {
         let server_cert = self
             .server_cert
@@ -123,6 +135,7 @@ impl TlsConfigBuilder {
         Ok(Arc::new(config))
     }
 
+    /// Build a rustls `ClientConfig`.
     pub fn build_client_config(self) -> Result<Arc<ClientConfig>> {
         let client_cert = self
             .client_cert
@@ -150,6 +163,7 @@ impl TlsConfigBuilder {
         Ok(Arc::new(config))
     }
 
+    /// Build a `ServerTlsConfig`.
     pub fn build_server_tls(self) -> Result<ServerTlsConfig> {
         let ca_cert = self
             .ca_cert
@@ -173,6 +187,7 @@ impl TlsConfigBuilder {
         })
     }
 
+    /// Build a `ClientTlsConfig`.
     pub fn build_client_tls(self) -> Result<ClientTlsConfig> {
         let ca_cert = self
             .ca_cert
@@ -202,16 +217,23 @@ impl Default for TlsConfigBuilder {
     }
 }
 
+/// Server-side TLS configuration with certificate and key material.
 #[derive(Clone)]
 pub struct ServerTlsConfig {
+    /// CA certificate for verifying client certificates.
     pub ca_cert: CertificateDer<'static>,
+    /// Server leaf certificate.
     pub server_cert: CertificateDer<'static>,
+    /// Server private key.
     pub server_key: Vec<u8>,
+    /// Whether to require client certificate verification.
     pub verify_client: bool,
+    /// Optional certificate revocation list.
     pub crl: Option<CertificateRevocationList>,
 }
 
 impl ServerTlsConfig {
+    /// Create a new server TLS config from raw certificates and key.
     pub fn new(
         ca_cert: CertificateDer<'static>,
         server_cert: CertificateDer<'static>,
@@ -226,6 +248,7 @@ impl ServerTlsConfig {
         }
     }
 
+    /// Create a server TLS config from a CA and node identity.
     pub fn from_identity(ca: &CertificateAuthority, identity: &NodeIdentity) -> Result<Self> {
         Ok(Self {
             ca_cert: ca.certificate().clone(),
@@ -236,16 +259,19 @@ impl ServerTlsConfig {
         })
     }
 
+    /// Set whether client certificate verification is enabled.
     pub fn with_client_verification(mut self, verify: bool) -> Self {
         self.verify_client = verify;
         self
     }
 
+    /// Set the certificate revocation list.
     pub fn with_crl(mut self, crl: CertificateRevocationList) -> Self {
         self.crl = Some(crl);
         self
     }
 
+    /// Convert to a rustls `ServerConfig`.
     pub fn to_rustls_server_config(&self) -> Result<Arc<ServerConfig>> {
         TlsConfigBuilder::new()
             .with_ca_cert(self.ca_cert.clone())
@@ -255,15 +281,21 @@ impl ServerTlsConfig {
     }
 }
 
+/// Client-side TLS configuration with certificate and key material.
 #[derive(Clone)]
 pub struct ClientTlsConfig {
+    /// CA certificate for verifying server certificates.
     pub ca_cert: CertificateDer<'static>,
+    /// Client leaf certificate.
     pub client_cert: CertificateDer<'static>,
+    /// Client private key.
     pub client_key: Vec<u8>,
+    /// Expected server name for TLS verification.
     pub server_name: String,
 }
 
 impl ClientTlsConfig {
+    /// Create a new client TLS config from raw certificates and key.
     pub fn new(
         ca_cert: CertificateDer<'static>,
         client_cert: CertificateDer<'static>,
@@ -277,6 +309,7 @@ impl ClientTlsConfig {
         }
     }
 
+    /// Create a client TLS config from a CA and node identity.
     pub fn from_identity(ca: &CertificateAuthority, identity: &NodeIdentity) -> Result<Self> {
         Ok(Self {
             ca_cert: ca.certificate().clone(),
@@ -286,11 +319,13 @@ impl ClientTlsConfig {
         })
     }
 
+    /// Set the expected server name.
     pub fn with_server_name(mut self, name: &str) -> Self {
         self.server_name = name.to_string();
         self
     }
 
+    /// Convert to a rustls `ClientConfig`.
     pub fn to_rustls_client_config(&self) -> Result<Arc<ClientConfig>> {
         TlsConfigBuilder::new()
             .with_ca_cert(self.ca_cert.clone())
@@ -299,12 +334,14 @@ impl ClientTlsConfig {
     }
 }
 
+/// Handles automatic certificate rotation.
 pub struct CertificateRotator {
     ca: Arc<CertificateAuthority>,
     rotation_threshold: Duration,
 }
 
 impl CertificateRotator {
+    /// Create a new certificate rotator.
     pub fn new(ca: Arc<CertificateAuthority>, rotation_threshold: Duration) -> Self {
         Self {
             ca,
@@ -312,14 +349,17 @@ impl CertificateRotator {
         }
     }
 
+    /// Check whether the given identity should be rotated.
     pub fn should_rotate(&self, identity: &NodeIdentity) -> bool {
         identity.should_rotate(self.rotation_threshold)
     }
 
+    /// Generate a new certificate for the node identity.
     pub fn rotate_node(&self, identity: &NodeIdentity) -> Result<NodeIdentity> {
         NodeIdentity::generate(&self.ca, identity.node_id(), identity.namespace())
     }
 
+    /// Returns the rotation threshold duration.
     pub fn rotation_threshold(&self) -> Duration {
         self.rotation_threshold
     }

@@ -7,6 +7,7 @@ use tracing::{debug, info};
 
 use super::providers::{ExternalSecretValue, SecretsProvider};
 
+/// Registry for managing multiple secrets providers.
 pub struct SecretsProviderRegistry {
     providers: RwLock<HashMap<String, Arc<dyn SecretsProvider>>>,
     default_provider: RwLock<Option<String>>,
@@ -14,6 +15,7 @@ pub struct SecretsProviderRegistry {
 }
 
 impl SecretsProviderRegistry {
+    /// Create a new empty registry.
     pub fn new() -> Self {
         let mut provider_mapping = HashMap::new();
         provider_mapping.insert(SecretProviderType::Vault, "vault".to_string());
@@ -27,21 +29,25 @@ impl SecretsProviderRegistry {
         }
     }
 
+    /// Register a secrets provider by name.
     pub fn register(&self, name: &str, provider: Arc<dyn SecretsProvider>) {
         let mut providers = self.providers.write();
         info!("Registering secrets provider: {}", name);
         providers.insert(name.to_string(), provider);
     }
 
+    /// Register a boxed secrets provider by name.
     pub fn register_boxed(&self, name: &str, provider: Box<dyn SecretsProvider>) {
         self.register(name, Arc::from(provider));
     }
 
+    /// Unregister a provider by name, returning whether it existed.
     pub fn unregister(&self, name: &str) -> bool {
         let mut providers = self.providers.write();
         providers.remove(name).is_some()
     }
 
+    /// Set the default provider by name.
     pub fn set_default(&self, name: &str) -> Result<()> {
         {
             let providers = self.providers.read();
@@ -59,28 +65,34 @@ impl SecretsProviderRegistry {
         Ok(())
     }
 
+    /// Get a registered provider by name.
     pub fn get_provider(&self, name: &str) -> Option<Arc<dyn SecretsProvider>> {
         let providers = self.providers.read();
         providers.get(name).cloned()
     }
 
+    /// Get the default provider, if one is set.
     pub fn get_default_provider(&self) -> Option<Arc<dyn SecretsProvider>> {
         let default_name = self.default_provider.read().clone()?;
         self.get_provider(&default_name)
     }
 
+    /// Check if a provider with the given name is registered.
     pub fn has_provider(&self, name: &str) -> bool {
         self.providers.read().contains_key(name)
     }
 
+    /// List all registered provider names.
     pub fn list_providers(&self) -> Vec<String> {
         self.providers.read().keys().cloned().collect()
     }
 
+    /// Get the name of the default provider.
     pub fn default_provider_name(&self) -> Option<String> {
         self.default_provider.read().clone()
     }
 
+    /// Resolve a single secret value from the appropriate provider.
     pub async fn resolve(&self, reference: &SecretReference) -> Result<ExternalSecretValue> {
         let provider_name = self.provider_mapping.get(&reference.provider());
 
@@ -106,6 +118,7 @@ impl SecretsProviderRegistry {
         )))
     }
 
+    /// Resolve all secret values under the given path.
     pub async fn resolve_all(
         &self,
         reference: &SecretReference,

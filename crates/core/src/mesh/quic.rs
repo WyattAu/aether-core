@@ -22,16 +22,26 @@ const DEFAULT_STREAM_TIMEOUT: Duration = Duration::from_secs(30);
 const DEFAULT_IDLE_TIMEOUT: Duration = Duration::from_secs(60);
 const MAX_INCOMING_MESSAGE_SIZE: usize = 16 * 1024 * 1024;
 
+/// Configuration for QUIC transport.
 #[derive(Debug, Clone)]
 pub struct QuicConfig {
+    /// Local address to listen on.
     pub listen: SocketAddr,
+    /// Expected server name for TLS verification.
     pub server_name: String,
+    /// Path to the TLS certificate file.
     pub cert_path: Option<String>,
+    /// Path to the TLS private key file.
     pub key_path: Option<String>,
+    /// Maximum idle time before closing a connection.
     pub idle_timeout: Duration,
+    /// Maximum number of concurrent bidirectional streams.
     pub max_concurrent_streams: u32,
+    /// Maximum incoming message size in bytes.
     pub max_message_size: usize,
+    /// Whether to enable mutual TLS.
     pub enable_mtls: bool,
+    /// Path to the CA certificate for mTLS.
     pub ca_cert_path: Option<String>,
 }
 
@@ -52,6 +62,7 @@ impl Default for QuicConfig {
 }
 
 impl QuicConfig {
+    /// Create a server config bound to the given address.
     pub fn server(listen: SocketAddr) -> Self {
         Self {
             listen,
@@ -59,6 +70,7 @@ impl QuicConfig {
         }
     }
 
+    /// Create a client config with ephemeral bind address.
     pub fn client() -> Self {
         Self {
             listen: "0.0.0.0:0".parse().unwrap(),
@@ -67,13 +79,18 @@ impl QuicConfig {
     }
 }
 
+/// TLS certificate and key pair for QUIC endpoints.
 pub struct CertificateConfig {
+    /// The leaf certificate.
     pub cert: CertificateDer<'static>,
+    /// The private key in DER format.
     pub key_der: Vec<u8>,
+    /// Additional certificates in the chain.
     pub cert_chain: Vec<CertificateDer<'static>>,
 }
 
 impl CertificateConfig {
+    /// Generate a self-signed certificate for the given server name.
     pub fn generate_self_signed(server_name: &str) -> Result<Self> {
         let cert = rcgen::generate_simple_self_signed(vec![server_name.to_string()])
             .map_err(|e| Error::internal(format!("Certificate generation failed: {}", e)))?;
@@ -88,6 +105,7 @@ impl CertificateConfig {
         })
     }
 
+    /// Load certificate and key from PEM files.
     pub fn from_pem_files(cert_path: &str, key_path: &str) -> Result<Self> {
         let cert_pem = std::fs::read(cert_path)
             .map_err(|e| Error::internal(format!("Failed to read cert file: {}", e)))?;
@@ -119,6 +137,7 @@ impl CertificateConfig {
     }
 }
 
+/// A QUIC endpoint supporting both server and client connections.
 pub struct QuicEndpoint {
     endpoint: Endpoint,
     config: QuicConfig,
@@ -129,6 +148,7 @@ pub struct QuicEndpoint {
 }
 
 impl QuicEndpoint {
+    /// Create a new QUIC endpoint with the given configuration.
     pub fn new(config: QuicConfig) -> Result<Self> {
         let cert_config =
             if let (Some(cert_path), Some(key_path)) = (&config.cert_path, &config.key_path) {
@@ -156,6 +176,7 @@ impl QuicEndpoint {
         })
     }
 
+    /// Create a new QUIC endpoint with a shared connection pool.
     pub fn with_connection_pool(config: QuicConfig, pool: Arc<ConnectionPool>) -> Result<Self> {
         let cert_config = CertificateConfig::generate_self_signed(&config.server_name)?;
 
@@ -207,10 +228,12 @@ impl QuicEndpoint {
         Ok(quinn::ClientConfig::new(Arc::new(quic_client_config)))
     }
 
+    /// Returns the connection pool.
     pub fn connection_pool(&self) -> &Arc<ConnectionPool> {
         &self.connection_pool
     }
 
+    /// Connect to a remote node with automatic retry.
     pub async fn connect(&self, node_id: &str, addr: SocketAddr) -> Result<Connection> {
         let lock = self.connection_pool.get_or_wait_connect_lock(node_id).await;
         let _guard = lock.lock().await;
@@ -275,6 +298,7 @@ impl QuicEndpoint {
         Ok(conn)
     }
 
+    /// Accept an incoming QUIC connection.
     pub async fn accept(&self) -> Result<(Connection, SocketAddr)> {
         let incoming = self
             .endpoint
@@ -290,16 +314,19 @@ impl QuicEndpoint {
         Ok((conn, addr))
     }
 
+    /// Returns the local address this endpoint is bound to.
     pub fn local_addr(&self) -> Result<SocketAddr> {
         self.endpoint
             .local_addr()
             .map_err(|e| Error::internal(format!("Local addr failed: {}", e)))
     }
 
+    /// Close the endpoint, terminating all connections.
     pub fn close(&self) {
         self.endpoint.close(0u32.into(), b"shutdown");
     }
 
+    /// Send a unidirectional message to a node.
     pub async fn send_message(&self, node_id: &str, msg: &MeshMessage) -> Result<()> {
         let conn = if let Some((conn, _)) = self.connection_pool.get_connection(node_id) {
             conn
@@ -332,6 +359,7 @@ impl QuicEndpoint {
         Ok(())
     }
 
+    /// Receive a message from an existing connection.
     pub async fn recv_message(&self, conn: &Connection) -> Result<(MeshMessage, SocketAddr)> {
         let mut stream = conn
             .accept_uni()
@@ -360,6 +388,7 @@ impl QuicEndpoint {
         }
     }
 
+    /// Send a request and wait for a response on a bidirectional stream.
     pub async fn send_bidirectional(
         &self,
         node_id: &str,
@@ -419,17 +448,20 @@ impl QuicEndpoint {
         Ok(response)
     }
 
+    /// Returns the leaf certificate for this endpoint.
     pub fn certificate(&self) -> &CertificateDer<'static> {
         &self.cert_config.cert
     }
 }
 
+/// A QUIC server that accepts and handles incoming connections.
 pub struct QuicServer {
     endpoint: QuicEndpoint,
     running: Arc<Mutex<bool>>,
 }
 
 impl QuicServer {
+    /// Create a new QUIC server with the given configuration.
     pub fn new(config: QuicConfig) -> Result<Self> {
         Ok(Self {
             endpoint: QuicEndpoint::new(config)?,
@@ -437,10 +469,12 @@ impl QuicServer {
         })
     }
 
+    /// Returns the underlying QUIC endpoint.
     pub fn endpoint(&self) -> &QuicEndpoint {
         &self.endpoint
     }
 
+    /// Run the server, accepting connections and dispatching messages to the handler.
     pub async fn run<F>(&self, handler: F) -> Result<()>
     where
         F: Fn(MeshMessage, SocketAddr) -> Option<MeshMessage> + Send + Sync + 'static,
@@ -513,6 +547,7 @@ impl QuicServer {
         Ok(())
     }
 
+    /// Stop the server and close all connections.
     pub fn stop(&self) {
         if let Ok(mut running) = self.running.try_lock() {
             *running = false;
@@ -526,7 +561,8 @@ impl Clone for QuicEndpoint {
         Self {
             endpoint: self.endpoint.clone(),
             config: self.config.clone(),
-            cert_config: CertificateConfig::generate_self_signed(&self.config.server_name).unwrap(),
+            cert_config: CertificateConfig::generate_self_signed(&self.config.server_name)
+                .expect("Failed to generate self-signed certificate for QuicEndpoint clone"),
             connection_pool: self.connection_pool.clone(),
             reconnect_config: self.reconnect_config.clone(),
             pending_messages: self.pending_messages.clone(),
@@ -534,40 +570,48 @@ impl Clone for QuicEndpoint {
     }
 }
 
+/// A QUIC client for connecting to remote mesh nodes.
 pub struct QuicClient {
     endpoint: QuicEndpoint,
 }
 
 impl QuicClient {
+    /// Create a new QUIC client with default configuration.
     pub fn new() -> Result<Self> {
         Ok(Self {
             endpoint: QuicEndpoint::new(QuicConfig::client())?,
         })
     }
 
+    /// Create a new QUIC client with custom configuration.
     pub fn with_config(config: QuicConfig) -> Result<Self> {
         Ok(Self {
             endpoint: QuicEndpoint::new(config)?,
         })
     }
 
+    /// Returns the underlying QUIC endpoint.
     pub fn endpoint(&self) -> &QuicEndpoint {
         &self.endpoint
     }
 
+    /// Connect to a remote node.
     pub async fn connect(&self, node_id: &str, addr: SocketAddr) -> Result<()> {
         self.endpoint.connect(node_id, addr).await?;
         Ok(())
     }
 
+    /// Send a fire-and-forget message to a node.
     pub async fn send(&self, node_id: &str, msg: &MeshMessage) -> Result<()> {
         self.endpoint.send_message(node_id, msg).await
     }
 
+    /// Send a request and wait for a response.
     pub async fn request(&self, node_id: &str, msg: &MeshMessage) -> Result<MeshMessage> {
         self.endpoint.send_bidirectional(node_id, msg).await
     }
 
+    /// Close the client connection.
     pub fn close(&self) {
         self.endpoint.close();
     }

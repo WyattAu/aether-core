@@ -10,13 +10,20 @@ use tokio::sync::RwLock;
 
 use super::tenant::{TenantId, TenantManager};
 
+/// Resource limits for a tenant.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ResourceQuotas {
+    /// Maximum number of actors.
     pub max_actors: u32,
+    /// Maximum memory in megabytes.
     pub max_memory_mb: u64,
+    /// Maximum CPU in millicores.
     pub max_cpu_millicores: u32,
+    /// Maximum storage in megabytes.
     pub max_storage_mb: u64,
+    /// Maximum network bandwidth in Mbps.
     pub max_network_bandwidth_mbps: u64,
+    /// Maximum concurrent requests.
     pub max_concurrent_requests: u32,
 }
 
@@ -34,40 +41,48 @@ impl Default for ResourceQuotas {
 }
 
 impl ResourceQuotas {
+    /// Creates a new quota set with default values.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Sets the maximum number of actors (builder pattern).
     pub fn with_max_actors(mut self, max: u32) -> Self {
         self.max_actors = max;
         self
     }
 
+    /// Sets the maximum memory in MB (builder pattern).
     pub fn with_max_memory_mb(mut self, max: u64) -> Self {
         self.max_memory_mb = max;
         self
     }
 
+    /// Sets the maximum CPU in millicores (builder pattern).
     pub fn with_max_cpu_millicores(mut self, max: u32) -> Self {
         self.max_cpu_millicores = max;
         self
     }
 
+    /// Sets the maximum storage in MB (builder pattern).
     pub fn with_max_storage_mb(mut self, max: u64) -> Self {
         self.max_storage_mb = max;
         self
     }
 
+    /// Sets the maximum network bandwidth in Mbps (builder pattern).
     pub fn with_max_network_bandwidth_mbps(mut self, max: u64) -> Self {
         self.max_network_bandwidth_mbps = max;
         self
     }
 
+    /// Sets the maximum concurrent requests (builder pattern).
     pub fn with_max_concurrent_requests(mut self, max: u32) -> Self {
         self.max_concurrent_requests = max;
         self
     }
 
+    /// Returns quotas with all limits set to their maximum values.
     pub fn unlimited() -> Self {
         Self {
             max_actors: u32::MAX,
@@ -80,11 +95,16 @@ impl ResourceQuotas {
     }
 }
 
+/// Error returned when a resource quota would be exceeded.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct QuotaExceeded {
+    /// The resource type that exceeded its limit.
     pub resource: QuotaResource,
+    /// The configured limit.
     pub limit: u64,
+    /// The current usage level.
     pub current: u64,
+    /// The amount requested.
     pub requested: u64,
 }
 
@@ -100,30 +120,47 @@ impl std::fmt::Display for QuotaExceeded {
 
 impl std::error::Error for QuotaExceeded {}
 
+/// The type of resource a quota applies to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum QuotaResource {
+    /// Actor count.
     Actors,
+    /// Memory usage.
     Memory,
+    /// CPU usage.
     Cpu,
+    /// Storage usage.
     Storage,
+    /// Network bandwidth.
     Network,
+    /// Concurrent request count.
     Requests,
 }
 
+/// Tracks current resource usage for a tenant.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResourceUsage {
+    /// The tenant this usage belongs to.
     pub tenant_id: TenantId,
+    /// Current number of actors.
     pub actor_count: u32,
+    /// Current memory usage in MB.
     pub memory_used_mb: u64,
+    /// Current CPU usage in millicores.
     pub cpu_used_millicores: u32,
+    /// Current storage usage in MB.
     pub storage_used_mb: u64,
+    /// Current network bandwidth in Mbps.
     pub network_bandwidth_mbps: u64,
+    /// Current number of concurrent requests.
     pub concurrent_requests: u32,
+    /// When this usage was last updated.
     pub last_updated: SystemTime,
 }
 
 impl ResourceUsage {
+    /// Creates a new zeroed usage tracker for the given tenant.
     pub fn new(tenant_id: TenantId) -> Self {
         Self {
             tenant_id,
@@ -137,6 +174,7 @@ impl ResourceUsage {
         }
     }
 
+    /// Checks whether all current usage is within the given quotas.
     pub fn check_within_quota(
         &self,
         quotas: &ResourceQuotas,
@@ -192,6 +230,7 @@ impl ResourceUsage {
         Ok(())
     }
 
+    /// Checks whether spawning another actor would exceed the actor quota.
     pub fn check_actor_spawn(
         &self,
         quotas: &ResourceQuotas,
@@ -207,6 +246,7 @@ impl ResourceUsage {
         Ok(())
     }
 
+    /// Checks whether allocating additional memory would exceed the memory quota.
     pub fn check_memory(
         &self,
         quotas: &ResourceQuotas,
@@ -224,6 +264,7 @@ impl ResourceUsage {
         Ok(())
     }
 
+    /// Checks whether processing another request would exceed the concurrent request quota.
     pub fn check_request(&self, quotas: &ResourceQuotas) -> std::result::Result<(), QuotaExceeded> {
         if self.concurrent_requests >= quotas.max_concurrent_requests {
             return Err(QuotaExceeded {
@@ -236,38 +277,45 @@ impl ResourceUsage {
         Ok(())
     }
 
+    /// Increments the actor count and memory usage.
     pub fn add_actor(&mut self, memory_mb: u64) {
         self.actor_count = self.actor_count.saturating_add(1);
         self.memory_used_mb = self.memory_used_mb.saturating_add(memory_mb);
         self.touch();
     }
 
+    /// Decrements the actor count and memory usage.
     pub fn remove_actor(&mut self, memory_mb: u64) {
         self.actor_count = self.actor_count.saturating_sub(1);
         self.memory_used_mb = self.memory_used_mb.saturating_sub(memory_mb);
         self.touch();
     }
 
+    /// Increments the concurrent request count.
     pub fn add_request(&mut self) {
         self.concurrent_requests = self.concurrent_requests.saturating_add(1);
         self.touch();
     }
 
+    /// Decrements the concurrent request count.
     pub fn remove_request(&mut self) {
         self.concurrent_requests = self.concurrent_requests.saturating_sub(1);
         self.touch();
     }
 
+    /// Sets the current CPU usage in millicores.
     pub fn update_cpu(&mut self, millicores: u32) {
         self.cpu_used_millicores = millicores;
         self.touch();
     }
 
+    /// Sets the current storage usage in MB.
     pub fn update_storage(&mut self, mb: u64) {
         self.storage_used_mb = mb;
         self.touch();
     }
 
+    /// Sets the current network bandwidth usage in Mbps.
     pub fn update_network(&mut self, mbps: u64) {
         self.network_bandwidth_mbps = mbps;
         self.touch();
@@ -277,6 +325,7 @@ impl ResourceUsage {
         self.last_updated = SystemTime::now();
     }
 
+    /// Computes resource utilization as percentages (0.0–100.0) against the given quotas.
     pub fn utilization_percent(&self, quotas: &ResourceQuotas) -> ResourceUtilization {
         ResourceUtilization {
             actors: Self::percent(self.actor_count as f64, quotas.max_actors as f64),
@@ -301,16 +350,23 @@ impl ResourceUsage {
     }
 }
 
+/// Resource utilization expressed as percentages.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ResourceUtilization {
+    /// Actor utilization percentage.
     pub actors: f32,
+    /// Memory utilization percentage.
     pub memory: f32,
+    /// CPU utilization percentage.
     pub cpu: f32,
+    /// Storage utilization percentage.
     pub storage: f32,
+    /// Network utilization percentage.
     pub network: f32,
 }
 
 impl ResourceUtilization {
+    /// Returns the maximum utilization across all resource types.
     pub fn max(&self) -> f32 {
         self.actors
             .max(self.memory)
@@ -319,24 +375,29 @@ impl ResourceUtilization {
             .max(self.network)
     }
 
+    /// Returns `true` if any resource utilization meets or exceeds the threshold.
     pub fn is_high(&self, threshold: f32) -> bool {
         self.max() >= threshold
     }
 
+    /// Returns `true` if any resource is at 100% or above.
     pub fn any_exceeded(&self) -> bool {
         self.max() >= 100.0
     }
 }
 
+/// Enforces resource quotas against tenant operations.
 pub struct QuotaEnforcer {
     manager: Arc<RwLock<TenantManager>>,
 }
 
 impl QuotaEnforcer {
+    /// Creates a new quota enforcer backed by the given tenant manager.
     pub fn new(manager: Arc<RwLock<TenantManager>>) -> Self {
         Self { manager }
     }
 
+    /// Checks whether the tenant can spawn another actor.
     pub async fn check_actor_spawn(&self, tenant: &TenantId) -> Result<()> {
         let manager = self.manager.read().await;
         let tenant_obj = manager
@@ -354,6 +415,7 @@ impl QuotaEnforcer {
         Ok(())
     }
 
+    /// Records that an actor was spawned with the given memory allocation.
     pub async fn record_actor_spawn(&self, tenant: &TenantId, memory_mb: u64) -> Result<()> {
         let mut manager = self.manager.write().await;
         let usage = manager
@@ -363,6 +425,7 @@ impl QuotaEnforcer {
         Ok(())
     }
 
+    /// Records that an actor was terminated, freeing its memory allocation.
     pub async fn record_actor_termination(&self, tenant: &TenantId, memory_mb: u64) -> Result<()> {
         let mut manager = self.manager.write().await;
         let usage = manager
@@ -372,6 +435,7 @@ impl QuotaEnforcer {
         Ok(())
     }
 
+    /// Checks whether the tenant can accept another concurrent request.
     pub async fn check_request(&self, tenant: &TenantId) -> Result<()> {
         let manager = self.manager.read().await;
         let tenant_obj = manager
@@ -389,6 +453,7 @@ impl QuotaEnforcer {
         Ok(())
     }
 
+    /// Records that a request has started for a tenant.
     pub async fn record_request_start(&self, tenant: &TenantId) -> Result<()> {
         let mut manager = self.manager.write().await;
         let usage = manager
@@ -398,6 +463,7 @@ impl QuotaEnforcer {
         Ok(())
     }
 
+    /// Records that a request has completed for a tenant.
     pub async fn record_request_complete(&self, tenant: &TenantId) -> Result<()> {
         let mut manager = self.manager.write().await;
         let usage = manager
@@ -407,6 +473,7 @@ impl QuotaEnforcer {
         Ok(())
     }
 
+    /// Returns the current resource usage for a tenant.
     pub async fn get_usage(&self, tenant: &TenantId) -> Result<ResourceUsage> {
         let manager = self.manager.read().await;
         let usage = manager
@@ -415,6 +482,7 @@ impl QuotaEnforcer {
         Ok(usage.clone())
     }
 
+    /// Returns the current resource utilization percentages for a tenant.
     pub async fn get_utilization(&self, tenant: &TenantId) -> Result<ResourceUtilization> {
         let manager = self.manager.read().await;
         let tenant_obj = manager

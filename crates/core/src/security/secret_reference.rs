@@ -8,8 +8,12 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::time::{Duration, SystemTime};
 
+/// URI scheme for secret references.
 pub const SECRET_URI_SCHEME: &str = "secret";
 
+/// A secure reference to a secret stored in an external provider.
+///
+/// Format: `secret://<provider>/<path>/<key>[?version=N]`
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SecretReference {
     provider: SecretProvider,
@@ -32,15 +36,24 @@ impl fmt::Debug for SecretReference {
     }
 }
 
+/// Supported secret storage providers.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum SecretProvider {
+    /// In-memory secret store.
     Memory,
+    /// HashiCorp Vault.
     Vault,
+    /// Environment variables.
     Environment,
+    /// File-based secrets.
     File,
+    /// Kubernetes Secrets.
     Kubernetes,
+    /// AWS Secrets Manager.
     AwsSecretsManager,
+    /// Azure Key Vault.
     AzureKeyVault,
+    /// GCP Secret Manager.
     GcpSecretManager,
 }
 
@@ -77,14 +90,19 @@ impl std::str::FromStr for SecretProvider {
     }
 }
 
+/// Policy governing secret rotation.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RotationPolicy {
+    /// Maximum age before rotation is required.
     pub max_age: Duration,
+    /// Maximum number of accesses before rotation.
     pub max_access_count: Option<u32>,
+    /// Whether to rotate the secret on every read.
     pub rotate_on_read: bool,
 }
 
 impl RotationPolicy {
+    /// Create a new rotation policy with the given maximum age.
     pub fn new(max_age: Duration) -> Self {
         Self {
             max_age,
@@ -93,11 +111,13 @@ impl RotationPolicy {
         }
     }
 
+    /// Set the maximum access count before rotation.
     pub fn with_max_access_count(mut self, count: u32) -> Self {
         self.max_access_count = Some(count);
         self
     }
 
+    /// Enable rotation on every read.
     pub fn rotate_on_read(mut self) -> Self {
         self.rotate_on_read = true;
         self
@@ -115,6 +135,7 @@ impl Default for RotationPolicy {
 }
 
 impl SecretReference {
+    /// Create a new secret reference.
     pub fn new(provider: SecretProvider, path: &str, key: &str) -> Self {
         Self {
             provider,
@@ -125,48 +146,59 @@ impl SecretReference {
         }
     }
 
+    /// Create a reference to an in-memory secret.
     pub fn memory(path: &str, key: &str) -> Self {
         Self::new(SecretProvider::Memory, path, key)
     }
 
+    /// Create a reference to a Vault secret.
     pub fn vault(path: &str, key: &str) -> Self {
         Self::new(SecretProvider::Vault, path, key)
     }
 
+    /// Create a reference to an environment variable.
     pub fn env(key: &str) -> Self {
         Self::new(SecretProvider::Environment, "", key)
     }
 
+    /// Set the secret version.
     pub fn with_version(mut self, version: u32) -> Self {
         self.version = Some(version);
         self
     }
 
+    /// Set the rotation policy.
     pub fn with_rotation_policy(mut self, policy: RotationPolicy) -> Self {
         self.rotation_policy = Some(policy);
         self
     }
 
+    /// Returns the secret provider.
     pub fn provider(&self) -> SecretProvider {
         self.provider
     }
 
+    /// Returns the secret path.
     pub fn path(&self) -> &str {
         &self.path
     }
 
+    /// Returns the secret key.
     pub fn key(&self) -> &str {
         &self.key
     }
 
+    /// Returns the secret version.
     pub fn version(&self) -> Option<u32> {
         self.version
     }
 
+    /// Returns the rotation policy.
     pub fn rotation_policy(&self) -> Option<&RotationPolicy> {
         self.rotation_policy.as_ref()
     }
 
+    /// Returns the full path (path/key).
     pub fn full_path(&self) -> String {
         if self.path.is_empty() {
             self.key.clone()
@@ -175,6 +207,7 @@ impl SecretReference {
         }
     }
 
+    /// Serialize this reference to a URI string.
     pub fn to_uri(&self) -> String {
         let mut uri = format!(
             "{}://{}/{}",
@@ -190,6 +223,7 @@ impl SecretReference {
         uri
     }
 
+    /// Parse a secret reference from a URI string.
     pub fn from_uri(uri: &str) -> Result<Self> {
         let uri = uri
             .strip_prefix(&format!("{}://", SECRET_URI_SCHEME))
@@ -247,17 +281,25 @@ impl std::str::FromStr for SecretReference {
     }
 }
 
+/// Metadata tracking the lifecycle of a secret.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SecretMetadata {
+    /// The secret reference this metadata describes.
     pub reference: SecretReference,
+    /// When this secret was created.
     pub created_at: SystemTime,
+    /// When this secret was last updated.
     pub updated_at: SystemTime,
+    /// Current version number.
     pub version: u32,
+    /// Total number of times this secret has been accessed.
     pub access_count: u64,
+    /// When this secret expires.
     pub expires_at: Option<SystemTime>,
 }
 
 impl SecretMetadata {
+    /// Create new metadata for the given secret reference.
     pub fn new(reference: SecretReference) -> Self {
         let now = SystemTime::now();
         Self {
@@ -270,17 +312,20 @@ impl SecretMetadata {
         }
     }
 
+    /// Set an expiration time.
     pub fn with_expiry(mut self, expires_at: SystemTime) -> Self {
         self.expires_at = Some(expires_at);
         self
     }
 
+    /// Returns `true` if the secret has expired.
     pub fn is_expired(&self) -> bool {
         self.expires_at
             .map(|exp| SystemTime::now() >= exp)
             .unwrap_or(false)
     }
 
+    /// Returns `true` if the secret should be rotated based on its policy.
     pub fn should_rotate(&self) -> bool {
         if self.is_expired() {
             return true;
@@ -303,6 +348,7 @@ impl SecretMetadata {
         false
     }
 
+    /// Record an access to this secret.
     pub fn record_access(&mut self) {
         self.access_count += 1;
     }

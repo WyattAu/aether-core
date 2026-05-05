@@ -43,7 +43,9 @@ impl ToolExecutor for SpawnActorTool {
             None => return Ok(ToolResult::error("Missing module parameter"));
         };
 
-        let initial_state = args.get("initial_state").and_then(|s| s.as_str()).map(|v| v.to_vec()).unwrap();
+        let initial_state = args.get("initial_state").and_then(|s| s.as_str())
+            .map(|v| v.to_vec())
+            .ok_or_else(|| Error::internal("Missing initial_state value".to_string()))?;
         
         // Spawn actor with capabilities
         let caps = self.capabilities.clone();

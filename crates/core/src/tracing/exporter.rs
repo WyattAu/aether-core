@@ -131,11 +131,13 @@ impl Default for TracingConfig {
 }
 
 impl TracingConfig {
+    /// Set the service name.
     pub fn with_service_name(mut self, name: impl Into<String>) -> Self {
         self.service_name = name.into();
         self
     }
 
+    /// Configure OTLP export.
     pub fn with_otlp_exporter(mut self, endpoint: impl Into<String>) -> Self {
         self.exporter = TracingExporter::Otlp {
             endpoint: endpoint.into(),
@@ -143,6 +145,7 @@ impl TracingConfig {
         self
     }
 
+    /// Configure Jaeger export.
     pub fn with_jaeger_exporter(mut self, endpoint: impl Into<String>) -> Self {
         self.exporter = TracingExporter::Jaeger {
             endpoint: endpoint.into(),
@@ -150,11 +153,13 @@ impl TracingConfig {
         self
     }
 
+    /// Set the log level filter.
     pub fn with_log_level(mut self, level: impl Into<String>) -> Self {
         self.log_level = level.into();
         self
     }
 
+    /// Set batch processing parameters.
     pub fn with_batch_config(
         mut self,
         timeout_ms: u64,
@@ -168,20 +173,24 @@ impl TracingConfig {
     }
 }
 
+/// Errors that can occur when creating exporters.
 #[derive(Debug, Error)]
 pub enum ExporterError {
+    /// OTLP exporter creation failed.
     #[error("OTLP exporter creation failed: {0}")]
     OtlpError(String),
-
+    /// Jaeger exporter creation failed.
     #[error("Jaeger exporter creation failed: {0}")]
     JaegerError(String),
-
+    /// Tracer creation failed.
     #[error("Tracer creation failed: {0}")]
     TracerError(String),
 }
 
+/// Result type for exporter operations.
 pub type Result<T> = std::result::Result<T, ExporterError>;
 
+/// Create an OTLP span exporter.
 pub fn create_otlp_exporter(endpoint: String) -> Result<impl SpanExporter> {
     opentelemetry_otlp::SpanExporter::builder()
         .with_tonic()
@@ -191,6 +200,7 @@ pub fn create_otlp_exporter(endpoint: String) -> Result<impl SpanExporter> {
         .map_err(|e| ExporterError::OtlpError(e.to_string()))
 }
 
+/// Create a Jaeger span exporter.
 pub fn create_jaeger_exporter(endpoint: String) -> Result<impl SpanExporter> {
     let parts: Vec<&str> = endpoint.split(':').collect();
     let host = parts.first().unwrap_or(&"localhost").to_string();
@@ -204,6 +214,7 @@ pub fn create_jaeger_exporter(endpoint: String) -> Result<impl SpanExporter> {
         .map_err(|e| ExporterError::JaegerError(e.to_string()))
 }
 
+/// Create a tracer with the given exporter and service name.
 pub fn create_tracer(
     exporter: impl SpanExporter + 'static,
     service_name: &str,
@@ -225,11 +236,18 @@ pub fn create_tracer(
     provider.tracer(service_name_owned)
 }
 
+/// Configuration for the batch span processor.
+#[derive(Debug)]
 pub struct BatchProcessorConfig {
+    /// Maximum queue size.
     pub max_queue_size: usize,
+    /// Maximum batch export size.
     pub max_export_batch_size: usize,
+    /// Scheduled delay between exports.
     pub scheduled_delay: Duration,
+    /// Timeout for individual export attempts.
     pub export_timeout: Duration,
+    /// Maximum number of concurrent exports.
     pub max_concurrent_exports: usize,
 }
 
@@ -246,6 +264,7 @@ impl Default for BatchProcessorConfig {
 }
 
 impl BatchProcessorConfig {
+    /// Create from a `TracingConfig`.
     pub fn from_tracing_config(config: &TracingConfig) -> Self {
         Self {
             max_queue_size: config.max_queue_size,
@@ -257,6 +276,7 @@ impl BatchProcessorConfig {
     }
 }
 
+/// Gracefully shut down the global tracer provider.
 pub async fn graceful_shutdown(timeout: Duration) {
     let shutdown_result = tokio::task::spawn_blocking(move || {
         global::shutdown_tracer_provider();

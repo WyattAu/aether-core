@@ -140,6 +140,7 @@ impl FdbMetrics {
 #[cfg(feature = "fdb")]
 pub struct FdbClient {
     db: Arc<Database>,
+    #[allow(dead_code)] // Used for connection pool limiting in future batch operations
     pool: Arc<Semaphore>,
     config: FdbConfig,
     health: Arc<Mutex<HealthStatus>>,

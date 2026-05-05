@@ -14,40 +14,52 @@ const TRACE_PARENT_HEADER: &str = "traceparent";
 const TRACE_STATE_HEADER: &str = "tracestate";
 const BAGGAGE_HEADER: &str = "baggage";
 
+/// A trace context containing trace ID, span ID, flags, and baggage.
 #[derive(Debug, Clone, Default)]
 pub struct TraceContext {
+    /// W3C trace ID (32 hex chars).
     pub trace_id: Option<String>,
+    /// W3C span ID (16 hex chars).
     pub span_id: Option<String>,
+    /// W3C trace flags.
     pub trace_flags: Option<String>,
+    /// W3C trace state.
     pub trace_state: Option<String>,
+    /// W3C baggage key-value pairs.
     pub baggage: HashMap<String, String>,
 }
 
 impl TraceContext {
+    /// Create an empty trace context.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Set the trace ID.
     pub fn with_trace_id(mut self, trace_id: impl Into<String>) -> Self {
         self.trace_id = Some(trace_id.into());
         self
     }
 
+    /// Set the span ID.
     pub fn with_span_id(mut self, span_id: impl Into<String>) -> Self {
         self.span_id = Some(span_id.into());
         self
     }
 
+    /// Set the trace flags.
     pub fn with_trace_flags(mut self, flags: impl Into<String>) -> Self {
         self.trace_flags = Some(flags.into());
         self
     }
 
+    /// Add a baggage entry.
     pub fn with_baggage(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
         self.baggage.insert(key.into(), value.into());
         self
     }
 
+    /// Serialize this context into HTTP headers.
     pub fn to_headers(&self) -> HashMap<String, String> {
         let mut headers = HashMap::new();
 
@@ -74,6 +86,7 @@ impl TraceContext {
         headers
     }
 
+    /// Deserialize a trace context from HTTP headers.
     pub fn from_headers(headers: &HashMap<String, String>) -> Self {
         let mut ctx = Self::new();
 
@@ -96,6 +109,7 @@ impl TraceContext {
         ctx
     }
 
+    /// Convert to an OpenTelemetry `Context`.
     pub fn to_context(&self) -> Option<Context> {
         let trace_id = self.trace_id.as_ref()?;
         let span_id = self.span_id.as_ref()?;
@@ -160,6 +174,7 @@ fn parse_baggage(baggage: &str) -> HashMap<String, String> {
         .collect()
 }
 
+/// Header injector for OpenTelemetry propagation.
 pub struct HeaderInjector<'a>(pub &'a mut HashMap<String, String>);
 
 impl<'a> Injector for HeaderInjector<'a> {
@@ -168,6 +183,7 @@ impl<'a> Injector for HeaderInjector<'a> {
     }
 }
 
+/// Header extractor for OpenTelemetry propagation.
 pub struct HeaderExtractor<'a>(pub &'a HashMap<String, String>);
 
 impl<'a> Extractor for HeaderExtractor<'a> {
@@ -180,6 +196,7 @@ impl<'a> Extractor for HeaderExtractor<'a> {
     }
 }
 
+/// Inject trace context and baggage into the given headers.
 pub fn inject_context(context: &Context, headers: &mut HashMap<String, String>) {
     let trace_propagator = TraceContextPropagator::new();
     let baggage_propagator = BaggagePropagator::new();
@@ -188,6 +205,7 @@ pub fn inject_context(context: &Context, headers: &mut HashMap<String, String>) 
     baggage_propagator.inject_context(context, &mut HeaderInjector(headers));
 }
 
+/// Extract trace context and baggage from the given headers.
 pub fn extract_context(headers: &HashMap<String, String>) -> Context {
     let trace_propagator = TraceContextPropagator::new();
     let baggage_propagator = BaggagePropagator::new();
@@ -199,11 +217,13 @@ pub fn extract_context(headers: &HashMap<String, String>) -> Context {
     baggage_propagator.extract_with_context(&context, &HeaderExtractor(headers))
 }
 
+/// Inject a span context into headers.
 pub fn inject_span_context(span_context: &SpanContext, headers: &mut HashMap<String, String>) {
     let context = Context::new().with_remote_span_context(span_context.clone());
     inject_context(&context, headers);
 }
 
+/// Extract a span context from headers, if present.
 pub fn extract_span_context(headers: &HashMap<String, String>) -> Option<SpanContext> {
     let context = extract_context(headers);
     if context.has_active_span() {
@@ -213,6 +233,7 @@ pub fn extract_span_context(headers: &HashMap<String, String>) -> Option<SpanCon
     }
 }
 
+/// Extract all baggage entries from an OpenTelemetry context.
 pub fn baggage_from_context(context: &Context) -> HashMap<String, String> {
     let mut baggage = HashMap::new();
 
@@ -223,6 +244,7 @@ pub fn baggage_from_context(context: &Context) -> HashMap<String, String> {
     baggage
 }
 
+/// Add a baggage entry to an OpenTelemetry context.
 pub fn add_baggage_to_context(context: &Context, key: &str, value: &str) -> Context {
     context.with_baggage(vec![KeyValue::new(key.to_string(), value.to_string())])
 }

@@ -14,17 +14,24 @@ use std::time::{Duration, Instant};
 
 use super::rbac::{Permission, ResourcePattern};
 
+/// A single policy statement defining an allow or deny rule.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PolicyStatement {
+    /// Whether this statement allows or denies access.
     pub effect: PolicyEffect,
+    /// Subjects this statement applies to (supports `*` wildcard).
     pub subjects: Vec<String>,
+    /// Actions (permissions) this statement covers.
     pub actions: Vec<Permission>,
+    /// Resource patterns this statement covers.
     pub resources: Vec<ResourcePattern>,
+    /// Optional key-value conditions for fine-grained control.
     #[serde(default)]
     pub conditions: HashMap<String, serde_json::Value>,
 }
 
 impl PolicyStatement {
+    /// Creates a new policy statement with the given effect.
     pub fn new(effect: PolicyEffect) -> Self {
         Self {
             effect,
@@ -35,53 +42,64 @@ impl PolicyStatement {
         }
     }
 
+    /// Creates a new allow statement.
     pub fn allow() -> Self {
         Self::new(PolicyEffect::Allow)
     }
 
+    /// Creates a new deny statement.
     pub fn deny() -> Self {
         Self::new(PolicyEffect::Deny)
     }
 
+    /// Adds a subject to this statement (builder pattern).
     pub fn for_subject(mut self, subject: &str) -> Self {
         self.subjects.push(subject.to_string());
         self
     }
 
+    /// Sets the subjects for this statement (builder pattern).
     pub fn for_subjects(mut self, subjects: Vec<String>) -> Self {
         self.subjects = subjects;
         self
     }
 
+    /// Adds an action (permission) to this statement (builder pattern).
     pub fn for_action(mut self, action: Permission) -> Self {
         self.actions.push(action);
         self
     }
 
+    /// Sets the actions for this statement (builder pattern).
     pub fn for_actions(mut self, actions: Vec<Permission>) -> Self {
         self.actions = actions;
         self
     }
 
+    /// Adds a resource pattern to this statement (builder pattern).
     pub fn for_resource(mut self, resource: ResourcePattern) -> Self {
         self.resources.push(resource);
         self
     }
 
+    /// Sets the resource patterns for this statement (builder pattern).
     pub fn for_resources(mut self, resources: Vec<ResourcePattern>) -> Self {
         self.resources = resources;
         self
     }
 
+    /// Adds a condition key-value pair (builder pattern).
     pub fn with_condition(mut self, key: &str, value: serde_json::Value) -> Self {
         self.conditions.insert(key.to_string(), value);
         self
     }
 
+    /// Returns `true` if this statement matches the given subject, action, and resource.
     pub fn matches(&self, subject: &str, action: &Permission, resource: &str) -> bool {
         self.matches_with_effect(subject, action, resource, None)
     }
 
+    /// Returns `true` if this statement matches, optionally checking against a specific effect.
     pub fn matches_with_effect(
         &self,
         subject: &str,
@@ -140,48 +158,66 @@ impl PolicyStatement {
     }
 }
 
+/// Allow or deny effect for a policy statement.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 #[derive(Default)]
 pub enum PolicyEffect {
+    /// Explicitly allow the matched request.
     Allow,
+    /// Explicitly deny the matched request.
     #[default]
     Deny,
 }
 
+/// Detailed result of a policy evaluation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PolicyEvaluationResult {
+    /// The request is allowed by at least one statement.
     Allowed,
+    /// The request is explicitly denied by a deny statement.
     ExplicitDeny,
+    /// No statement matched the request.
     NoMatch,
 }
 
 impl PolicyEvaluationResult {
+    /// Returns `true` if the result is allowed.
     pub fn is_allowed(&self) -> bool {
         matches!(self, PolicyEvaluationResult::Allowed)
     }
 
+    /// Returns `true` if the result is an explicit deny.
     pub fn is_explicit_deny(&self) -> bool {
         matches!(self, PolicyEvaluationResult::ExplicitDeny)
     }
 
+    /// Returns `true` if no statement matched.
     pub fn is_no_match(&self) -> bool {
         matches!(self, PolicyEvaluationResult::NoMatch)
     }
 }
 
+/// A policy document containing one or more statements that are evaluated together.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PolicyDocument {
+    /// Policy version string (e.g., "2024-01-01").
     pub version: String,
+    /// Optional unique policy identifier.
     pub id: Option<String>,
+    /// Optional human-readable description.
     pub description: Option<String>,
+    /// The policy statements to evaluate.
     pub statements: Vec<PolicyStatement>,
+    /// Default effect when no statement matches.
     pub default_effect: PolicyEffect,
+    /// Arbitrary metadata key-value pairs.
     #[serde(default)]
     pub metadata: HashMap<String, String>,
 }
 
 impl PolicyDocument {
+    /// Creates a new empty policy document with deny-by-default.
     pub fn new() -> Self {
         Self {
             version: "2024-01-01".to_string(),
@@ -193,31 +229,39 @@ impl PolicyDocument {
         }
     }
 
+    /// Sets the policy ID (builder pattern).
     pub fn with_id(mut self, id: &str) -> Self {
         self.id = Some(id.to_string());
         self
     }
 
+    /// Sets the policy description (builder pattern).
     pub fn with_description(mut self, description: &str) -> Self {
         self.description = Some(description.to_string());
         self
     }
 
+    /// Adds a statement to this policy (builder pattern).
     pub fn add_statement(mut self, statement: PolicyStatement) -> Self {
         self.statements.push(statement);
         self
     }
 
+    /// Sets the default effect when no statement matches (builder pattern).
     pub fn with_default_effect(mut self, effect: PolicyEffect) -> Self {
         self.default_effect = effect;
         self
     }
 
+    /// Adds a metadata key-value pair (builder pattern).
     pub fn with_metadata(mut self, key: &str, value: &str) -> Self {
         self.metadata.insert(key.to_string(), value.to_string());
         self
     }
 
+    /// Evaluates the policy and returns the effective allow/deny decision.
+    ///
+    /// Explicit deny statements always take precedence over allow statements.
     pub fn evaluate(&self, subject: &str, action: &Permission, resource: &str) -> PolicyEffect {
         match self.evaluate_detailed(subject, action, resource) {
             PolicyEvaluationResult::Allowed => PolicyEffect::Allow,
@@ -226,6 +270,7 @@ impl PolicyDocument {
         }
     }
 
+    /// Evaluates the policy and returns the detailed result.
     pub fn evaluate_detailed(
         &self,
         subject: &str,
@@ -233,11 +278,11 @@ impl PolicyDocument {
         resource: &str,
     ) -> PolicyEvaluationResult {
         let mut allow = false;
-        let mut matched = false;
+        let mut _matched = false;
 
         for statement in &self.statements {
             if statement.matches_with_effect(subject, action, resource, Some(statement.effect)) {
-                matched = true;
+                _matched = true;
                 match statement.effect {
                     PolicyEffect::Allow => allow = true,
                     PolicyEffect::Deny => return PolicyEvaluationResult::ExplicitDeny,
@@ -253,30 +298,36 @@ impl PolicyDocument {
         }
     }
 
+    /// Returns `true` if the policy allows the given subject/action/resource.
     pub fn is_allowed(&self, subject: &str, action: &Permission, resource: &str) -> bool {
         self.evaluate(subject, action, resource) == PolicyEffect::Allow
     }
 
+    /// Serializes this policy document to pretty-printed JSON.
     pub fn to_json(&self) -> Result<String> {
         serde_json::to_string_pretty(self)
             .map_err(|e| Error::serialization(format!("Failed to serialize policy: {}", e)))
     }
 
+    /// Deserializes a policy document from a JSON string.
     pub fn from_json(json: &str) -> Result<Self> {
         serde_json::from_str(json)
             .map_err(|e| Error::serialization(format!("Failed to parse policy: {}", e)))
     }
 
+    /// Serializes this policy document to YAML.
     pub fn to_yaml(&self) -> Result<String> {
         serde_yaml::to_string(self)
             .map_err(|e| Error::serialization(format!("Failed to serialize policy to YAML: {}", e)))
     }
 
+    /// Deserializes a policy document from a YAML string.
     pub fn from_yaml(yaml: &str) -> Result<Self> {
         serde_yaml::from_str(yaml)
             .map_err(|e| Error::serialization(format!("Failed to parse policy from YAML: {}", e)))
     }
 
+    /// Returns a default deny-all policy document.
     pub fn default_policy() -> Self {
         PolicyDocument::new()
             .with_id("default-deny")
@@ -284,6 +335,7 @@ impl PolicyDocument {
             .with_default_effect(PolicyEffect::Deny)
     }
 
+    /// Returns a policy document granting full admin access.
     pub fn admin_policy() -> Self {
         PolicyDocument::new()
             .with_id("admin-full-access")
@@ -310,6 +362,7 @@ struct CacheKey {
     resource: String,
 }
 
+/// Evaluates multiple policy documents with caching and optional file-based hot-reload.
 pub struct PolicyEvaluator {
     policies: Arc<RwLock<Vec<PolicyDocument>>>,
     cache: Arc<RwLock<LruCache<CacheKey, PolicyEffect>>>,
@@ -324,6 +377,7 @@ impl PolicyEvaluator {
     /// Default cache size if invalid size provided
     const DEFAULT_CACHE_SIZE: usize = 1000;
 
+    /// Creates a new policy evaluator with the given cache size and TTL.
     pub fn new(cache_size: usize, cache_ttl: Duration) -> Self {
         let cache = LruCache::new(
             NonZeroUsize::new(cache_size.max(1))
@@ -341,26 +395,31 @@ impl PolicyEvaluator {
         }
     }
 
+    /// Adds a policy document (builder pattern).
     pub fn with_policy(self, policy: PolicyDocument) -> Self {
         self.policies.write().push(policy);
         self
     }
 
+    /// Adds a file path to watch for policy hot-reload (builder pattern).
     pub fn with_policy_path(mut self, path: &Path) -> Self {
         self.policy_paths.push(path.to_path_buf());
         self
     }
 
+    /// Sets the policy file reload interval (builder pattern).
     pub fn with_reload_interval(mut self, interval: Duration) -> Self {
         self.reload_interval = interval;
         self
     }
 
+    /// Adds a policy document and invalidates the cache.
     pub fn add_policy(&self, policy: PolicyDocument) {
         self.policies.write().push(policy);
         self.invalidate_cache();
     }
 
+    /// Removes a policy by ID. Returns `true` if a policy was removed.
     pub fn remove_policy(&self, id: &str) -> bool {
         let mut policies = self.policies.write();
         let initial_len = policies.len();
@@ -373,11 +432,13 @@ impl PolicyEvaluator {
         }
     }
 
+    /// Removes all policies and invalidates the cache.
     pub fn clear_policies(&self) {
         self.policies.write().clear();
         self.invalidate_cache();
     }
 
+    /// Lists the IDs of all registered policies.
     pub fn list_policies(&self) -> Vec<String> {
         self.policies
             .read()
@@ -386,6 +447,9 @@ impl PolicyEvaluator {
             .collect()
     }
 
+    /// Evaluates all policies for the given subject/action/resource, returning the effective effect.
+    ///
+    /// Results are cached with the configured TTL. Explicit denies always take precedence.
     pub fn evaluate(&self, subject: &str, action: &Permission, resource: &str) -> PolicyEffect {
         self.check_reload();
 
@@ -425,6 +489,7 @@ impl PolicyEvaluator {
         final_effect
     }
 
+    /// Evaluates all policies and returns the detailed result (not cached).
     pub fn evaluate_detailed(
         &self,
         subject: &str,
@@ -466,6 +531,7 @@ impl PolicyEvaluator {
         }
     }
 
+    /// Returns `true` if all policies collectively allow the given subject/action/resource.
     pub fn is_allowed(&self, subject: &str, action: &Permission, resource: &str) -> bool {
         self.evaluate(subject, action, resource) == PolicyEffect::Allow
     }
@@ -497,6 +563,7 @@ impl PolicyEvaluator {
         timestamps.clear();
     }
 
+    /// Checks if policies should be reloaded from disk based on the reload interval.
     pub fn check_reload(&self) {
         let last = *self.last_reload.read();
         if last.elapsed() > self.reload_interval {
@@ -526,6 +593,7 @@ impl PolicyEvaluator {
         }
     }
 
+    /// Forces an immediate reload of policies from disk and invalidates the cache.
     pub fn force_reload(&self) -> Result<()> {
         self.invalidate_cache();
         self.reload_policies();
@@ -533,11 +601,13 @@ impl PolicyEvaluator {
         Ok(())
     }
 
+    /// Returns the current cache size and capacity as `(used, capacity)`.
     pub fn cache_stats(&self) -> (usize, usize) {
         let cache = self.cache.write();
         (cache.len(), cache.cap().get())
     }
 
+    /// Removes expired entries from the cache. Returns the number removed.
     pub fn clear_expired_cache(&self) -> usize {
         let mut timestamps = self.cache_timestamps.write();
         let expired: Vec<CacheKey> = timestamps
@@ -564,12 +634,18 @@ impl Default for PolicyEvaluator {
     }
 }
 
+/// Configuration for the policy evaluation subsystem.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PolicyConfig {
+    /// Maximum number of cached evaluation results.
     pub cache_size: usize,
+    /// Time-to-live for cached results in seconds.
     pub cache_ttl_seconds: u64,
+    /// File paths to load policies from.
     pub policy_paths: Vec<String>,
+    /// How often to check for policy file changes in seconds.
     pub reload_interval_seconds: u64,
+    /// Whether to deny by default when no policy matches.
     pub default_deny: bool,
 }
 

@@ -1,9 +1,11 @@
 [package]
 name = "aether-actor"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
 description = "SDK for writing Aether WASM actors"
-license = "Apache-2.0"
 
 [features]
 default = ["std"]
@@ -15,3 +17,6 @@ postcard = { version = "1.0", default-features = false, features = ["alloc"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasi = "0.13"
+
+[lints]
+workspace = true

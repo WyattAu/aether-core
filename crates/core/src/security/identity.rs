@@ -181,6 +181,7 @@ pub struct ActorIdentity {
     certificate: CertificateDer<'static>,
     private_key: Vec<u8>,
     serial: u64,
+    #[allow(dead_code)] // Available for inspection/monitoring queries
     created_at: SystemTime,
     expires_at: SystemTime,
 }
@@ -412,6 +413,7 @@ pub struct VerificationResult {
     pub expires_at: SystemTime,
 }
 
+/// Ordered certificate chain for TLS verification (leaf → node → CA).
 pub struct CertificateChain {
     ca_cert: CertificateDer<'static>,
     node_cert: Option<CertificateDer<'static>>,
@@ -419,6 +421,7 @@ pub struct CertificateChain {
 }
 
 impl CertificateChain {
+    /// Create a new chain with only the CA certificate.
     pub fn new(ca_cert: CertificateDer<'static>) -> Self {
         Self {
             ca_cert,
@@ -427,6 +430,7 @@ impl CertificateChain {
         }
     }
 
+    /// Create a chain from a CA certificate and node identity.
     pub fn from_node_identity(ca_cert: CertificateDer<'static>, node: &NodeIdentity) -> Self {
         Self {
             ca_cert,
@@ -435,6 +439,7 @@ impl CertificateChain {
         }
     }
 
+    /// Create a full chain from CA, node, and actor identities.
     pub fn from_actor_identity(
         ca_cert: CertificateDer<'static>,
         node: &NodeIdentity,
@@ -447,14 +452,17 @@ impl CertificateChain {
         }
     }
 
+    /// Set or replace the node certificate in the chain.
     pub fn set_node(&mut self, cert: CertificateDer<'static>) {
         self.node_cert = Some(cert);
     }
 
+    /// Set or replace the actor certificate in the chain.
     pub fn set_actor(&mut self, cert: CertificateDer<'static>) {
         self.actor_cert = Some(cert);
     }
 
+    /// Build the certificate chain as a vec (leaf first, CA last).
     pub fn to_cert_chain(&self) -> Vec<CertificateDer<'static>> {
         let mut chain = Vec::new();
 
@@ -471,6 +479,7 @@ impl CertificateChain {
         chain
     }
 
+    /// Export the full chain in PEM format.
     pub fn to_pem(&self) -> Result<String> {
         let mut pem = String::new();
 

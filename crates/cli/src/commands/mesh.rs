@@ -73,24 +73,31 @@ pub struct TopologyArgs {
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("Mesh not initialized")]
+    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
     MeshNotInitialized,
 
     #[error("Peer not found: {0}")]
+    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
     PeerNotFound(String),
 
     #[error("Connection failed: {0}")]
+    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
     ConnectionFailed(String),
 
     #[error("Disconnection failed: {0}")]
+    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
     DisconnectionFailed(String),
 
     #[error("Invalid peer address: {0}")]
+    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
     InvalidPeerAddress(String),
 
     #[error("Timeout connecting to peer: {0}")]
+    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
     ConnectionTimeout(String),
 
     #[error("Topology error: {0}")]
+    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
     TopologyError(String),
 }
 

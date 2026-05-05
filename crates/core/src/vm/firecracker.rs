@@ -13,10 +13,14 @@ use super::api::*;
 const DEFAULT_TIMEOUT_MS: u64 = 5000;
 const API_VERSION: &str = "1";
 
+/// Configuration for a Firecracker VM client connection.
 #[derive(Debug, Clone)]
 pub struct FirecrackerConfig {
+    /// Path to the Firecracker Unix domain socket.
     pub socket_path: PathBuf,
+    /// Request timeout in milliseconds.
     pub timeout_ms: u64,
+    /// Firecracker API version string.
     pub api_version: String,
 }
 
@@ -30,6 +34,7 @@ impl Default for FirecrackerConfig {
     }
 }
 
+/// Async client for communicating with a Firecracker MicroVM over its API socket.
 pub struct FirecrackerClient {
     socket_path: PathBuf,
     timeout_ms: u64,
@@ -37,6 +42,7 @@ pub struct FirecrackerClient {
 }
 
 impl FirecrackerClient {
+    /// Creates a new client from the given configuration.
     pub fn new(config: FirecrackerConfig) -> Self {
         Self {
             socket_path: config.socket_path,
@@ -45,6 +51,7 @@ impl FirecrackerClient {
         }
     }
 
+    /// Creates a client connected to the given socket path with default timeout and API version.
     pub fn with_socket(socket_path: PathBuf) -> Self {
         Self {
             socket_path,
@@ -142,6 +149,7 @@ impl FirecrackerClient {
         endpoint.trim_start_matches('/').to_string()
     }
 
+    /// Sets the machine configuration (vCPU count, memory size, etc.).
     pub async fn put_machine_config(&self, config: &MachineConfig) -> Result<()> {
         let body =
             serde_json::to_string(config).map_err(|e| Error::serialization(e.to_string()))?;
@@ -152,6 +160,7 @@ impl FirecrackerClient {
         Ok(())
     }
 
+    /// Retrieves the current machine configuration.
     pub async fn get_machine_config(&self) -> Result<MachineConfig> {
         let response = self
             .request("GET", &self.make_path("machine-config"), None)
@@ -160,6 +169,7 @@ impl FirecrackerClient {
         serde_json::from_str(&response).map_err(|e| Error::serialization(e.to_string()))
     }
 
+    /// Sets the boot source (kernel image and boot args).
     pub async fn put_boot_source(&self, boot_source: &BootSource) -> Result<()> {
         let body =
             serde_json::to_string(boot_source).map_err(|e| Error::serialization(e.to_string()))?;
@@ -170,6 +180,7 @@ impl FirecrackerClient {
         Ok(())
     }
 
+    /// Adds or updates a block device drive by ID.
     pub async fn put_drive(&self, drive_id: &str, drive: &Drive) -> Result<()> {
         let body = serde_json::to_string(drive).map_err(|e| Error::serialization(e.to_string()))?;
 
@@ -179,6 +190,7 @@ impl FirecrackerClient {
         Ok(())
     }
 
+    /// Patches an existing block device drive by ID.
     pub async fn patch_drive(&self, drive_id: &str, drive: &Drive) -> Result<()> {
         let body = serde_json::to_string(drive).map_err(|e| Error::serialization(e.to_string()))?;
 
@@ -188,6 +200,7 @@ impl FirecrackerClient {
         Ok(())
     }
 
+    /// Adds or updates a network interface by ID.
     pub async fn put_network_interface(
         &self,
         iface_id: &str,
@@ -201,6 +214,7 @@ impl FirecrackerClient {
         Ok(())
     }
 
+    /// Configures the virtio-vsock device for host-guest communication.
     pub async fn put_vsock(&self, vsock: &Vsock) -> Result<()> {
         let body = serde_json::to_string(vsock).map_err(|e| Error::serialization(e.to_string()))?;
 
@@ -210,6 +224,7 @@ impl FirecrackerClient {
         Ok(())
     }
 
+    /// Configures the MMDS (MicroVM Metadata Service).
     pub async fn put_mmds_config(&self, config: &MmdsConfig) -> Result<()> {
         let body =
             serde_json::to_string(config).map_err(|e| Error::serialization(e.to_string()))?;
@@ -220,6 +235,7 @@ impl FirecrackerClient {
         Ok(())
     }
 
+    /// Sends an instance action (start, halt, etc.).
     pub async fn put_actions(&self, action: InstanceAction) -> Result<()> {
         let payload = ActionPayload {
             action_type: action,
@@ -233,20 +249,24 @@ impl FirecrackerClient {
         Ok(())
     }
 
+    /// Starts the Firecracker VM instance.
     pub async fn start_instance(&self) -> Result<()> {
         self.put_actions(InstanceAction::InstanceStart).await
     }
 
+    /// Halts (stops) the Firecracker VM instance.
     pub async fn halt_instance(&self) -> Result<()> {
         self.put_actions(InstanceAction::InstanceHalt).await
     }
 
+    /// Retrieves basic instance information.
     pub async fn get_info(&self) -> Result<InstanceInfo> {
         let response = self.request("GET", "", None).await?;
 
         serde_json::from_str(&response).map_err(|e| Error::serialization(e.to_string()))
     }
 
+    /// Retrieves the full machine configuration.
     pub async fn get_full_config(&self) -> Result<FullMachineConfig> {
         let response = self
             .request("GET", &self.make_path("vm/config"), None)
@@ -255,6 +275,7 @@ impl FirecrackerClient {
         serde_json::from_str(&response).map_err(|e| Error::serialization(e.to_string()))
     }
 
+    /// Creates a snapshot of the running VM.
     pub async fn create_snapshot(&self, params: &CreateSnapshotParams) -> Result<()> {
         let body =
             serde_json::to_string(params).map_err(|e| Error::serialization(e.to_string()))?;
@@ -265,6 +286,7 @@ impl FirecrackerClient {
         Ok(())
     }
 
+    /// Loads a VM from a previously created snapshot.
     pub async fn load_snapshot(&self, params: &LoadSnapshotParams) -> Result<()> {
         let body =
             serde_json::to_string(params).map_err(|e| Error::serialization(e.to_string()))?;
@@ -275,6 +297,7 @@ impl FirecrackerClient {
         Ok(())
     }
 
+    /// Pauses the VM.
     pub async fn pause_vm(&self) -> Result<()> {
         let path = self.make_path("vm");
         self.request("PATCH", &path, Some(r#"{"state":"Paused"}"#))
@@ -283,6 +306,7 @@ impl FirecrackerClient {
         Ok(())
     }
 
+    /// Resumes a paused VM.
     pub async fn resume_vm(&self) -> Result<()> {
         let path = self.make_path("vm");
         self.request("PATCH", &path, Some(r#"{"state":"Resumed"}"#))

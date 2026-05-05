@@ -123,41 +123,49 @@ impl From<SpanKind> for opentelemetry::trace::SpanKind {
     }
 }
 
+/// Builder for OpenTelemetry span attributes.
 #[derive(Debug, Clone)]
 pub struct SpanAttributes {
+    /// Collected key-value attributes.
     pub key_values: Vec<KeyValue>,
 }
 
 impl SpanAttributes {
+    /// Create an empty attributes builder.
     pub fn new() -> Self {
         Self {
             key_values: Vec::new(),
         }
     }
 
+    /// Create attributes pre-populated with actor fields.
     pub fn with_actor(actor_id: &str, actor_name: &str) -> Self {
         Self::new()
             .with(ATTR_ACTOR_ID, actor_id.to_string())
             .with(ATTR_ACTOR_NAME, actor_name.to_string())
     }
 
+    /// Create attributes pre-populated with mesh fields.
     pub fn with_mesh(node_id: &str, peer_id: &str) -> Self {
         Self::new()
             .with(ATTR_MESH_NODE_ID, node_id.to_string())
             .with(ATTR_MESH_PEER_ID, peer_id.to_string())
     }
 
+    /// Create attributes pre-populated with state fields.
     pub fn with_state(key: &str, operation: &str) -> Self {
         Self::new()
             .with(ATTR_STATE_KEY, key.to_string())
             .with(ATTR_STATE_OPERATION, operation.to_string())
     }
 
+    /// Add a key-value attribute.
     pub fn with(mut self, key: impl Into<Key>, value: impl Into<Value>) -> Self {
         self.key_values.push(KeyValue::new(key, value));
         self
     }
 
+    /// Consume the builder and return the attribute vector.
     pub fn build(self) -> Vec<KeyValue> {
         self.key_values
     }
@@ -169,6 +177,7 @@ impl Default for SpanAttributes {
     }
 }
 
+/// Builder for actor-related tracing spans.
 pub struct ActorSpan {
     actor_id: String,
     actor_name: String,
@@ -176,6 +185,7 @@ pub struct ActorSpan {
 }
 
 impl ActorSpan {
+    /// Create a new actor span builder.
     pub fn new(actor_id: impl Into<String>, actor_name: impl Into<String>) -> Self {
         Self {
             actor_id: actor_id.into(),
@@ -184,11 +194,13 @@ impl ActorSpan {
         }
     }
 
+    /// Mark this as a cold-start span.
     pub fn with_cold_start(mut self) -> Self {
         self.cold_start = true;
         self
     }
 
+    /// Create a generic actor operation span.
     pub fn start(&self, operation: &str) -> TracingSpan {
         tracing::info_span!(
             target: AETHER_NAMESPACE,
@@ -201,14 +213,17 @@ impl ActorSpan {
         )
     }
 
+    /// Create a span for actor spawning.
     pub fn spawn_span(&self) -> TracingSpan {
         self.start("actor_spawn")
     }
 
+    /// Create a span for actor invocation.
     pub fn invoke_span(&self) -> TracingSpan {
         self.start("actor_invoke")
     }
 
+    /// Create a span for message processing.
     pub fn message_span(&self, message_type: &str) -> TracingSpan {
         tracing::info_span!(
             target: AETHER_NAMESPACE,
@@ -220,6 +235,7 @@ impl ActorSpan {
         )
     }
 
+    /// Create an error span for actor failures.
     pub fn error_span(&self, error: &str) -> TracingSpan {
         tracing::error_span!(
             target: AETHER_NAMESPACE,
@@ -231,6 +247,7 @@ impl ActorSpan {
     }
 }
 
+/// Builder for mesh networking tracing spans.
 pub struct MeshSpan {
     node_id: String,
     peer_id: Option<String>,
@@ -238,6 +255,7 @@ pub struct MeshSpan {
 }
 
 impl MeshSpan {
+    /// Create a new mesh span builder.
     pub fn new(node_id: impl Into<String>) -> Self {
         Self {
             node_id: node_id.into(),
@@ -246,16 +264,19 @@ impl MeshSpan {
         }
     }
 
+    /// Set the peer node ID.
     pub fn with_peer(mut self, peer_id: impl Into<String>) -> Self {
         self.peer_id = Some(peer_id.into());
         self
     }
 
+    /// Set the transport protocol.
     pub fn with_protocol(mut self, protocol: impl Into<String>) -> Self {
         self.protocol = protocol.into();
         self
     }
 
+    /// Create a generic mesh operation span.
     pub fn start(&self, operation: &str) -> TracingSpan {
         let peer = self.peer_id.as_deref().unwrap_or("unknown");
 
@@ -270,14 +291,17 @@ impl MeshSpan {
         )
     }
 
+    /// Create a span for mesh connection establishment.
     pub fn connect_span(&self) -> TracingSpan {
         self.start("mesh_connect")
     }
 
+    /// Create a span for mesh disconnection.
     pub fn disconnect_span(&self) -> TracingSpan {
         self.start("mesh_disconnect")
     }
 
+    /// Create a span for sending a message over the mesh.
     pub fn send_span(&self, message_type: &str) -> TracingSpan {
         let peer = self.peer_id.as_deref().unwrap_or("unknown");
 
@@ -292,6 +316,7 @@ impl MeshSpan {
         )
     }
 
+    /// Create a span for receiving a message from the mesh.
     pub fn receive_span(&self, message_type: &str) -> TracingSpan {
         let peer = self.peer_id.as_deref().unwrap_or("unknown");
 
@@ -307,11 +332,13 @@ impl MeshSpan {
         )
     }
 
+    /// Create a span for gossip protocol operations.
     pub fn gossip_span(&self) -> TracingSpan {
         self.start("mesh_gossip")
     }
 }
 
+/// Builder for state management tracing spans.
 pub struct StateSpan {
     namespace: String,
     key: String,
@@ -319,6 +346,7 @@ pub struct StateSpan {
 }
 
 impl StateSpan {
+    /// Create a new state span builder.
     pub fn new(namespace: impl Into<String>, key: impl Into<String>) -> Self {
         Self {
             namespace: namespace.into(),
@@ -327,11 +355,13 @@ impl StateSpan {
         }
     }
 
+    /// Set the state operation type.
     pub fn with_operation(mut self, operation: impl Into<String>) -> Self {
         self.operation = operation.into();
         self
     }
 
+    /// Create a generic state operation span.
     pub fn start(&self) -> TracingSpan {
         tracing::info_span!(
             target: AETHER_NAMESPACE,
@@ -344,36 +374,42 @@ impl StateSpan {
         )
     }
 
+    /// Create a span for state reads.
     pub fn read_span(&self) -> TracingSpan {
         Self::new(&self.namespace, &self.key)
             .with_operation("read")
             .start()
     }
 
+    /// Create a span for state writes.
     pub fn write_span(&self) -> TracingSpan {
         Self::new(&self.namespace, &self.key)
             .with_operation("write")
             .start()
     }
 
+    /// Create a span for state deletion.
     pub fn delete_span(&self) -> TracingSpan {
         Self::new(&self.namespace, &self.key)
             .with_operation("delete")
             .start()
     }
 
+    /// Create a span for state transactions.
     pub fn transaction_span(&self) -> TracingSpan {
         Self::new(&self.namespace, &self.key)
             .with_operation("transaction")
             .start()
     }
 
+    /// Create a span for state checkpointing.
     pub fn checkpoint_span(&self) -> TracingSpan {
         Self::new(&self.namespace, &self.key)
             .with_operation("checkpoint")
             .start()
     }
 
+    /// Create a span for state hydration.
     pub fn hydrate_span(&self) -> TracingSpan {
         Self::new(&self.namespace, &self.key)
             .with_operation("hydrate")

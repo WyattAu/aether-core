@@ -9,24 +9,37 @@ use tracing::{debug, info, warn};
 
 use super::providers::{ExternalSecretValue, SecretsProvider};
 
+/// Vault KV API version.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum VaultApiVersion {
+    /// Vault KV version 1.
     V1,
+    /// Vault KV version 2 (default).
     #[default]
     V2,
 }
 
+/// Configuration for connecting to HashiCorp Vault.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VaultConfig {
+    /// Vault server address (e.g., `http://127.0.0.1:8200`).
     pub address: String,
+    /// Vault authentication token.
     pub token: Option<String>,
+    /// AppRole role ID.
     pub role_id: Option<String>,
+    /// AppRole secret ID.
     pub secret_id: Option<String>,
+    /// Vault namespace.
     pub namespace: Option<String>,
+    /// KV secrets engine mount path.
     pub mount_path: String,
+    /// KV API version to use.
     pub api_version: VaultApiVersion,
     #[serde(with = "duration_serde", default = "default_timeout")]
+    /// Request timeout.
     pub timeout: Duration,
+    /// Token renewal interval in seconds.
     #[serde(default = "default_renewal_interval")]
     pub renewal_interval_secs: u64,
 }
@@ -76,6 +89,7 @@ impl Default for VaultConfig {
 }
 
 impl VaultConfig {
+    /// Create a new Vault config with the given address.
     pub fn new(address: &str) -> Self {
         Self {
             address: address.to_string(),
@@ -83,32 +97,38 @@ impl VaultConfig {
         }
     }
 
+    /// Set the Vault token for authentication.
     pub fn with_token(mut self, token: &str) -> Self {
         self.token = Some(token.to_string());
         self
     }
 
+    /// Set AppRole credentials for authentication.
     pub fn with_approle(mut self, role_id: &str, secret_id: &str) -> Self {
         self.role_id = Some(role_id.to_string());
         self.secret_id = Some(secret_id.to_string());
         self
     }
 
+    /// Set the Vault namespace.
     pub fn with_namespace(mut self, namespace: &str) -> Self {
         self.namespace = Some(namespace.to_string());
         self
     }
 
+    /// Set the KV secrets engine mount path.
     pub fn with_mount_path(mut self, mount_path: &str) -> Self {
         self.mount_path = mount_path.to_string();
         self
     }
 
+    /// Set the Vault KV API version.
     pub fn with_api_version(mut self, version: VaultApiVersion) -> Self {
         self.api_version = version;
         self
     }
 
+    /// Set the request timeout.
     pub fn with_timeout(mut self, timeout: Duration) -> Self {
         self.timeout = timeout;
         self
@@ -134,7 +154,9 @@ struct VaultSecretDataV2 {
 #[derive(Debug, Deserialize)]
 struct VaultSecretMetadataV2 {
     version: Option<u32>,
+    #[allow(dead_code)] // Deserialized from API response
     created_time: Option<String>,
+    #[allow(dead_code)] // Deserialized from API response
     custom_metadata: Option<HashMap<String, String>>,
 }
 
@@ -157,6 +179,7 @@ struct VaultAuthResponse {
 struct VaultAuth {
     client_token: String,
     lease_duration: Option<u64>,
+    #[allow(dead_code)] // Deserialized from API response
     renewable: Option<bool>,
 }
 
@@ -165,6 +188,7 @@ struct VaultErrorResponse {
     errors: Vec<String>,
 }
 
+/// Vault secrets provider implementation.
 pub struct VaultProvider {
     config: VaultConfig,
     client: Client,
@@ -173,6 +197,7 @@ pub struct VaultProvider {
 }
 
 impl VaultProvider {
+    /// Create a new Vault provider.
     pub fn new(config: VaultConfig) -> Result<Self> {
         let client = Client::builder()
             .timeout(config.timeout)
@@ -188,6 +213,7 @@ impl VaultProvider {
         })
     }
 
+    /// Create a Vault provider with a pre-authenticated token.
     pub fn with_token(config: VaultConfig, token: String) -> Self {
         let client = Client::builder()
             .timeout(config.timeout)
@@ -215,6 +241,7 @@ impl VaultProvider {
         self.authenticate().await
     }
 
+    /// Authenticate with Vault using token or AppRole.
     pub async fn authenticate(&self) -> Result<String> {
         let token = if let Some(t) = &self.config.token {
             t.clone()
@@ -278,6 +305,7 @@ impl VaultProvider {
         Ok(auth_response.auth.client_token)
     }
 
+    /// Renew the current Vault token.
     pub async fn renew_token(&self) -> Result<()> {
         let token = self.get_token().await?;
 

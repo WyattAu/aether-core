@@ -29,6 +29,7 @@ pub enum ActorState {
 /// Entry in the actor registry.
 struct ActorEntry {
     /// Actor ID
+    #[allow(dead_code)] // Available for inspection/monitoring queries
     id: ActorId,
     /// Actor name (optional)
     name: Option<String>,

@@ -12,6 +12,7 @@ use tokio::sync::RwLock;
 
 use super::CertificateType;
 
+/// Certificate Authority for issuing and managing mesh certificates.
 pub struct CertificateAuthority {
     key_pair: KeyPair,
     cert_der: CertificateDer<'static>,
@@ -20,6 +21,7 @@ pub struct CertificateAuthority {
 }
 
 impl CertificateAuthority {
+    /// Generate a new self-signed CA.
     pub fn generate(common_name: &str) -> Result<Self> {
         let mut params = CertificateParams::new(vec![common_name.to_string()])
             .map_err(|e| Error::internal(format!("Failed to create cert params: {}", e)))?;
@@ -50,6 +52,7 @@ impl CertificateAuthority {
         })
     }
 
+    /// Load a CA from a PEM-encoded private key.
     pub fn from_pem(_cert_pem: &str, key_pem: &str) -> Result<Self> {
         let key_pair = KeyPair::from_pem(key_pem)
             .map_err(|e| Error::internal(format!("Failed to parse CA key: {}", e)))?;
@@ -79,10 +82,12 @@ impl CertificateAuthority {
         })
     }
 
+    /// Returns the CA certificate.
     pub fn certificate(&self) -> &CertificateDer<'static> {
         &self.cert_der
     }
 
+    /// Returns the CA certificate in PEM format.
     pub fn certificate_pem(&self) -> Result<String> {
         let mut params = CertificateParams::new(vec!["ca.aether".to_string()])
             .map_err(|e| Error::internal(format!("Failed to create cert params: {}", e)))?;
@@ -102,14 +107,17 @@ impl CertificateAuthority {
         Ok(cert.pem())
     }
 
+    /// Returns the CA private key in DER format.
     pub fn private_key_der(&self) -> Vec<u8> {
         self.key_pair.serialize_der()
     }
 
+    /// Returns the CA private key in PEM format.
     pub fn private_key_pem(&self) -> String {
         self.key_pair.serialize_pem()
     }
 
+    /// Issue a new certificate signed by this CA.
     pub fn issue_certificate(
         &self,
         common_name: &str,
@@ -162,6 +170,7 @@ impl CertificateAuthority {
         Ok((cert_der, key_der))
     }
 
+    /// Revoke a certificate by its serial number.
     pub async fn revoke(&self, serial: u64) -> Result<()> {
         let mut revoked = self.revoked_serials.write().await;
         revoked.insert(serial);
@@ -169,10 +178,12 @@ impl CertificateAuthority {
         Ok(())
     }
 
+    /// Check if a certificate serial has been revoked.
     pub async fn is_revoked(&self, serial: u64) -> bool {
         self.revoked_serials.read().await.contains(&serial)
     }
 
+    /// Generate a certificate revocation list.
     pub async fn generate_crl(&self) -> Result<CertificateRevocationList> {
         let revoked = self.revoked_serials.read().await;
         let revoked_entries: Vec<(u64, SystemTime)> = revoked
@@ -188,22 +199,29 @@ impl CertificateAuthority {
     }
 }
 
+/// List of revoked certificates with update timestamps.
 #[derive(Clone)]
 pub struct CertificateRevocationList {
+    /// Revoked certificate serials and revocation times.
     pub revoked_entries: Vec<(u64, SystemTime)>,
+    /// When this CRL was generated.
     pub this_update: SystemTime,
+    /// When this CRL should be refreshed.
     pub next_update: SystemTime,
 }
 
 impl CertificateRevocationList {
+    /// Returns `true` if no certificates are revoked.
     pub fn is_empty(&self) -> bool {
         self.revoked_entries.is_empty()
     }
 
+    /// Check if a serial number is in the revocation list.
     pub fn contains(&self, serial: u64) -> bool {
         self.revoked_entries.iter().any(|(s, _)| *s == serial)
     }
 
+    /// Serialize the CRL to a byte vector.
     pub fn to_bytes(&self) -> Result<Vec<u8>> {
         let mut data = Vec::new();
 
@@ -234,6 +252,7 @@ impl CertificateRevocationList {
         Ok(data)
     }
 
+    /// Deserialize a CRL from a byte vector.
     pub fn from_bytes(data: &[u8]) -> Result<Self> {
         let mut offset = 0;
 
@@ -290,16 +309,19 @@ impl CertificateRevocationList {
     }
 }
 
+/// Validates certificates against a trusted CA and optional CRL.
 pub struct CertificateValidator {
     ca_cert: CertificateDer<'static>,
     crl: Option<Arc<RwLock<CertificateRevocationList>>>,
 }
 
 impl CertificateValidator {
+    /// Create a validator with only a CA certificate.
     pub fn new(ca_cert: CertificateDer<'static>) -> Self {
         Self { ca_cert, crl: None }
     }
 
+    /// Create a validator with a CA certificate and CRL.
     pub fn with_crl(ca_cert: CertificateDer<'static>, crl: CertificateRevocationList) -> Self {
         Self {
             ca_cert,
@@ -307,14 +329,17 @@ impl CertificateValidator {
         }
     }
 
+    /// Update the CRL.
     pub fn update_crl(&mut self, crl: CertificateRevocationList) {
         self.crl = Some(Arc::new(RwLock::new(crl)));
     }
 
+    /// Returns the CA certificate.
     pub fn ca_certificate(&self) -> &CertificateDer<'static> {
         &self.ca_cert
     }
 
+    /// Validate a certificate, checking revocation if a CRL is set.
     pub async fn validate(
         &self,
         _cert: &CertificateDer<'static>,
@@ -338,6 +363,7 @@ impl CertificateValidator {
         })
     }
 
+    /// Validate a full certificate chain.
     pub fn validate_chain(&self, cert_chain: &[CertificateDer<'static>]) -> Result<bool> {
         if cert_chain.is_empty() {
             return Err(Error::internal("Empty certificate chain"));
@@ -347,25 +373,32 @@ impl CertificateValidator {
     }
 }
 
+/// Result of a certificate validation.
 #[derive(Debug, Clone)]
 pub struct CertificateValidity {
+    /// Whether the certificate passed validation.
     pub is_valid: bool,
+    /// When the validation was performed.
     pub checked_at: SystemTime,
+    /// When the certificate expires.
     pub expires_at: SystemTime,
 }
 
 impl CertificateValidity {
+    /// Time remaining until the certificate expires.
     pub fn time_until_expiry(&self) -> Duration {
         self.expires_at
             .duration_since(self.checked_at)
             .unwrap_or(Duration::ZERO)
     }
 
+    /// Returns `true` if the certificate expires within the threshold.
     pub fn should_rotate(&self, threshold: Duration) -> bool {
         self.time_until_expiry() < threshold
     }
 }
 
+/// Generate a random certificate serial number.
 pub fn generate_serial() -> u64 {
     use rand::Rng;
     rand::rng().random()

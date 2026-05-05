@@ -20,7 +20,7 @@ const DEFAULT_TTL: Duration = Duration::from_secs(60 * 60 * 24 * 7);
 /// Version number for persistence format
 const FORMAT_VERSION: u32 = 1;
 
-/// A versioned memory entry with metadata
+/// A versioned memory entry with persistence metadata.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PersistentMemoryEntry {
     /// The base memory entry
@@ -168,7 +168,7 @@ impl MemoryIndex {
     }
 }
 
-/// Persistent memory store with file backing
+/// File-backed persistent memory store with indexing and TTL support.
 #[derive(Debug)]
 pub struct PersistentMemoryStore {
     entries: RwLock<Vec<PersistentMemoryEntry>>,

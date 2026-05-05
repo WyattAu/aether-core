@@ -22,6 +22,7 @@ type LocalRequestHandler = Arc<
         + Sync,
 >;
 
+/// A node in the Aether mesh network.
 pub struct MeshNode {
     node_id: String,
     namespace: String,
@@ -36,6 +37,7 @@ pub struct MeshNode {
 }
 
 impl MeshNode {
+    /// Create a new mesh node with the given ID and listen address.
     pub fn new(node_id: &str, addr: SocketAddr) -> Self {
         Self::with_config(MeshConfig {
             node_id: node_id.to_string(),
@@ -45,6 +47,7 @@ impl MeshNode {
         .expect("Failed to create mesh node")
     }
 
+    /// Create a new mesh node with full configuration.
     pub fn with_config(config: MeshConfig) -> Result<Self> {
         let pool = Arc::new(ConnectionPool::with_config(
             &config.node_id,
@@ -80,30 +83,37 @@ impl MeshNode {
         })
     }
 
+    /// Returns the node ID.
     pub fn node_id(&self) -> &str {
         &self.node_id
     }
 
+    /// Returns the namespace.
     pub fn namespace(&self) -> &str {
         &self.namespace
     }
 
+    /// Returns the listen address.
     pub fn addr(&self) -> SocketAddr {
         self.addr
     }
 
+    /// Returns the connection pool.
     pub fn pool(&self) -> &Arc<ConnectionPool> {
         &self.pool
     }
 
+    /// Returns the actor resolver.
     pub fn resolver(&self) -> &Arc<ActorResolver> {
         &self.resolver
     }
 
+    /// Returns the backpressure controller.
     pub fn backpressure(&self) -> &Arc<BackpressureController> {
         &self.backpressure
     }
 
+    /// Returns the QUIC endpoint.
     pub fn endpoint(&self) -> &Arc<QuicEndpoint> {
         &self.endpoint
     }
@@ -121,6 +131,7 @@ impl MeshNode {
         *self.local_request_handler.write().await = Some(handler);
     }
 
+    /// Register a local actor and return its URI.
     pub async fn register_actor(&self, actor_name: &str, instance_id: &str) -> Result<String> {
         let address = ActorAddress::new(&self.namespace, actor_name, instance_id);
         let uri = address.to_uri();
@@ -133,14 +144,17 @@ impl MeshNode {
         Ok(uri)
     }
 
+    /// Unregister a local actor.
     pub async fn unregister_actor(&self, actor_id: &str) {
         self.resolver.unregister(actor_id).await;
     }
 
+    /// Resolve the location of a registered actor.
     pub async fn resolve_actor(&self, actor_id: &str) -> Option<ActorLocation> {
         self.resolver.resolve(actor_id).await
     }
 
+    /// Send a fire-and-forget message to a target actor.
     pub async fn send(&self, packet: &MeshMessage) -> Result<()> {
         let target_id = packet.target.to_uri();
 
@@ -209,6 +223,7 @@ impl MeshNode {
         }
     }
 
+    /// Send a request and wait for a response.
     pub async fn request(&self, packet: &MeshMessage) -> Result<MeshMessage> {
         let target_id = packet.target.to_uri();
 
@@ -243,6 +258,7 @@ impl MeshNode {
         Ok(response)
     }
 
+    /// Connect to a remote node and register it in the resolver.
     pub async fn connect(&self, node_id: &str, addr: SocketAddr) -> Result<()> {
         self.resolver.register_node(node_id, addr).await;
         self.endpoint.connect(node_id, addr).await?;
@@ -251,12 +267,14 @@ impl MeshNode {
         Ok(())
     }
 
+    /// Disconnect from a remote node.
     pub async fn disconnect(&self, node_id: &str) {
         self.pool.remove_connection(node_id).await;
         self.resolver.unregister_node(node_id).await;
         tracing::info!("Disconnected from node {}", node_id);
     }
 
+    /// Start listening for incoming connections.
     pub async fn listen(&self) -> Result<()> {
         *self.running.write().await = true;
 
@@ -264,6 +282,7 @@ impl MeshNode {
         Ok(())
     }
 
+    /// Run the mesh node event loop, accepting and handling connections.
     pub async fn run<F>(&self, handler: F) -> Result<()>
     where
         F: Fn(MeshMessage) -> Option<MeshMessage> + Send + Sync + 'static,
@@ -394,12 +413,14 @@ impl MeshNode {
         }
     }
 
+    /// Stop the mesh node.
     pub async fn stop(&self) {
         *self.running.write().await = false;
         self.endpoint.close();
         tracing::info!("Mesh node {} stopped", self.node_id);
     }
 
+    /// Collect runtime statistics for this node.
     pub async fn stats(&self) -> NodeStats {
         NodeStats {
             node_id: self.node_id.clone(),
@@ -411,12 +432,18 @@ impl MeshNode {
     }
 }
 
+/// Runtime statistics for a mesh node.
 #[derive(Debug, Clone)]
 pub struct NodeStats {
+    /// Node identifier.
     pub node_id: String,
+    /// Total number of connections.
     pub connection_count: usize,
+    /// Number of active connections.
     pub active_count: usize,
+    /// Number of locally registered actors.
     pub local_actors: usize,
+    /// Number of cached remote actor locations.
     pub cached_actors: usize,
 }
 

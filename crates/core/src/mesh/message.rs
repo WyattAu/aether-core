@@ -157,29 +157,46 @@ pub enum CompressionType {
     Zstd = 1,
 }
 
+/// Primary message type for actor-to-actor mesh communication.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MeshMessage {
+    /// Unique message identifier.
     pub id: MessageId,
+    /// Correlation ID linking this message to a request (set on responses).
     pub correlation_id: Option<MessageId>,
+    /// The type of message (request, response, error, etc.).
     pub msg_type: MessageType,
+    /// Whether and how the payload is compressed.
     pub compression: CompressionType,
+    /// Address of the sending actor.
     pub source: ActorAddress,
+    /// Address of the target actor.
     pub target: ActorAddress,
+    /// Distributed tracing identifier.
     pub trace_id: u64,
+    /// Creation timestamp in nanoseconds since UNIX epoch.
     pub timestamp_ns: u64,
+    /// Time-to-live for this message in milliseconds.
     pub ttl_ms: u32,
+    /// Message priority (higher = more important).
     pub priority: u8,
+    /// The message payload bytes.
     pub payload: Vec<u8>,
 }
 
+/// Address of an actor in the mesh (`actor://namespace/name/instance`).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ActorAddress {
+    /// The namespace this actor belongs to.
     pub namespace: String,
+    /// The actor's name.
     pub actor_name: String,
+    /// The instance identifier.
     pub instance_id: String,
 }
 
 impl ActorAddress {
+    /// Creates a new actor address from its components.
     pub fn new(namespace: &str, actor_name: &str, instance_id: &str) -> Self {
         Self {
             namespace: namespace.to_string(),
@@ -188,6 +205,7 @@ impl ActorAddress {
         }
     }
 
+    /// Parses an actor URI string (`actor://namespace/name/instance`) into an address.
     pub fn parse(s: &str) -> Option<Self> {
         let s = s.strip_prefix("actor://")?;
         let parts: Vec<&str> = s.split('/').collect();
@@ -201,6 +219,7 @@ impl ActorAddress {
         })
     }
 
+    /// Returns the full actor URI string.
     pub fn to_uri(&self) -> String {
         format!(
             "actor://{}/{}/{}",
@@ -208,6 +227,7 @@ impl ActorAddress {
         )
     }
 
+    /// Returns `true` if this address is in the given namespace.
     pub fn is_local(&self, local_namespace: &str) -> bool {
         self.namespace == local_namespace
     }
@@ -233,28 +253,42 @@ impl Default for ActorAddress {
     }
 }
 
+/// Fixed-size message header for wire transmission.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MessageHeader {
+    /// The message type.
     pub msg_type: MessageType,
+    /// The compression type used.
     pub compression: CompressionType,
+    /// Payload length in bytes.
     pub payload_len: u32,
+    /// The message identifier.
     pub message_id: u64,
+    /// The correlation identifier (0 if none).
     pub correlation_id: u64,
+    /// Bit flags for message attributes.
     pub flags: u16,
 }
 
 bitflags::bitflags! {
+    /// Bit flags for message attributes.
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     pub struct MessageFlags: u16 {
+        /// Payload is compressed.
         const COMPRESSED = 0x01;
+        /// High-priority message.
         const HIGH_PRIORITY = 0x02;
+        /// Sender requires acknowledgment.
         const REQUIRES_ACK = 0x04;
+        /// This message is an acknowledgment.
         const IS_ACK = 0x08;
+        /// This message carries an error.
         const IS_ERROR = 0x10;
     }
 }
 
 impl MeshMessage {
+    /// Creates a new request message.
     pub fn request(source: ActorAddress, target: ActorAddress, payload: Vec<u8>) -> Self {
         Self {
             id: MessageId::new(),
@@ -274,6 +308,7 @@ impl MeshMessage {
         }
     }
 
+    /// Creates a new response message correlated to a request.
     pub fn response(
         correlation_id: MessageId,
         source: ActorAddress,
@@ -298,6 +333,7 @@ impl MeshMessage {
         }
     }
 
+    /// Creates a new error response message correlated to a request.
     pub fn error(
         correlation_id: MessageId,
         source: ActorAddress,
@@ -322,16 +358,19 @@ impl MeshMessage {
         }
     }
 
+    /// Sets the message priority (builder pattern).
     pub fn with_priority(mut self, priority: u8) -> Self {
         self.priority = priority;
         self
     }
 
+    /// Sets the message time-to-live in milliseconds (builder pattern).
     pub fn with_ttl(mut self, ttl_ms: u32) -> Self {
         self.ttl_ms = ttl_ms;
         self
     }
 
+    /// Returns `true` if this message has exceeded its TTL.
     pub fn is_expired(&self) -> bool {
         let now_ns = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -342,6 +381,7 @@ impl MeshMessage {
         elapsed_ns > ttl_ns
     }
 
+    /// Compresses the payload with zstd if it exceeds the compression threshold.
     pub fn compress(&mut self) -> crate::error::Result<()> {
         if self.payload.len() < COMPRESSION_THRESHOLD {
             return Ok(());
@@ -357,6 +397,7 @@ impl MeshMessage {
         Ok(())
     }
 
+    /// Decompresses the payload if it was compressed with zstd.
     pub fn decompress(&mut self) -> crate::error::Result<()> {
         if self.compression == CompressionType::Zstd {
             let decompressed = zstd::decode_all(&self.payload[..]).map_err(|e| {
@@ -369,6 +410,7 @@ impl MeshMessage {
     }
 }
 
+/// Serializes a message into a length-prefixed frame for wire transmission.
 pub fn frame_message(msg: &MeshMessage) -> crate::error::Result<Bytes> {
     let serialized = bincode::serialize(msg)
         .map_err(|e| crate::error::Error::serialization(format!("Serialization failed: {}", e)))?;
@@ -386,6 +428,9 @@ pub fn frame_message(msg: &MeshMessage) -> crate::error::Result<Bytes> {
     Ok(buf.freeze())
 }
 
+/// Parses a length-prefixed frame from wire data.
+///
+/// Returns `Ok(None)` if the data is incomplete, or `Ok(Some((msg, consumed)))` on success.
 pub fn parse_frame(data: &[u8]) -> crate::error::Result<Option<(MeshMessage, usize)>> {
     if data.len() < FRAME_PREFIX_SIZE {
         return Ok(None);
@@ -411,37 +456,56 @@ pub fn parse_frame(data: &[u8]) -> crate::error::Result<Option<(MeshMessage, usi
     Ok(Some((msg, FRAME_PREFIX_SIZE + len)))
 }
 
+/// Simplified actor-to-actor message packet.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ActorPacket {
+    /// Source actor ID.
     pub source_actor_id: String,
+    /// Target actor ID.
     pub target_actor_id: String,
+    /// Distributed tracing identifier.
     pub trace_id: u64,
+    /// The message payload.
     pub payload: Vec<u8>,
 }
 
+/// Initial handshake exchanged between mesh peers.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Handshake {
+    /// The connecting node's identifier.
     pub node_id: String,
+    /// The connecting node's public key for encryption.
     pub public_key: Vec<u8>,
+    /// The mesh protocol version.
     pub protocol_version: u32,
+    /// Compression algorithms supported by the peer.
     pub supported_compression: Vec<CompressionType>,
+    /// The initial flow control window size.
     pub window_size: u64,
 }
 
+/// Flow control message for backpressure signaling.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FlowControl {
+    /// The flow control action to take.
     pub action: FlowAction,
+    /// Remaining buffer capacity at the receiver.
     pub buffer_remaining: u64,
 }
 
+/// Actions for flow control messages.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum FlowAction {
+    /// Pause message delivery.
     Pause,
+    /// Resume message delivery.
     Resume,
+    /// Update the flow control window size.
     WindowUpdate { size: u64 },
 }
 
 impl ActorPacket {
+    /// Creates a new actor packet.
     pub fn new(source: &str, target: &str, payload: Vec<u8>) -> Self {
         Self {
             source_actor_id: source.to_string(),
@@ -451,6 +515,7 @@ impl ActorPacket {
         }
     }
 
+    /// Converts this packet into a full [`MeshMessage`].
     pub fn into_mesh_message(self, source: ActorAddress, target: ActorAddress) -> MeshMessage {
         MeshMessage::request(source, target, self.payload)
     }

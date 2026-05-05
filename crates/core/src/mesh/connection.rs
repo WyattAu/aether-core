@@ -119,6 +119,7 @@ struct ConnectionEntry {
 /// # Ok::<(), aether_core::Error>(())
 /// ```
 pub struct ConnectionPool {
+    #[allow(dead_code)] // Available for inspection/monitoring queries
     node_id: String,
     connections: DashMap<String, ConnectionEntry>,
     lru: ParkingRwLock<LruCache<String, Instant>>,

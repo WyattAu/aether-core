@@ -38,21 +38,35 @@ use std::collections::VecDeque;
 use std::sync::Arc;
 use tracing::info;
 
+/// Maximum number of audit entries retained in memory before eviction.
 pub const MAX_AUDIT_ENTRIES: usize = 100000;
+
+/// Size in bytes of each hash in the audit chain.
 pub const CHAIN_HASH_SIZE: usize = 32;
 
+/// Classification of an audit event type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AuditEventKind {
+    /// Authentication events (login, logout, token validation).
     Authentication,
+    /// Authorization events (access grants, denials).
     Authorization,
+    /// Resource access events (read, write operations).
     Access,
+    /// Configuration changes (settings updates, feature flags).
     ConfigChange,
+    /// Secret access or modification events.
     SecretAccess,
+    /// Certificate operations (issue, revoke, rotate).
     CertificateOperation,
+    /// Role assignment or revocation events.
     RoleChange,
+    /// Security policy modifications.
     PolicyChange,
+    /// Security violations (intrusion, anomaly detection).
     SecurityViolation,
+    /// System-level events (startup, shutdown, health).
     SystemEvent,
 }
 
@@ -73,12 +87,17 @@ impl std::fmt::Display for AuditEventKind {
     }
 }
 
+/// Severity level for an audit event.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AuditSeverity {
+    /// Informational event.
     Info,
+    /// Event that warrants attention.
     Warning,
+    /// Error-level event.
     Error,
+    /// Critical security event requiring immediate action.
     Critical,
 }
 
@@ -93,12 +112,17 @@ impl std::fmt::Display for AuditSeverity {
     }
 }
 
+/// Outcome of the audited operation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AuditOutcome {
+    /// The operation succeeded.
     Success,
+    /// The operation failed due to an error.
     Failure,
+    /// The operation was explicitly denied.
     Denied,
+    /// The operation encountered an error.
     Error,
 }
 
@@ -113,29 +137,49 @@ impl std::fmt::Display for AuditOutcome {
     }
 }
 
+/// A single security audit event record.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuditEvent {
+    /// Unique identifier for this event.
     pub id: String,
+    /// Monotonically increasing sequence number in the audit chain.
     pub sequence: u64,
+    /// When this event occurred.
     pub timestamp: DateTime<Utc>,
+    /// The category of event.
     pub kind: AuditEventKind,
+    /// Severity level of this event.
     pub severity: AuditSeverity,
+    /// Whether the operation succeeded, failed, or was denied.
     pub outcome: AuditOutcome,
+    /// The action that was performed (e.g., `"login"`, `"read"`).
     pub action: String,
+    /// Human-readable description of the event.
     pub message: String,
+    /// The subject (user or actor) that performed the action.
     pub subject: Option<String>,
+    /// The resource that was acted upon.
     pub resource: Option<String>,
+    /// Source IP address of the request.
     pub source_ip: Option<String>,
+    /// User agent string from the request.
     pub user_agent: Option<String>,
+    /// The node that generated this event.
     pub node_id: String,
+    /// Namespace or tenant for multi-tenancy.
     pub namespace: String,
+    /// Additional key-value metadata.
     pub metadata: std::collections::HashMap<String, String>,
+    /// Hash of the previous event in the chain for tamper detection.
     pub previous_hash: [u8; CHAIN_HASH_SIZE],
+    /// Blake3 hash of this event's content.
     pub event_hash: [u8; CHAIN_HASH_SIZE],
+    /// Base64-encoded HMAC signature if signing is enabled.
     pub signature: Option<String>,
 }
 
 impl AuditEvent {
+    /// Creates a new audit event with the given kind, action, and message.
     pub fn new(kind: AuditEventKind, action: &str, message: &str) -> Self {
         Self {
             id: uuid::Uuid::new_v4().to_string(),
@@ -159,51 +203,61 @@ impl AuditEvent {
         }
     }
 
+    /// Sets the severity level of this event.
     pub fn with_severity(mut self, severity: AuditSeverity) -> Self {
         self.severity = severity;
         self
     }
 
+    /// Sets the outcome of this event.
     pub fn with_outcome(mut self, outcome: AuditOutcome) -> Self {
         self.outcome = outcome;
         self
     }
 
+    /// Sets the subject (user or actor) of this event.
     pub fn with_subject(mut self, subject: &str) -> Self {
         self.subject = Some(subject.to_string());
         self
     }
 
+    /// Sets the resource targeted by this event.
     pub fn with_resource(mut self, resource: &str) -> Self {
         self.resource = Some(resource.to_string());
         self
     }
 
+    /// Sets the source IP address.
     pub fn with_source_ip(mut self, ip: &str) -> Self {
         self.source_ip = Some(ip.to_string());
         self
     }
 
+    /// Sets the user agent string.
     pub fn with_user_agent(mut self, agent: &str) -> Self {
         self.user_agent = Some(agent.to_string());
         self
     }
 
+    /// Adds a key-value metadata entry.
     pub fn with_metadata(mut self, key: &str, value: &str) -> Self {
         self.metadata.insert(key.to_string(), value.to_string());
         self
     }
 
+    /// Sets the namespace/tenant for this event.
     pub fn with_namespace(mut self, namespace: &str) -> Self {
         self.namespace = namespace.to_string();
         self
     }
 
+    /// Sets the node ID for this event.
     pub fn with_node(mut self, node_id: &str) -> Self {
         self.node_id = node_id.to_string();
         self
     }
 
+    /// Computes the Blake3 hash of this event's content (used for chain integrity).
     pub fn compute_hash(&self) -> [u8; CHAIN_HASH_SIZE] {
         let mut hasher = Hasher::new();
 
@@ -238,15 +292,18 @@ impl AuditEvent {
         *hasher.finalize().as_bytes()
     }
 
+    /// Verifies that the stored `event_hash` matches the computed hash.
     pub fn verify_hash(&self) -> bool {
         let computed = self.compute_hash();
         computed == self.event_hash
     }
 
+    /// Serializes this event to a JSON string.
     pub fn to_json(&self) -> Result<String> {
         serde_json::to_string(self).map_err(|e| Error::serialization(e.to_string()))
     }
 
+    /// Formats this event as a Common Event Format (CEF) string.
     pub fn to_cef(&self) -> String {
         let severity_val = match self.severity {
             AuditSeverity::Info => 1,
@@ -276,12 +333,18 @@ impl AuditEvent {
     }
 }
 
+/// State of the audit log's hash chain.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuditChainState {
+    /// Sequence number of the last recorded event.
     pub last_sequence: u64,
+    /// Hash of the last recorded event.
     pub last_hash: [u8; CHAIN_HASH_SIZE],
+    /// Total number of events recorded since creation.
     pub total_events: u64,
+    /// When this audit log was created.
     pub created_at: DateTime<Utc>,
+    /// When the last event was recorded.
     pub last_updated: DateTime<Utc>,
 }
 
@@ -297,6 +360,7 @@ impl Default for AuditChainState {
     }
 }
 
+/// Tamper-evident security audit log with cryptographic chain and optional signing.
 pub struct SecurityAuditLog {
     node_id: String,
     entries: Arc<RwLock<VecDeque<AuditEvent>>>,
@@ -306,6 +370,7 @@ pub struct SecurityAuditLog {
 }
 
 impl SecurityAuditLog {
+    /// Creates a new audit log for the given node with a randomly generated signing key.
     pub fn new(node_id: &str) -> Result<Self> {
         Ok(Self {
             node_id: node_id.to_string(),
@@ -316,11 +381,13 @@ impl SecurityAuditLog {
         })
     }
 
+    /// Sets the maximum number of entries retained in memory.
     pub fn with_max_entries(mut self, max: usize) -> Self {
         self.max_entries = max;
         self
     }
 
+    /// Disables event signing.
     pub fn without_signing(mut self) -> Self {
         self.signing_key = None;
         self
@@ -333,6 +400,7 @@ impl SecurityAuditLog {
         key
     }
 
+    /// Records an audit event, assigning it a sequence number, hash, and optional signature.
     pub fn record(&self, mut event: AuditEvent) -> Result<()> {
         let mut chain = self.chain_state.write();
 
@@ -385,6 +453,7 @@ impl SecurityAuditLog {
         BASE64.encode(hasher.finalize().as_bytes())
     }
 
+    /// Verifies the integrity of the entire audit chain (hash linkage and signatures).
     pub fn verify_chain(&self) -> Result<ChainVerificationResult> {
         let entries = self.entries.read();
         let _chain = self.chain_state.read();
@@ -433,11 +502,13 @@ impl SecurityAuditLog {
         Ok(result)
     }
 
+    /// Returns the most recent entries, up to the given limit (newest first).
     pub fn get_entries(&self, limit: usize) -> Vec<AuditEvent> {
         let entries = self.entries.read();
         entries.iter().rev().take(limit).cloned().collect()
     }
 
+    /// Returns recent entries of a specific kind, up to the given limit.
     pub fn get_entries_by_kind(&self, kind: AuditEventKind, limit: usize) -> Vec<AuditEvent> {
         let entries = self.entries.read();
         entries
@@ -449,6 +520,7 @@ impl SecurityAuditLog {
             .collect()
     }
 
+    /// Returns recent entries for a specific subject, up to the given limit.
     pub fn get_entries_by_subject(&self, subject: &str, limit: usize) -> Vec<AuditEvent> {
         let entries = self.entries.read();
         entries
@@ -460,6 +532,7 @@ impl SecurityAuditLog {
             .collect()
     }
 
+    /// Returns recent entries that resulted in failure or denial.
     pub fn get_failures(&self, limit: usize) -> Vec<AuditEvent> {
         let entries = self.entries.read();
         entries
@@ -471,6 +544,7 @@ impl SecurityAuditLog {
             .collect()
     }
 
+    /// Returns recent critical-severity entries.
     pub fn get_critical(&self, limit: usize) -> Vec<AuditEvent> {
         let entries = self.entries.read();
         entries
@@ -482,35 +556,47 @@ impl SecurityAuditLog {
             .collect()
     }
 
+    /// Returns the number of entries currently in the log.
     pub fn len(&self) -> usize {
         self.entries.read().len()
     }
 
+    /// Returns `true` if the log contains no entries.
     pub fn is_empty(&self) -> bool {
         self.entries.read().is_empty()
     }
 
+    /// Returns a snapshot of the current chain state.
     pub fn chain_state(&self) -> AuditChainState {
         self.chain_state.read().clone()
     }
 }
 
+/// Result of verifying the integrity of an audit chain.
 #[derive(Debug, Clone)]
 pub struct ChainVerificationResult {
+    /// Total number of events in the chain.
     pub total_events: usize,
+    /// Number of events with valid hashes and signatures.
     pub valid_events: usize,
+    /// Number of events that failed verification.
     pub invalid_events: usize,
+    /// Whether the entire chain is intact (no breaks detected).
     pub chain_intact: bool,
+    /// Index of the first broken link, if any.
     pub first_break: Option<usize>,
 }
 
+/// Exports audit events to various formats (JSON, JSON Lines, CEF, CSV).
 pub struct AuditExporter;
 
 impl AuditExporter {
+    /// Serializes a slice of audit events to a pretty-printed JSON string.
     pub fn to_json(events: &[AuditEvent]) -> Result<String> {
         serde_json::to_string_pretty(events).map_err(|e| Error::serialization(e.to_string()))
     }
 
+    /// Serializes a slice of audit events to newline-delimited JSON (JSON Lines).
     pub fn to_json_lines(events: &[AuditEvent]) -> Result<String> {
         events
             .iter()
@@ -519,6 +605,7 @@ impl AuditExporter {
             .map(|lines| lines.join("\n"))
     }
 
+    /// Formats a slice of audit events as Common Event Format (CEF) strings.
     pub fn to_cef(events: &[AuditEvent]) -> String {
         events
             .iter()
@@ -527,6 +614,7 @@ impl AuditExporter {
             .join("\n")
     }
 
+    /// Formats a slice of audit events as CSV with a header row.
     pub fn to_csv(events: &[AuditEvent]) -> String {
         let mut lines = vec![
             "timestamp,sequence,kind,severity,outcome,action,subject,resource,message".to_string(),
@@ -551,12 +639,14 @@ impl AuditExporter {
     }
 }
 
+/// Convenience function to create an authentication audit event.
 pub fn auth_event(action: &str, message: &str, subject: &str, outcome: AuditOutcome) -> AuditEvent {
     AuditEvent::new(AuditEventKind::Authentication, action, message)
         .with_subject(subject)
         .with_outcome(outcome)
 }
 
+/// Convenience function to create a resource access audit event.
 pub fn access_event(
     action: &str,
     message: &str,
@@ -570,12 +660,14 @@ pub fn access_event(
         .with_outcome(outcome)
 }
 
+/// Convenience function to create a configuration change audit event.
 pub fn config_change_event(action: &str, message: &str, subject: &str) -> AuditEvent {
     AuditEvent::new(AuditEventKind::ConfigChange, action, message)
         .with_subject(subject)
         .with_severity(AuditSeverity::Warning)
 }
 
+/// Convenience function to create a secret access audit event.
 pub fn secret_access_event(
     action: &str,
     secret_name: &str,
@@ -593,6 +685,7 @@ pub fn secret_access_event(
     .with_severity(AuditSeverity::Warning)
 }
 
+/// Convenience function to create a security violation audit event.
 pub fn security_violation_event(
     message: &str,
     subject: Option<&str>,

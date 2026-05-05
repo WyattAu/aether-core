@@ -4,7 +4,6 @@
 
 use clap::Args;
 use std::io::{self, BufRead};
-use std::process::Command;
 use thiserror::Error;
 
 #[derive(Args, Debug)]
@@ -28,18 +27,22 @@ pub struct ExecArgs {
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("Actor not found: {0}")]
+    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
     ActorNotFound(String),
 
     #[error("Actor not running: {0}")]
+    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
     ActorNotRunning(String),
 
     #[error("Failed to execute command: {0}")]
+    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
     ExecutionFailed(String),
 
     #[error("TTY not available: {0}")]
     TtyNotAvailable(String),
 
     #[error("Connection failed: {0}")]
+    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
     ConnectionFailed(String),
 
     #[error("IO error: {0}")]
@@ -101,9 +104,9 @@ async fn execute_interactive(args: &ExecArgs) -> Result<(), Error> {
         }
 
         if !line.trim().is_empty() {
-            println!("aether:{}# {}", args.actor, line);
-            println!("[simulated output for: {}]", line);
-            println!("aether:{}# ", args.actor);
+            return Err(Error::ConnectionFailed(
+                "Not connected to Aether runtime".to_string(),
+            ));
         } else {
             println!("aether:{}# ", args.actor);
         }
@@ -123,12 +126,7 @@ async fn execute_default_shell(args: &ExecArgs) -> Result<(), Error> {
     println!("Use --interactive for interactive mode.");
     println!();
 
-    println!("Shell: {}", args.shell);
-    println!("Actor: {}", args.actor);
-    println!("PID:   12345 (simulated)");
-    println!();
-    println!("To attach interactively, run:");
-    println!("  aether exec -i -a {}", args.actor);
-
-    Ok(())
+    Err(Error::ConnectionFailed(
+        "Not connected to Aether runtime".to_string(),
+    ))
 }

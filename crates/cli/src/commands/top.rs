@@ -93,6 +93,7 @@ impl App {
         }
     }
 
+    // NOTE: When connected to a running Aether daemon, this will fetch live metrics.
     fn update(&mut self) {
         self.metrics = generate_mock_metrics();
         self.actors = generate_mock_actors();
@@ -132,68 +133,21 @@ impl App {
 }
 
 fn generate_mock_actors() -> Vec<ActorInfo> {
-    vec![
-        ActorInfo {
-            name: "api-gateway".to_string(),
-            status: "running".to_string(),
-            instances: 3,
-            cpu_percent: 45,
-            memory_mb: 256,
-            messages_per_sec: 15000,
-        },
-        ActorInfo {
-            name: "auth-service".to_string(),
-            status: "running".to_string(),
-            instances: 2,
-            cpu_percent: 12,
-            memory_mb: 128,
-            messages_per_sec: 3200,
-        },
-        ActorInfo {
-            name: "user-service".to_string(),
-            status: "running".to_string(),
-            instances: 2,
-            cpu_percent: 28,
-            memory_mb: 192,
-            messages_per_sec: 8900,
-        },
-        ActorInfo {
-            name: "cache-layer".to_string(),
-            status: "running".to_string(),
-            instances: 1,
-            cpu_percent: 8,
-            memory_mb: 512,
-            messages_per_sec: 45000,
-        },
-        ActorInfo {
-            name: "db-connector".to_string(),
-            status: "pending".to_string(),
-            instances: 1,
-            cpu_percent: 0,
-            memory_mb: 64,
-            messages_per_sec: 0,
-        },
-        ActorInfo {
-            name: "event-bus".to_string(),
-            status: "running".to_string(),
-            instances: 2,
-            cpu_percent: 35,
-            memory_mb: 384,
-            messages_per_sec: 28000,
-        },
-    ]
+    // TODO: Fetch from runtime API
+    vec![]
 }
 
 fn generate_mock_metrics() -> SystemMetrics {
+    // TODO: Fetch from runtime API
     SystemMetrics {
-        total_actors: 11,
-        running: 9,
-        pending: 2,
+        total_actors: 0,
+        running: 0,
+        pending: 0,
         stopped: 0,
-        cpu_total: 68,
-        memory_total_mb: 1536,
-        memory_available_mb: 8192,
-        uptime_secs: 86400,
+        cpu_total: 0,
+        memory_total_mb: 0,
+        memory_available_mb: 0,
+        uptime_secs: 0,
     }
 }
 

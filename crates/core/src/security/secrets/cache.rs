@@ -9,16 +9,22 @@ use super::providers::{ExternalSecretValue, SecretsProvider};
 struct CachedEntry {
     value: ExternalSecretValue,
     cached_at: Instant,
+    #[allow(dead_code)] // Deserialized from API response
     path: String,
 }
 
+/// A cached secret with its value, timestamp, and age.
 pub struct CachedSecret {
+    /// The cached secret value.
     pub value: ExternalSecretValue,
+    /// When the secret was cached.
     pub cached_at: Instant,
+    /// How old the cached entry is.
     pub age: Duration,
 }
 
 impl CachedSecret {
+    /// Create a new cached secret entry.
     pub fn new(value: ExternalSecretValue, cached_at: Instant, age: Duration) -> Self {
         Self {
             value,
@@ -27,11 +33,13 @@ impl CachedSecret {
         }
     }
 
+    /// Check if this cached entry has exceeded the given TTL.
     pub fn is_expired(&self, ttl: Duration) -> bool {
         self.age >= ttl
     }
 }
 
+/// A [`SecretsProvider`] wrapper that caches results with a configurable TTL.
 pub struct CachedSecretProvider {
     inner: Box<dyn SecretsProvider>,
     cache: RwLock<HashMap<String, CachedEntry>>,
@@ -39,6 +47,7 @@ pub struct CachedSecretProvider {
 }
 
 impl CachedSecretProvider {
+    /// Create a new cached provider with the given TTL.
     pub fn new(inner: Box<dyn SecretsProvider>, ttl: Duration) -> Self {
         Self {
             inner,
@@ -47,6 +56,7 @@ impl CachedSecretProvider {
         }
     }
 
+    /// Create a cached provider with a default TTL of 5 minutes.
     pub fn with_default_ttl(inner: Box<dyn SecretsProvider>) -> Self {
         Self::new(inner, Duration::from_secs(300))
     }
@@ -59,6 +69,7 @@ impl CachedSecretProvider {
         format!("{}:*", path)
     }
 
+    /// Get a cached secret without fetching from the underlying provider.
     pub fn get_cached(&self, path: &str, key: &str) -> Option<CachedSecret> {
         let cache_key = Self::cache_key(path, key);
         let cache = self.cache.read();
@@ -69,6 +80,7 @@ impl CachedSecretProvider {
         })
     }
 
+    /// Invalidate all cached entries under the given path.
     pub fn invalidate(&self, path: &str) -> Result<()> {
         let mut cache = self.cache.write();
         let prefix = format!("{}:", path);
@@ -76,6 +88,7 @@ impl CachedSecretProvider {
         Ok(())
     }
 
+    /// Invalidate a specific cached key.
     pub fn invalidate_key(&self, path: &str, key: &str) -> Result<()> {
         let cache_key = Self::cache_key(path, key);
         let mut cache = self.cache.write();
@@ -83,16 +96,19 @@ impl CachedSecretProvider {
         Ok(())
     }
 
+    /// Invalidate all cached entries.
     pub fn invalidate_all(&self) -> Result<()> {
         let mut cache = self.cache.write();
         cache.clear();
         Ok(())
     }
 
+    /// Return the number of cached entries.
     pub fn cache_size(&self) -> usize {
         self.cache.read().len()
     }
 
+    /// Remove all expired entries and return the count removed.
     pub fn cleanup_expired(&self) -> usize {
         let mut cache = self.cache.write();
         let before = cache.len();

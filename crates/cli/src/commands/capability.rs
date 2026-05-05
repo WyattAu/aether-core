@@ -10,12 +10,14 @@ use thiserror::Error;
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("Actor not found: {0}")]
+    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
     ActorNotFound(String),
 
     #[error("Invalid capability: {0}")]
     InvalidCapability(String),
 
     #[error("Operation failed: {0}")]
+    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
     OperationFailed(String),
 }
 

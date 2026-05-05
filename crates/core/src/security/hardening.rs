@@ -30,18 +30,29 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tracing::info;
 
+/// Category of a hardening check.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CheckCategory {
+    /// Network-level security (TLS, mTLS, isolation).
     NetworkSecurity,
+    /// Authentication mechanisms.
     Authentication,
+    /// Authorization and access control (RBAC).
     Authorization,
+    /// Data encryption (at rest and in transit).
     Encryption,
+    /// Secrets management and storage.
     Secrets,
+    /// Logging, auditing, and monitoring.
     Logging,
+    /// Container and sandbox security.
     Container,
+    /// WASM runtime security.
     Runtime,
+    /// Certificate management and rotation.
     Certificate,
+    /// General security checks.
     General,
 }
 
@@ -62,17 +73,24 @@ impl std::fmt::Display for CheckCategory {
     }
 }
 
+/// Severity of a hardening check.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CheckSeverity {
+    /// Critical vulnerability with immediate security impact.
     Critical,
+    /// High-severity issue requiring prompt remediation.
     High,
+    /// Medium-severity issue that should be addressed.
     Medium,
+    /// Low-severity informational finding.
     Low,
+    /// Informational only, no security impact.
     Info,
 }
 
 impl CheckSeverity {
+    /// Returns the score impact (deduction) for this severity level.
     pub fn score_impact(&self) -> u32 {
         match self {
             CheckSeverity::Critical => 25,
@@ -96,31 +114,49 @@ impl std::fmt::Display for CheckSeverity {
     }
 }
 
+/// Status result of an individual hardening check.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CheckStatus {
+    /// The check passed.
     Pass,
+    /// The check failed.
     Fail,
+    /// The check produced a warning.
     Warn,
+    /// The check was skipped.
     Skip,
+    /// The check could not complete due to an error.
     Error,
 }
 
+/// Result of an individual hardening check.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HardeningCheck {
+    /// Unique identifier for this check (e.g., `"NET-001"`).
     pub id: String,
+    /// Human-readable name of the check.
     pub name: String,
+    /// Description of what this check validates.
     pub description: String,
+    /// The security category this check belongs to.
     pub category: CheckCategory,
+    /// The severity if this check fails.
     pub severity: CheckSeverity,
+    /// Whether the check passed, failed, warned, or was skipped.
     pub status: CheckStatus,
+    /// Human-readable result message.
     pub message: String,
+    /// Recommended remediation if the check fails.
     pub remediation: Option<String>,
+    /// Reference URLs for further information.
     pub references: Vec<String>,
+    /// When this check was performed.
     pub checked_at: DateTime<Utc>,
 }
 
 impl HardeningCheck {
+    /// Creates a new hardening check with the given ID, name, category, and severity.
     pub fn new(id: &str, name: &str, category: CheckCategory, severity: CheckSeverity) -> Self {
         Self {
             id: id.to_string(),
@@ -136,11 +172,13 @@ impl HardeningCheck {
         }
     }
 
+    /// Sets the description of this check.
     pub fn with_description(mut self, desc: &str) -> Self {
         self.description = desc.to_string();
         self
     }
 
+    /// Marks this check as passed with the given message.
     pub fn pass(mut self, message: &str) -> Self {
         self.status = CheckStatus::Pass;
         self.message = message.to_string();
@@ -148,6 +186,7 @@ impl HardeningCheck {
         self
     }
 
+    /// Marks this check as failed with the given message.
     pub fn fail(mut self, message: &str) -> Self {
         self.status = CheckStatus::Fail;
         self.message = message.to_string();
@@ -155,6 +194,7 @@ impl HardeningCheck {
         self
     }
 
+    /// Marks this check as a warning with the given message.
     pub fn warn(mut self, message: &str) -> Self {
         self.status = CheckStatus::Warn;
         self.message = message.to_string();
@@ -162,6 +202,7 @@ impl HardeningCheck {
         self
     }
 
+    /// Marks this check as skipped with the given reason.
     pub fn skip(mut self, reason: &str) -> Self {
         self.status = CheckStatus::Skip;
         self.message = reason.to_string();
@@ -169,20 +210,24 @@ impl HardeningCheck {
         self
     }
 
+    /// Sets the recommended remediation for a failed check.
     pub fn with_remediation(mut self, remediation: &str) -> Self {
         self.remediation = Some(remediation.to_string());
         self
     }
 
+    /// Adds a reference URL to this check.
     pub fn with_reference(mut self, reference: &str) -> Self {
         self.references.push(reference.to_string());
         self
     }
 
+    /// Returns `true` if this check passed.
     pub fn is_passing(&self) -> bool {
         matches!(self.status, CheckStatus::Pass)
     }
 
+    /// Returns the score contribution of this check (negative deductions for failures).
     pub fn score_contribution(&self) -> i32 {
         match self.status {
             CheckStatus::Pass => 0,
@@ -194,21 +239,33 @@ impl HardeningCheck {
     }
 }
 
+/// Comprehensive report from a security hardening scan.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HardeningReport {
+    /// When the report was generated.
     pub timestamp: DateTime<Utc>,
+    /// The node this report was generated for.
     pub node_id: String,
+    /// Overall security score (0-100).
     pub score: u32,
+    /// Maximum possible score.
     pub max_score: u32,
+    /// Letter grade for the security posture.
     pub grade: SecurityGrade,
+    /// Individual check results.
     pub checks: Vec<HardeningCheck>,
+    /// Summary of results grouped by category.
     pub summary: HashMap<CheckCategory, CategorySummary>,
+    /// List of remediation recommendations.
     pub recommendations: Vec<String>,
+    /// Number of critical-severity failures.
     pub critical_failures: usize,
+    /// Number of high-severity failures.
     pub high_failures: usize,
 }
 
 impl HardeningReport {
+    /// Creates a new empty report for the given node.
     pub fn new(node_id: &str) -> Self {
         Self {
             timestamp: Utc::now(),
@@ -224,6 +281,7 @@ impl HardeningReport {
         }
     }
 
+    /// Adds a check result to the report and updates the score.
     pub fn add_check(&mut self, check: HardeningCheck) {
         if check.status == CheckStatus::Fail && check.severity == CheckSeverity::Critical {
             self.critical_failures += 1;
@@ -238,6 +296,7 @@ impl HardeningReport {
         self.checks.push(check);
     }
 
+    /// Finalizes the report: computes the grade, category summaries, and recommendations.
     pub fn finalize(&mut self) {
         self.grade = SecurityGrade::from_score(self.score);
 
@@ -277,28 +336,37 @@ impl HardeningReport {
         }
     }
 
+    /// Returns `true` if there are no critical failures.
     pub fn is_compliant(&self) -> bool {
         self.critical_failures == 0
     }
 }
 
+/// Letter grade representing overall security posture.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SecurityGrade {
+    /// Excellent security posture (score 95-100).
     #[serde(rename = "A+")]
     APlus,
+    /// Good security posture (score 85-94).
     #[serde(rename = "A")]
     A,
+    /// Adequate security posture (score 70-84).
     #[serde(rename = "B")]
     B,
+    /// Below-average security posture (score 50-69).
     #[serde(rename = "C")]
     C,
+    /// Poor security posture (score 25-49).
     #[serde(rename = "D")]
     D,
+    /// Failing security posture (score below 25).
     #[serde(rename = "F")]
     F,
 }
 
 impl SecurityGrade {
+    /// Converts a numeric score (0-100) to a [`SecurityGrade`].
     pub fn from_score(score: u32) -> Self {
         match score {
             95..=100 => SecurityGrade::APlus,
@@ -324,16 +392,23 @@ impl std::fmt::Display for SecurityGrade {
     }
 }
 
+/// Summary of hardening check results within a single category.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CategorySummary {
+    /// Total number of checks in this category.
     pub total: usize,
+    /// Number of checks that passed.
     pub passed: usize,
+    /// Number of checks that failed.
     pub failed: usize,
+    /// Number of checks that produced warnings.
     pub warnings: usize,
+    /// Number of checks that were skipped.
     pub skipped: usize,
 }
 
 impl CategorySummary {
+    /// Returns the pass rate as a percentage (0-100).
     pub fn pass_rate(&self) -> f32 {
         if self.total == 0 {
             return 100.0;
@@ -342,17 +417,28 @@ impl CategorySummary {
     }
 }
 
+/// Configuration options for security hardening checks.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HardeningConfig {
+    /// Whether mutual TLS is required for mesh connections.
     pub require_mtls: bool,
+    /// Whether role-based access control is required.
     pub require_rbac: bool,
+    /// Whether audit logging must be enabled.
     pub require_audit_logging: bool,
+    /// Whether certificate rotation must be configured.
     pub require_certificate_rotation: bool,
+    /// Maximum allowed certificate lifetime in hours.
     pub max_certificate_lifetime_hours: u32,
+    /// Whether secrets must be encrypted at rest.
     pub require_secret_encryption: bool,
+    /// Whether only secure cipher suites are allowed.
     pub require_secure_ciphers: bool,
+    /// Whether known-insecure algorithms are denied.
     pub deny_insecure_algorithms: bool,
+    /// Whether dependency vulnerability scanning is enabled.
     pub check_dependency_vulnerabilities: bool,
+    /// Whether network isolation between actors is required.
     pub require_network_isolation: bool,
 }
 
@@ -374,6 +460,9 @@ impl Default for HardeningConfig {
 }
 
 impl HardeningConfig {
+    /// Returns a hardened configuration suitable for production environments.
+    ///
+    /// Uses a 24-hour certificate lifetime and enables all security checks.
     pub fn production() -> Self {
         Self {
             require_mtls: true,
@@ -389,6 +478,9 @@ impl HardeningConfig {
         }
     }
 
+    /// Returns a relaxed configuration suitable for development environments.
+    ///
+    /// Disables mTLS, certificate rotation, and dependency scanning.
     pub fn development() -> Self {
         Self {
             require_mtls: false,
@@ -405,12 +497,14 @@ impl HardeningConfig {
     }
 }
 
+/// Runs security hardening checks and generates a compliance report.
 pub struct SecurityHardening {
     config: HardeningConfig,
     node_id: String,
 }
 
 impl SecurityHardening {
+    /// Creates a new hardening checker for the given node.
     pub fn new(node_id: &str) -> Self {
         Self {
             config: HardeningConfig::default(),
@@ -418,11 +512,13 @@ impl SecurityHardening {
         }
     }
 
+    /// Applies custom configuration to this hardening checker.
     pub fn with_config(mut self, config: HardeningConfig) -> Self {
         self.config = config;
         self
     }
 
+    /// Runs all hardening checks and returns the final report.
     pub fn run_checks(&self) -> Result<HardeningReport> {
         let mut report = HardeningReport::new(&self.node_id);
 
@@ -780,6 +876,7 @@ impl SecurityHardening {
     }
 }
 
+/// Validates a hardening configuration and returns warnings for insecure settings.
 pub fn validate_config(config: &HardeningConfig) -> Result<Vec<String>> {
     let mut warnings = Vec::new();
 

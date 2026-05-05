@@ -38,6 +38,7 @@ pub enum Error {
     ParseError(String),
 
     #[error("Unsupported compose feature: {0}")]
+    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
     UnsupportedFeature(String),
 
     #[error("Conversion error: {0}")]
@@ -49,9 +50,12 @@ pub enum Error {
 
 #[derive(Debug, Deserialize)]
 struct ComposeFile {
+    #[allow(dead_code)] // Deserialized from compose file, not all fields used yet
     version: Option<String>,
     services: HashMap<String, ComposeServiceRaw>,
+    #[allow(dead_code)] // Deserialized from compose file, not all fields used yet
     volumes: Option<HashMap<String, VolumeConfig>>,
+    #[allow(dead_code)] // Deserialized from compose file, not all fields used yet
     networks: Option<HashMap<String, NetworkConfig>>,
 }
 
@@ -67,16 +71,23 @@ struct ComposeServiceRaw {
     replicas: Option<u32>,
     restart: Option<String>,
     healthcheck: Option<HealthCheck>,
+    #[allow(dead_code)] // Deserialized from compose file, not all fields used yet
     networks: Option<Vec<String>>,
+    #[allow(dead_code)] // Deserialized from compose file, not all fields used yet
     entrypoint: Option<Command>,
+    #[allow(dead_code)] // Deserialized from compose file, not all fields used yet
     working_dir: Option<String>,
+    #[allow(dead_code)] // Deserialized from compose file, not all fields used yet
     user: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 struct BuildConfig {
+    #[allow(dead_code)] // Deserialized from compose file, not all fields used yet
     context: String,
+    #[allow(dead_code)] // Deserialized from compose file, not all fields used yet
     dockerfile: Option<String>,
+    #[allow(dead_code)] // Deserialized from compose file, not all fields used yet
     args: Option<HashMap<String, String>>,
 }
 
@@ -103,34 +114,46 @@ enum DependsOn {
 
 #[derive(Debug, Deserialize)]
 struct DependsOnConfig {
+    #[allow(dead_code)] // Deserialized from compose file, not all fields used yet
     condition: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 struct HealthCheck {
+    #[allow(dead_code)] // Deserialized from compose file, not all fields used yet
     test: Option<HealthCheckTest>,
+    #[allow(dead_code)] // Deserialized from compose file, not all fields used yet
     interval: Option<String>,
+    #[allow(dead_code)] // Deserialized from compose file, not all fields used yet
     timeout: Option<String>,
+    #[allow(dead_code)] // Deserialized from compose file, not all fields used yet
     retries: Option<u32>,
+    #[allow(dead_code)] // Deserialized from compose file, not all fields used yet
     start_period: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
 enum HealthCheckTest {
+    #[allow(dead_code)] // Deserialized from compose file, not all fields used yet
     List(Vec<String>),
+    #[allow(dead_code)] // Deserialized from compose file, not all fields used yet
     String(String),
 }
 
 #[derive(Debug, Deserialize)]
 struct VolumeConfig {
+    #[allow(dead_code)] // Deserialized from compose file, not all fields used yet
     driver: Option<String>,
+    #[allow(dead_code)] // Deserialized from compose file, not all fields used yet
     external: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]
 struct NetworkConfig {
+    #[allow(dead_code)] // Deserialized from compose file, not all fields used yet
     driver: Option<String>,
+    #[allow(dead_code)] // Deserialized from compose file, not all fields used yet
     external: Option<bool>,
 }
 
@@ -140,7 +163,11 @@ struct ComposeService {
     ports: Vec<String>,
     environment: Vec<(String, String)>,
     volumes: Vec<String>,
+    // Deserialized from compose file, used for dependency ordering in future
+    #[allow(dead_code)]
     depends_on: Vec<String>,
+    // Deserialized from compose file, used for custom entrypoint in future
+    #[allow(dead_code)]
     command: Option<String>,
     replicas: u32,
     restart: Option<String>,

@@ -53,7 +53,7 @@
 //!     println!(
 //!         "[{}] {} -> {} : {} ({})",
 //!         entry.timestamp,
-//!         entry.subject.principal_id(),
+//!         entry.request.subject.principal_id(),
 //!         entry.resource.uri,
 //!         if entry.allowed { "ALLOW" } else { "DENY" },
 //!         entry.reason
@@ -353,6 +353,7 @@ pub struct AuthorizationRequest {
 }
 
 impl AuthorizationRequest {
+    /// Creates a new authorization request.
     pub fn new(subject: Subject, action: Action, resource: Resource) -> Self {
         Self {
             subject,
@@ -363,33 +364,52 @@ impl AuthorizationRequest {
         }
     }
 
+    /// Adds a context key-value pair (builder pattern).
     pub fn with_context(mut self, key: &str, value: &str) -> Self {
         self.context.insert(key.to_string(), value.to_string());
         self
     }
 }
 
+/// Result of an authorization decision.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuthorizationDecision {
+    /// Whether access was allowed.
     pub allowed: bool,
+    /// The principal ID of the subject.
     pub subject: String,
+    /// The action that was requested.
     pub action: String,
+    /// The resource URI that was accessed.
     pub resource: String,
+    /// The reason for the decision.
     pub reason: DecisionReason,
+    /// IDs of policies that matched the request.
     pub matched_policies: Vec<String>,
+    /// When this decision was made.
     pub timestamp: DateTime<Utc>,
+    /// Time taken to evaluate in microseconds.
     pub duration_us: u64,
 }
 
+/// The reason for an authorization decision.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum DecisionReason {
+    /// Allowed by a matching policy statement.
     AllowedByPolicy,
+    /// Allowed by an assigned role.
     AllowedByRole,
+    /// Denied by a matching deny policy statement.
     DeniedByPolicy,
+    /// Denied because no policy or role matched and default-deny is enabled.
     DeniedByDefault,
+    /// Denied by an explicit deny statement.
     DeniedExplicitly,
+    /// No matching policy was found.
     NoMatchingPolicy,
+    /// The subject was not found in the role assignments.
     SubjectNotFound,
+    /// The request was invalid (e.g., empty subject or resource).
     InvalidRequest,
 }
 
@@ -408,17 +428,25 @@ impl std::fmt::Display for DecisionReason {
     }
 }
 
+/// A single audit log entry recording an authorization decision.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuditEntry {
+    /// Unique entry identifier (UUID).
     pub id: String,
+    /// The authorization request that was evaluated.
     pub request: AuthorizationRequest,
+    /// The decision that was made.
     pub decision: AuthorizationDecision,
+    /// Optional source IP address of the requester.
     pub source_ip: Option<String>,
+    /// Optional user agent string.
     pub user_agent: Option<String>,
+    /// Optional distributed trace ID.
     pub trace_id: Option<String>,
 }
 
 impl AuditEntry {
+    /// Creates a new audit entry from a request and its decision.
     pub fn new(request: AuthorizationRequest, decision: AuthorizationDecision) -> Self {
         Self {
             id: uuid::Uuid::new_v4().to_string(),
@@ -430,22 +458,26 @@ impl AuditEntry {
         }
     }
 
+    /// Sets the source IP (builder pattern).
     pub fn with_source_ip(mut self, ip: &str) -> Self {
         self.source_ip = Some(ip.to_string());
         self
     }
 
+    /// Sets the user agent (builder pattern).
     pub fn with_user_agent(mut self, agent: &str) -> Self {
         self.user_agent = Some(agent.to_string());
         self
     }
 
+    /// Sets the trace ID (builder pattern).
     pub fn with_trace_id(mut self, id: &str) -> Self {
         self.trace_id = Some(id.to_string());
         self
     }
 }
 
+/// In-memory audit log with a configurable maximum entry count.
 pub struct AuditLog {
     entries: Arc<RwLock<VecDeque<AuditEntry>>>,
     max_entries: usize,
@@ -453,6 +485,7 @@ pub struct AuditLog {
 }
 
 impl AuditLog {
+    /// Creates a new audit log with the given maximum capacity.
     pub fn new(max_entries: usize) -> Self {
         Self {
             entries: Arc::new(RwLock::new(VecDeque::with_capacity(max_entries))),
@@ -461,6 +494,7 @@ impl AuditLog {
         }
     }
 
+    /// Creates a disabled audit log that discards all entries.
     pub fn disabled() -> Self {
         Self {
             entries: Arc::new(RwLock::new(VecDeque::new())),
@@ -469,6 +503,7 @@ impl AuditLog {
         }
     }
 
+    /// Records an audit entry, evicting the oldest entry if the log is full.
     pub fn log(&self, entry: AuditEntry) {
         if !self.enabled {
             return;
@@ -501,11 +536,13 @@ impl AuditLog {
         entries.push_back(entry);
     }
 
+    /// Returns the most recent audit entries, up to `limit`.
     pub fn get_entries(&self, limit: usize) -> Vec<AuditEntry> {
         let entries = self.entries.read();
         entries.iter().rev().take(limit).cloned().collect()
     }
 
+    /// Returns the most recent audit entries for a specific subject principal ID.
     pub fn get_entries_for_subject(&self, subject: &str, limit: usize) -> Vec<AuditEntry> {
         let entries = self.entries.read();
         entries
@@ -517,6 +554,7 @@ impl AuditLog {
             .collect()
     }
 
+    /// Returns the most recent denied audit entries, up to `limit`.
     pub fn get_denials(&self, limit: usize) -> Vec<AuditEntry> {
         let entries = self.entries.read();
         entries
@@ -528,20 +566,24 @@ impl AuditLog {
             .collect()
     }
 
+    /// Clears all audit entries.
     pub fn clear(&self) {
         let mut entries = self.entries.write();
         entries.clear();
     }
 
+    /// Returns the number of entries currently in the log.
     pub fn len(&self) -> usize {
         self.entries.read().len()
     }
 
+    /// Returns `true` if the log is empty.
     pub fn is_empty(&self) -> bool {
         self.entries.read().is_empty()
     }
 }
 
+/// Main authorization service combining RBAC and policy evaluation with audit logging.
 pub struct Authorizer {
     role_manager: Arc<RoleManager>,
     policy_evaluator: Arc<PolicyEvaluator>,
@@ -550,6 +592,7 @@ pub struct Authorizer {
 }
 
 impl Authorizer {
+    /// Creates a new authorizer with the given role manager, policy evaluator, and config.
     pub fn new(
         role_manager: RoleManager,
         policy_evaluator: PolicyEvaluator,
@@ -563,11 +606,16 @@ impl Authorizer {
         }
     }
 
+    /// Sets the audit log capacity (builder pattern).
     pub fn with_audit_log_size(mut self, size: usize) -> Self {
         self.audit_log = Arc::new(AuditLog::new(size));
         self
     }
 
+    /// Evaluates an authorization request and returns the decision.
+    ///
+    /// Policy explicit denies take precedence. If no deny matches, role permissions
+    /// and policy allows are checked. If nothing matches, the default-deny config applies.
     pub fn check(&self, request: AuthorizationRequest) -> AuthorizationDecision {
         let start = Instant::now();
         let subject_id = request.subject.principal_id();
@@ -661,23 +709,28 @@ impl Authorizer {
         decision
     }
 
+    /// Convenience method: returns `true` if the subject/action/resource is allowed.
     pub fn is_allowed(&self, subject: Subject, action: Action, resource: Resource) -> bool {
         let request = AuthorizationRequest::new(subject, action, resource);
         self.check(request).allowed
     }
 
+    /// Convenience method: checks read access for a subject on a resource.
     pub fn check_read(&self, subject: Subject, resource: Resource) -> bool {
         self.is_allowed(subject, Action::read(), resource)
     }
 
+    /// Convenience method: checks write access for a subject on a resource.
     pub fn check_write(&self, subject: Subject, resource: Resource) -> bool {
         self.is_allowed(subject, Action::write(), resource)
     }
 
+    /// Convenience method: checks execute access for a subject on a resource.
     pub fn check_execute(&self, subject: Subject, resource: Resource) -> bool {
         self.is_allowed(subject, Action::execute(), resource)
     }
 
+    /// Convenience method: checks admin access for a subject on a resource.
     pub fn check_admin(&self, subject: Subject, resource: Resource) -> bool {
         self.is_allowed(subject, Action::admin(), resource)
     }
@@ -693,6 +746,7 @@ impl Authorizer {
         }
     }
 
+    /// Assigns a role to a subject through the internal role manager.
     pub fn assign_role(&self, subject: &Subject, role: RoleName, assigned_by: &str) -> Result<()> {
         use super::rbac::RoleAssignment;
 
@@ -706,32 +760,39 @@ impl Authorizer {
         self.role_manager.assign_role(assignment)
     }
 
+    /// Revokes a role from a subject. Returns `true` if the assignment existed.
     pub fn revoke_role(&self, subject: &Subject, role: &RoleName) -> bool {
         self.role_manager
             .revoke_role(&subject.principal_id(), role, &subject.namespace)
     }
 
+    /// Returns the most recent audit entries, up to `limit`.
     pub fn get_audit_entries(&self, limit: usize) -> Vec<AuditEntry> {
         self.audit_log.get_entries(limit)
     }
 
+    /// Returns the most recent denial entries, up to `limit`.
     pub fn get_denials(&self, limit: usize) -> Vec<AuditEntry> {
         self.audit_log.get_denials(limit)
     }
 
+    /// Returns a clone of the internal role manager.
     pub fn get_role_manager(&self) -> Arc<RoleManager> {
         Arc::clone(&self.role_manager)
     }
 
+    /// Returns a clone of the internal policy evaluator.
     pub fn get_policy_evaluator(&self) -> Arc<PolicyEvaluator> {
         Arc::clone(&self.policy_evaluator)
     }
 
+    /// Forces a reload of policies from disk.
     pub fn reload_policies(&self) -> Result<()> {
         self.policy_evaluator.force_reload()
     }
 }
 
+/// Creates an authorizer with default role manager, policy evaluator, and RBAC config.
 pub fn create_default_authorizer() -> Authorizer {
     let role_manager = RoleManager::new();
     let policy_evaluator = PolicyEvaluator::default();

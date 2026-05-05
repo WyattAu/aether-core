@@ -9,16 +9,22 @@ use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::sync::Arc;
 
+/// Permission level for RBAC operations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Permission {
+    /// Read-only access.
     Read,
+    /// Read and write access.
     Write,
+    /// Execution access.
     Execute,
+    /// Full administrative access (implies all other permissions).
     Admin,
 }
 
 impl Permission {
+    /// Returns the string representation of this permission.
     pub fn as_str(&self) -> &'static str {
         match self {
             Permission::Read => "read",
@@ -28,6 +34,7 @@ impl Permission {
         }
     }
 
+    /// Returns `true` if this permission includes `other`.
     pub fn includes(&self, other: &Permission) -> bool {
         match (self, other) {
             (Permission::Admin, _) => true,
@@ -46,66 +53,84 @@ impl fmt::Display for Permission {
     }
 }
 
+/// Glob-style pattern for matching resource URIs.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ResourcePattern(String);
 
 impl ResourcePattern {
+    /// Creates a new resource pattern from a raw string.
     pub fn new(pattern: &str) -> Self {
         Self(pattern.to_string())
     }
 
+    /// Creates a pattern matching a specific actor by ID.
     pub fn actor(actor_id: &str) -> Self {
         Self(format!("actor://{}", actor_id))
     }
 
+    /// Creates a pattern matching all actors (`actor://*`).
     pub fn actor_all() -> Self {
         Self::new("actor://*")
     }
 
+    /// Creates a pattern matching a specific mesh path.
     pub fn mesh(path: &str) -> Self {
         Self(format!("mesh://{}", path))
     }
 
+    /// Creates a pattern matching all mesh resources (`mesh://*`).
     pub fn mesh_all() -> Self {
         Self::new("mesh://*")
     }
 
+    /// Creates a pattern matching a specific secret by name.
     pub fn secret(name: &str) -> Self {
         Self(format!("secret://{}", name))
     }
 
+    /// Creates a pattern matching all secrets (`secret://*`).
     pub fn secret_all() -> Self {
         Self::new("secret://*")
     }
 
+    /// Creates a pattern matching a specific config path.
     pub fn config(path: &str) -> Self {
         Self(format!("config://{}", path))
     }
 
+    /// Creates a pattern matching all config resources (`config://*`).
     pub fn config_all() -> Self {
         Self::new("config://*")
     }
 
+    /// Creates a pattern matching a specific node by ID.
     pub fn node(node_id: &str) -> Self {
         Self(format!("node://{}", node_id))
     }
 
+    /// Creates a pattern matching all nodes (`node://*`).
     pub fn node_all() -> Self {
         Self::new("node://*")
     }
 
+    /// Creates a pattern matching a specific namespace.
     pub fn namespace(ns: &str) -> Self {
         Self(format!("namespace://{}", ns))
     }
 
+    /// Creates a pattern matching all namespaces (`namespace://*`).
     pub fn namespace_all() -> Self {
         Self::new("namespace://*")
     }
 
+    /// Returns the raw pattern string.
     pub fn as_str(&self) -> &str {
         &self.0
     }
 
+    /// Returns `true` if this pattern matches the given resource URI.
+    ///
+    /// Supports exact matches, `*` wildcard suffixes, and embedded wildcards.
     pub fn matches(&self, resource: &str) -> bool {
         let pattern = &self.0;
 
@@ -170,16 +195,22 @@ impl fmt::Display for ResourcePattern {
     }
 }
 
+/// Built-in role names for RBAC.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum RoleName {
+    /// Full administrative access.
     Admin,
+    /// Operational access for system management.
     Operator,
+    /// Developer access for building actors.
     Developer,
+    /// Read-only access.
     Viewer,
 }
 
 impl RoleName {
+    /// Returns the string representation of this role name.
     pub fn as_str(&self) -> &'static str {
         match self {
             RoleName::Admin => "admin",
@@ -189,6 +220,7 @@ impl RoleName {
         }
     }
 
+    /// Parses a role name from a string.
     pub fn from_str(s: &str) -> Result<Self> {
         match s.to_lowercase().as_str() {
             "admin" => Ok(RoleName::Admin),
@@ -206,14 +238,19 @@ impl fmt::Display for RoleName {
     }
 }
 
+/// A named role with a set of permission grants over resource patterns.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Role {
+    /// The name of this role.
     pub name: RoleName,
+    /// Human-readable description.
     pub description: String,
+    /// Map of resource patterns to the permissions they grant.
     pub permissions: HashMap<ResourcePattern, HashSet<Permission>>,
 }
 
 impl Role {
+    /// Creates a new role with the given name and description.
     pub fn new(name: RoleName, description: &str) -> Self {
         Self {
             name,
@@ -222,6 +259,7 @@ impl Role {
         }
     }
 
+    /// Grants a permission on a resource pattern (builder pattern).
     pub fn grant(mut self, resource: ResourcePattern, permission: Permission) -> Self {
         self.permissions
             .entry(resource)
@@ -230,6 +268,7 @@ impl Role {
         self
     }
 
+    /// Revokes a permission on a resource pattern. Returns `true` if it existed.
     pub fn revoke(&mut self, resource: &ResourcePattern, permission: &Permission) -> bool {
         if let Some(perms) = self.permissions.get_mut(resource) {
             perms.remove(permission);
@@ -242,6 +281,7 @@ impl Role {
         }
     }
 
+    /// Returns `true` if this role grants the given permission on the resource.
     pub fn has_permission(&self, resource: &str, permission: &Permission) -> bool {
         for (pattern, perms) in &self.permissions {
             if pattern.matches(resource) {
@@ -255,11 +295,13 @@ impl Role {
         false
     }
 
+    /// Returns the built-in admin role with full access to all resources.
     pub fn admin() -> Self {
         Role::new(RoleName::Admin, "Full administrative access")
             .grant(ResourcePattern::new("*"), Permission::Admin)
     }
 
+    /// Returns the built-in operator role for system management.
     pub fn operator() -> Self {
         Role::new(
             RoleName::Operator,
@@ -274,6 +316,7 @@ impl Role {
         .grant(ResourcePattern::config_all(), Permission::Read)
     }
 
+    /// Returns the built-in developer role for building and running actors.
     pub fn developer() -> Self {
         Role::new(RoleName::Developer, "Developer access for building actors")
             .grant(ResourcePattern::actor_all(), Permission::Read)
@@ -283,6 +326,7 @@ impl Role {
             .grant(ResourcePattern::config_all(), Permission::Read)
     }
 
+    /// Returns the built-in viewer role with read-only access.
     pub fn viewer() -> Self {
         Role::new(RoleName::Viewer, "Read-only access")
             .grant(ResourcePattern::actor_all(), Permission::Read)
@@ -291,17 +335,25 @@ impl Role {
     }
 }
 
+/// Assignment of a role to a subject within a namespace.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RoleAssignment {
+    /// The subject (user, service, or actor) receiving the role.
     pub subject: String,
+    /// The role being assigned.
     pub role: RoleName,
+    /// The namespace for this assignment.
     pub namespace: String,
+    /// When this assignment was created.
     pub assigned_at: chrono::DateTime<chrono::Utc>,
+    /// Who assigned this role.
     pub assigned_by: String,
+    /// Optional expiration time for this assignment.
     pub expires_at: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 impl RoleAssignment {
+    /// Creates a new role assignment.
     pub fn new(subject: &str, role: RoleName, namespace: &str, assigned_by: &str) -> Self {
         Self {
             subject: subject.to_string(),
@@ -313,11 +365,13 @@ impl RoleAssignment {
         }
     }
 
+    /// Sets an expiration time for this assignment (builder pattern).
     pub fn with_expiry(mut self, expires_at: chrono::DateTime<chrono::Utc>) -> Self {
         self.expires_at = Some(expires_at);
         self
     }
 
+    /// Returns `true` if this assignment has expired.
     pub fn is_expired(&self) -> bool {
         if let Some(expires) = self.expires_at {
             chrono::Utc::now() > expires
@@ -326,17 +380,20 @@ impl RoleAssignment {
         }
     }
 
+    /// Returns `true` if this assignment is currently valid (not expired).
     pub fn is_valid(&self) -> bool {
         !self.is_expired()
     }
 }
 
+/// Manages roles and their assignments to subjects.
 pub struct RoleManager {
     roles: Arc<RwLock<HashMap<RoleName, Role>>>,
     assignments: Arc<RwLock<Vec<RoleAssignment>>>,
 }
 
 impl RoleManager {
+    /// Creates a new role manager pre-loaded with built-in roles.
     pub fn new() -> Self {
         let mut roles = HashMap::new();
         roles.insert(RoleName::Admin, Role::admin());
@@ -350,6 +407,7 @@ impl RoleManager {
         }
     }
 
+    /// Creates a role manager with custom roles (no built-in roles).
     pub fn with_custom_roles(roles: HashMap<RoleName, Role>) -> Self {
         Self {
             roles: Arc::new(RwLock::new(roles)),
@@ -357,6 +415,7 @@ impl RoleManager {
         }
     }
 
+    /// Registers a new role. Returns an error if the role already exists.
     pub fn register_role(&self, role: Role) -> Result<()> {
         let name = role.name;
         let mut roles = self.roles.write();
@@ -369,6 +428,7 @@ impl RoleManager {
         Ok(())
     }
 
+    /// Updates an existing role. Returns an error if the role does not exist.
     pub fn update_role(&self, role: Role) -> Result<()> {
         let name = role.name;
         let mut roles = self.roles.write();
@@ -381,14 +441,17 @@ impl RoleManager {
         Ok(())
     }
 
+    /// Returns a copy of the role with the given name, if it exists.
     pub fn get_role(&self, name: &RoleName) -> Option<Role> {
         self.roles.read().get(name).cloned()
     }
 
+    /// Lists all registered role names.
     pub fn list_roles(&self) -> Vec<RoleName> {
         self.roles.read().keys().cloned().collect()
     }
 
+    /// Assigns a role to a subject, replacing any existing assignment for the same subject/role/namespace.
     pub fn assign_role(&self, assignment: RoleAssignment) -> Result<()> {
         {
             let roles = self.roles.read();
@@ -410,6 +473,7 @@ impl RoleManager {
         Ok(())
     }
 
+    /// Revokes a specific role assignment. Returns `true` if an assignment was removed.
     pub fn revoke_role(&self, subject: &str, role: &RoleName, namespace: &str) -> bool {
         let mut assignments = self.assignments.write();
         let initial_len = assignments.len();
@@ -418,6 +482,7 @@ impl RoleManager {
         assignments.len() != initial_len
     }
 
+    /// Revokes all role assignments for a subject. Returns the number removed.
     pub fn revoke_all_roles(&self, subject: &str) -> usize {
         let mut assignments = self.assignments.write();
         let initial_len = assignments.len();
@@ -425,6 +490,7 @@ impl RoleManager {
         initial_len - assignments.len()
     }
 
+    /// Returns all valid role assignments for a subject.
     pub fn get_assignments(&self, subject: &str) -> Vec<RoleAssignment> {
         self.assignments
             .read()
@@ -434,6 +500,7 @@ impl RoleManager {
             .collect()
     }
 
+    /// Returns all valid role assignments across all subjects.
     pub fn get_all_assignments(&self) -> Vec<RoleAssignment> {
         self.assignments
             .read()
@@ -443,6 +510,7 @@ impl RoleManager {
             .collect()
     }
 
+    /// Returns the actual [`Role`] objects assigned to a subject.
     pub fn get_subject_roles(&self, subject: &str) -> Vec<Role> {
         let assignments = self.assignments.read();
         let roles = self.roles.read();
@@ -454,6 +522,7 @@ impl RoleManager {
             .collect()
     }
 
+    /// Checks whether a subject has a specific permission on a resource.
     pub fn check_permission(&self, subject: &str, resource: &str, permission: &Permission) -> bool {
         let roles = self.roles.read();
         let assignments = self.assignments.read();
@@ -471,6 +540,7 @@ impl RoleManager {
         false
     }
 
+    /// Removes all expired role assignments. Returns the number removed.
     pub fn cleanup_expired(&self) -> usize {
         let mut assignments = self.assignments.write();
         let initial_len = assignments.len();
@@ -485,11 +555,16 @@ impl Default for RoleManager {
     }
 }
 
+/// Configuration for the RBAC subsystem.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RbacConfig {
+    /// Whether to deny access by default when no policy matches.
     pub default_deny: bool,
+    /// Time-to-live for cached permission checks in seconds.
     pub cache_ttl_seconds: u64,
+    /// Whether audit logging is enabled for authorization decisions.
     pub audit_enabled: bool,
+    /// Maximum number of role assignments per subject.
     pub max_assignments_per_subject: usize,
 }
 

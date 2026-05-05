@@ -11,10 +11,12 @@ use std::time::SystemTime;
 const TENANT_ID_MAX_LEN: usize = 64;
 const TENANT_ID_PATTERN: &str = r"^[a-z0-9]([a-z0-9-]*[a-z0-9])?$";
 
+/// Unique identifier for a tenant, validated on construction.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct TenantId(String);
 
 impl TenantId {
+    /// Creates a new tenant ID after validation (lowercase alphanumeric and hyphens, max 64 chars).
     pub fn new(name: impl Into<String>) -> Result<Self> {
         let name = name.into();
         if name.is_empty() {
@@ -41,10 +43,12 @@ impl TenantId {
         Ok(Self(name))
     }
 
+    /// Returns the reserved system tenant ID ("system").
     pub fn system() -> Self {
         Self("system".to_string())
     }
 
+    /// Returns the tenant ID as a string slice.
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -68,36 +72,51 @@ impl AsRef<str> for TenantId {
     }
 }
 
+/// Supported actor kinds within a tenant.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 #[derive(Default)]
 pub enum ActorKind {
+    /// Stateless actor with no persistent storage.
     #[default]
     Stateless,
+    /// Stateful actor with persistent storage.
     Stateful,
+    /// Singleton actor with at most one instance.
     Singleton,
+    /// Actor triggered on a schedule.
     Scheduled,
+    /// Streaming actor for continuous data processing.
     Stream,
 }
 
+/// Isolation level for tenant environments.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 #[derive(Default)]
 pub enum IsolationLevel {
+    /// No isolation between tenants.
     Shared,
+    /// Soft isolation (logical separation, shared resources).
     #[default]
     SoftIsolated,
+    /// Hard isolation (dedicated resources per tenant).
     HardIsolated,
 }
 
+/// Feature flags controlling which capabilities and actor kinds a tenant may use.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct FeatureFlags {
+    /// Set of allowed actor kinds (empty means all allowed).
     pub allowed_actor_kinds: HashSet<ActorKind>,
+    /// Bitmask of allowed capabilities (empty means all allowed).
     pub allowed_capabilities: CapabilitySet,
+    /// Arbitrary custom feature toggles.
     pub custom_features: HashMap<String, serde_json::Value>,
 }
 
 impl FeatureFlags {
+    /// Creates default feature flags allowing standard actor kinds and all capabilities.
     pub fn new() -> Self {
         Self {
             allowed_actor_kinds: HashSet::from([
@@ -110,28 +129,39 @@ impl FeatureFlags {
         }
     }
 
+    /// Returns `true` if the given actor kind is allowed.
     pub fn is_actor_kind_allowed(&self, kind: ActorKind) -> bool {
         self.allowed_actor_kinds.is_empty() || self.allowed_actor_kinds.contains(&kind)
     }
 
+    /// Returns `true` if all bits in the given capability set are allowed.
     pub fn is_capability_allowed(&self, caps: CapabilitySet) -> bool {
         self.allowed_capabilities.is_empty()
             || (self.allowed_capabilities.bits() & caps.bits()) == caps.bits()
     }
 }
 
+/// Configuration for a tenant, including quotas, features, and isolation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TenantConfig {
+    /// Unique tenant identifier.
     pub id: TenantId,
+    /// Human-readable display name.
     pub display_name: String,
+    /// Resource quotas for this tenant.
     pub resource_quotas: super::ResourceQuotas,
+    /// Feature flags controlling tenant capabilities.
     pub feature_flags: FeatureFlags,
+    /// Isolation level for this tenant.
     pub isolation_level: IsolationLevel,
+    /// When this tenant was created.
     pub created_at: SystemTime,
+    /// Arbitrary metadata key-value pairs.
     pub metadata: HashMap<String, String>,
 }
 
 impl TenantConfig {
+    /// Creates a new tenant config with default quotas, features, and isolation.
     pub fn new(id: TenantId) -> Self {
         Self {
             display_name: id.as_str().to_string(),
@@ -144,42 +174,52 @@ impl TenantConfig {
         }
     }
 
+    /// Sets the display name (builder pattern).
     pub fn with_display_name(mut self, name: impl Into<String>) -> Self {
         self.display_name = name.into();
         self
     }
 
+    /// Sets the isolation level (builder pattern).
     pub fn with_isolation(mut self, level: IsolationLevel) -> Self {
         self.isolation_level = level;
         self
     }
 
+    /// Adds a metadata key-value pair (builder pattern).
     pub fn with_metadata(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
         self.metadata.insert(key.into(), value.into());
         self
     }
 }
 
+/// Lifecycle state of a tenant.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", tag = "state")]
 #[derive(Default)]
 pub enum TenantState {
+    /// Tenant is active and operational.
     #[default]
     Active,
-    Suspended {
-        reason: String,
-    },
+    /// Tenant has been suspended with a reason.
+    Suspended { reason: String },
+    /// Tenant is in the process of being terminated.
     Terminating,
+    /// Tenant has been fully terminated.
     Terminated,
 }
 
+/// A tenant with its configuration and current lifecycle state.
 #[derive(Debug, Clone)]
 pub struct Tenant {
+    /// The tenant's configuration.
     pub config: TenantConfig,
+    /// The tenant's current lifecycle state.
     pub state: TenantState,
 }
 
 impl Tenant {
+    /// Creates a new tenant in the active state.
     pub fn new(config: TenantConfig) -> Self {
         Self {
             config,
@@ -187,19 +227,23 @@ impl Tenant {
         }
     }
 
+    /// Returns `true` if the tenant is active.
     pub fn is_active(&self) -> bool {
         matches!(self.state, TenantState::Active)
     }
 
+    /// Returns `true` if the tenant is suspended.
     pub fn is_suspended(&self) -> bool {
         matches!(self.state, TenantState::Suspended { .. })
     }
 
+    /// Returns `true` if the tenant is terminated.
     pub fn is_terminated(&self) -> bool {
         matches!(self.state, TenantState::Terminated)
     }
 }
 
+/// Manages tenant lifecycle, configuration, and resource usage tracking.
 pub struct TenantManager {
     tenants: HashMap<TenantId, Tenant>,
     usage: HashMap<TenantId, super::ResourceUsage>,
@@ -207,6 +251,7 @@ pub struct TenantManager {
 }
 
 impl TenantManager {
+    /// Creates a new tenant manager with the given default quotas.
     pub fn new(default_quotas: super::ResourceQuotas) -> Self {
         Self {
             tenants: HashMap::new(),
@@ -215,6 +260,7 @@ impl TenantManager {
         }
     }
 
+    /// Creates a new tenant. Returns the tenant ID on success.
     pub fn create_tenant(&mut self, config: TenantConfig) -> Result<TenantId> {
         let id = config.id.clone();
         if self.tenants.contains_key(&id) {
@@ -230,22 +276,27 @@ impl TenantManager {
         Ok(id)
     }
 
+    /// Returns a reference to the tenant with the given ID, if it exists.
     pub fn get_tenant(&self, id: &TenantId) -> Option<&Tenant> {
         self.tenants.get(id)
     }
 
+    /// Returns a mutable reference to the tenant with the given ID, if it exists.
     pub fn get_tenant_mut(&mut self, id: &TenantId) -> Option<&mut Tenant> {
         self.tenants.get_mut(id)
     }
 
+    /// Returns a reference to the resource usage for the given tenant.
     pub fn get_usage(&self, id: &TenantId) -> Option<&super::ResourceUsage> {
         self.usage.get(id)
     }
 
+    /// Returns a mutable reference to the resource usage for the given tenant.
     pub fn get_usage_mut(&mut self, id: &TenantId) -> Option<&mut super::ResourceUsage> {
         self.usage.get_mut(id)
     }
 
+    /// Suspends an active tenant with the given reason.
     pub fn suspend_tenant(&mut self, id: &TenantId, reason: &str) -> Result<()> {
         let tenant = self
             .tenants
@@ -266,6 +317,7 @@ impl TenantManager {
         Ok(())
     }
 
+    /// Resumes a suspended tenant back to active state.
     pub fn resume_tenant(&mut self, id: &TenantId) -> Result<()> {
         let tenant = self
             .tenants
@@ -278,6 +330,7 @@ impl TenantManager {
         Ok(())
     }
 
+    /// Terminates a tenant. Cannot be called on an already-terminated tenant.
     pub fn terminate_tenant(&mut self, id: &TenantId) -> Result<()> {
         let tenant = self
             .tenants
@@ -295,10 +348,12 @@ impl TenantManager {
         Ok(())
     }
 
+    /// Lists all tenant IDs.
     pub fn list_tenants(&self) -> Vec<&TenantId> {
         self.tenants.keys().collect()
     }
 
+    /// Lists only active tenant IDs.
     pub fn list_active_tenants(&self) -> Vec<&TenantId> {
         self.tenants
             .iter()
@@ -307,6 +362,7 @@ impl TenantManager {
             .collect()
     }
 
+    /// Updates the resource quotas for a tenant.
     pub fn update_quotas(&mut self, id: &TenantId, quotas: super::ResourceQuotas) -> Result<()> {
         let tenant = self
             .tenants
@@ -316,6 +372,7 @@ impl TenantManager {
         Ok(())
     }
 
+    /// Updates the feature flags for a tenant.
     pub fn update_feature_flags(&mut self, id: &TenantId, flags: FeatureFlags) -> Result<()> {
         let tenant = self
             .tenants
@@ -325,26 +382,34 @@ impl TenantManager {
         Ok(())
     }
 
+    /// Returns the default quotas for new tenants.
     pub fn default_quotas(&self) -> &super::ResourceQuotas {
         &self.default_quotas
     }
 
+    /// Returns the total number of tenants.
     pub fn tenant_count(&self) -> usize {
         self.tenants.len()
     }
 
+    /// Returns the number of active tenants.
     pub fn active_count(&self) -> usize {
         self.tenants.values().filter(|t| t.is_active()).count()
     }
 }
 
+/// Snapshot of a tenant's configuration used for capability and feature checks.
 pub struct TenantContext {
+    /// The tenant identifier.
     pub tenant_id: TenantId,
+    /// The tenant's resource quotas.
     pub quotas: super::ResourceQuotas,
+    /// The tenant's feature flags.
     pub features: FeatureFlags,
 }
 
 impl TenantContext {
+    /// Creates a tenant context from a tenant reference.
     pub fn new(tenant: &Tenant) -> Self {
         Self {
             tenant_id: tenant.config.id.clone(),
@@ -353,6 +418,7 @@ impl TenantContext {
         }
     }
 
+    /// Checks whether a capability set is allowed by the tenant's feature flags.
     pub fn check_capability(&self, caps: CapabilitySet) -> Result<()> {
         if !self.features.is_capability_allowed(caps) {
             return Err(Error::capability_denied(
@@ -363,6 +429,7 @@ impl TenantContext {
         Ok(())
     }
 
+    /// Checks whether an actor kind is allowed by the tenant's feature flags.
     pub fn check_actor_kind(&self, kind: ActorKind) -> Result<()> {
         if !self.features.is_actor_kind_allowed(kind) {
             return Err(Error::capability_denied(
@@ -373,6 +440,7 @@ impl TenantContext {
         Ok(())
     }
 
+    /// Returns `true` if a boolean custom feature is enabled.
     pub fn is_feature_enabled(&self, feature: &str) -> bool {
         self.features
             .custom_features
@@ -381,6 +449,7 @@ impl TenantContext {
             .unwrap_or(false)
     }
 
+    /// Returns the string value of a custom feature, if it exists and is a string.
     pub fn get_feature_string(&self, feature: &str) -> Option<&str> {
         self.features
             .custom_features

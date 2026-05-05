@@ -88,10 +88,12 @@ pub use crate::state::checkpoint::{
 pub struct NodeId(pub String);
 
 impl NodeId {
+    /// Creates a new `NodeId` from any string-convertible value.
     pub fn new(id: impl Into<String>) -> Self {
         Self(id.into())
     }
 
+    /// Returns the node ID as a string slice.
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -118,14 +120,20 @@ impl From<&str> for NodeId {
 /// Request to migrate an actor between nodes.
 #[derive(Debug, Clone)]
 pub struct MigrationRequest {
+    /// The actor to migrate.
     pub actor_id: ActorId,
+    /// The node where the actor currently resides.
     pub source_node: NodeId,
+    /// The node to migrate the actor to.
     pub target_node: NodeId,
+    /// Whether to preserve and transfer the actor's state.
     pub preserve_state: bool,
+    /// Maximum duration allowed for the migration.
     pub timeout: Duration,
 }
 
 impl MigrationRequest {
+    /// Creates a new migration request with default settings (state preserved, 30s timeout).
     pub fn new(actor_id: ActorId, source: NodeId, target: NodeId) -> Self {
         Self {
             actor_id,
@@ -136,53 +144,79 @@ impl MigrationRequest {
         }
     }
 
+    /// Sets the migration timeout.
     pub fn with_timeout(mut self, timeout: Duration) -> Self {
         self.timeout = timeout;
         self
     }
 
+    /// Sets whether to preserve the actor's state during migration.
     pub fn preserve_state(mut self, preserve: bool) -> Self {
         self.preserve_state = preserve;
         self
     }
 }
 
-/// Error during migration.
+/// Errors that can occur during actor migration.
 #[derive(Debug, Clone)]
 pub enum MigrationError {
+    /// The actor to migrate does not exist.
     ActorNotFound {
+        /// The ID of the actor that was not found.
         actor_id: ActorId,
     },
+    /// The actor must be suspended before migration can proceed.
     ActorNotSuspended {
+        /// The ID of the actor that is not suspended.
         actor_id: ActorId,
     },
+    /// Failed to create a checkpoint of the actor's state.
     CheckpointFailed {
+        /// Reason for the checkpoint failure.
         reason: String,
     },
+    /// Failed to transfer the checkpoint to the target node.
     TransferFailed {
+        /// Reason for the transfer failure.
         reason: String,
     },
+    /// Failed to restore the actor on the target node.
     RestoreFailed {
+        /// Reason for the restore failure.
         reason: String,
     },
+    /// The migration exceeded its configured timeout.
     Timeout {
+        /// How long the migration ran before timing out.
         elapsed: Duration,
     },
+    /// The target node is unavailable for migration.
     TargetNodeUnavailable {
+        /// The ID of the unavailable target node.
         node_id: NodeId,
     },
+    /// The source node is unavailable for migration.
     SourceNodeUnavailable {
+        /// The ID of the unavailable source node.
         node_id: NodeId,
     },
+    /// The actor's state on the target conflicts with the expected state.
     StateConflict {
+        /// The actor with the conflicting state.
         actor_id: ActorId,
+        /// Expected state sequence number.
         expected_sequence: u64,
+        /// Actual state sequence number found.
         actual_sequence: u64,
     },
+    /// The migration was cancelled.
     Cancelled {
+        /// Reason for the cancellation.
         reason: String,
     },
+    /// An internal error occurred during migration.
     Internal {
+        /// Description of the internal error.
         message: String,
     },
 }
@@ -247,37 +281,53 @@ impl From<MigrationError> for Error {
     }
 }
 
-/// State of an ongoing migration.
+/// Current state of an ongoing actor migration.
 #[derive(Debug, Clone, Default)]
 pub enum MigrationState {
+    /// No migration is in progress.
     #[default]
     Idle,
+    /// Phase 1: preparing the actor for migration (suspending, creating checkpoint).
     Preparing {
+        /// When the preparation phase started.
         started_at: Instant,
     },
+    /// Creating a checkpoint of the actor's state.
     Checkpointing {
+        /// The unique identifier for the checkpoint being created.
         checkpoint_id: Uuid,
     },
+    /// Transferring the checkpoint to the target node.
     Transferring {
+        /// Number of bytes transferred so far.
         bytes_transferred: u64,
+        /// Total number of bytes to transfer.
         total_bytes: u64,
     },
+    /// Restoring the actor on the target node from the checkpoint.
     Restoring {
+        /// The checkpoint being used for restoration.
         checkpoint_id: Uuid,
     },
+    /// Migration completed successfully.
     Completed {
+        /// Total duration of the migration.
         duration: Duration,
     },
+    /// Migration failed with an error.
     Failed {
+        /// The error that caused the migration to fail.
         error: MigrationError,
     },
 }
 
 impl MigrationState {
+    /// Returns `true` if the migration has reached a terminal state (completed or failed).
     pub fn is_terminal(&self) -> bool {
         matches!(self, Self::Completed { .. } | Self::Failed { .. })
     }
 
+    /// Returns `true` if the migration is currently in progress.
     pub fn is_in_progress(&self) -> bool {
         !matches!(
             self,
@@ -285,6 +335,7 @@ impl MigrationState {
         )
     }
 
+    /// Returns the approximate progress as a percentage (0–100), or `None` if not applicable.
     pub fn progress_percent(&self) -> Option<f64> {
         match self {
             Self::Transferring {
@@ -306,19 +357,27 @@ impl MigrationState {
     }
 }
 
-/// Serializable actor state for migration.
+/// Serializable snapshot of an actor's state for migration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Checkpoint {
+    /// Unique identifier for this checkpoint.
     pub id: Uuid,
+    /// The actor this checkpoint belongs to.
     pub actor_id: ActorId,
+    /// The actor's state sequence number at the time of the checkpoint.
     pub sequence: u64,
+    /// The serialized actor state.
     pub state: Vec<u8>,
+    /// Pending mailbox messages at the time of the checkpoint.
     pub mailbox: Vec<SerializableMessage>,
+    /// Metadata about the actor and its capabilities.
     pub metadata: CheckpointMetadata,
+    /// When this checkpoint was created.
     pub created_at: SystemTime,
 }
 
 impl Checkpoint {
+    /// Creates a new checkpoint for the given actor with the specified state.
     pub fn new(actor_id: ActorId, sequence: u64, state: Vec<u8>) -> Self {
         Self {
             id: Uuid::new_v4(),
@@ -331,16 +390,19 @@ impl Checkpoint {
         }
     }
 
+    /// Sets the pending mailbox messages for this checkpoint.
     pub fn with_mailbox(mut self, messages: Vec<SerializableMessage>) -> Self {
         self.mailbox = messages;
         self
     }
 
+    /// Sets the checkpoint metadata.
     pub fn with_metadata(mut self, metadata: CheckpointMetadata) -> Self {
         self.metadata = metadata;
         self
     }
 
+    /// Returns the total size of this checkpoint in bytes (state + mailbox + struct overhead).
     pub fn total_size(&self) -> u64 {
         self.state.len() as u64
             + self
@@ -351,30 +413,38 @@ impl Checkpoint {
             + std::mem::size_of::<Checkpoint>() as u64
     }
 
+    /// Serializes this checkpoint to bytes using bincode.
     pub fn to_bytes(&self) -> Result<Vec<u8>> {
         bincode::serialize(self)
             .map_err(|e| Error::serialization(format!("Checkpoint serialization failed: {}", e)))
     }
 
+    /// Deserializes a checkpoint from bytes using bincode.
     pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
         bincode::deserialize(bytes)
             .map_err(|e| Error::serialization(format!("Checkpoint deserialization failed: {}", e)))
     }
 }
 
-/// Metadata for a migration checkpoint.
+/// Metadata attached to a migration checkpoint.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct CheckpointMetadata {
+    /// Human-readable name of the actor.
     pub actor_name: String,
+    /// The actor's granted capabilities at checkpoint time.
     pub capabilities: CapabilitySet,
+    /// Remaining fuel at the time of the checkpoint.
     pub fuel_remaining: u64,
 }
 
-/// Serializable message for migration.
+/// A message serialized for transport during migration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SerializableMessage {
+    /// The sender of the message, if known.
     pub sender: Option<ActorId>,
+    /// Message priority (0=Low, 1=Normal, 2=High, 3=Critical).
     pub priority: u8,
+    /// The serialized message payload.
     pub payload: Vec<u8>,
 }
 
@@ -438,58 +508,89 @@ impl From<SerializableMessage> for Message {
     }
 }
 
-/// Handle to an ongoing migration.
+/// Handle to an ongoing migration, used to track progress.
 #[derive(Debug, Clone)]
 pub struct MigrationHandle {
+    /// The actor being migrated.
     pub actor_id: ActorId,
+    /// Unique identifier for this migration operation.
     pub migration_id: Uuid,
+    /// When the migration was started.
     pub started_at: Instant,
 }
 
-/// Migration-specific message types for mesh communication.
+/// Mesh protocol messages for coordinating actor migration between nodes.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum MigrationMessage {
+    /// Request to prepare the target node for receiving an actor.
     Prepare {
+        /// Unique identifier for this migration.
         migration_id: Uuid,
+        /// The actor being migrated.
         actor_id: ActorId,
+        /// The target node.
         target_node: NodeId,
     },
+    /// Acknowledgement of the prepare request.
     PrepareAck {
+        /// Unique identifier for this migration.
         migration_id: Uuid,
+        /// Whether the target is ready to receive the actor.
         success: bool,
     },
+    /// Transfers the serialized checkpoint to the target node.
     TransferCheckpoint {
+        /// Unique identifier for this migration.
         migration_id: Uuid,
+        /// The serialized checkpoint data.
         checkpoint: Vec<u8>,
     },
+    /// Acknowledgement of checkpoint transfer.
     TransferAck {
+        /// Unique identifier for this migration.
         migration_id: Uuid,
+        /// Number of bytes received by the target.
         bytes_received: u64,
     },
+    /// Request to restore the actor from the checkpoint on the target.
     Restore {
+        /// Unique identifier for this migration.
         migration_id: Uuid,
+        /// The checkpoint to restore from.
         checkpoint_id: Uuid,
     },
+    /// Acknowledgement of the restore request.
     RestoreAck {
+        /// Unique identifier for this migration.
         migration_id: Uuid,
+        /// Whether the actor was restored successfully.
         success: bool,
     },
+    /// Signal that migration is complete on both sides.
     Complete {
+        /// Unique identifier for this migration.
         migration_id: Uuid,
     },
+    /// Acknowledgement of migration completion.
     CompleteAck {
+        /// Unique identifier for this migration.
         migration_id: Uuid,
     },
+    /// Request to roll back a failed migration.
     Rollback {
+        /// Unique identifier for this migration.
         migration_id: Uuid,
+        /// Reason for the rollback.
         reason: String,
     },
+    /// Acknowledgement of rollback.
     RollbackAck {
+        /// Unique identifier for this migration.
         migration_id: Uuid,
     },
 }
 
-/// Coordinator for actor migrations between nodes.
+/// Coordinates actor migrations between mesh nodes.
 pub struct MigrationCoordinator {
     node_id: NodeId,
     state_store: Arc<dyn KeyValueStore>,
@@ -498,6 +599,7 @@ pub struct MigrationCoordinator {
 }
 
 impl MigrationCoordinator {
+    /// Creates a new migration coordinator for the given node.
     pub fn new(node_id: NodeId, state_store: Arc<dyn KeyValueStore>) -> Self {
         Self {
             node_id,
@@ -507,6 +609,7 @@ impl MigrationCoordinator {
         }
     }
 
+    /// Initiates a migration for the given request, returning a handle to track progress.
     pub async fn initiate_migration(
         &mut self,
         request: MigrationRequest,
@@ -670,8 +773,6 @@ impl MigrationCoordinator {
         actor_id: &ActorId,
         state_store: &Arc<dyn KeyValueStore>,
     ) -> std::result::Result<Checkpoint, MigrationError> {
-        // Synchronous checkpoint creation for use in phase 2.
-        // Uses tokio::runtime::Handle::try_current to avoid blocking.
         let state_key = format!("actor:{}:state", actor_id.0);
         let sequence_key = format!("actor:{}:sequence", actor_id.0);
 
@@ -704,6 +805,7 @@ impl MigrationCoordinator {
         Ok(Checkpoint::new(*actor_id, sequence, state))
     }
 
+    /// Prepares a checkpoint of the given actor's current state.
     pub async fn prepare_checkpoint(&self, actor_id: &ActorId) -> Result<Checkpoint> {
         tracing::debug!(actor_id = ?actor_id, "Preparing checkpoint for migration");
 
@@ -730,6 +832,7 @@ impl MigrationCoordinator {
         Ok(checkpoint)
     }
 
+    /// Transfers a checkpoint to the specified target node.
     pub async fn transfer_state(&self, checkpoint: &Checkpoint, target: NodeId) -> Result<()> {
         tracing::debug!(
             actor_id = ?checkpoint.actor_id,
@@ -758,6 +861,7 @@ impl MigrationCoordinator {
         Ok(())
     }
 
+    /// Restores an actor on the target node from a checkpoint.
     pub async fn restore_on_target(&self, checkpoint: &Checkpoint, target: NodeId) -> Result<()> {
         tracing::debug!(
             actor_id = ?checkpoint.actor_id,
@@ -793,14 +897,17 @@ impl MigrationCoordinator {
         Ok(())
     }
 
+    /// Returns the current migration state for the given actor, if any.
     pub fn get_migration_state(&self, actor_id: &ActorId) -> Option<&MigrationState> {
         self.active_migrations.get(actor_id)
     }
 
+    /// Returns the migration handle for the given actor, if any.
     pub fn get_migration_handle(&self, actor_id: &ActorId) -> Option<&MigrationHandle> {
         self.migration_handles.get(actor_id)
     }
 
+    /// Cancels an in-progress migration for the given actor.
     pub async fn cancel_migration(&mut self, actor_id: &ActorId) -> Result<()> {
         let state = self.active_migrations.get(actor_id);
 
@@ -839,6 +946,7 @@ impl MigrationCoordinator {
         Ok(())
     }
 
+    /// Returns all currently in-progress migrations.
     pub fn list_active_migrations(&self) -> Vec<(ActorId, MigrationState)> {
         self.active_migrations
             .iter()
@@ -847,10 +955,12 @@ impl MigrationCoordinator {
             .collect()
     }
 
+    /// Returns this coordinator's node ID.
     pub fn node_id(&self) -> &NodeId {
         &self.node_id
     }
 
+    /// Returns the number of currently in-progress migrations.
     pub fn active_count(&self) -> usize {
         self.active_migrations
             .values()
@@ -858,6 +968,7 @@ impl MigrationCoordinator {
             .count()
     }
 
+    /// Removes all completed and failed migrations, returning the count removed.
     pub fn cleanup_completed(&mut self) -> usize {
         let completed: Vec<ActorId> = self
             .active_migrations

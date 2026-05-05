@@ -113,6 +113,7 @@ impl LogEntry {
     }
 
     /// Add a field
+    #[allow(dead_code)] // Public API for future log source filtering
     pub fn with_field(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
         self.fields.insert(key.into(), value.into());
         self
@@ -164,22 +165,27 @@ impl LogLevel {
 pub enum Error {
     /// Stream failed
     #[error("Failed to stream logs: {0}")]
+    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
     StreamFailed(String),
 
     /// Actor not found
     #[error("Actor not found: {0}")]
+    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
     ActorNotFound(String),
 
     /// Invalid log level
     #[error("Invalid log level: {0}")]
+    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
     InvalidLevel(String),
 
     /// File error
     #[error("File error: {0}")]
+    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
     FileError(String),
 
     /// WebSocket error
     #[error("WebSocket error: {0}")]
+    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
     WebSocketError(String),
 
     /// IO error
@@ -188,6 +194,7 @@ pub enum Error {
 
     /// Channel error
     #[error("Channel error: {0}")]
+    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
     ChannelError(String),
 }
 
@@ -277,6 +284,7 @@ impl FileLogStreamer {
     }
 
     /// Get the file path
+    #[allow(dead_code)] // Public API for future log source filtering
     pub fn path(&self) -> &PathBuf {
         &self.path
     }
@@ -322,6 +330,7 @@ impl WebSocketLogStreamer {
     }
 
     /// Get the URL
+    #[allow(dead_code)] // Public API for future log source filtering
     pub fn url(&self) -> &str {
         &self.url
     }
@@ -371,7 +380,7 @@ impl LogStreamer for WebSocketLogStreamer {
     }
 }
 
-/// Simulated log streamer for testing
+/// Fallback streamer used when no runtime connection is available.
 pub struct SimulatedLogStreamer {
     /// Running flag
     running: bool,

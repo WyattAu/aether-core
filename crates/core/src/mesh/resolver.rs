@@ -19,16 +19,23 @@ const DEFAULT_CACHE_TTL: Duration = Duration::from_secs(60);
 const DEFAULT_CACHE_SIZE: usize = 10_000;
 const BROADCAST_TIMEOUT: Duration = Duration::from_millis(100);
 
+/// Describes where an actor instance is running and when it was last seen.
 #[derive(Debug, Clone)]
 pub struct ActorLocation {
+    /// The node hosting this actor instance.
     pub node_id: String,
+    /// The instance identifier.
     pub instance_id: String,
+    /// Optional direct network address of the instance.
     pub addr: Option<SocketAddr>,
+    /// Timestamp of the last heartbeat or update.
     pub last_seen: Instant,
+    /// Monotonically increasing version for change detection.
     pub version: u64,
 }
 
 impl ActorLocation {
+    /// Creates a new actor location with no address.
     pub fn new(node_id: String, instance_id: String) -> Self {
         Self {
             node_id,
@@ -39,25 +46,30 @@ impl ActorLocation {
         }
     }
 
+    /// Sets the network address (builder pattern).
     pub fn with_addr(mut self, addr: SocketAddr) -> Self {
         self.addr = Some(addr);
         self
     }
 
+    /// Returns `true` if this actor is running on the given node.
     pub fn is_local(&self, local_node_id: &str) -> bool {
         self.node_id == local_node_id
     }
 
+    /// Updates the last-seen timestamp and increments the version.
     pub fn touch(&mut self) {
         self.last_seen = Instant::now();
         self.version += 1;
     }
 
+    /// Returns the time elapsed since the last heartbeat.
     pub fn age(&self) -> Duration {
         Instant::now().duration_since(self.last_seen)
     }
 }
 
+/// A cached remote actor location with TTL and hit tracking.
 #[derive(Debug, Clone)]
 pub struct CacheEntry {
     location: ActorLocation,
@@ -85,10 +97,15 @@ impl CacheEntry {
     }
 }
 
+/// Configuration for the actor resolver.
 pub struct ResolverConfig {
+    /// Time-to-live for remote actor cache entries.
     pub cache_ttl: Duration,
+    /// Maximum number of entries in the remote actor cache.
     pub cache_size: usize,
+    /// Whether broadcast resolution is enabled.
     pub enable_broadcast: bool,
+    /// Timeout for broadcast queries.
     pub broadcast_timeout: Duration,
 }
 
@@ -103,6 +120,7 @@ impl Default for ResolverConfig {
     }
 }
 
+/// Resolves actor addresses to their physical locations with caching.
 pub struct ActorResolver {
     local_node_id: String,
     local_namespace: String,
@@ -113,15 +131,21 @@ pub struct ActorResolver {
     config: ResolverConfig,
 }
 
+/// Information about a node in the mesh.
 #[derive(Debug, Clone)]
 pub struct NodeInfo {
+    /// Unique node identifier.
     pub node_id: String,
+    /// Network address of the node.
     pub addr: SocketAddr,
+    /// Timestamp of the last heartbeat received.
     pub last_heartbeat: Instant,
+    /// Number of actors running on this node.
     pub actor_count: usize,
 }
 
 impl NodeInfo {
+    /// Creates a new node info entry.
     pub fn new(node_id: String, addr: SocketAddr) -> Self {
         Self {
             node_id,
@@ -131,20 +155,24 @@ impl NodeInfo {
         }
     }
 
+    /// Updates the last heartbeat timestamp.
     pub fn touch(&mut self) {
         self.last_heartbeat = Instant::now();
     }
 
+    /// Returns `true` if the node has sent a heartbeat within the given timeout.
     pub fn is_healthy(&self, timeout: Duration) -> bool {
         Instant::now().duration_since(self.last_heartbeat) < timeout
     }
 }
 
 impl ActorResolver {
+    /// Creates a new resolver for the given local node and namespace with default config.
     pub fn new(local_node_id: &str, local_namespace: &str) -> Self {
         Self::with_config(local_node_id, local_namespace, ResolverConfig::default())
     }
 
+    /// Creates a new resolver with custom configuration.
     pub fn with_config(local_node_id: &str, local_namespace: &str, config: ResolverConfig) -> Self {
         let lru_size =
             NonZeroUsize::new(config.cache_size).unwrap_or(NonZeroUsize::new(1).unwrap());
@@ -159,11 +187,15 @@ impl ActorResolver {
         }
     }
 
+    /// Parses an actor URI string into an [`ActorAddress`].
     pub fn parse_address(&self, uri: &str) -> Result<ActorAddress> {
         ActorAddress::parse(uri)
             .ok_or_else(|| Error::actor(format!("Invalid actor address: {}", uri)))
     }
 
+    /// Registers an actor at the given ID with its location.
+    ///
+    /// Local actors are stored directly; remote actors are cached.
     pub async fn register(&self, actor_id: &str, location: ActorLocation) {
         let key = actor_id.to_string();
 
@@ -178,6 +210,7 @@ impl ActorResolver {
         }
     }
 
+    /// Registers a local actor and returns its full URI.
     pub async fn register_local(&self, actor_name: &str, instance_id: &str) -> String {
         let address = ActorAddress::new(&self.local_namespace, actor_name, instance_id);
         let actor_id = address.to_uri();
@@ -189,6 +222,7 @@ impl ActorResolver {
         actor_id
     }
 
+    /// Unregisters an actor from both local and remote registries.
     pub async fn unregister(&self, actor_id: &str) {
         self.local_actors.remove(actor_id);
         self.remote_cache.remove(actor_id);
@@ -196,6 +230,7 @@ impl ActorResolver {
         tracing::debug!("Unregistered actor: {}", actor_id);
     }
 
+    /// Resolves an actor ID to its location, evicting expired cache entries.
     pub async fn resolve(&self, actor_id: &str) -> Option<ActorLocation> {
         if let Some(mut entry) = self.local_actors.get_mut(actor_id) {
             entry.touch();
@@ -217,11 +252,13 @@ impl ActorResolver {
         None
     }
 
+    /// Resolves an [`ActorAddress`] to its location.
     pub async fn resolve_address(&self, address: &ActorAddress) -> Option<ActorLocation> {
         let uri = address.to_uri();
         self.resolve(&uri).await
     }
 
+    /// Non-async fast path for resolving an actor (does not evict expired entries).
     pub fn resolve_fast(&self, actor_id: &str) -> Option<ActorLocation> {
         if let Some(mut entry) = self.local_actors.get_mut(actor_id) {
             entry.touch();
@@ -238,6 +275,7 @@ impl ActorResolver {
         None
     }
 
+    /// Returns `true` if the actor is registered locally or belongs to the local namespace.
     pub async fn is_local(&self, actor_id: &str) -> bool {
         if let Some(location) = self.resolve(actor_id).await {
             return location.is_local(&self.local_node_id);
@@ -250,6 +288,7 @@ impl ActorResolver {
         false
     }
 
+    /// Registers a mesh node with its network address.
     pub async fn register_node(&self, node_id: &str, addr: SocketAddr) {
         let info = NodeInfo::new(node_id.to_string(), addr);
         self.node_registry
@@ -259,6 +298,7 @@ impl ActorResolver {
         tracing::debug!("Registered node: {} at {}", node_id, addr);
     }
 
+    /// Unregisters a mesh node and removes all its cached actors.
     pub async fn unregister_node(&self, node_id: &str) {
         self.node_registry.write().await.remove(node_id);
 
@@ -268,24 +308,29 @@ impl ActorResolver {
         tracing::debug!("Unregistered node: {}", node_id);
     }
 
+    /// Synchronously gets node info (blocks on async lock).
     pub fn get_node_sync(&self, node_id: &str) -> Option<NodeInfo> {
         self.node_registry.blocking_read().get(node_id).cloned()
     }
 
+    /// Asynchronously gets node info by node ID.
     pub async fn get_node(&self, node_id: &str) -> Option<NodeInfo> {
         self.node_registry.read().await.get(node_id).cloned()
     }
 
+    /// Returns info for all registered nodes.
     pub async fn get_nodes(&self) -> Vec<NodeInfo> {
         self.node_registry.read().await.values().cloned().collect()
     }
 
+    /// Resolves the actor and returns the node it is running on.
     pub async fn get_node_for_actor(&self, actor_id: &str) -> Option<NodeInfo> {
         let location = self.resolve(actor_id).await?;
         let node_id = location.node_id;
         self.get_node(&node_id).await
     }
 
+    /// Updates the location of an already-registered actor.
     pub fn update_actor_location(&self, actor_id: &str, location: ActorLocation) -> Result<()> {
         if location.is_local(&self.local_node_id) {
             self.local_actors.insert(actor_id.to_string(), location);
@@ -297,6 +342,7 @@ impl ActorResolver {
         Ok(())
     }
 
+    /// Removes expired remote actor cache entries. Returns the number pruned.
     pub fn prune_expired(&self) -> usize {
         let mut pruned = 0;
 
@@ -324,6 +370,7 @@ impl ActorResolver {
         pruned
     }
 
+    /// Removes nodes that have not sent a heartbeat within the timeout. Returns the number pruned.
     pub async fn prune_unhealthy_nodes(&self, timeout: Duration) -> usize {
         let mut pruned = 0;
         let unhealthy: Vec<String>;
@@ -345,6 +392,7 @@ impl ActorResolver {
         pruned
     }
 
+    /// Returns cache statistics (synchronous, node count is always 0).
     pub fn cache_stats(&self) -> CacheStats {
         let local_count = self.local_actors.len();
         let remote_count = self.remote_cache.len();
@@ -358,6 +406,7 @@ impl ActorResolver {
         }
     }
 
+    /// Returns cache statistics including node count (async).
     pub async fn cache_stats_async(&self) -> CacheStats {
         let local_count = self.local_actors.len();
         let remote_count = self.remote_cache.len();
@@ -372,6 +421,7 @@ impl ActorResolver {
         }
     }
 
+    /// Returns all locally registered actors as (id, location) pairs.
     pub fn local_actors(&self) -> Vec<(String, ActorLocation)> {
         self.local_actors
             .iter()
@@ -379,27 +429,38 @@ impl ActorResolver {
             .collect()
     }
 
+    /// Clears all remote actor cache entries.
     pub fn clear_cache(&self) {
         self.remote_cache.clear();
         self.lru.write().clear();
     }
 }
 
+/// Statistics about the resolver's caches.
 #[derive(Debug, Clone)]
 pub struct CacheStats {
+    /// Number of locally registered actors.
     pub local_count: usize,
+    /// Number of cached remote actors.
     pub remote_count: usize,
+    /// Number of registered mesh nodes.
     pub node_count: usize,
+    /// Total cache hit count across all remote entries.
     pub total_hits: u64,
 }
 
+/// A broadcast query to locate an actor across the mesh.
 pub struct BroadcastQuery {
+    /// The actor name to search for.
     pub actor_name: String,
+    /// The namespace to search within.
     pub namespace: String,
+    /// Unique trace ID to correlate responses.
     pub trace_id: u64,
 }
 
 impl BroadcastQuery {
+    /// Creates a new broadcast query for the given namespace and actor name.
     pub fn new(namespace: &str, actor_name: &str) -> Self {
         Self {
             actor_name: actor_name.to_string(),
@@ -409,10 +470,14 @@ impl BroadcastQuery {
     }
 }
 
+/// A response to a broadcast query from a mesh node.
 #[derive(Debug, Clone)]
 pub struct BroadcastResponse {
+    /// The trace ID of the originating query.
     pub query_trace_id: u64,
+    /// Whether the actor was found.
     pub found: bool,
+    /// The actor's location if found.
     pub location: Option<ActorLocation>,
 }
 
