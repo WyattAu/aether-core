@@ -16,6 +16,7 @@ pub mod import;
 pub mod inspect;
 pub mod logs;
 pub mod mesh;
+pub mod observability;
 pub mod rollback;
 pub mod scale;
 pub mod status;
@@ -68,6 +69,9 @@ pub enum Command {
 
     /// Generate shell completion scripts
     Completion(completion::CompletionArgs),
+
+    /// Manage observability backends (metrics, logs, status)
+    Observability(observability::ObservabilityArgs),
 }
 
 /// Command execution errors
@@ -132,6 +136,10 @@ pub enum CommandError {
     /// Completion command error
     #[error("{0}")]
     Completion(#[from] completion::Error),
+
+    /// Observability command error
+    #[error("{0}")]
+    Observability(#[from] observability::Error),
 }
 
 /// Execute a CLI command
@@ -152,6 +160,7 @@ pub async fn execute(command: Command) -> Result<(), CommandError> {
         Command::Top(args) => top::execute(args).await?,
         Command::Rollback(args) => rollback::execute(args).await?,
         Command::Completion(args) => completion::execute(args)?,
+        Command::Observability(args) => observability::execute(args).await?,
     }
     Ok(())
 }

@@ -115,23 +115,31 @@
 //! ```
 
 pub mod health;
+pub mod loki;
 pub mod metrics;
 pub mod resilience_metrics;
+pub mod victorialogs;
+pub mod victoriametrics;
 
 pub use health::HealthChecker;
+pub use loki::{LokiConfig, LokiPusher, LogEntryStream, LogStream};
 pub use metrics::MetricsCollector;
 pub use resilience_metrics::{
     BulkheadMetrics, CircuitBreakerMetrics, RateLimiterMetrics, ResilienceMetrics, RetryMetrics,
 };
+pub use victorialogs::{VictoriaLogsConfig, VictoriaLogsShipper};
+pub use victoriametrics::{VictoriaMetricsConfig, VictoriaMetricsPusher};
 
 pub use crate::tracing::{
     ActorSpan, MeshSpan, SpanAttributes, SpanKind, StateSpan, TraceContext, Tracing, TracingConfig,
     TracingError, TracingExporter,
 };
 
+use crate::config::ObservabilityConfig;
 use parking_lot::Mutex;
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
+use tokio::sync::broadcast;
 
 /// Central observability hub for the Aether runtime
 ///
@@ -142,6 +150,7 @@ pub struct Observability {
     health: Arc<HealthChecker>,
     tracing: Option<Arc<Mutex<Tracing>>>,
     start_time: Instant,
+    shutdown_tx: Option<broadcast::Sender<()>>,
 }
 
 impl Observability {
@@ -149,13 +158,143 @@ impl Observability {
     ///
     /// Initializes metrics collector and health checker without tracing.
     /// Use [`with_tracing`](Self::with_tracing) to enable distributed tracing.
+    /// Use [`with_observability_config`](Self::with_observability_config) to enable
+    /// background metrics push and log shipping.
     pub fn new() -> Self {
         Self {
             metrics: Arc::new(MetricsCollector::new()),
             health: Arc::new(HealthChecker::new()),
             tracing: None,
             start_time: Instant::now(),
+            shutdown_tx: None,
         }
+    }
+
+    /// Enable background metrics push and log shipping based on configuration.
+    ///
+    /// When `config` is `Some`:
+    /// - If `metrics_push_enabled` and `victoriametrics_url` are set, spawns a
+    ///   background task that pushes metrics periodically.
+    /// - If `log_shipping_enabled` and at least one log endpoint is set, spawns
+    ///   a background task for log shipping.
+    ///
+    /// The spawned tasks listen on a shutdown channel and will stop cleanly
+    /// when [`shutdown`](Self::shutdown) is called.
+    pub fn with_observability_config(mut self, config: ObservabilityConfig) -> Self {
+        let (shutdown_tx, _) = broadcast::channel::<()>(1);
+        self.shutdown_tx = Some(shutdown_tx.clone());
+
+        if config.metrics_push_enabled {
+            if let Some(url) = config.victoriametrics_url {
+                let interval_secs = config
+                    .metrics_push_interval
+                    .unwrap_or(config.victoriametrics_push_interval.unwrap_or(15));
+                let metrics = Arc::clone(&self.metrics);
+                let mut rx = shutdown_tx.subscribe();
+                tokio::spawn(async move {
+                    let pusher = match VictoriaMetricsPusher::new(VictoriaMetricsConfig {
+                        endpoint: url.clone(),
+                        push_interval: Duration::from_secs(interval_secs),
+                        extra_labels: vec![],
+                    }) {
+                        Ok(p) => p,
+                        Err(e) => {
+                            tracing::warn!(error = %e, "Failed to create VictoriaMetrics pusher");
+                            return;
+                        }
+                    };
+                    let mut interval = tokio::time::interval(Duration::from_secs(interval_secs));
+                    loop {
+                        tokio::select! {
+                            _ = interval.tick() => {
+                                let data = metrics.export_prometheus();
+                                if let Err(e) = pusher.push(&data).await {
+                                    tracing::warn!(error = %e, "Failed to push metrics to VictoriaMetrics");
+                                }
+                            }
+                            _ = rx.recv() => {
+                                break;
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        if config.log_shipping_enabled {
+            let has_vl = config.victorialogs_url.is_some();
+            let has_loki = config.loki_url.is_some();
+            if has_vl || has_loki {
+                let batch_size = config.log_shipping_batch_size.unwrap_or(1000);
+                let vl_url = config.victorialogs_url.clone();
+                let loki_url = config.loki_url.clone();
+                let loki_tenant_id = config.loki_tenant_id.clone().unwrap_or_default();
+                let mut rx = shutdown_tx.subscribe();
+                tokio::spawn(async move {
+                    let ship_interval = Duration::from_secs(15);
+                    let mut interval = tokio::time::interval(ship_interval);
+                    loop {
+                        tokio::select! {
+                            _ = interval.tick() => {
+                                let entries: Vec<serde_json::Value> = Vec::new();
+                                if !entries.is_empty() {
+                                    if let Some(ref url) = vl_url {
+                                        let shipper = match VictoriaLogsShipper::new(VictoriaLogsConfig {
+                                            endpoint: url.clone(),
+                                            extra_labels: vec![],
+                                            batch_size,
+                                        }) {
+                                            Ok(s) => s,
+                                            Err(e) => {
+                                                tracing::warn!(error = %e, "Failed to create VictoriaLogs shipper");
+                                                continue;
+                                            }
+                                        };
+                                        let batch: Vec<serde_json::Value> = entries.iter().take(batch_size).cloned().collect();
+                                        if let Err(e) = shipper.ship(&batch).await {
+                                            tracing::warn!(error = %e, "Failed to ship logs to VictoriaLogs");
+                                        }
+                                    }
+                                    if let Some(ref url) = loki_url {
+                                        let pusher = match LokiPusher::new(LokiConfig {
+                                            endpoint: url.clone(),
+                                            tenant_id: loki_tenant_id.clone(),
+                                            extra_labels: vec![("job".to_string(), "aether".to_string())],
+                                        }) {
+                                            Ok(p) => p,
+                                            Err(e) => {
+                                                tracing::warn!(error = %e, "Failed to create Loki pusher");
+                                                continue;
+                                            }
+                                        };
+                                        let stream_labels = std::collections::HashMap::new();
+                                        let values: Vec<serde_json::Value> = entries
+                                            .iter()
+                                            .take(batch_size)
+                                            .map(|v| serde_json::json!([chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0), v]))
+                                            .collect();
+                                        let streams = vec![LogStream {
+                                            streams: vec![LogEntryStream {
+                                                stream: stream_labels,
+                                                values,
+                                            }],
+                                        }];
+                                        if let Err(e) = pusher.push(&streams).await {
+                                            tracing::warn!(error = %e, "Failed to push logs to Loki");
+                                        }
+                                    }
+                                }
+                            }
+                            _ = rx.recv() => {
+                                break;
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        self
     }
 
     /// Enable distributed tracing
@@ -254,12 +393,16 @@ impl Observability {
 
     /// Shutdown observability subsystems
     ///
-    /// Flushes any pending traces and cleanly shuts down collectors.
+    /// Signals all background push/ship tasks to stop, then flushes any
+    /// pending traces and cleanly shuts down collectors.
     ///
     /// # Errors
     ///
     /// Returns error if trace flushing fails
     pub fn shutdown(&mut self) -> Result<(), TracingError> {
+        if let Some(tx) = self.shutdown_tx.take() {
+            let _ = tx.send(());
+        }
         if let Some(tracing) = &self.tracing {
             let mut t = tracing.lock();
             t.shutdown()?;

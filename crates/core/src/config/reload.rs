@@ -380,6 +380,7 @@ mod tests {
         AetherConfig {
             project: Default::default(),
             actor: actors,
+            observability: None,
         }
     }
 

@@ -23,6 +23,54 @@ pub struct AetherConfig {
     /// Actor definitions
     #[serde(default)]
     pub actor: Vec<ActorConfig>,
+
+    /// Observability configuration
+    #[serde(default)]
+    pub observability: Option<ObservabilityConfig>,
+}
+
+/// Observability configuration for metrics and log shipping
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ObservabilityConfig {
+    /// VictoriaMetrics endpoint for metrics push
+    #[serde(default)]
+    pub victoriametrics_url: Option<String>,
+    /// VictoriaMetrics push interval in seconds
+    #[serde(default = "default_vm_push_interval")]
+    pub victoriametrics_push_interval: Option<u64>,
+    /// VictoriaLogs endpoint for log shipping
+    #[serde(default)]
+    pub victorialogs_url: Option<String>,
+    /// Grafana Loki endpoint for log push
+    #[serde(default)]
+    pub loki_url: Option<String>,
+    /// Loki tenant ID
+    #[serde(default)]
+    pub loki_tenant_id: Option<String>,
+    /// Enable automatic metrics push
+    #[serde(default)]
+    pub metrics_push_enabled: bool,
+    /// Metrics push interval in seconds
+    #[serde(default = "default_push_interval")]
+    pub metrics_push_interval: Option<u64>,
+    /// Enable automatic log shipping
+    #[serde(default)]
+    pub log_shipping_enabled: bool,
+    /// Log shipping batch size
+    #[serde(default = "default_batch_size")]
+    pub log_shipping_batch_size: Option<usize>,
+}
+
+fn default_vm_push_interval() -> Option<u64> {
+    Some(15)
+}
+
+fn default_push_interval() -> Option<u64> {
+    Some(15)
+}
+
+fn default_batch_size() -> Option<usize> {
+    Some(1000)
 }
 
 /// Project metadata
@@ -221,6 +269,60 @@ data = { path = "/var/lib/postgresql/data", size = "50GB" }
         let db_caps = config.get_capabilities("database").unwrap();
         assert!(db_caps.contains(CapabilitySet::FS_READ));
         assert!(db_caps.contains(CapabilitySet::FS_WRITE));
+    }
+
+    #[test]
+    fn test_parse_observability_config() {
+        let toml = r#"
+[observability]
+victoriametrics_url = "http://vm:8428/api/v1/write"
+victoriametrics_push_interval = 30
+victorialogs_url = "http://vl:9428/insert/jsonline"
+loki_url = "http://loki:3100/loki/api/v1/push"
+loki_tenant_id = "team-a"
+metrics_push_enabled = true
+metrics_push_interval = 10
+log_shipping_enabled = true
+log_shipping_batch_size = 500
+"#;
+        let config = AetherConfig::from_toml(toml).expect("Failed to parse");
+        let obs = config.observability.as_ref().expect("Missing observability");
+        assert_eq!(obs.victoriametrics_url.as_deref(), Some("http://vm:8428/api/v1/write"));
+        assert_eq!(obs.victoriametrics_push_interval, Some(30));
+        assert_eq!(obs.victorialogs_url.as_deref(), Some("http://vl:9428/insert/jsonline"));
+        assert_eq!(obs.loki_url.as_deref(), Some("http://loki:3100/loki/api/v1/push"));
+        assert_eq!(obs.loki_tenant_id.as_deref(), Some("team-a"));
+        assert!(obs.metrics_push_enabled);
+        assert_eq!(obs.metrics_push_interval, Some(10));
+        assert!(obs.log_shipping_enabled);
+        assert_eq!(obs.log_shipping_batch_size, Some(500));
+    }
+
+    #[test]
+    fn test_observability_defaults() {
+        let toml = r#"
+[observability]
+metrics_push_enabled = true
+"#;
+        let config = AetherConfig::from_toml(toml).expect("Failed to parse");
+        let obs = config.observability.as_ref().expect("Missing observability");
+        assert!(obs.victoriametrics_url.is_none());
+        assert_eq!(obs.victoriametrics_push_interval, Some(15));
+        assert_eq!(obs.metrics_push_interval, Some(15));
+        assert_eq!(obs.log_shipping_batch_size, Some(1000));
+        assert!(!obs.log_shipping_enabled);
+    }
+
+    #[test]
+    fn test_no_observability_section() {
+        let toml = r#"
+[[actor]]
+name = "test"
+kind = "wasm"
+image = "test.wasm"
+"#;
+        let config = AetherConfig::from_toml(toml).expect("Failed to parse");
+        assert!(config.observability.is_none());
     }
 
     #[test]
