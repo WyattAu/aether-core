@@ -131,14 +131,15 @@ pub use circuit_breaker::{
     CircuitStats,
 };
 pub use connection::{
-    ConnectionInfo, ConnectionPool, ConnectionState, ConnectionStats, ReconnectConfig,
+    ConnectionInfo, ConnectionPool, ConnectionPoolMetrics, ConnectionState, ConnectionStats,
+    ReconnectConfig,
 };
 pub use message::{
     ActorAddress, ActorPacket, COMPRESSION_THRESHOLD, CompressionType, FlowAction, FlowControl,
     Handshake, MAX_MESSAGE_SIZE, MeshMessage, MessageFlags, MessageHeader, MessageId, MessageType,
     frame_message, parse_frame,
 };
-pub use node::MeshNode;
+pub use node::{MeshNode, ShutdownResult};
 pub use quic::{CertificateConfig, QuicClient, QuicConfig, QuicEndpoint, QuicServer};
 pub use resolver::{
     ActorLocation, ActorResolver, BroadcastQuery, BroadcastResponse, CacheStats, NodeInfo,

@@ -3,7 +3,7 @@
 //! Provides health check endpoints for monitoring.
 
 use std::collections::HashMap;
-use std::sync::Mutex;
+use std::sync::RwLock;
 use std::time::{Duration, Instant};
 
 /// Health status
@@ -47,11 +47,13 @@ pub struct HealthCheckResult {
 
 /// Health checker
 pub struct HealthChecker {
+    // RwLock: reads dominate writes
     /// Last health check results
-    results: Mutex<HashMap<String, HealthCheckResult>>,
+    results: RwLock<HashMap<String, HealthCheckResult>>,
 
+    // RwLock: reads dominate writes
     /// Last full check time
-    last_check: Mutex<Option<Instant>>,
+    last_check: RwLock<Option<Instant>>,
 
     /// Check interval
     check_interval: Duration,
@@ -61,8 +63,8 @@ impl HealthChecker {
     /// Create a new health checker
     pub fn new() -> Self {
         Self {
-            results: Mutex::new(HashMap::new()),
-            last_check: Mutex::new(None),
+            results: RwLock::new(HashMap::new()),
+            last_check: RwLock::new(None),
             check_interval: Duration::from_secs(10),
         }
     }
@@ -86,14 +88,14 @@ impl HealthChecker {
         ];
 
         // Store results
-        if let Ok(mut stored) = self.results.lock() {
+        if let Ok(mut stored) = self.results.write() {
             for result in &results {
                 stored.insert(result.component.clone(), result.clone());
             }
         }
 
         // Update last check time
-        if let Ok(mut last) = self.last_check.lock() {
+        if let Ok(mut last) = self.last_check.write() {
             *last = Some(start);
         }
 
@@ -102,7 +104,7 @@ impl HealthChecker {
 
     /// Get overall health status
     pub fn overall_status(&self) -> HealthStatus {
-        if let Ok(results) = self.results.lock() {
+        if let Ok(results) = self.results.read() {
             if results.is_empty() {
                 return HealthStatus::Healthy;
             }
@@ -129,7 +131,7 @@ impl HealthChecker {
 
     /// Get health check results
     pub fn get_results(&self) -> Vec<HealthCheckResult> {
-        if let Ok(results) = self.results.lock() {
+        if let Ok(results) = self.results.read() {
             results.values().cloned().collect()
         } else {
             Vec::new()
@@ -138,7 +140,7 @@ impl HealthChecker {
 
     /// Check if a check is needed
     pub fn needs_check(&self) -> bool {
-        if let Ok(last) = self.last_check.lock() {
+        if let Ok(last) = self.last_check.read() {
             match *last {
                 None => true,
                 Some(time) => time.elapsed() >= self.check_interval,

@@ -3,7 +3,7 @@
 //! Collects and exposes runtime metrics in Prometheus format.
 
 use std::collections::HashMap;
-use std::sync::Mutex;
+use std::sync::RwLock;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 /// Metrics collector
@@ -14,14 +14,17 @@ pub struct MetricsCollector {
     /// Total messages processed
     messages_total: AtomicU64,
 
+    // RwLock: reads dominate writes
     /// Cold start latency samples (microseconds)
-    cold_start_samples: Mutex<Vec<u64>>,
+    cold_start_samples: RwLock<Vec<u64>>,
 
+    // RwLock: reads dominate writes
     /// Message latency samples (microseconds)
-    message_latency_samples: Mutex<Vec<u64>>,
+    message_latency_samples: RwLock<Vec<u64>>,
 
+    // RwLock: reads dominate writes
     /// Per-actor metrics
-    actor_metrics: Mutex<HashMap<String, ActorMetrics>>,
+    actor_metrics: RwLock<HashMap<String, ActorMetrics>>,
 }
 
 /// Per-actor metrics
@@ -46,9 +49,9 @@ impl MetricsCollector {
         Self {
             actors_running: AtomicU64::new(0),
             messages_total: AtomicU64::new(0),
-            cold_start_samples: Mutex::new(Vec::with_capacity(10000)),
-            message_latency_samples: Mutex::new(Vec::with_capacity(10000)),
-            actor_metrics: Mutex::new(HashMap::new()),
+            cold_start_samples: RwLock::new(Vec::with_capacity(10000)),
+            message_latency_samples: RwLock::new(Vec::with_capacity(10000)),
+            actor_metrics: RwLock::new(HashMap::new()),
         }
     }
 
@@ -79,14 +82,14 @@ impl MetricsCollector {
 
     /// Record cold start latency
     pub fn record_cold_start(&self, actor: &str, latency_us: u64) {
-        if let Ok(mut samples) = self.cold_start_samples.lock() {
+        if let Ok(mut samples) = self.cold_start_samples.write() {
             samples.push(latency_us);
             if samples.len() > 10000 {
                 samples.remove(0);
             }
         }
 
-        if let Ok(mut metrics) = self.actor_metrics.lock() {
+        if let Ok(mut metrics) = self.actor_metrics.write() {
             let entry = metrics.entry(actor.to_string()).or_default();
             entry.cold_starts += 1;
             entry.last_cold_start_us = latency_us;
@@ -98,7 +101,7 @@ impl MetricsCollector {
         // Note: This does NOT increment messages_total - the caller should call
         // increment_messages_total() separately if needed, or use
         // Observability::record_message_processed() which handles both.
-        if let Ok(mut samples) = self.message_latency_samples.lock() {
+        if let Ok(mut samples) = self.message_latency_samples.write() {
             samples.push(latency_us);
             if samples.len() > 10000 {
                 samples.remove(0);
@@ -108,7 +111,7 @@ impl MetricsCollector {
 
     /// Record actor error
     pub fn record_actor_error(&self, actor: &str) {
-        if let Ok(mut metrics) = self.actor_metrics.lock() {
+        if let Ok(mut metrics) = self.actor_metrics.write() {
             let entry = metrics.entry(actor.to_string()).or_default();
             entry.errors += 1;
         }
@@ -146,7 +149,7 @@ impl MetricsCollector {
 
     /// Get actor metrics snapshot
     pub fn actor_metrics(&self) -> HashMap<String, ActorMetrics> {
-        if let Ok(metrics) = self.actor_metrics.lock() {
+        if let Ok(metrics) = self.actor_metrics.read() {
             metrics.clone()
         } else {
             HashMap::new()
@@ -154,8 +157,8 @@ impl MetricsCollector {
     }
 
     /// Calculate percentile from samples
-    fn percentile(&self, samples: &Mutex<Vec<u64>>, p: f64) -> u64 {
-        if let Ok(samples) = samples.lock() {
+    fn percentile(&self, samples: &RwLock<Vec<u64>>, p: f64) -> u64 {
+        if let Ok(samples) = samples.read() {
             if samples.is_empty() {
                 return 0;
             }
@@ -227,7 +230,7 @@ impl MetricsCollector {
         ));
 
         // Per-actor metrics
-        if let Ok(metrics) = self.actor_metrics.lock() {
+        if let Ok(metrics) = self.actor_metrics.read() {
             output
                 .push_str("\n# HELP aether_actor_cold_starts_total Total cold starts per actor\n");
             output.push_str("# TYPE aether_actor_cold_starts_total counter\n");

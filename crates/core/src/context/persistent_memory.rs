@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use parking_lot::RwLock;
@@ -25,7 +26,7 @@ const FORMAT_VERSION: u32 = 1;
 pub struct PersistentMemoryEntry {
     /// The base memory entry
     #[serde(flatten)]
-    pub entry: MemoryEntry,
+    pub entry: Arc<MemoryEntry>,
     /// When this entry was created (system time)
     pub created_timestamp: u64,
     /// When this entry expires (system time, 0 = never)
@@ -50,9 +51,11 @@ impl PersistentMemoryEntry {
             0 // Never expires
         };
 
+        let content_hash = Self::hash_content(&entry.content);
+
         Self {
-            content_hash: Self::hash_content(&entry.content),
-            entry,
+            entry: Arc::new(entry),
+            content_hash,
             created_timestamp: now,
             expires_at,
             version: 1,
@@ -98,7 +101,7 @@ struct MemoryIndex {
 }
 
 impl MemoryIndex {
-    fn rebuild(entries: &[PersistentMemoryEntry]) -> Self {
+    fn rebuild(entries: &[Arc<PersistentMemoryEntry>]) -> Self {
         let mut index = Self::default();
 
         for entry in entries {
@@ -174,7 +177,7 @@ impl MemoryIndex {
 /// File-backed persistent memory store with indexing and TTL support.
 #[derive(Debug)]
 pub struct PersistentMemoryStore {
-    entries: RwLock<Vec<PersistentMemoryEntry>>,
+    entries: RwLock<Vec<Arc<PersistentMemoryEntry>>>,
     index: RwLock<MemoryIndex>,
     max_entries: usize,
     max_total_size: usize,
@@ -251,7 +254,7 @@ impl PersistentMemoryStore {
         self.index.write().add_entry(&entry);
 
         // Add entry
-        entries.push(entry);
+        entries.push(Arc::new(entry));
 
         // Auto-save if enabled
         if self.auto_save {
@@ -261,7 +264,7 @@ impl PersistentMemoryStore {
         }
     }
 
-    fn prune_if_needed(&self, entries: &mut Vec<PersistentMemoryEntry>) {
+    fn prune_if_needed(&self, entries: &mut Vec<Arc<PersistentMemoryEntry>>) {
         // Remove expired entries first
         entries.retain(|e| !e.is_expired());
 
@@ -298,30 +301,33 @@ impl PersistentMemoryStore {
     }
 
     /// Get a memory entry by ID
-    pub fn get(&self, id: &str) -> Option<MemoryEntry> {
+    pub fn get(&self, id: &str) -> Option<Arc<MemoryEntry>> {
         let entries = self.entries.read();
-        let found = entries.iter().find(|e| e.entry.id == id && !e.is_expired());
+        let found = entries
+            .iter()
+            .find(|e| e.entry.id == id && !e.is_expired());
 
-        match found {
-            Some(e) => {
-                let entry = e.entry.clone();
-                drop(entries);
-                self.record_access(id);
-                Some(entry)
-            }
-            None => None,
+        if let Some(e) = found {
+            let entry = Arc::clone(&e.entry);
+            drop(entries);
+            self.record_access(id);
+            Some(entry)
+        } else {
+            None
         }
     }
 
     fn record_access(&self, id: &str) {
         let mut entries = self.entries.write();
         if let Some(entry) = entries.iter_mut().find(|e| e.entry.id == id) {
-            entry.entry.access();
+            let persistent = Arc::make_mut(entry);
+            let inner = Arc::make_mut(&mut persistent.entry);
+            inner.access();
         }
     }
 
     /// Search for entries by content
-    pub fn search(&self, query: &str) -> Vec<MemoryEntry> {
+    pub fn search(&self, query: &str) -> Vec<Arc<MemoryEntry>> {
         let index = self.index.read();
         let entries = self.entries.read();
 
@@ -352,13 +358,13 @@ impl PersistentMemoryStore {
                 entries
                     .iter()
                     .find(|e| e.entry.id == id && !e.is_expired())
-                    .map(|e| e.entry.clone())
+                    .map(|e| Arc::clone(&e.entry))
             })
             .collect()
     }
 
     /// Get entries by tag
-    pub fn get_by_tag(&self, tag: &str) -> Vec<MemoryEntry> {
+    pub fn get_by_tag(&self, tag: &str) -> Vec<Arc<MemoryEntry>> {
         let index = self.index.read();
         let entries = self.entries.read();
 
@@ -371,7 +377,7 @@ impl PersistentMemoryStore {
                         entries
                             .iter()
                             .find(|e| e.entry.id == *id && !e.is_expired())
-                            .map(|e| e.entry.clone())
+                            .map(|e| Arc::clone(&e.entry))
                     })
                     .collect()
             })
@@ -379,7 +385,7 @@ impl PersistentMemoryStore {
     }
 
     /// Get entries by role
-    pub fn get_by_role(&self, role: &str) -> Vec<MemoryEntry> {
+    pub fn get_by_role(&self, role: &str) -> Vec<Arc<MemoryEntry>> {
         let index = self.index.read();
         let entries = self.entries.read();
 
@@ -392,7 +398,7 @@ impl PersistentMemoryStore {
                         entries
                             .iter()
                             .find(|e| e.entry.id == *id && !e.is_expired())
-                            .map(|e| e.entry.clone())
+                            .map(|e| Arc::clone(&e.entry))
                     })
                     .collect()
             })
@@ -407,14 +413,16 @@ impl PersistentMemoryStore {
             // Update index (remove old)
             self.index.write().remove_entry(entry);
 
-            // Update content
-            entry.entry.content = content;
-            entry.entry.access();
-            entry.content_hash = PersistentMemoryEntry::hash_content(&entry.entry.content);
-            entry.version += 1;
+            // Update content via Arc::make_mut on both levels
+            let persistent = Arc::make_mut(entry);
+            let inner = Arc::make_mut(&mut persistent.entry);
+            inner.content = content;
+            inner.access();
+            persistent.content_hash = PersistentMemoryEntry::hash_content(&persistent.entry.content);
+            persistent.version += 1;
 
             // Update index (add new)
-            self.index.write().add_entry(entry);
+            self.index.write().add_entry(persistent);
 
             // Auto-save
             if self.auto_save {
@@ -450,12 +458,12 @@ impl PersistentMemoryStore {
     }
 
     /// Get all entries
-    pub fn all(&self) -> Vec<MemoryEntry> {
+    pub fn all(&self) -> Vec<Arc<MemoryEntry>> {
         self.entries
             .read()
             .iter()
             .filter(|e| !e.is_expired())
-            .map(|e| e.entry.clone())
+            .map(|e| Arc::clone(&e.entry))
             .collect()
     }
 
@@ -537,7 +545,7 @@ impl PersistentMemoryStore {
         self.save_internal(&entries)
     }
 
-    fn save_internal(&self, entries: &[PersistentMemoryEntry]) -> Result<()> {
+    fn save_internal(&self, entries: &[Arc<PersistentMemoryEntry>]) -> Result<()> {
         // Create parent directory if needed
         if let Some(parent) = self.file_path.parent() {
             std::fs::create_dir_all(parent)
@@ -550,7 +558,7 @@ impl PersistentMemoryStore {
                 .duration_since(UNIX_EPOCH)
                 .unwrap_or_default()
                 .as_secs(),
-            entries: entries.to_vec(),
+            entries: entries.iter().map(|e| (**e).clone()).collect(),
         };
 
         let file = File::create(&self.file_path)
@@ -581,10 +589,11 @@ impl PersistentMemoryStore {
         }
 
         // Verify integrity and filter expired
-        let valid_entries: Vec<PersistentMemoryEntry> = snapshot
+        let valid_entries: Vec<Arc<PersistentMemoryEntry>> = snapshot
             .entries
             .into_iter()
             .filter(|e| e.verify_integrity() && !e.is_expired())
+            .map(Arc::new)
             .collect();
 
         // Rebuild index
@@ -605,7 +614,7 @@ impl PersistentMemoryStore {
                 .duration_since(UNIX_EPOCH)
                 .unwrap_or_default()
                 .as_secs(),
-            entries: entries.to_vec(),
+            entries: entries.iter().map(|e| (**e).clone()).collect(),
         };
 
         let file = File::create(path.as_ref())
@@ -635,10 +644,11 @@ impl PersistentMemoryStore {
         }
 
         // Verify integrity
-        let valid_entries: Vec<PersistentMemoryEntry> = snapshot
+        let valid_entries: Vec<Arc<PersistentMemoryEntry>> = snapshot
             .entries
             .into_iter()
             .filter(|e| e.verify_integrity())
+            .map(Arc::new)
             .collect();
 
         // Rebuild index
@@ -790,7 +800,7 @@ mod tests {
         assert!(persistent.verify_integrity());
 
         // Tamper with content
-        persistent.entry.content = "Tampered content".to_string();
+        Arc::make_mut(&mut persistent.entry).content = "Tampered content".to_string();
         assert!(!persistent.verify_integrity());
     }
 }

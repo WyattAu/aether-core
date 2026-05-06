@@ -185,7 +185,7 @@ impl ActorAiBridge {
     }
 
     /// Get relevant context from memory
-    pub fn get_context(&self, query: &str) -> Vec<MemoryEntry> {
+    pub fn get_context(&self, query: &str) -> Vec<Arc<MemoryEntry>> {
         if let Some(memory) = &self.memory {
             memory.search(query)
         } else {
@@ -284,7 +284,7 @@ impl AiActorTool {
     }
 
     /// Get context from memory
-    pub fn get_context(&self, query: &str) -> Vec<MemoryEntry> {
+    pub fn get_context(&self, query: &str) -> Vec<Arc<MemoryEntry>> {
         self.bridge.get_context(query)
     }
 

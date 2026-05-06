@@ -25,6 +25,7 @@ use quinn::Connection;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::num::NonZeroUsize;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::{Mutex, Semaphore};
@@ -93,6 +94,25 @@ impl Default for ConnectionStats {
     }
 }
 
+/// Aggregate metrics for the connection pool.
+#[derive(Debug, Clone)]
+pub struct ConnectionPoolMetrics {
+    /// Total number of connections in the pool.
+    pub total_connections: usize,
+    /// Number of connections in Active state.
+    pub active_connections: usize,
+    /// Number of connections in Reconnecting state.
+    pub reconnecting_connections: usize,
+    /// Total bytes sent across all connections.
+    pub total_bytes_sent: u64,
+    /// Total bytes received across all connections.
+    pub total_bytes_received: u64,
+    /// Total messages sent across all connections.
+    pub total_messages_sent: u64,
+    /// Total messages received across all connections.
+    pub total_messages_received: u64,
+}
+
 struct ConnectionEntry {
     connection: Option<Connection>,
     addr: SocketAddr,
@@ -127,6 +147,10 @@ pub struct ConnectionPool {
     idle_timeout: Duration,
     connection_semaphore: Arc<Semaphore>,
     pending_connects: Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>,
+    total_bytes_sent: AtomicU64,
+    total_bytes_received: AtomicU64,
+    total_messages_sent: AtomicU64,
+    total_messages_received: AtomicU64,
 }
 
 impl ConnectionPool {
@@ -159,6 +183,10 @@ impl ConnectionPool {
             idle_timeout,
             connection_semaphore: Arc::new(Semaphore::new(max_connections)),
             pending_connects: Mutex::new(HashMap::new()),
+            total_bytes_sent: AtomicU64::new(0),
+            total_bytes_received: AtomicU64::new(0),
+            total_messages_sent: AtomicU64::new(0),
+            total_messages_received: AtomicU64::new(0),
         }
     }
 
@@ -290,6 +318,8 @@ impl ConnectionPool {
             entry.stats.bytes_sent += bytes;
             entry.stats.last_activity = Instant::now();
         }
+        self.total_messages_sent.fetch_add(1, Ordering::Relaxed);
+        self.total_bytes_sent.fetch_add(bytes, Ordering::Relaxed);
     }
 
     /// Records that bytes were received from a node.
@@ -301,6 +331,8 @@ impl ConnectionPool {
             entry.stats.bytes_received += bytes;
             entry.stats.last_activity = Instant::now();
         }
+        self.total_messages_received.fetch_add(1, Ordering::Relaxed);
+        self.total_bytes_received.fetch_add(bytes, Ordering::Relaxed);
     }
 
     /// Marks a connection as unhealthy.
@@ -420,6 +452,48 @@ impl ConnectionPool {
     /// Returns `true` if the pool is at capacity.
     pub fn is_full(&self) -> bool {
         self.connections.len() >= self.max_connections
+    }
+
+    /// Returns aggregate metrics for the connection pool.
+    pub fn metrics(&self) -> ConnectionPoolMetrics {
+        let mut active = 0usize;
+        let mut reconnecting = 0usize;
+        for entry in self.connections.iter() {
+            match entry.state {
+                ConnectionState::Active => active += 1,
+                ConnectionState::Reconnecting => reconnecting += 1,
+                _ => {}
+            }
+        }
+        ConnectionPoolMetrics {
+            total_connections: self.connections.len(),
+            active_connections: active,
+            reconnecting_connections: reconnecting,
+            total_bytes_sent: self.total_bytes_sent.load(Ordering::Relaxed),
+            total_bytes_received: self.total_bytes_received.load(Ordering::Relaxed),
+            total_messages_sent: self.total_messages_sent.load(Ordering::Relaxed),
+            total_messages_received: self.total_messages_received.load(Ordering::Relaxed),
+        }
+    }
+
+    /// Close all pooled connections cleanly.
+    ///
+    /// Sends a QUIC close frame on each connection, then removes it from the pool.
+    ///
+    /// Returns the number of connections that were closed.
+    pub async fn close_all(&self) -> usize {
+        let count = self.connections.len();
+        for mut entry in self.connections.iter_mut() {
+            entry.state = ConnectionState::Closing;
+            if let Some(ref conn) = entry.connection {
+                conn.close(0u32.into(), b"shutting down");
+            }
+            entry.connection = None;
+            entry.state = ConnectionState::Closed;
+        }
+        self.connections.clear();
+        self.lru.write().clear();
+        count
     }
 }
 

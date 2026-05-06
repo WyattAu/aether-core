@@ -8,8 +8,10 @@ use crate::mesh::{
     ActorAddress, ActorLocation, ActorResolver, BackpressureController, ConnectionPool, MeshConfig,
     MeshMessage, QuicEndpoint,
 };
+use std::collections::VecDeque;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::RwLock;
 
 /// Type alias for local request handler
@@ -34,6 +36,10 @@ pub struct MeshNode {
     running: Arc<RwLock<bool>>,
     /// Handler for local requests (when target actor is on this node)
     local_request_handler: RwLock<Option<LocalRequestHandler>>,
+    /// Handles for spawned connection tasks.
+    task_handles: Arc<tokio::sync::Mutex<Vec<tokio::task::JoinHandle<()>>>>,
+    /// Pending messages queue.
+    pending_messages: Arc<tokio::sync::Mutex<VecDeque<MeshMessage>>>,
 }
 
 impl MeshNode {
@@ -86,6 +92,8 @@ impl MeshNode {
             backpressure,
             running: Arc::new(RwLock::new(false)),
             local_request_handler: RwLock::new(None),
+            task_handles: Arc::new(tokio::sync::Mutex::new(Vec::new())),
+            pending_messages: Arc::new(tokio::sync::Mutex::new(VecDeque::new())),
         })
     }
 
@@ -297,6 +305,7 @@ impl MeshNode {
         let handler: Arc<dyn Fn(MeshMessage) -> Option<MeshMessage> + Send + Sync> =
             Arc::new(handler);
         let running = self.running.clone();
+        let task_handles = self.task_handles.clone();
 
         tracing::info!("Mesh node {} running on {}", self.node_id, self.addr);
 
@@ -314,7 +323,7 @@ impl MeshNode {
                     let backpressure = self.backpressure.clone();
                     let running = running.clone();
 
-                    tokio::spawn(async move {
+                    let handle = tokio::spawn(async move {
                         while *running.read().await {
                             match Self::handle_connection(
                                 &conn,
@@ -333,6 +342,7 @@ impl MeshNode {
                             }
                         }
                     });
+                    task_handles.lock().await.push(handle);
                 }
                 Err(e) => {
                     if *running.read().await {
@@ -419,11 +429,56 @@ impl MeshNode {
         }
     }
 
-    /// Stop the mesh node.
-    pub async fn stop(&self) {
+    /// Stop the mesh node with default timeout (10 seconds).
+    pub async fn stop(&self) -> ShutdownResult {
+        self.stop_with_timeout(Duration::from_secs(10)).await
+    }
+
+    /// Stop the mesh node with a configurable timeout.
+    ///
+    /// Sets `running = false`, waits for connection tasks to finish (up to `timeout`),
+    /// drains the pending messages queue, and closes all pooled connections.
+    pub async fn stop_with_timeout(&self, timeout: Duration) -> ShutdownResult {
         *self.running.write().await = false;
+
+        let handles: Vec<_> = {
+            let mut h = self.task_handles.lock().await;
+            std::mem::take(&mut *h)
+        };
+
+        let graceful = if !handles.is_empty() {
+            tokio::time::timeout(timeout, async {
+                for handle in handles {
+                    let _ = handle.await;
+                }
+            })
+            .await
+            .is_ok()
+        } else {
+            true
+        };
+
+        let pending_messages_dropped = {
+            let mut queue = self.pending_messages.lock().await;
+            let count = queue.len();
+            queue.clear();
+            count
+        };
+
+        let connections_closed = self.pool.close_all().await;
+
         self.endpoint.close();
-        tracing::info!("Mesh node {} stopped", self.node_id);
+
+        tracing::info!(
+            "Mesh node {} stopped (graceful={}, connections_closed={}, messages_dropped={})",
+            self.node_id, graceful, connections_closed, pending_messages_dropped
+        );
+
+        ShutdownResult {
+            connections_closed,
+            pending_messages_dropped,
+            graceful,
+        }
     }
 
     /// Collect runtime statistics for this node.
@@ -451,6 +506,17 @@ pub struct NodeStats {
     pub local_actors: usize,
     /// Number of cached remote actor locations.
     pub cached_actors: usize,
+}
+
+/// Result of a graceful shutdown.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ShutdownResult {
+    /// Number of connections closed during shutdown.
+    pub connections_closed: usize,
+    /// Number of pending messages dropped during shutdown.
+    pub pending_messages_dropped: usize,
+    /// Whether all connections closed before the timeout.
+    pub graceful: bool,
 }
 
 #[cfg(test)]

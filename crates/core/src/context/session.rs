@@ -196,9 +196,9 @@ struct SessionData {
 /// A conversation session
 pub struct Session {
     metadata: RwLock<SessionMetadata>,
-    messages: RwLock<Vec<Message>>,
-    checkpoints: RwLock<Vec<Checkpoint>>,
-    branches: RwLock<Vec<Branch>>,
+    messages: RwLock<Arc<Vec<Message>>>,
+    checkpoints: RwLock<Arc<Vec<Checkpoint>>>,
+    branches: RwLock<Arc<Vec<Branch>>>,
     system_prompt: RwLock<Option<String>>,
     memory: Option<Arc<PersistentMemoryStore>>,
     storage_path: PathBuf,
@@ -222,9 +222,9 @@ impl Session {
         let session_path = storage_path.as_ref().join(&metadata.id);
         Self {
             metadata: RwLock::new(metadata),
-            messages: RwLock::new(Vec::new()),
-            checkpoints: RwLock::new(Vec::new()),
-            branches: RwLock::new(Vec::new()),
+            messages: RwLock::new(Arc::new(Vec::new())),
+            checkpoints: RwLock::new(Arc::new(Vec::new())),
+            branches: RwLock::new(Arc::new(Vec::new())),
             system_prompt: RwLock::new(None),
             memory,
             storage_path: session_path,
@@ -259,16 +259,18 @@ impl Session {
 
     /// Add a message
     pub fn add_message(&self, message: Message) {
-        let mut messages = self.messages.write();
-        if let Some(last) = messages.last() {
-            let mut msg = message;
-            msg.parent_id = Some(last.id.clone());
-            messages.push(msg);
-        } else {
-            messages.push(message);
-        }
-        let count = messages.len();
-        drop(messages);
+        let count = {
+            let mut guard = self.messages.write();
+            let messages = Arc::make_mut(&mut *guard);
+            if let Some(last) = messages.last() {
+                let mut msg = message;
+                msg.parent_id = Some(last.id.clone());
+                messages.push(msg);
+            } else {
+                messages.push(message);
+            }
+            messages.len()
+        };
 
         let mut meta = self.metadata.write();
         meta.message_count = count;
@@ -284,15 +286,15 @@ impl Session {
     }
 
     /// Get all messages
-    pub fn messages(&self) -> Vec<Message> {
+    pub fn messages(&self) -> Arc<Vec<Message>> {
         self.messages.read().clone()
     }
 
     /// Get last N messages
-    pub fn last_messages(&self, n: usize) -> Vec<Message> {
+    pub fn last_messages(&self, n: usize) -> Arc<Vec<Message>> {
         let messages = self.messages.read();
         let start = messages.len().saturating_sub(n);
-        messages[start..].to_vec()
+        Arc::new(messages[start..].to_vec())
     }
 
     /// Create a checkpoint
@@ -310,7 +312,10 @@ impl Session {
             checkpoint.memory_snapshot = Some(snapshot_path.to_string_lossy().to_string());
         }
 
-        self.checkpoints.write().push(checkpoint.clone());
+        {
+            let mut guard = self.checkpoints.write();
+            Arc::make_mut(&mut *guard).push(checkpoint.clone());
+        }
 
         let mut meta = self.metadata.write();
         meta.active_checkpoint = Some(checkpoint.id.clone());
@@ -328,7 +333,7 @@ impl Session {
     }
 
     /// List checkpoints
-    pub fn checkpoints(&self) -> Vec<Checkpoint> {
+    pub fn checkpoints(&self) -> Arc<Vec<Checkpoint>> {
         self.checkpoints.read().clone()
     }
 
@@ -348,15 +353,19 @@ impl Session {
         }
 
         {
-            let mut messages = self.messages.write();
-            let pos = messages
-                .iter()
-                .position(|m| m.id == checkpoint.message_id)
-                .ok_or_else(|| Error::internal("Checkpoint message not found"))?;
-            messages.truncate(pos + 1);
+            let message_count = {
+                let mut guard = self.messages.write();
+                let messages = Arc::make_mut(&mut *guard);
+                let pos = messages
+                    .iter()
+                    .position(|m| m.id == checkpoint.message_id)
+                    .ok_or_else(|| Error::internal("Checkpoint message not found"))?;
+                messages.truncate(pos + 1);
+                messages.len()
+            };
 
             let mut meta = self.metadata.write();
-            meta.message_count = messages.len();
+            meta.message_count = message_count;
             meta.active_checkpoint = Some(checkpoint_id.to_string());
             meta.updated_at = SystemTime::now()
                 .duration_since(UNIX_EPOCH)
@@ -380,14 +389,15 @@ impl Session {
             .get_checkpoint(checkpoint_id)
             .ok_or_else(|| Error::internal("Checkpoint not found"))?;
 
-        let mut branches = self.branches.write();
+        let mut guard = self.branches.write();
+        let branches = Arc::make_mut(&mut *guard);
         for b in branches.iter_mut() {
             b.is_active = false;
         }
 
         let branch = Branch::new(name, checkpoint_id);
         branches.push(branch.clone());
-        drop(branches);
+        drop(guard);
 
         if self.auto_save {
             self.save()?;
@@ -396,13 +406,14 @@ impl Session {
     }
 
     /// List branches
-    pub fn branches(&self) -> Vec<Branch> {
+    pub fn branches(&self) -> Arc<Vec<Branch>> {
         self.branches.read().clone()
     }
 
     /// Delete a branch
     pub fn delete_branch(&self, branch_id: &str) -> Result<()> {
-        let mut branches = self.branches.write();
+        let mut guard = self.branches.write();
+        let branches = Arc::make_mut(&mut *guard);
         let pos = branches
             .iter()
             .position(|b| b.id == branch_id)
@@ -413,7 +424,7 @@ impl Session {
         }
 
         branches.remove(pos);
-        drop(branches);
+        drop(guard);
 
         if self.auto_save {
             self.save()?;
@@ -434,9 +445,9 @@ impl Session {
     pub fn export(&self) -> Result<String> {
         let data = SessionData {
             metadata: self.metadata.read().clone(),
-            messages: self.messages.read().clone(),
-            checkpoints: self.checkpoints.read().clone(),
-            branches: self.branches.read().clone(),
+            messages: Arc::unwrap_or_clone(self.messages.read().clone()),
+            checkpoints: Arc::unwrap_or_clone(self.checkpoints.read().clone()),
+            branches: Arc::unwrap_or_clone(self.branches.read().clone()),
             system_prompt: self.system_prompt.read().clone(),
         };
         serde_json::to_string_pretty(&data)
@@ -448,9 +459,9 @@ impl Session {
         let data: SessionData = serde_json::from_str(json)
             .map_err(|e| Error::internal(format!("Import failed: {}", e)))?;
 
-        *self.messages.write() = data.messages;
-        *self.checkpoints.write() = data.checkpoints;
-        *self.branches.write() = data.branches;
+        *self.messages.write() = Arc::new(data.messages);
+        *self.checkpoints.write() = Arc::new(data.checkpoints);
+        *self.branches.write() = Arc::new(data.branches);
         *self.system_prompt.write() = data.system_prompt;
         self.metadata.write().message_count = self.messages.read().len();
 
@@ -482,9 +493,9 @@ impl Session {
 
     /// Clear session
     pub fn clear(&self) {
-        *self.messages.write() = Vec::new();
-        *self.checkpoints.write() = Vec::new();
-        *self.branches.write() = Vec::new();
+        *self.messages.write() = Arc::new(Vec::new());
+        *self.checkpoints.write() = Arc::new(Vec::new());
+        *self.branches.write() = Arc::new(Vec::new());
         *self.system_prompt.write() = None;
 
         let mut meta = self.metadata.write();
