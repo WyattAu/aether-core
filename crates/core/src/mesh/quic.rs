@@ -82,6 +82,7 @@ impl QuicConfig {
 }
 
 /// TLS certificate and key pair for QUIC endpoints.
+#[derive(Clone, Debug)]
 pub struct CertificateConfig {
     /// The leaf certificate.
     pub cert: CertificateDer<'static>,
@@ -182,6 +183,26 @@ impl QuicEndpoint {
     pub fn with_connection_pool(config: QuicConfig, pool: Arc<ConnectionPool>) -> Result<Self> {
         let cert_config = CertificateConfig::generate_self_signed(&config.server_name)?;
 
+        Self::build_with_pool_and_cert(config, pool, cert_config)
+    }
+
+    /// Create a new QUIC endpoint with a shared connection pool and explicit certificate.
+    ///
+    /// Use this when multiple nodes must trust the same certificate so QUIC connections
+    /// succeed across nodes.
+    pub fn with_connection_pool_and_cert(
+        config: QuicConfig,
+        pool: Arc<ConnectionPool>,
+        cert_config: CertificateConfig,
+    ) -> Result<Self> {
+        Self::build_with_pool_and_cert(config, pool, cert_config)
+    }
+
+    fn build_with_pool_and_cert(
+        config: QuicConfig,
+        pool: Arc<ConnectionPool>,
+        cert_config: CertificateConfig,
+    ) -> Result<Self> {
         let server_config = Self::create_server_config(&config, &cert_config)?;
         let mut endpoint = quinn::Endpoint::server(server_config, config.listen)
             .map_err(|e| Error::internal(format!("Failed to create endpoint: {}", e)))?;
@@ -563,9 +584,7 @@ impl Clone for QuicEndpoint {
         Self {
             endpoint: self.endpoint.clone(),
             config: self.config.clone(),
-            #[allow(clippy::expect_used)]
-            cert_config: CertificateConfig::generate_self_signed(&self.config.server_name)
-                .expect("Failed to generate self-signed certificate for QuicEndpoint clone"),
+            cert_config: self.cert_config.clone(),
             connection_pool: self.connection_pool.clone(),
             reconnect_config: self.reconnect_config.clone(),
             pending_messages: self.pending_messages.clone(),

@@ -1,6 +1,7 @@
 //! Top Command
 //!
 //! Terminal-based real-time dashboard for monitoring Aether actors.
+//! Connects to the Aether dashboard HTTP API to fetch live runtime data.
 
 use clap::Args;
 use std::io;
@@ -21,6 +22,10 @@ use ratatui::{
     widgets::{Block, Borders, Cell, Gauge, Paragraph, Row, Table, Tabs},
 };
 
+use serde::Deserialize;
+
+const DEFAULT_DASHBOARD_ADDR: &str = "http://127.0.0.1:8080";
+
 /// Top command arguments
 #[derive(Args, Debug)]
 pub struct TopArgs {
@@ -35,6 +40,10 @@ pub struct TopArgs {
     /// Sort by field (cpu, memory, name, status)
     #[arg(long, default_value = "cpu")]
     pub sort: String,
+
+    /// Dashboard API address
+    #[arg(long, default_value = DEFAULT_DASHBOARD_ADDR)]
+    pub api_addr: String,
 }
 
 /// Top command errors
@@ -45,6 +54,9 @@ pub enum Error {
 
     #[error("IO error: {0}")]
     Io(#[from] io::Error),
+
+    #[error("API request failed: {0}")]
+    Api(#[from] reqwest::Error),
 }
 
 #[derive(Debug, Clone)]
@@ -70,6 +82,76 @@ struct SystemMetrics {
     uptime_secs: u64,
 }
 
+struct DashboardClient {
+    client: reqwest::Client,
+    base_url: String,
+}
+
+#[derive(Deserialize)]
+struct ApiRuntimeStatus {
+    uptime_secs: i64,
+    actors_running: u64,
+    #[allow(dead_code)]
+    messages_total: u64,
+    #[allow(dead_code)]
+    status: String,
+}
+
+#[derive(Deserialize)]
+struct ApiActorInfo {
+    #[allow(dead_code)]
+    id: String,
+    name: String,
+    state: String,
+    #[allow(dead_code)]
+    cold_starts: u64,
+    messages: u64,
+    #[allow(dead_code)]
+    errors: u64,
+    #[allow(dead_code)]
+    last_cold_start_us: u64,
+}
+
+impl DashboardClient {
+    fn new(base_url: &str) -> Self {
+        Self {
+            client: reqwest::Client::builder()
+                .timeout(Duration::from_secs(2))
+                .build()
+                .unwrap_or_else(|_| reqwest::Client::new()),
+            base_url: base_url.trim_end_matches('/').to_string(),
+        }
+    }
+
+    async fn check_connection(&self) -> bool {
+        self.client
+            .get(format!("{}/api/v1/status", self.base_url))
+            .send()
+            .await
+            .is_ok_and(|r| r.status().is_success())
+    }
+
+    async fn fetch_status(&self) -> Option<ApiRuntimeStatus> {
+        let resp = self
+            .client
+            .get(format!("{}/api/v1/status", self.base_url))
+            .send()
+            .await
+            .ok()?;
+        resp.json().await.ok()
+    }
+
+    async fn fetch_actors(&self) -> Option<Vec<ApiActorInfo>> {
+        let resp = self
+            .client
+            .get(format!("{}/api/v1/actors", self.base_url))
+            .send()
+            .await
+            .ok()?;
+        resp.json().await.ok()
+    }
+}
+
 struct App {
     actors: Vec<ActorInfo>,
     metrics: SystemMetrics,
@@ -78,25 +160,61 @@ struct App {
     filter: Option<String>,
     sort_field: String,
     should_quit: bool,
+    connected: bool,
+    dashboard: DashboardClient,
 }
 
 impl App {
     fn new(args: &TopArgs) -> Self {
+        let dashboard = DashboardClient::new(&args.api_addr);
         Self {
-            actors: generate_mock_actors(),
-            metrics: generate_mock_metrics(),
+            actors: Vec::new(),
+            metrics: SystemMetrics::empty(),
             selected_tab: 0,
             tabs: vec!["Actors", "Resources", "Mesh", "Logs"],
             filter: args.filter.clone(),
             sort_field: args.sort.clone(),
             should_quit: false,
+            connected: false,
+            dashboard,
         }
     }
 
-    // NOTE: When connected to a running Aether daemon, this will fetch live metrics.
-    fn update(&mut self) {
-        self.metrics = generate_mock_metrics();
-        self.actors = generate_mock_actors();
+    async fn update(&mut self) {
+        self.connected = self.dashboard.check_connection().await;
+
+        if !self.connected {
+            self.actors.clear();
+            self.metrics = SystemMetrics::empty();
+            return;
+        }
+
+        if let Some(status) = self.dashboard.fetch_status().await {
+            self.metrics = SystemMetrics {
+                total_actors: status.actors_running as u32,
+                running: status.actors_running as u32,
+                pending: 0,
+                stopped: 0,
+                cpu_total: 0,
+                memory_total_mb: 0,
+                memory_available_mb: 0,
+                uptime_secs: status.uptime_secs as u64,
+            };
+        }
+
+        if let Some(api_actors) = self.dashboard.fetch_actors().await {
+            self.actors = api_actors
+                .into_iter()
+                .map(|a| ActorInfo {
+                    name: a.name,
+                    status: a.state,
+                    instances: 1,
+                    cpu_percent: 0,
+                    memory_mb: 0,
+                    messages_per_sec: a.messages,
+                })
+                .collect();
+        }
 
         if let Some(ref filter) = self.filter {
             self.actors.retain(|a| a.name.contains(filter));
@@ -132,22 +250,18 @@ impl App {
     }
 }
 
-fn generate_mock_actors() -> Vec<ActorInfo> {
-    // TODO: Fetch from runtime API
-    vec![]
-}
-
-fn generate_mock_metrics() -> SystemMetrics {
-    // TODO: Fetch from runtime API
-    SystemMetrics {
-        total_actors: 0,
-        running: 0,
-        pending: 0,
-        stopped: 0,
-        cpu_total: 0,
-        memory_total_mb: 0,
-        memory_available_mb: 0,
-        uptime_secs: 0,
+impl SystemMetrics {
+    fn empty() -> Self {
+        Self {
+            total_actors: 0,
+            running: 0,
+            pending: 0,
+            stopped: 0,
+            cpu_total: 0,
+            memory_total_mb: 0,
+            memory_available_mb: 0,
+            uptime_secs: 0,
+        }
     }
 }
 
@@ -160,7 +274,7 @@ pub async fn execute(args: TopArgs) -> Result<(), Error> {
     let mut terminal = Terminal::new(backend).map_err(|e| Error::Terminal(e.to_string()))?;
 
     let mut app = App::new(&args);
-    let res = run_app(&mut terminal, &mut app, args.refresh);
+    let res = run_app(&mut terminal, &mut app, args.refresh).await;
 
     disable_raw_mode().map_err(|e| Error::Terminal(e.to_string()))?;
     execute!(
@@ -176,7 +290,7 @@ pub async fn execute(args: TopArgs) -> Result<(), Error> {
     res
 }
 
-fn run_app<B: ratatui::backend::Backend>(
+async fn run_app<B: ratatui::backend::Backend>(
     terminal: &mut Terminal<B>,
     app: &mut App,
     refresh_ms: u64,
@@ -194,7 +308,7 @@ fn run_app<B: ratatui::backend::Backend>(
             }
         }
 
-        app.update();
+        app.update().await;
 
         if app.should_quit {
             return Ok(());
@@ -223,10 +337,14 @@ fn ui(f: &mut Frame, app: &App) {
         .block(
             Block::default()
                 .borders(Borders::ALL)
-                .title(" Aether Top ")
+                .title(if app.connected {
+                    " Aether Top "
+                } else {
+                    " Aether Top (disconnected) "
+                })
                 .title_style(
                     Style::default()
-                        .fg(Color::Cyan)
+                        .fg(if app.connected { Color::Cyan } else { Color::Red })
                         .add_modifier(Modifier::BOLD),
                 ),
         )
@@ -268,11 +386,31 @@ fn ui(f: &mut Frame, app: &App) {
 }
 
 fn render_metrics_panel(f: &mut Frame, app: &App, area: Rect) {
+    if !app.connected {
+        let panel = Paragraph::new(Line::from(vec![
+            Span::styled(
+                "No running Aether host found.",
+                Style::default().fg(Color::Yellow),
+            ),
+        ]))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(" System Metrics "),
+        );
+        f.render_widget(panel, area);
+        return;
+    }
+
     let m = &app.metrics;
     let hours = m.uptime_secs / 3600;
     let mins = (m.uptime_secs % 3600) / 60;
 
-    let mem_percent = (m.memory_total_mb as f64 / m.memory_available_mb as f64 * 100.0) as u16;
+    let mem_percent = if m.memory_available_mb > 0 {
+        (m.memory_total_mb as f64 / m.memory_available_mb as f64 * 100.0) as u16
+    } else {
+        0
+    };
 
     let info = vec![
         Line::from(vec![
@@ -355,6 +493,28 @@ fn render_metrics_panel(f: &mut Frame, app: &App, area: Rect) {
 }
 
 fn render_actors_table(f: &mut Frame, app: &App, area: Rect) {
+    if !app.connected {
+        let panel = Paragraph::new(vec![
+            Line::from(Span::raw("")),
+            Line::from(vec![Span::styled(
+                "  No running Aether host found.",
+                Style::default().fg(Color::Yellow),
+            )]),
+            Line::from(vec![Span::styled(
+                "  Start one with: aether run",
+                Style::default().fg(Color::DarkGray),
+            )]),
+        ])
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(" Actors ")
+                .title_style(Style::default().fg(Color::Cyan)),
+        );
+        f.render_widget(panel, area);
+        return;
+    }
+
     let header_cells = ["Name", "Status", "Instances", "CPU%", "Memory", "Msg/s"];
     let header = Row::new(header_cells)
         .style(
@@ -416,6 +576,28 @@ fn render_actors_table(f: &mut Frame, app: &App, area: Rect) {
 }
 
 fn render_resources_panel(f: &mut Frame, app: &App, area: Rect) {
+    if !app.connected {
+        let panel = Paragraph::new(vec![
+            Line::from(Span::raw("")),
+            Line::from(vec![Span::styled(
+                "  No running Aether host found.",
+                Style::default().fg(Color::Yellow),
+            )]),
+            Line::from(vec![Span::styled(
+                "  Start one with: aether run",
+                Style::default().fg(Color::DarkGray),
+            )]),
+        ])
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(" Resources ")
+                .title_style(Style::default().fg(Color::Cyan)),
+        );
+        f.render_widget(panel, area);
+        return;
+    }
+
     let m = &app.metrics;
 
     let content = vec![
@@ -453,9 +635,9 @@ fn render_resources_panel(f: &mut Frame, app: &App, area: Rect) {
         )]),
         Line::from(vec![
             Span::styled("  RX: ", Style::default().fg(Color::DarkGray)),
-            Span::styled("1.2 GB/s", Style::default().fg(Color::Green)),
+            Span::styled("--", Style::default().fg(Color::Green)),
             Span::raw("  TX: "),
-            Span::styled("0.8 GB/s", Style::default().fg(Color::Green)),
+            Span::styled("--", Style::default().fg(Color::Green)),
         ]),
     ];
 
@@ -468,45 +650,41 @@ fn render_resources_panel(f: &mut Frame, app: &App, area: Rect) {
     f.render_widget(panel, area);
 }
 
-fn render_mesh_panel(f: &mut Frame, _app: &App, area: Rect) {
+fn render_mesh_panel(f: &mut Frame, app: &App, area: Rect) {
+    if !app.connected {
+        let panel = Paragraph::new(vec![
+            Line::from(Span::raw("")),
+            Line::from(vec![Span::styled(
+                "  No running Aether host found.",
+                Style::default().fg(Color::Yellow),
+            )]),
+            Line::from(vec![Span::styled(
+                "  Start one with: aether run",
+                Style::default().fg(Color::DarkGray),
+            )]),
+        ])
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(" Mesh Network ")
+                .title_style(Style::default().fg(Color::Cyan)),
+        );
+        f.render_widget(panel, area);
+        return;
+    }
+
     let content = vec![
         Line::from(vec![
             Span::styled(" Nodes: ", Style::default().fg(Color::DarkGray)),
-            Span::styled("3", Style::default().fg(Color::Cyan)),
+            Span::styled("1", Style::default().fg(Color::Cyan)),
         ]),
         Line::from(vec![
             Span::styled(" Connections: ", Style::default().fg(Color::DarkGray)),
-            Span::styled("12", Style::default().fg(Color::Cyan)),
+            Span::styled("0", Style::default().fg(Color::Cyan)),
         ]),
         Line::from(vec![
-            Span::styled(" Avg Latency: ", Style::default().fg(Color::DarkGray)),
-            Span::styled("1.2 ms", Style::default().fg(Color::Green)),
-        ]),
-        Line::from(vec![
-            Span::styled(" Throughput: ", Style::default().fg(Color::DarkGray)),
-            Span::styled("50,000 msg/s", Style::default().fg(Color::Green)),
-        ]),
-        Line::from(Span::raw("")),
-        Line::from(vec![Span::styled(
-            " Node Status",
-            Style::default()
-                .fg(Color::Yellow)
-                .add_modifier(Modifier::BOLD),
-        )]),
-        Line::from(vec![
-            Span::styled("  ● ", Style::default().fg(Color::Green)),
-            Span::raw("node-1 (local)  "),
-            Span::styled("healthy", Style::default().fg(Color::Green)),
-        ]),
-        Line::from(vec![
-            Span::styled("  ● ", Style::default().fg(Color::Green)),
-            Span::raw("node-2          "),
-            Span::styled("healthy", Style::default().fg(Color::Green)),
-        ]),
-        Line::from(vec![
-            Span::styled("  ● ", Style::default().fg(Color::Yellow)),
-            Span::raw("node-3          "),
-            Span::styled("degraded", Style::default().fg(Color::Yellow)),
+            Span::styled(" Status: ", Style::default().fg(Color::DarkGray)),
+            Span::styled("local only", Style::default().fg(Color::Green)),
         ]),
     ];
 
@@ -519,34 +697,39 @@ fn render_mesh_panel(f: &mut Frame, _app: &App, area: Rect) {
     f.render_widget(panel, area);
 }
 
-fn render_logs_panel(f: &mut Frame, _app: &App, area: Rect) {
-    let content = vec![
-        Line::from(vec![
-            Span::styled(" 14:32:01 ", Style::default().fg(Color::DarkGray)),
-            Span::styled("INFO ", Style::default().fg(Color::Green)),
-            Span::raw("api-gateway: Request processed in 12ms"),
-        ]),
-        Line::from(vec![
-            Span::styled(" 14:32:02 ", Style::default().fg(Color::DarkGray)),
-            Span::styled("INFO ", Style::default().fg(Color::Green)),
-            Span::raw("auth-service: Token validated for user_123"),
-        ]),
-        Line::from(vec![
-            Span::styled(" 14:32:03 ", Style::default().fg(Color::DarkGray)),
-            Span::styled("WARN ", Style::default().fg(Color::Yellow)),
-            Span::raw("cache-layer: Cache miss rate above threshold"),
-        ]),
-        Line::from(vec![
-            Span::styled(" 14:32:04 ", Style::default().fg(Color::DarkGray)),
-            Span::styled("INFO ", Style::default().fg(Color::Green)),
-            Span::raw("event-bus: Published 150 messages to subscribers"),
-        ]),
-        Line::from(vec![
-            Span::styled(" 14:32:05 ", Style::default().fg(Color::DarkGray)),
-            Span::styled("ERROR", Style::default().fg(Color::Red)),
-            Span::raw("db-connector: Connection timeout, retrying..."),
-        ]),
-    ];
+fn render_logs_panel(f: &mut Frame, app: &App, area: Rect) {
+    if !app.connected {
+        let panel = Paragraph::new(vec![
+            Line::from(Span::raw("")),
+            Line::from(vec![Span::styled(
+                "  No running Aether host found.",
+                Style::default().fg(Color::Yellow),
+            )]),
+            Line::from(vec![Span::styled(
+                "  Use 'aether logs' to stream logs.",
+                Style::default().fg(Color::DarkGray),
+            )]),
+        ])
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(" Logs (live) ")
+                .title_style(Style::default().fg(Color::Cyan)),
+        );
+        f.render_widget(panel, area);
+        return;
+    }
+
+    let content = vec![Line::from(vec![
+        Span::styled(" Connected. Use ", Style::default().fg(Color::DarkGray)),
+        Span::styled(
+            "aether logs",
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::styled(" for live log streaming.", Style::default().fg(Color::DarkGray)),
+    ])];
 
     let panel = Paragraph::new(content).block(
         Block::default()

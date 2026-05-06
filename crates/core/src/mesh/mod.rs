@@ -198,6 +198,10 @@ pub struct MeshConfig {
 
     /// Flow control window size
     pub flow_window: u64,
+
+    /// Optional shared certificate configuration for consistent TLS across nodes.
+    /// If None, each node generates its own self-signed cert (incompatible for cross-node QUIC).
+    pub cert_config: Option<CertificateConfig>,
 }
 
 impl Default for MeshConfig {
@@ -220,6 +224,7 @@ impl Default for MeshConfig {
             cache_ttl: Duration::from_secs(60),
             cache_size: 10_000,
             flow_window: 1024 * 1024,
+            cert_config: None,
         }
     }
 }
@@ -265,11 +270,21 @@ impl MeshConfig {
         self
     }
 
+    /// Create with a shared certificate configuration for cross-node QUIC.
+    pub fn with_shared_cert(mut self, cert_config: CertificateConfig) -> Self {
+        self.cert_config = Some(cert_config);
+        self
+    }
+
     /// Convert to QUIC config
     pub fn to_quic_config(&self) -> QuicConfig {
         QuicConfig {
             listen: self.listen_addr,
-            server_name: self.node_id.clone(),
+            server_name: if self.cert_config.is_some() {
+                "localhost".to_string()
+            } else {
+                self.node_id.clone()
+            },
             cert_path: self.cert_path.clone(),
             key_path: self.key_path.clone(),
             idle_timeout: self.idle_timeout,

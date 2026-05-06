@@ -12,11 +12,16 @@ use aether_core::{
     Observability,
     actor::{ActorScheduler, SchedulerConfig},
     mesh::{
-        ActorAddress, ActorLocation, CompressionType, MeshMessage, MeshNode, MessageId, MessageType,
+        ActorAddress, ActorLocation, CertificateConfig, CompressionType, MeshConfig, MeshMessage,
+        MeshNode, MessageId, MessageType,
     },
 };
 #[cfg(feature = "mesh")]
 use std::net::SocketAddr;
+#[cfg(feature = "mesh")]
+use std::sync::Arc;
+#[cfg(feature = "mesh")]
+use std::time::Duration;
 use std::sync::Once;
 
 static CRYPTO_INIT: Once = Once::new();
@@ -470,4 +475,63 @@ async fn test_e2e_mesh_connection_pool() {
     assert!(node1.resolve_actor(&actor_uri).await.is_some());
 
     node1.unregister_actor(&actor_uri).await;
+}
+
+#[tokio::test]
+#[cfg(feature = "mesh")]
+async fn test_e2e_mesh_real_quic_connection() {
+    init_crypto_provider();
+
+    let shared_cert = CertificateConfig::generate_self_signed("localhost")
+        .expect("Failed to generate shared cert");
+
+    let addr1: SocketAddr = "127.0.0.1:19120".parse().unwrap();
+    let addr2: SocketAddr = "127.0.0.1:19121".parse().unwrap();
+
+    let config1 = MeshConfig::server("quic-node-1", 19120).with_shared_cert(shared_cert.clone());
+    let config2 = MeshConfig::server("quic-node-2", 19121).with_shared_cert(shared_cert.clone());
+
+    let node1 = MeshNode::with_config(config1).expect("Failed to create node1");
+    let node2 = MeshNode::with_config(config2).expect("Failed to create node2");
+
+    let endpoint2 = node2.endpoint().clone();
+    let stop = Arc::new(tokio::sync::RwLock::new(false));
+
+    let stop_clone = stop.clone();
+    let accept_handle = tokio::spawn(async move {
+        loop {
+            if *stop_clone.read().await {
+                break;
+            }
+            match endpoint2.accept().await {
+                Ok((_conn, _addr)) => {}
+                Err(_) => break,
+            }
+        }
+    });
+
+    tokio::time::sleep(Duration::from_millis(100)).await;
+
+    node1
+        .connect("quic-node-2", addr2)
+        .await
+        .expect("node1 should connect to node2 with shared cert");
+
+    let stats1 = node1.stats().await;
+    assert!(
+        stats1.connection_count >= 1,
+        "Expected at least 1 connection, got {}",
+        stats1.connection_count
+    );
+
+    node1.disconnect("quic-node-2").await;
+
+    let stats_after = node1.stats().await;
+    assert_eq!(
+        stats_after.connection_count, 0,
+        "Expected 0 connections after disconnect"
+    );
+
+    *stop.write().await = true;
+    let _ = tokio::time::timeout(Duration::from_secs(2), accept_handle).await;
 }

@@ -1,6 +1,7 @@
 //! Logs Command
 //!
 //! Stream logs from running actors with support for multiple log sources.
+//! Connects to the Aether dashboard HTTP API or WebSocket endpoint.
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -14,6 +15,8 @@ use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::signal::unix::{SignalKind, signal};
 use tokio::sync::mpsc;
 use tokio_tungstenite::{WebSocketStream, connect_async};
+
+const DEFAULT_DASHBOARD_ADDR: &str = "http://127.0.0.1:8080";
 
 /// Logs command arguments
 #[derive(Args, Debug)]
@@ -49,6 +52,10 @@ pub struct LogsArgs {
     /// Tracing filter string
     #[arg(short, long)]
     pub tracing_filter: Option<String>,
+
+    /// Dashboard API address
+    #[arg(long, default_value = DEFAULT_DASHBOARD_ADDR)]
+    pub api_addr: String,
 }
 
 /// Log source configuration
@@ -56,46 +63,34 @@ pub struct LogsArgs {
 pub enum LogSource {
     /// Tail a log file
     File {
-        /// Path to the log file
         path: PathBuf,
     },
     /// Connect to WebSocket endpoint
     WebSocket {
-        /// WebSocket URL
         url: String,
     },
-    /// Subscribe to tracing subscriber
+    /// Subscribe to tracing subscriber (via dashboard API)
     Tracing {
-        /// Filter string
         filter: String,
     },
-    /// Read from actor via RPC
+    /// Read from actor via dashboard API
     Actor {
-        /// Actor ID
         actor_id: String,
     },
-    /// Simulated logs (for demo/testing)
-    Simulated,
 }
 
 /// Log entry structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LogEntry {
-    /// Timestamp of the log entry
     pub timestamp: DateTime<Utc>,
-    /// Log level
     pub level: LogLevel,
-    /// Actor that produced the log
     pub actor: Option<String>,
-    /// Log message
     pub message: String,
-    /// Additional fields
     #[serde(default)]
     pub fields: HashMap<String, String>,
 }
 
 impl LogEntry {
-    /// Create a new log entry
     pub fn new(level: LogLevel, message: impl Into<String>) -> Self {
         Self {
             timestamp: Utc::now(),
@@ -106,14 +101,12 @@ impl LogEntry {
         }
     }
 
-    /// Set the actor
     pub fn with_actor(mut self, actor: impl Into<String>) -> Self {
         self.actor = Some(actor.into());
         self
     }
 
-    /// Add a field
-    #[allow(dead_code)] // Public API for future log source filtering
+    #[allow(dead_code)]
     pub fn with_field(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
         self.fields.insert(key.into(), value.into());
         self
@@ -123,20 +116,14 @@ impl LogEntry {
 /// Log level
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum LogLevel {
-    /// Trace level
     Trace,
-    /// Debug level
     Debug,
-    /// Info level
     Info,
-    /// Warning level
     Warn,
-    /// Error level
     Error,
 }
 
 impl LogLevel {
-    /// Convert to string representation
     pub fn as_str(&self) -> &'static str {
         match self {
             LogLevel::Trace => "TRACE",
@@ -147,7 +134,6 @@ impl LogLevel {
         }
     }
 
-    /// Parse from string
     pub fn from_str(s: &str) -> Option<Self> {
         match s.to_uppercase().as_str() {
             "TRACE" => Some(LogLevel::Trace),
@@ -164,63 +150,55 @@ impl LogLevel {
 #[derive(Error, Debug)]
 #[allow(clippy::enum_variant_names)]
 pub enum Error {
-    /// Stream failed
     #[error("Failed to stream logs: {0}")]
-    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
+    #[allow(dead_code)]
     StreamFailed(String),
 
-    /// Actor not found
     #[error("Actor not found: {0}")]
-    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
+    #[allow(dead_code)]
     ActorNotFound(String),
 
-    /// Invalid log level
     #[error("Invalid log level: {0}")]
-    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
+    #[allow(dead_code)]
     InvalidLevel(String),
 
-    /// File error
     #[error("File error: {0}")]
-    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
+    #[allow(dead_code)]
     FileError(String),
 
-    /// WebSocket error
     #[error("WebSocket error: {0}")]
-    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
+    #[allow(dead_code)]
     WebSocketError(String),
 
-    /// IO error
     #[error("IO error: {0}")]
     IoError(#[from] std::io::Error),
 
-    /// Channel error
     #[error("Channel error: {0}")]
-    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
+    #[allow(dead_code)]
     ChannelError(String),
+
+    #[error("No running Aether host found. Start one with: aether run")]
+    HostNotFound,
+
+    #[error("API request failed: {0}")]
+    Api(#[from] reqwest::Error),
 }
 
 /// Trait for log streaming implementations
 #[async_trait]
 pub trait LogStreamer: Send {
-    /// Get the next log entry
     async fn next(&mut self) -> Option<LogEntry>;
-
-    /// Close the streamer
     fn close(&mut self);
 }
 
 /// File log streamer - tails log files
 pub struct FileLogStreamer {
-    /// Receiver for log entries
     receiver: Option<mpsc::Receiver<LogEntry>>,
-    /// Shutdown sender
     shutdown_tx: Option<mpsc::Sender<()>>,
-    /// File path
     path: PathBuf,
 }
 
 impl FileLogStreamer {
-    /// Create a new file log streamer
     pub fn new(path: impl Into<PathBuf>) -> Result<Self, Error> {
         let path = path.into();
         let (entry_tx, entry_rx) = mpsc::channel(256);
@@ -259,7 +237,6 @@ impl FileLogStreamer {
                                 }
                             }
                             Ok(None) => {
-                                // EOF, wait a bit for more data
                                 tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
                             }
                             Err(e) => {
@@ -272,7 +249,6 @@ impl FileLogStreamer {
             }
         });
 
-        // Store handle to prevent it from being dropped
         tokio::spawn(async move {
             let _ = handle.await;
         });
@@ -284,8 +260,7 @@ impl FileLogStreamer {
         })
     }
 
-    /// Get the file path
-    #[allow(dead_code)] // Public API for future log source filtering
+    #[allow(dead_code)]
     pub fn path(&self) -> &PathBuf {
         &self.path
     }
@@ -311,14 +286,11 @@ impl LogStreamer for FileLogStreamer {
 
 /// WebSocket log streamer
 pub struct WebSocketLogStreamer {
-    /// WebSocket stream
     ws: Option<WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>>,
-    /// URL
     url: String,
 }
 
 impl WebSocketLogStreamer {
-    /// Connect to a WebSocket endpoint
     pub async fn connect(url: &str) -> Result<Self, Error> {
         let (ws_stream, _) = connect_async(url)
             .await
@@ -330,8 +302,7 @@ impl WebSocketLogStreamer {
         })
     }
 
-    /// Get the URL
-    #[allow(dead_code)] // Public API for future log source filtering
+    #[allow(dead_code)]
     pub fn url(&self) -> &str {
         &self.url
     }
@@ -381,64 +352,182 @@ impl LogStreamer for WebSocketLogStreamer {
     }
 }
 
-/// Fallback streamer used when no runtime connection is available.
-pub struct SimulatedLogStreamer {
-    /// Running flag
-    running: bool,
-    /// Log level filter
-    level_filter: Option<LogLevel>,
+/// Dashboard API log streamer - connects to the Aether dashboard WebSocket endpoint
+/// for real-time log streaming.
+pub struct DashboardLogStreamer {
+    receiver: Option<mpsc::Receiver<LogEntry>>,
+    shutdown_tx: Option<mpsc::Sender<()>>,
 }
 
-impl SimulatedLogStreamer {
-    /// Create a new simulated log streamer
-    pub fn new(level_filter: Option<LogLevel>) -> Self {
-        Self {
-            running: true,
-            level_filter,
+impl DashboardLogStreamer {
+    pub async fn new(api_addr: &str, actor_filter: Option<&str>) -> Result<Self, Error> {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(2))
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
+
+        let base_url = api_addr.trim_end_matches('/');
+
+        let resp = client
+            .get(format!("{}/api/v1/status", base_url))
+            .send()
+            .await
+            .map_err(|_| Error::HostNotFound)?;
+
+        if !resp.status().is_success() {
+            return Err(Error::HostNotFound);
         }
+
+        let ws_url = base_url.replace("http://", "ws://").replace("https://", "wss://");
+
+        let (ws_stream, _) = connect_async(format!("{}/ws", ws_url))
+            .await
+            .map_err(|e| Error::WebSocketError(format!("WebSocket connection failed: {}", e)))?;
+
+        let (entry_tx, entry_rx) = mpsc::channel(256);
+        let (shutdown_tx, mut shutdown_rx) = mpsc::channel::<()>(1);
+        let actor_filter = actor_filter.map(|s| s.to_string());
+
+        let handle = tokio::spawn(async move {
+            let mut ws = ws_stream;
+
+            loop {
+                tokio::select! {
+                    _ = shutdown_rx.recv() => {
+                        break;
+                    }
+                    msg = ws.next() => {
+                        match msg {
+                            Some(Ok(m)) => {
+                                if m.is_text() || m.is_binary() {
+                                    let text = if m.is_text() {
+                                        m.to_text().unwrap_or("").to_string()
+                                    } else {
+                                        let data = m.into_data();
+                                        String::from_utf8_lossy(&data).to_string()
+                                    };
+
+                                    if let Ok(entry) = serde_json::from_str::<LogEntry>(&text) {
+                                        let send = actor_filter.as_ref().is_none_or(|filter| {
+                                            entry.actor.as_deref() == Some(filter.as_str())
+                                        });
+                                        if send && entry_tx.send(entry).await.is_err() {
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                            Some(Err(_)) | None => {
+                                let _ = entry_tx.send(LogEntry::new(
+                                    LogLevel::Warn,
+                                    "Dashboard WebSocket connection closed",
+                                )).await;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        tokio::spawn(async move {
+            let _ = handle.await;
+        });
+
+        Ok(Self {
+            receiver: Some(entry_rx),
+            shutdown_tx: Some(shutdown_tx),
+        })
     }
 }
 
 #[async_trait]
-impl LogStreamer for SimulatedLogStreamer {
+impl LogStreamer for DashboardLogStreamer {
     async fn next(&mut self) -> Option<LogEntry> {
-        if !self.running {
-            return None;
+        if let Some(ref mut rx) = self.receiver {
+            rx.recv().await
+        } else {
+            None
         }
-
-        tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
-
-        let messages = [
-            ("Actor heartbeat received", LogLevel::Debug),
-            ("Processing message from mesh", LogLevel::Info),
-            ("State checkpoint completed", LogLevel::Info),
-            ("Health check passed", LogLevel::Debug),
-            ("Request completed in 5ms", LogLevel::Info),
-            ("Connection established", LogLevel::Info),
-            ("Cache invalidated", LogLevel::Debug),
-        ];
-
-        let idx = (Utc::now().timestamp_subsec_micros() as usize) % messages.len();
-        let (msg, level) = messages[idx];
-
-        if let Some(filter) = &self.level_filter {
-            if level < *filter {
-                return self.next().await;
-            }
-        }
-
-        let actors = ["system", "worker-1", "worker-2", "scheduler"];
-        let actor = actors[(Utc::now().timestamp_subsec_millis() as usize) % actors.len()];
-
-        Some(LogEntry::new(level, msg).with_actor(actor))
     }
 
     fn close(&mut self) {
-        self.running = false;
+        if let Some(tx) = self.shutdown_tx.take() {
+            let _ = tx.try_send(());
+        }
+        self.receiver.take();
     }
 }
 
-/// Determine the log source from arguments
+/// Dashboard API recent-logs fetcher (non-streaming mode).
+struct DashboardLogFetcher {
+    api_addr: String,
+    actor_filter: Option<String>,
+}
+
+impl DashboardLogFetcher {
+    fn new(api_addr: &str, actor_filter: Option<&str>) -> Self {
+        Self {
+            api_addr: api_addr.trim_end_matches('/').to_string(),
+            actor_filter: actor_filter.map(|s| s.to_string()),
+        }
+    }
+
+    async fn fetch_recent(&self, _limit: usize) -> Result<Vec<LogEntry>, Error> {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(2))
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
+
+        let resp = client
+            .get(format!("{}/api/v1/status", self.api_addr))
+            .send()
+            .await
+            .map_err(|_| Error::HostNotFound)?;
+
+        if !resp.status().is_success() {
+            return Err(Error::HostNotFound);
+        }
+
+        let traces_resp = client
+            .get(format!("{}/api/v1/traces", self.api_addr))
+            .send()
+            .await;
+
+        let mut entries = Vec::new();
+
+        if let Ok(resp) = traces_resp {
+            if resp.status().is_success() {
+                if let Ok(traces) = resp.json::<Vec<serde_json::Value>>().await {
+                    for trace in &traces {
+                        let operation = trace.get("operation")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("unknown");
+                        let duration = trace.get("duration_us")
+                            .and_then(|v| v.as_u64())
+                            .unwrap_or(0);
+
+                        let actor = trace.get("operation")
+                            .and_then(|v| v.as_str())
+                            .and_then(|s| s.split("::").next())
+                            .map(|s| s.to_string());
+
+                        if let Some(ref filter) = self.actor_filter {
+                            if actor.as_deref() != Some(filter.as_str()) {
+                                continue;
+                            }
+                        }
+
+                        entries.push(LogEntry::new(LogLevel::Info, format!("{} ({}us)", operation, duration)).with_actor(actor.unwrap_or_else(|| "system".to_string())));
+                    }
+                }
+            }
+        }
+
+        Ok(entries)
+    }
+}
+
 fn determine_log_source(args: &LogsArgs) -> LogSource {
     if let Some(ref path) = args.file {
         LogSource::File { path: path.clone() }
@@ -453,11 +542,12 @@ fn determine_log_source(args: &LogsArgs) -> LogSource {
             actor_id: actor.clone(),
         }
     } else {
-        LogSource::Simulated
+        LogSource::Tracing {
+            filter: "info".to_string(),
+        }
     }
 }
 
-/// Parse log level filter from string
 fn parse_level_filter(level: Option<&str>) -> Result<Option<LogLevel>, Error> {
     match level {
         Some(s) => LogLevel::from_str(s)
@@ -467,8 +557,10 @@ fn parse_level_filter(level: Option<&str>) -> Result<Option<LogLevel>, Error> {
     }
 }
 
-/// Create a log streamer based on source
-async fn create_streamer(source: LogSource) -> Result<Box<dyn LogStreamer>, Error> {
+async fn create_streamer(
+    source: LogSource,
+    api_addr: &str,
+) -> Result<Box<dyn LogStreamer>, Error> {
     match source {
         LogSource::File { path } => {
             let streamer = FileLogStreamer::new(path)?;
@@ -479,20 +571,16 @@ async fn create_streamer(source: LogSource) -> Result<Box<dyn LogStreamer>, Erro
             Ok(Box::new(streamer))
         }
         LogSource::Tracing { filter: _ } => {
-            // For now, fall back to simulated
-            // In a full implementation, this would integrate with tracing
-            Ok(Box::new(SimulatedLogStreamer::new(None)))
+            let streamer = DashboardLogStreamer::new(api_addr, None).await?;
+            Ok(Box::new(streamer))
         }
-        LogSource::Actor { actor_id: _ } => {
-            // For now, fall back to simulated
-            // In a full implementation, this would connect via RPC
-            Ok(Box::new(SimulatedLogStreamer::new(None)))
+        LogSource::Actor { actor_id } => {
+            let streamer = DashboardLogStreamer::new(api_addr, Some(&actor_id)).await?;
+            Ok(Box::new(streamer))
         }
-        LogSource::Simulated => Ok(Box::new(SimulatedLogStreamer::new(None))),
     }
 }
 
-/// Check if an entry should be displayed
 fn should_display(
     entry: &LogEntry,
     level_filter: &Option<LogLevel>,
@@ -513,7 +601,6 @@ fn should_display(
     true
 }
 
-/// Print a log entry in the specified format
 fn print_entry(entry: &LogEntry, format: &str) {
     match format {
         "json" => print_json(entry),
@@ -522,7 +609,6 @@ fn print_entry(entry: &LogEntry, format: &str) {
     }
 }
 
-/// Print entry as JSON
 fn print_json(entry: &LogEntry) {
     match serde_json::to_string(entry) {
         Ok(json) => println!("{}", json),
@@ -530,7 +616,6 @@ fn print_json(entry: &LogEntry) {
     }
 }
 
-/// Print entry as plain text
 fn print_text(entry: &LogEntry) {
     let actor = entry.actor.as_deref().unwrap_or("system");
     println!(
@@ -546,7 +631,6 @@ fn print_text(entry: &LogEntry) {
     }
 }
 
-/// Print entry with colors
 fn print_pretty(entry: &LogEntry) {
     let level_style = match entry.level {
         LogLevel::Error => "\x1b[31m",
@@ -581,26 +665,20 @@ fn print_pretty(entry: &LogEntry) {
     }
 }
 
-/// Parse a log line into a LogEntry
 fn parse_log_line(line: &str) -> Option<LogEntry> {
     let line = line.trim();
     if line.is_empty() {
         return None;
     }
 
-    // Try JSON first
     if line.starts_with('{') {
         if let Ok(entry) = serde_json::from_str::<LogEntry>(line) {
             return Some(entry);
         }
     }
 
-    // Try common log formats
-    // Format: [TIMESTAMP] LEVEL ACTOR - MESSAGE
-    // Simple parsing without regex
     let remaining = line;
 
-    // Extract timestamp if present
     let (timestamp, remaining) = if remaining.starts_with('[') {
         if let Some(end) = remaining.find(']') {
             let ts_str = &remaining[1..end];
@@ -615,7 +693,6 @@ fn parse_log_line(line: &str) -> Option<LogEntry> {
         (None, remaining)
     };
 
-    // Extract level
     let parts: Vec<&str> = remaining.splitn(2, ' ').collect();
     if parts.is_empty() {
         return Some(LogEntry::new(LogLevel::Info, line));
@@ -629,7 +706,6 @@ fn parse_log_line(line: &str) -> Option<LogEntry> {
 
     let remaining = if parts.len() > 1 { parts[1] } else { "" };
 
-    // Extract actor and message (format: ACTOR - MESSAGE)
     let (actor, message) = if let Some(dash_pos) = remaining.find(" - ") {
         let actor_str = remaining[..dash_pos].trim();
         let msg = remaining[dash_pos + 3..].trim();
@@ -654,7 +730,6 @@ fn parse_log_line(line: &str) -> Option<LogEntry> {
     Some(entry)
 }
 
-/// Execute the logs command
 pub async fn execute(args: LogsArgs) -> Result<(), Error> {
     let level_filter = parse_level_filter(args.level.as_deref())?;
     let source = determine_log_source(&args);
@@ -666,26 +741,25 @@ pub async fn execute(args: LogsArgs) -> Result<(), Error> {
             LogSource::WebSocket { url } => format!("ws://{}", url),
             LogSource::Tracing { filter } => format!("tracing:{}", filter),
             LogSource::Actor { actor_id } => format!("actor:{}", actor_id),
-            LogSource::Simulated => "all actors".to_string(),
         }
     );
     println!("Press Ctrl+C to stop.");
     println!();
 
     if args.follow {
-        stream_logs(&args, source, level_filter).await
+        stream_logs(&args, source, level_filter, &args.api_addr).await
     } else {
-        print_recent_logs(&args, level_filter)
+        print_recent_logs(&args, level_filter, &args.api_addr).await
     }
 }
 
-/// Stream logs in real-time
 async fn stream_logs(
     args: &LogsArgs,
     source: LogSource,
     level_filter: Option<LogLevel>,
+    api_addr: &str,
 ) -> Result<(), Error> {
-    let mut streamer = create_streamer(source).await?;
+    let mut streamer = create_streamer(source, api_addr).await?;
     let mut sigint = signal(SignalKind::interrupt())?;
 
     loop {
@@ -714,30 +788,53 @@ async fn stream_logs(
     Ok(())
 }
 
-/// Print recent logs (non-streaming)
-fn print_recent_logs(args: &LogsArgs, level_filter: Option<LogLevel>) -> Result<(), Error> {
-    println!("Showing last {} log entries...", args.lines);
+async fn print_recent_logs(
+    args: &LogsArgs,
+    level_filter: Option<LogLevel>,
+    api_addr: &str,
+) -> Result<(), Error> {
+    println!("Showing recent log entries...");
     println!();
 
-    let sample_logs = vec![
-        LogEntry::new(LogLevel::Info, "Actor started").with_actor("system"),
-        LogEntry::new(LogLevel::Info, "Actor initialized").with_actor("worker-1"),
-        LogEntry::new(LogLevel::Info, "Listening on port 8080").with_actor("system"),
-        LogEntry::new(LogLevel::Debug, "Processing request").with_actor("worker-1"),
-        LogEntry::new(LogLevel::Info, "Request completed in 5ms").with_actor("worker-1"),
-        LogEntry::new(LogLevel::Warn, "Connection timeout").with_actor("network"),
-        LogEntry::new(LogLevel::Error, "Failed to connect to database").with_actor("db"),
-        LogEntry::new(LogLevel::Debug, "Health check passed").with_actor("health"),
-    ];
+    let fetcher = match &args.file {
+        Some(path) => {
+            let mut streamer = FileLogStreamer::new(path.clone())?;
+            let mut entries = Vec::new();
+            for _ in 0..args.lines {
+                match streamer.next().await {
+                    Some(entry) => entries.push(entry),
+                    None => break,
+                }
+            }
+            let filtered: Vec<_> = entries
+                .into_iter()
+                .filter(|e| should_display(e, &level_filter, &args.actor))
+                .collect();
+            for entry in filtered {
+                print_entry(&entry, &args.format);
+            }
+            return Ok(());
+        }
+        None => {
+            let actor = args.actor.as_deref();
+            DashboardLogFetcher::new(api_addr, actor)
+        }
+    };
 
-    let filtered_logs: Vec<_> = sample_logs
+    let entries = fetcher.fetch_recent(args.lines).await?;
+
+    let filtered: Vec<_> = entries
         .into_iter()
-        .filter(|entry| should_display(entry, &level_filter, &args.actor))
+        .filter(|e| should_display(e, &level_filter, &args.actor))
         .collect();
 
-    let count = args.lines.min(filtered_logs.len());
-    for entry in filtered_logs.iter().take(count) {
+    let count = args.lines.min(filtered.len());
+    for entry in filtered.iter().take(count) {
         print_entry(entry, &args.format);
+    }
+
+    if filtered.is_empty() {
+        println!("No log entries found.");
     }
 
     Ok(())
@@ -814,17 +911,60 @@ mod tests {
         assert!(json.contains("\"actor\":\"test\""));
     }
 
-    #[tokio::test]
-    async fn test_simulated_log_streamer() {
-        let mut streamer = SimulatedLogStreamer::new(Some(LogLevel::Info));
+    #[test]
+    fn test_determine_log_source_file() {
+        let args = LogsArgs {
+            actor: None,
+            follow: false,
+            lines: 100,
+            level: None,
+            format: "text".to_string(),
+            file: Some(PathBuf::from("/var/log/test.log")),
+            websocket: None,
+            tracing_filter: None,
+            api_addr: DEFAULT_DASHBOARD_ADDR.to_string(),
+        };
+        match determine_log_source(&args) {
+            LogSource::File { .. } => {}
+            other => panic!("Expected File, got {:?}", other),
+        }
+    }
 
-        let entry = streamer.next().await;
-        assert!(entry.is_some());
+    #[test]
+    fn test_determine_log_source_actor() {
+        let args = LogsArgs {
+            actor: Some("my-actor".to_string()),
+            follow: false,
+            lines: 100,
+            level: None,
+            format: "text".to_string(),
+            file: None,
+            websocket: None,
+            tracing_filter: None,
+            api_addr: DEFAULT_DASHBOARD_ADDR.to_string(),
+        };
+        match determine_log_source(&args) {
+            LogSource::Actor { actor_id } => assert_eq!(actor_id, "my-actor"),
+            other => panic!("Expected Actor, got {:?}", other),
+        }
+    }
 
-        let entry = entry.unwrap();
-        assert!(entry.level >= LogLevel::Info);
-
-        streamer.close();
-        assert!(!streamer.running);
+    #[test]
+    fn test_determine_log_source_default_tracing() {
+        let args = LogsArgs {
+            actor: None,
+            follow: false,
+            lines: 100,
+            level: None,
+            format: "text".to_string(),
+            file: None,
+            websocket: None,
+            tracing_filter: None,
+            api_addr: DEFAULT_DASHBOARD_ADDR.to_string(),
+        };
+        match determine_log_source(&args) {
+            LogSource::Tracing { .. } => {}
+            other => panic!("Expected Tracing, got {:?}", other),
+        }
     }
 }

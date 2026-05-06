@@ -57,10 +57,15 @@ impl MeshNode {
         ));
 
         let quic_config = config.to_quic_config();
-        let endpoint = Arc::new(QuicEndpoint::with_connection_pool(
-            quic_config,
-            pool.clone(),
-        )?);
+        let endpoint = Arc::new(if let Some(ref cert_config) = config.cert_config {
+            QuicEndpoint::with_connection_pool_and_cert(
+                quic_config,
+                pool.clone(),
+                cert_config.clone(),
+            )?
+        } else {
+            QuicEndpoint::with_connection_pool(quic_config, pool.clone())?
+        });
 
         let resolver_config = config.to_resolver_config();
         let resolver = Arc::new(ActorResolver::with_config(
