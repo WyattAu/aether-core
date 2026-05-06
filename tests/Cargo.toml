@@ -40,3 +40,7 @@ path = "integration/mod.rs"
 name = "e2e"
 path = "e2e/mod.rs"
 required-features = ["integration-tests"]
+
+[[test]]
+name = "memory_benchmarks"
+path = "benchmarks/memory_benchmarks.rs"

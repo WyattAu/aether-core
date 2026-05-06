@@ -298,6 +298,7 @@ pub struct WindowUpdate {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::thread;
 
     #[test]
     fn test_credit_account_basic() {
@@ -333,5 +334,350 @@ mod tests {
         assert!(controller.can_send(500));
         assert!(!controller.can_send(1));
         assert!(controller.is_zero_window());
+    }
+
+    #[test]
+    fn test_credit_conservation_acquire_only() {
+        let initial = 10_000u64;
+        let account = Arc::new(CreditAccount::new(initial));
+        let total_acquired = Arc::new(AtomicU64::new(0));
+        let num_threads = 8;
+
+        let mut handles = vec![];
+        for _ in 0..num_threads {
+            let acct = Arc::clone(&account);
+            let acquired = Arc::clone(&total_acquired);
+            handles.push(thread::spawn(move || {
+                let mut local_acquired = 0u64;
+                for _ in 0..10_000 {
+                    if acct.try_acquire(1) {
+                        local_acquired += 1;
+                    }
+                }
+                acquired.fetch_add(local_acquired, Ordering::Relaxed);
+            }));
+        }
+        for h in handles {
+            h.join().unwrap();
+        }
+
+        let final_available = account.available();
+        let total = total_acquired.load(Ordering::Relaxed);
+        assert_eq!(
+            final_available + total,
+            initial,
+            "credit conservation violated: available={}, acquired={}, initial={}",
+            final_available,
+            total,
+            initial
+        );
+    }
+
+    #[test]
+    fn test_credit_conservation_with_release() {
+        let initial = 1_000u64;
+        let account = Arc::new(CreditAccount::new(initial));
+        let net_acquired = Arc::new(AtomicU64::new(0));
+        let num_threads = 4;
+
+        let mut handles = vec![];
+        for _ in 0..num_threads {
+            let acct = Arc::clone(&account);
+            let net = Arc::clone(&net_acquired);
+            handles.push(thread::spawn(move || {
+                let mut local_net = 0u64;
+                for i in 0..50_000u64 {
+                    if i % 2 == 0 && local_net > 0 {
+                        acct.release(1);
+                        local_net -= 1;
+                    } else {
+                        if acct.try_acquire(1) {
+                            local_net += 1;
+                        }
+                    }
+                }
+                net.fetch_add(local_net, Ordering::Relaxed);
+            }));
+        }
+        for h in handles {
+            h.join().unwrap();
+        }
+
+        let final_available = account.available();
+        let total = net_acquired.load(Ordering::Relaxed);
+        assert_eq!(
+            final_available + total,
+            initial,
+            "credit conservation violated after acquire/release: available={}, net={}, initial={}",
+            final_available,
+            total,
+            initial
+        );
+    }
+
+    #[test]
+    fn test_monotonic_state_transitions_drain() {
+        let initial = 1_000u64;
+        let threshold = initial / 16;
+
+        let legal_forward = |a: FlowState, b: FlowState| -> bool {
+            matches!(
+                (a, b),
+                (FlowState::Normal, FlowState::Normal)
+                    | (FlowState::Normal, FlowState::Pressure)
+                    | (FlowState::Pressure, FlowState::Pressure)
+                    | (FlowState::Pressure, FlowState::Blocked)
+                    | (FlowState::Blocked, FlowState::Blocked)
+            )
+        };
+
+        let account = CreditAccount::new(initial);
+        assert_eq!(account.state(), FlowState::Normal);
+
+        let mut prev = account.state();
+        for i in 0..initial {
+            let before = prev;
+            account.try_acquire(1);
+            let current = account.state();
+            assert!(
+                legal_forward(before, current),
+                "illegal forward transition at step {}: {:?} -> {:?}",
+                i,
+                before,
+                current
+            );
+            assert_ne!(
+                (before, current),
+                (FlowState::Normal, FlowState::Blocked),
+                "Normal -> Blocked direct transition forbidden at step {}",
+                i
+            );
+            prev = current;
+        }
+        assert_eq!(account.state(), FlowState::Blocked);
+    }
+
+    #[test]
+    fn test_monotonic_state_transitions_refill() {
+        let initial = 1_000u64;
+
+        let legal_backward = |a: FlowState, b: FlowState| -> bool {
+            matches!(
+                (a, b),
+                (FlowState::Blocked, FlowState::Blocked)
+                    | (FlowState::Blocked, FlowState::Pressure)
+                    | (FlowState::Pressure, FlowState::Pressure)
+                    | (FlowState::Pressure, FlowState::Normal)
+                    | (FlowState::Normal, FlowState::Normal)
+            )
+        };
+
+        let account = CreditAccount::new(initial);
+        while account.try_acquire(1) {}
+        assert_eq!(account.state(), FlowState::Blocked);
+
+        let mut prev = account.state();
+        for i in 1..=initial {
+            let before = prev;
+            account.release(1);
+            let current = account.state();
+            assert!(
+                legal_backward(before, current),
+                "illegal backward transition at step {}: {:?} -> {:?}",
+                i,
+                before,
+                current
+            );
+            assert_ne!(
+                (before, current),
+                (FlowState::Blocked, FlowState::Normal),
+                "Blocked -> Normal direct transition forbidden at step {}",
+                i
+            );
+            prev = current;
+        }
+        assert_eq!(account.state(), FlowState::Normal);
+    }
+
+    #[test]
+    fn test_atomicity_never_overallocates() {
+        let initial = 1_000u64;
+        let account = Arc::new(CreditAccount::new(initial));
+        let num_threads = 16;
+
+        let mut handles = vec![];
+        for _ in 0..num_threads {
+            let acct = Arc::clone(&account);
+            handles.push(thread::spawn(move || {
+                for _ in 0..10_000 {
+                    let _ = acct.try_acquire(1);
+                }
+            }));
+        }
+        for h in handles {
+            h.join().unwrap();
+        }
+
+        let available = account.available();
+        let acquired = initial.saturating_sub(available);
+        assert_eq!(
+            available + acquired,
+            initial,
+            "atomicity violated: over-allocation detected (available={}, acquired={})",
+            available,
+            acquired
+        );
+    }
+
+    #[test]
+    fn test_threshold_correctness() {
+        let initial = 1_000u64;
+        let account = CreditAccount::new(initial);
+        let threshold = initial / 16;
+
+        assert!(account.available() >= threshold);
+        assert_eq!(account.state(), FlowState::Normal);
+
+        let drain_to_pressure = initial - threshold + 1;
+        assert!(account.try_acquire(drain_to_pressure));
+        assert!(account.available() > 0);
+        assert!(account.available() < threshold);
+        assert_eq!(account.state(), FlowState::Pressure);
+
+        account.try_acquire(account.available());
+        assert_eq!(account.available(), 0);
+        assert_eq!(account.state(), FlowState::Blocked);
+
+        account.release(1);
+        assert_eq!(account.available(), 1);
+        assert_eq!(account.state(), FlowState::Pressure);
+
+        account.release(threshold - 1);
+        assert_eq!(account.available(), threshold);
+        assert_eq!(account.state(), FlowState::Normal);
+    }
+
+    #[test]
+    fn test_can_send_matches_try_acquire() {
+        let window_size = 1000u64;
+        let ctrl_a = BackpressureController::new(window_size);
+        let ctrl_b = BackpressureController::new(window_size);
+
+        let amounts: Vec<u64> = vec![100, 200, 500, 300, 1, 0, 999, 1000, 1001];
+        for &amount in &amounts {
+            let result_a = ctrl_a.can_send(amount);
+            let result_b = ctrl_b.send_credits().try_acquire(amount);
+            assert_eq!(
+                result_a, result_b,
+                "can_send({}) != try_acquire({}): {} vs {}",
+                amount, amount, result_a, result_b
+            );
+        }
+    }
+
+    #[test]
+    fn test_is_zero_window_invariant() {
+        let controller = BackpressureController::new(1000);
+
+        assert_eq!(
+            controller.is_zero_window(),
+            controller.send_credits().available() == 0
+        );
+
+        while controller.send_credits().try_acquire(1) {}
+        assert_eq!(controller.send_credits().available(), 0);
+        assert!(controller.is_zero_window());
+
+        controller.send_credits().release(1);
+        assert_eq!(
+            controller.is_zero_window(),
+            controller.send_credits().available() == 0
+        );
+        assert!(!controller.is_zero_window());
+    }
+
+    #[test]
+    fn test_grant_credits_increases_recv_by_exact() {
+        let controller = BackpressureController::new(1000);
+        let base = controller.recv_credits().available();
+
+        controller.grant_credits(100);
+        assert_eq!(controller.recv_credits().available(), base + 100);
+
+        controller.grant_credits(250);
+        assert_eq!(controller.recv_credits().available(), base + 350);
+
+        controller.grant_credits(0);
+        assert_eq!(controller.recv_credits().available(), base + 350);
+    }
+
+    #[test]
+    fn test_window_update_needed_invariant() {
+        let controller = BackpressureController::new(1000);
+        let low_watermark = (1000_f64 * 0.5) as u64;
+
+        assert_eq!(
+            controller.window_update_needed(),
+            controller.recv_credits().available() < low_watermark
+        );
+        assert!(!controller.window_update_needed());
+
+        let drain = 1000 - low_watermark + 1;
+        controller.recv_credits().try_acquire(drain);
+        assert_eq!(
+            controller.window_update_needed(),
+            controller.recv_credits().available() < low_watermark
+        );
+        assert!(controller.window_update_needed());
+
+        controller.grant_credits(low_watermark);
+        assert_eq!(
+            controller.window_update_needed(),
+            controller.recv_credits().available() < low_watermark
+        );
+        assert!(!controller.window_update_needed());
+    }
+
+    #[test]
+    fn test_stress_concurrent_acquire_release() {
+        let initial = 10_000u64;
+        let account = Arc::new(CreditAccount::new(initial));
+        let net_acquired = Arc::new(AtomicU64::new(0));
+        let num_threads = 8;
+        let ops_per_thread: u64 = 100_000;
+
+        let mut handles = vec![];
+        for _ in 0..num_threads {
+            let acct = Arc::clone(&account);
+            let net = Arc::clone(&net_acquired);
+            handles.push(thread::spawn(move || {
+                let mut local_net = 0i64;
+                for i in 0..ops_per_thread {
+                    if i % 3 == 0 && local_net > 0 {
+                        acct.release(1);
+                        local_net -= 1;
+                    } else {
+                        if acct.try_acquire(1) {
+                            local_net += 1;
+                        }
+                    }
+                }
+                net.fetch_add(local_net as u64, Ordering::Relaxed);
+            }));
+        }
+        for h in handles {
+            h.join().unwrap();
+        }
+
+        let final_available = account.available();
+        let total = net_acquired.load(Ordering::Relaxed);
+        assert_eq!(
+            final_available + total,
+            initial,
+            "stress test failed: available={}, net_acquired={}, initial={}",
+            final_available,
+            total,
+            initial
+        );
     }
 }

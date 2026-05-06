@@ -24,6 +24,7 @@ mod comprehensive;
 mod e2e_actor_lifecycle;
 mod e2e_capability_enforcement;
 mod e2e_mesh_communication;
+mod fuzz_wasm_capability;
 mod e2e_observability;
 mod e2e_security;
 mod e2e_state_persistence;

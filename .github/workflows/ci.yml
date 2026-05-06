@@ -6,7 +6,6 @@ on:
   pull_request:
     branches: [main]
   schedule:
-    # Nightly build at 2 AM UTC
     - cron: '0 2 * * *'
 
 env:
@@ -19,14 +18,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: nightly-2026-03-01
           components: clippy, rustfmt
           targets: wasm32-wasip1
-      
+
       - name: Cache cargo registry
         uses: actions/cache@v4
         with:
@@ -37,15 +36,20 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-
-      
+
       - name: Check formatting
         run: cargo fmt --all -- --check
-      
+
       - name: Clippy
         run: cargo clippy --workspace --all-features -- -D warnings
-      
+
       - name: Check
         run: cargo check --workspace --all-features
+
+      - name: No stubs
+        run: |
+          ! grep -rn 'generate_mock\|SimulatedLogStreamer\|todo!()' crates/
+          echo "No stubs found"
 
   test:
     name: Test
@@ -53,13 +57,13 @@ jobs:
     needs: check
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: nightly-2026-03-01
           targets: wasm32-wasip1
-      
+
       - name: Cache cargo registry
         uses: actions/cache@v4
         with:
@@ -68,12 +72,15 @@ jobs:
             ~/.cargo/git
             target
           key: ${{ runner.os }}-cargo-test-${{ hashFiles('**/Cargo.lock') }}
-      
+
       - name: Run tests
         run: cargo test --workspace --all-features
-      
+
       - name: Run integration tests
         run: cargo test --test integration --all-features
+
+      - name: Run memory benchmarks
+        run: cargo test --test memory_benchmarks --all-features -- --nocapture
 
   security:
     name: Security Audit
@@ -81,15 +88,15 @@ jobs:
     needs: check
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: nightly-2026-03-01
-      
+
       - name: Install cargo-audit
         run: cargo install cargo-audit
-      
+
       - name: Security audit
         run: cargo audit
 
@@ -99,15 +106,15 @@ jobs:
     needs: check
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: nightly-2026-03-01
-      
+
       - name: Build docs
         run: cargo doc --workspace --no-deps
-      
+
       - name: Deploy docs
         if: github.ref == 'refs/heads/main'
         uses: peaceiris/actions-gh-pages@v3
@@ -128,20 +135,20 @@ jobs:
             artifact: aether-linux-x86_64
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: nightly-2026-03-01
           targets: ${{ matrix.target }}
-      
+
       - name: Build release
         run: cargo build --release --target ${{ matrix.target }}
-      
+
       - name: Strip binary
         if: matrix.os == 'ubuntu-latest'
         run: strip target/${{ matrix.target }}/release/aether
-      
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -156,7 +163,7 @@ jobs:
     steps:
       - name: Download artifacts
         uses: actions/download-artifact@v4
-      
+
       - name: Create release
         uses: softprops/action-gh-release@v1
         with:

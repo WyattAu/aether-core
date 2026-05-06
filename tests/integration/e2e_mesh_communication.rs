@@ -13,7 +13,7 @@ use aether_core::{
     actor::{ActorScheduler, SchedulerConfig},
     mesh::{
         ActorAddress, ActorLocation, CertificateConfig, CompressionType, MeshConfig, MeshMessage,
-        MeshNode, MessageId, MessageType,
+        MeshNode, MessageId, MessageType, frame_message, parse_frame,
     },
 };
 #[cfg(feature = "mesh")]
@@ -534,4 +534,135 @@ async fn test_e2e_mesh_real_quic_connection() {
 
     *stop.write().await = true;
     let _ = tokio::time::timeout(Duration::from_secs(2), accept_handle).await;
+}
+
+#[tokio::test]
+#[cfg(feature = "mesh")]
+async fn test_prop_address_roundtrip() {
+    let uris = [
+        "actor://default/my-actor/instance-123",
+        "actor://production/payment-service/instance-42",
+        "actor://staging/auth-service/auth-0",
+        "actor://ns/a/b",
+        "actor://x/y/z",
+    ];
+
+    for uri in &uris {
+        let addr = ActorAddress::parse(uri).expect("parse failed");
+        assert_eq!(addr.to_uri(), *uri, "roundtrip failed for {}", uri);
+    }
+
+    assert!(ActorAddress::parse("not-a-uri").is_none());
+    assert!(ActorAddress::parse("actor://only-two/parts").is_none());
+    assert!(ActorAddress::parse("actor://a/b/c/d").is_none());
+}
+
+#[tokio::test]
+#[cfg(feature = "mesh")]
+async fn test_prop_message_immutability() {
+    let source = ActorAddress::new("ns", "src", "1");
+    let target = ActorAddress::new("ns", "dst", "2");
+    let original = MeshMessage::request(source.clone(), target.clone(), vec![1, 2, 3, 4, 5]);
+    let snapshot = original.clone();
+
+    let _ = &original.id;
+    let _ = &original.correlation_id;
+    let _ = &original.msg_type;
+    let _ = &original.compression;
+    let _ = &original.source;
+    let _ = &original.target;
+    let _ = &original.trace_id;
+    let _ = &original.timestamp_ns;
+    let _ = &original.ttl_ms;
+    let _ = &original.priority;
+    let _ = &original.payload;
+
+    assert_eq!(original.id, snapshot.id);
+    assert_eq!(original.correlation_id, snapshot.correlation_id);
+    assert_eq!(original.msg_type, snapshot.msg_type);
+    assert_eq!(original.compression, snapshot.compression);
+    assert_eq!(original.source, snapshot.source);
+    assert_eq!(original.target, snapshot.target);
+    assert_eq!(original.trace_id, snapshot.trace_id);
+    assert_eq!(original.timestamp_ns, snapshot.timestamp_ns);
+    assert_eq!(original.ttl_ms, snapshot.ttl_ms);
+    assert_eq!(original.priority, snapshot.priority);
+    assert_eq!(original.payload, snapshot.payload);
+}
+
+#[tokio::test]
+#[cfg(feature = "mesh")]
+async fn test_prop_compression_type_preservation() {
+    let source = ActorAddress::new("ns", "src", "1");
+    let target = ActorAddress::new("ns", "dst", "2");
+    let mut msg = MeshMessage::request(source, target, vec![0u8; 100]);
+    msg.compression = CompressionType::Zstd;
+
+    let framed = frame_message(&msg).expect("frame failed");
+    let (parsed, consumed) = parse_frame(&framed)
+        .expect("parse failed")
+        .expect("incomplete frame");
+
+    assert_eq!(consumed, framed.len());
+    assert_eq!(parsed.compression, CompressionType::Zstd);
+    assert_eq!(parsed.id, msg.id);
+    assert_eq!(parsed.source, msg.source);
+    assert_eq!(parsed.target, msg.target);
+    assert_eq!(parsed.payload, msg.payload);
+}
+
+#[tokio::test]
+#[cfg(feature = "mesh")]
+async fn test_prop_address_component_isolation() {
+    let mut addr = ActorAddress::new("ns1", "actor1", "inst1");
+    assert_eq!(addr.namespace, "ns1");
+    assert_eq!(addr.actor_name, "actor1");
+    assert_eq!(addr.instance_id, "inst1");
+
+    addr.namespace = "ns2".to_string();
+    assert_eq!(addr.actor_name, "actor1", "changing namespace should not affect actor_name");
+    assert_eq!(addr.instance_id, "inst1", "changing namespace should not affect instance_id");
+
+    addr.actor_name = "actor2".to_string();
+    assert_eq!(addr.namespace, "ns2", "changing actor_name should not affect namespace");
+    assert_eq!(addr.instance_id, "inst1", "changing actor_name should not affect instance_id");
+
+    addr.instance_id = "inst2".to_string();
+    assert_eq!(addr.namespace, "ns2", "changing instance_id should not affect namespace");
+    assert_eq!(addr.actor_name, "actor2", "changing instance_id should not affect actor_name");
+
+    assert_eq!(
+        addr.to_uri(),
+        "actor://ns2/actor2/inst2",
+        "all components should be independently settable"
+    );
+}
+
+#[tokio::test]
+#[cfg(feature = "mesh")]
+async fn test_prop_priority_ordering() {
+    let source = ActorAddress::new("ns", "src", "1");
+    let target = ActorAddress::new("ns", "dst", "2");
+
+    let low = MeshMessage::request(source.clone(), target.clone(), vec![]).with_priority(0);
+    let mid = MeshMessage::request(source.clone(), target.clone(), vec![]).with_priority(5);
+    let high = MeshMessage::request(source.clone(), target.clone(), vec![]).with_priority(10);
+
+    assert!(low.priority < mid.priority);
+    assert!(mid.priority < high.priority);
+    assert!(low.priority < high.priority);
+    assert_eq!(low.priority, 0);
+    assert_eq!(high.priority, 10);
+
+    let mut ordered = vec![high.clone(), low.clone(), mid.clone()];
+    ordered.sort_by_key(|m| std::cmp::Reverse(m.priority));
+    assert_eq!(ordered[0].priority, 10);
+    assert_eq!(ordered[1].priority, 5);
+    assert_eq!(ordered[2].priority, 0);
+
+    let mut ascending = vec![high.clone(), low.clone(), mid.clone()];
+    ascending.sort_by_key(|m| m.priority);
+    assert_eq!(ascending[0].priority, 0);
+    assert_eq!(ascending[1].priority, 5);
+    assert_eq!(ascending[2].priority, 10);
 }
