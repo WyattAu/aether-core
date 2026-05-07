@@ -753,7 +753,10 @@ mod tests {
             action: FlowAction::WindowUpdate { size: 2048 },
             buffer_remaining: 2048,
         };
-        assert_eq!(window_update.action, FlowAction::WindowUpdate { size: 2048 });
+        assert_eq!(
+            window_update.action,
+            FlowAction::WindowUpdate { size: 2048 }
+        );
     }
 
     #[test]

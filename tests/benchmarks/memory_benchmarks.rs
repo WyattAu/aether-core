@@ -41,7 +41,9 @@ fn bench_actor_spawn_stop_cycle() {
         }
 
         for id in &ids {
-            registry.set_state(id, aether_core::actor::ActorState::Running).unwrap();
+            registry
+                .set_state(id, aether_core::actor::ActorState::Running)
+                .unwrap();
         }
 
         for id in ids {
@@ -135,7 +137,10 @@ async fn bench_mesh_message_routing() {
     );
 
     let stats = resolver.cache_stats();
-    println!("  Cache stats: {} local, {} remote, {} hits", stats.local_count, stats.remote_count, stats.total_hits);
+    println!(
+        "  Cache stats: {} local, {} remote, {} hits",
+        stats.local_count, stats.remote_count, stats.total_hits
+    );
     assert_eq!(stats.local_count, RESOLVER_ACTORS);
 }
 

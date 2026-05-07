@@ -233,14 +233,10 @@ impl App {
     fn handle_key(&mut self, key: KeyCode) {
         match key {
             KeyCode::Char('q') => self.should_quit = true,
-            KeyCode::Left | KeyCode::Char('h')
-                if self.selected_tab > 0 =>
-            {
+            KeyCode::Left | KeyCode::Char('h') if self.selected_tab > 0 => {
                 self.selected_tab -= 1;
             }
-            KeyCode::Right | KeyCode::Char('l')
-                if self.selected_tab < self.tabs.len() - 1 =>
-            {
+            KeyCode::Right | KeyCode::Char('l') if self.selected_tab < self.tabs.len() - 1 => {
                 self.selected_tab += 1;
             }
             KeyCode::Up | KeyCode::Char('k') => {}
@@ -344,7 +340,11 @@ fn ui(f: &mut Frame, app: &App) {
                 })
                 .title_style(
                     Style::default()
-                        .fg(if app.connected { Color::Cyan } else { Color::Red })
+                        .fg(if app.connected {
+                            Color::Cyan
+                        } else {
+                            Color::Red
+                        })
                         .add_modifier(Modifier::BOLD),
                 ),
         )
@@ -387,12 +387,10 @@ fn ui(f: &mut Frame, app: &App) {
 
 fn render_metrics_panel(f: &mut Frame, app: &App, area: Rect) {
     if !app.connected {
-        let panel = Paragraph::new(Line::from(vec![
-            Span::styled(
-                "No running Aether host found.",
-                Style::default().fg(Color::Yellow),
-            ),
-        ]))
+        let panel = Paragraph::new(Line::from(vec![Span::styled(
+            "No running Aether host found.",
+            Style::default().fg(Color::Yellow),
+        )]))
         .block(
             Block::default()
                 .borders(Borders::ALL)
@@ -728,7 +726,10 @@ fn render_logs_panel(f: &mut Frame, app: &App, area: Rect) {
                 .fg(Color::Cyan)
                 .add_modifier(Modifier::BOLD),
         ),
-        Span::styled(" for live log streaming.", Style::default().fg(Color::DarkGray)),
+        Span::styled(
+            " for live log streaming.",
+            Style::default().fg(Color::DarkGray),
+        ),
     ])];
 
     let panel = Paragraph::new(content).block(

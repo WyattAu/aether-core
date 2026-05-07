@@ -141,14 +141,10 @@ mod tests {
         let (reader, writer) = duplex(1024);
         let (reader2, writer2) = duplex(1024);
 
-        let transport = StdioTransport::with_handles(
-            Box::pin(BufReader::new(reader)),
-            Box::pin(writer),
-        );
-        let _server_transport = StdioTransport::with_handles(
-            Box::pin(BufReader::new(reader2)),
-            Box::pin(writer2),
-        );
+        let transport =
+            StdioTransport::with_handles(Box::pin(BufReader::new(reader)), Box::pin(writer));
+        let _server_transport =
+            StdioTransport::with_handles(Box::pin(BufReader::new(reader2)), Box::pin(writer2));
 
         assert!(!transport.is_closed());
     }
@@ -158,10 +154,8 @@ mod tests {
         let (reader, _writer) = duplex(1024);
         let (_reader2, writer) = duplex(1024);
 
-        let transport = StdioTransport::with_handles(
-            Box::pin(BufReader::new(reader)),
-            Box::pin(writer),
-        );
+        let transport =
+            StdioTransport::with_handles(Box::pin(BufReader::new(reader)), Box::pin(writer));
 
         transport.close().await.unwrap();
         assert!(transport.is_closed());
@@ -175,10 +169,8 @@ mod tests {
         let (_reader, writer) = duplex(1024);
         let (reader2, _writer2) = duplex(1024);
 
-        let transport = StdioTransport::with_handles(
-            Box::pin(BufReader::new(reader2)),
-            Box::pin(writer),
-        );
+        let transport =
+            StdioTransport::with_handles(Box::pin(BufReader::new(reader2)), Box::pin(writer));
 
         transport.close().await.unwrap();
 
@@ -191,10 +183,8 @@ mod tests {
         let (reader, writer) = duplex(1024);
         let (reader2, writer2) = duplex(1024);
 
-        let transport = StdioTransport::with_handles(
-            Box::pin(BufReader::new(reader)),
-            Box::pin(writer),
-        );
+        let transport =
+            StdioTransport::with_handles(Box::pin(BufReader::new(reader)), Box::pin(writer));
 
         assert!(!transport.is_closed());
 

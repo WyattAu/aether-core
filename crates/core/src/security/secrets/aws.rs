@@ -546,13 +546,18 @@ fn hmac_sha256(key: &[u8], msg: &str) -> crate::error::Result<Vec<u8>> {
     use hmac::{Hmac, Mac};
     type HmacSha256 = Hmac<Sha256>;
 
-    let mut mac =
-        HmacSha256::new_from_slice(key).map_err(|e| Error::internal(format!("HMAC initialization failed: {}", e)))?;
+    let mut mac = HmacSha256::new_from_slice(key)
+        .map_err(|e| Error::internal(format!("HMAC initialization failed: {}", e)))?;
     mac.update(msg.as_bytes());
     Ok(mac.finalize().into_bytes().to_vec())
 }
 
-fn get_signature_key(key: &str, date_stamp: &str, region: &str, service: &str) -> crate::error::Result<Vec<u8>> {
+fn get_signature_key(
+    key: &str,
+    date_stamp: &str,
+    region: &str,
+    service: &str,
+) -> crate::error::Result<Vec<u8>> {
     let k_date = hmac_sha256(format!("AWS4{}", key).as_bytes(), date_stamp)?;
     let k_region = hmac_sha256(&k_date, region)?;
     let k_service = hmac_sha256(&k_region, service)?;

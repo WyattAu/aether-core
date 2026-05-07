@@ -303,9 +303,7 @@ impl PersistentMemoryStore {
     /// Get a memory entry by ID
     pub fn get(&self, id: &str) -> Option<Arc<MemoryEntry>> {
         let entries = self.entries.read();
-        let found = entries
-            .iter()
-            .find(|e| e.entry.id == id && !e.is_expired());
+        let found = entries.iter().find(|e| e.entry.id == id && !e.is_expired());
 
         if let Some(e) = found {
             let entry = Arc::clone(&e.entry);
@@ -418,7 +416,8 @@ impl PersistentMemoryStore {
             let inner = Arc::make_mut(&mut persistent.entry);
             inner.content = content;
             inner.access();
-            persistent.content_hash = PersistentMemoryEntry::hash_content(&persistent.entry.content);
+            persistent.content_hash =
+                PersistentMemoryEntry::hash_content(&persistent.entry.content);
             persistent.version += 1;
 
             // Update index (add new)

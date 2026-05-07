@@ -1,15 +1,15 @@
 use aether_core::capability::CapabilitySet;
 use aether_core::config::AetherConfig;
 use aether_core::mesh::message::ActorAddress;
+use aether_core::security::audit::security_violation_event;
+use aether_core::security::authorizer::{Action, Resource};
+use aether_core::security::policy::{PolicyDocument, PolicyStatement};
+use aether_core::security::rbac::{Permission, ResourcePattern};
 use aether_core::security::{
     AuditEvent, AuditEventKind, AuditOutcome, AuditSeverity, Authorizer, CertificateAuthority,
     CertificateRevocationList, CertificateType, CertificateValidator, ChainVerificationResult,
     SecurityAuditLog, Subject,
 };
-use aether_core::security::audit::security_violation_event;
-use aether_core::security::rbac::{Permission, ResourcePattern};
-use aether_core::security::policy::{PolicyDocument, PolicyStatement};
-use aether_core::security::authorizer::{Action, Resource};
 use std::sync::Once;
 
 static INIT: Once = Once::new();
@@ -87,13 +87,19 @@ fn test_capability_bypass_prevention() {
 
     assert!(!empty_caps.has_network(), "no network without grant");
     assert!(!empty_caps.has_state(), "no state read without grant");
-    assert!(!empty_caps.has_state_write(), "no state write without grant");
+    assert!(
+        !empty_caps.has_state_write(),
+        "no state write without grant"
+    );
     assert!(!empty_caps.has_fs_read(), "no fs read without grant");
     assert!(!empty_caps.has_fs_write(), "no fs write without grant");
     assert!(!empty_caps.has_fs_delete(), "no fs delete without grant");
     assert!(!empty_caps.has_messaging(), "no messaging without grant");
     assert!(!empty_caps.can_spawn(), "no process spawn without grant");
-    assert!(!empty_caps.can_access_network(), "no network access without grant");
+    assert!(
+        !empty_caps.can_access_network(),
+        "no network access without grant"
+    );
 }
 
 #[test]
@@ -108,7 +114,10 @@ image = "isolated.wasm"
     let caps = config
         .get_capabilities("isolated")
         .expect("actor not found");
-    assert!(caps.is_empty(), "isolated actor should have zero capabilities");
+    assert!(
+        caps.is_empty(),
+        "isolated actor should have zero capabilities"
+    );
 }
 
 #[test]
@@ -134,8 +143,7 @@ fn test_audit_log_tampering_detection() {
     let log = SecurityAuditLog::new("tamper-test").expect("log creation failed");
 
     log.record(
-        AuditEvent::new(AuditEventKind::Authentication, "login", "first")
-            .with_subject("user-1"),
+        AuditEvent::new(AuditEventKind::Authentication, "login", "first").with_subject("user-1"),
     )
     .expect("record failed");
 
@@ -254,7 +262,10 @@ fn test_backpressure_rejects_when_full() {
 
     let account = CreditAccount::new(100);
     assert!(account.try_acquire(100));
-    assert!(!account.try_acquire(1), "should reject when credits exhausted");
+    assert!(
+        !account.try_acquire(1),
+        "should reject when credits exhausted"
+    );
 }
 
 #[test]
@@ -263,7 +274,10 @@ fn test_connection_limit_overflow_handling() {
         let count: u32 = u32::MAX;
         let _next = count.wrapping_add(1);
     });
-    assert!(result.is_ok(), "connection counter overflow should not panic");
+    assert!(
+        result.is_ok(),
+        "connection counter overflow should not panic"
+    );
 }
 
 #[test]

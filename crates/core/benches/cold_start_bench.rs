@@ -187,7 +187,7 @@ fn bench_no_wasm(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("cold_start_no_wasm");
 
-    group.bench_function("instance_create_stub", |b| {
+    group.bench_function("instance_create_empty", |b| {
         b.iter(|| {
             let instance = WasmInstance::builder("bench").with_fuel(100_000).build();
             black_box(instance);

@@ -15,11 +15,15 @@ async fn test_fuzz_capability_codes_no_caps() {
 
     let engine = create_engine().expect("Failed to create engine");
     let wasm_bytes = wat::parse_str(CAP_CHECK_WAT).expect("Failed to parse WAT");
-    let module =
-        WasmModule::from_bytes(&engine, &wasm_bytes, "fuzz-no-caps").expect("Failed to create module");
+    let module = WasmModule::from_bytes(&engine, &wasm_bytes, "fuzz-no-caps")
+        .expect("Failed to create module");
 
-    let mut instance = WasmInstance::builder("fuzz-no-caps").with_fuel(100_000).build();
-    instance.instantiate(&module, &engine).expect("Failed to instantiate");
+    let mut instance = WasmInstance::builder("fuzz-no-caps")
+        .with_fuel(100_000)
+        .build();
+    instance
+        .instantiate(&module, &engine)
+        .expect("Failed to instantiate");
 
     for code in 0..=20 {
         let result = instance
@@ -40,15 +44,17 @@ async fn test_fuzz_capability_codes_all_caps() {
 
     let engine = create_engine().expect("Failed to create engine");
     let wasm_bytes = wat::parse_str(CAP_CHECK_WAT).expect("Failed to parse WAT");
-    let module =
-        WasmModule::from_bytes(&engine, &wasm_bytes, "fuzz-all-caps").expect("Failed to create module");
+    let module = WasmModule::from_bytes(&engine, &wasm_bytes, "fuzz-all-caps")
+        .expect("Failed to create module");
 
     let all_caps = CapabilitySet::all();
     let mut instance = WasmInstance::builder("fuzz-all-caps")
         .with_capabilities(all_caps)
         .with_fuel(100_000)
         .build();
-    instance.instantiate(&module, &engine).expect("Failed to instantiate");
+    instance
+        .instantiate(&module, &engine)
+        .expect("Failed to instantiate");
 
     for code in 0..=7 {
         let result = instance
@@ -88,7 +94,9 @@ async fn test_fuzz_capability_edge_cases() {
         .with_capabilities(all_caps)
         .with_fuel(100_000)
         .build();
-    instance.instantiate(&module, &engine).expect("Failed to instantiate");
+    instance
+        .instantiate(&module, &engine)
+        .expect("Failed to instantiate");
 
     let edge_cases = [-1i32, -100, i32::MIN, i32::MAX, 100, 255, 50_000];
     for code in edge_cases {
@@ -118,7 +126,9 @@ async fn test_fuzz_denied_doesnt_affect_granted() {
         .with_capabilities(log_only)
         .with_fuel(100_000)
         .build();
-    instance.instantiate(&module, &engine).expect("Failed to instantiate");
+    instance
+        .instantiate(&module, &engine)
+        .expect("Failed to instantiate");
 
     assert_eq!(
         instance.invoke_i32_i32("check", 7).expect("invoke failed"),
@@ -167,16 +177,50 @@ async fn test_fuzz_partial_capability_set() {
         .with_capabilities(caps)
         .with_fuel(100_000)
         .build();
-    instance.instantiate(&module, &engine).expect("Failed to instantiate");
+    instance
+        .instantiate(&module, &engine)
+        .expect("Failed to instantiate");
 
-    assert_eq!(instance.invoke_i32_i32("check", 0).expect("failed"), 1, "NETWORK_OUTBOUND");
-    assert_eq!(instance.invoke_i32_i32("check", 1).expect("failed"), 0, "NETWORK_INBOUND");
-    assert_eq!(instance.invoke_i32_i32("check", 2).expect("failed"), 1, "STATE_READ");
-    assert_eq!(instance.invoke_i32_i32("check", 3).expect("failed"), 0, "STATE_WRITE");
-    assert_eq!(instance.invoke_i32_i32("check", 4).expect("failed"), 0, "FS_READ");
-    assert_eq!(instance.invoke_i32_i32("check", 5).expect("failed"), 0, "FS_WRITE");
-    assert_eq!(instance.invoke_i32_i32("check", 6).expect("failed"), 0, "ACTOR_MESSAGING");
-    assert_eq!(instance.invoke_i32_i32("check", 7).expect("failed"), 1, "LOG");
+    assert_eq!(
+        instance.invoke_i32_i32("check", 0).expect("failed"),
+        1,
+        "NETWORK_OUTBOUND"
+    );
+    assert_eq!(
+        instance.invoke_i32_i32("check", 1).expect("failed"),
+        0,
+        "NETWORK_INBOUND"
+    );
+    assert_eq!(
+        instance.invoke_i32_i32("check", 2).expect("failed"),
+        1,
+        "STATE_READ"
+    );
+    assert_eq!(
+        instance.invoke_i32_i32("check", 3).expect("failed"),
+        0,
+        "STATE_WRITE"
+    );
+    assert_eq!(
+        instance.invoke_i32_i32("check", 4).expect("failed"),
+        0,
+        "FS_READ"
+    );
+    assert_eq!(
+        instance.invoke_i32_i32("check", 5).expect("failed"),
+        0,
+        "FS_WRITE"
+    );
+    assert_eq!(
+        instance.invoke_i32_i32("check", 6).expect("failed"),
+        0,
+        "ACTOR_MESSAGING"
+    );
+    assert_eq!(
+        instance.invoke_i32_i32("check", 7).expect("failed"),
+        1,
+        "LOG"
+    );
 }
 
 #[tokio::test]
@@ -186,8 +230,8 @@ async fn test_fuzz_capability_isolation_across_instances() {
 
     let engine = create_engine().expect("Failed to create engine");
     let wasm_bytes = wat::parse_str(CAP_CHECK_WAT).expect("Failed to parse WAT");
-    let module = WasmModule::from_bytes(&engine, &wasm_bytes, "fuzz-iso")
-        .expect("Failed to create module");
+    let module =
+        WasmModule::from_bytes(&engine, &wasm_bytes, "fuzz-iso").expect("Failed to create module");
 
     let mut inst_network = WasmInstance::builder("inst-network")
         .with_capabilities(CapabilitySet::NETWORK_OUTBOUND)

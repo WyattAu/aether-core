@@ -43,7 +43,9 @@ fn wasm_cold_start(c: &mut Criterion) {
         b.iter(|| {
             let bytes = black_box(&wasm_bytes);
             let module = WasmModule::from_bytes(&engine, bytes, "roadmap").expect("compile");
-            let mut instance = WasmInstance::builder("roadmap").with_fuel(1_000_000).build();
+            let mut instance = WasmInstance::builder("roadmap")
+                .with_fuel(1_000_000)
+                .build();
             instance.instantiate(&module, &engine).expect("instantiate");
             black_box(instance);
         })
@@ -53,8 +55,12 @@ fn wasm_cold_start(c: &mut Criterion) {
 
     group.bench_function("instantiate_only", |b| {
         b.iter(|| {
-            let mut instance = WasmInstance::builder("roadmap").with_fuel(1_000_000).build();
-            instance.instantiate(black_box(&module), &engine).expect("instantiate");
+            let mut instance = WasmInstance::builder("roadmap")
+                .with_fuel(1_000_000)
+                .build();
+            instance
+                .instantiate(black_box(&module), &engine)
+                .expect("instantiate");
             black_box(instance);
         })
     });
@@ -65,7 +71,7 @@ fn wasm_cold_start(c: &mut Criterion) {
 #[cfg(not(feature = "wasm"))]
 fn wasm_cold_start(c: &mut Criterion) {
     let mut group = c.benchmark_group("roadmap/wasm_cold_start");
-    group.bench_function("stub_no_wasm", |b| {
+    group.bench_function("actor_create_no_wasm", |b| {
         b.iter(|| black_box(()));
     });
     group.finish();
@@ -138,12 +144,8 @@ fn mesh_message_latency(c: &mut Criterion) {
         b.iter(|| {
             let framed = frame_message(black_box(&msg)).unwrap();
             let (parsed, _) = parse_frame(black_box(&framed)).unwrap().unwrap();
-            let response = MeshMessage::response(
-                parsed.id,
-                target.clone(),
-                source.clone(),
-                parsed.payload,
-            );
+            let response =
+                MeshMessage::response(parsed.id, target.clone(), source.clone(), parsed.payload);
             let framed_resp = frame_message(&response).unwrap();
             black_box(framed_resp);
         })

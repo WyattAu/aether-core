@@ -20,9 +20,9 @@ use aether_core::{
 use std::net::SocketAddr;
 #[cfg(feature = "mesh")]
 use std::sync::Arc;
+use std::sync::Once;
 #[cfg(feature = "mesh")]
 use std::time::Duration;
-use std::sync::Once;
 
 static CRYPTO_INIT: Once = Once::new();
 
@@ -620,16 +620,34 @@ async fn test_prop_address_component_isolation() {
     assert_eq!(addr.instance_id, "inst1");
 
     addr.namespace = "ns2".to_string();
-    assert_eq!(addr.actor_name, "actor1", "changing namespace should not affect actor_name");
-    assert_eq!(addr.instance_id, "inst1", "changing namespace should not affect instance_id");
+    assert_eq!(
+        addr.actor_name, "actor1",
+        "changing namespace should not affect actor_name"
+    );
+    assert_eq!(
+        addr.instance_id, "inst1",
+        "changing namespace should not affect instance_id"
+    );
 
     addr.actor_name = "actor2".to_string();
-    assert_eq!(addr.namespace, "ns2", "changing actor_name should not affect namespace");
-    assert_eq!(addr.instance_id, "inst1", "changing actor_name should not affect instance_id");
+    assert_eq!(
+        addr.namespace, "ns2",
+        "changing actor_name should not affect namespace"
+    );
+    assert_eq!(
+        addr.instance_id, "inst1",
+        "changing actor_name should not affect instance_id"
+    );
 
     addr.instance_id = "inst2".to_string();
-    assert_eq!(addr.namespace, "ns2", "changing instance_id should not affect namespace");
-    assert_eq!(addr.actor_name, "actor2", "changing instance_id should not affect actor_name");
+    assert_eq!(
+        addr.namespace, "ns2",
+        "changing instance_id should not affect namespace"
+    );
+    assert_eq!(
+        addr.actor_name, "actor2",
+        "changing instance_id should not affect actor_name"
+    );
 
     assert_eq!(
         addr.to_uri(),

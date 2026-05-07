@@ -471,7 +471,10 @@ impl MeshNode {
 
         tracing::info!(
             "Mesh node {} stopped (graceful={}, connections_closed={}, messages_dropped={})",
-            self.node_id, graceful, connections_closed, pending_messages_dropped
+            self.node_id,
+            graceful,
+            connections_closed,
+            pending_messages_dropped
         );
 
         ShutdownResult {

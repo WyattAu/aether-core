@@ -254,7 +254,7 @@ fn parse_compose_file(args: &ImportArgs) -> Result<Vec<ComposeService>, Error> {
     let content = std::fs::read_to_string(&args.input)
         .map_err(|e| Error::IoError(format!("Failed to read {}: {}", args.input, e)))?;
 
-    let compose: ComposeFile = serde_yml::from_str(&content)
+    let compose: ComposeFile = yaml_serde::from_str(&content)
         .map_err(|e| Error::ParseError(format!("Invalid YAML syntax: {}", e)))?;
 
     let mut services = Vec::new();

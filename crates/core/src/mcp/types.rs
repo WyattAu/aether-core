@@ -484,7 +484,8 @@ mod tests {
 
     #[test]
     fn test_json_rpc_response_success() {
-        let resp = JsonRpcResponse::success(RequestId::Number(1), serde_json::json!({"key": "val"}));
+        let resp =
+            JsonRpcResponse::success(RequestId::Number(1), serde_json::json!({"key": "val"}));
         let json = serde_json::to_string(&resp).unwrap();
         assert!(json.contains("\"result\""));
     }
@@ -565,7 +566,9 @@ mod tests {
     fn test_prompt_message_serialization() {
         let msg = PromptMessage {
             role: "user".to_string(),
-            content: PromptContent::Text { text: "Hello".to_string() },
+            content: PromptContent::Text {
+                text: "Hello".to_string(),
+            },
         };
         let json = serde_json::to_string(&msg).unwrap();
         assert!(json.contains("\"role\":\"user\""));

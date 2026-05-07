@@ -122,7 +122,7 @@ pub mod victorialogs;
 pub mod victoriametrics;
 
 pub use health::HealthChecker;
-pub use loki::{LokiConfig, LokiPusher, LogEntryStream, LogStream};
+pub use loki::{LogEntryStream, LogStream, LokiConfig, LokiPusher};
 pub use metrics::MetricsCollector;
 pub use resilience_metrics::{
     BulkheadMetrics, CircuitBreakerMetrics, RateLimiterMetrics, ResilienceMetrics, RetryMetrics,

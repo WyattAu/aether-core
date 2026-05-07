@@ -398,7 +398,9 @@ mod tests {
 
     impl MockTool {
         fn new(name: &str) -> Self {
-            Self { name: name.to_string() }
+            Self {
+                name: name.to_string(),
+            }
         }
     }
 
@@ -476,14 +478,10 @@ mod tests {
     fn make_transport_pair() -> (StdioTransport, StdioTransport) {
         let (r1, w1) = duplex(8192);
         let (r2, w2) = duplex(8192);
-        let t1 = StdioTransport::with_handles(
-            Box::pin(tokio::io::BufReader::new(r1)),
-            Box::pin(w1),
-        );
-        let t2 = StdioTransport::with_handles(
-            Box::pin(tokio::io::BufReader::new(r2)),
-            Box::pin(w2),
-        );
+        let t1 =
+            StdioTransport::with_handles(Box::pin(tokio::io::BufReader::new(r1)), Box::pin(w1));
+        let t2 =
+            StdioTransport::with_handles(Box::pin(tokio::io::BufReader::new(r2)), Box::pin(w2));
         (t1, t2)
     }
 
@@ -636,7 +634,9 @@ mod tests {
         client.send("not json at all").await.unwrap();
         drop(client);
 
-        let result = server.handle_message("not json at all", &mut server_transport).await;
+        let result = server
+            .handle_message("not json at all", &mut server_transport)
+            .await;
         assert!(result.is_ok());
     }
 

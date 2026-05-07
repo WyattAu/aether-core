@@ -1,6 +1,6 @@
 use aether_core::capability::CapabilitySet;
 use aether_core::config::AetherConfig;
-use aether_core::mesh::message::{parse_frame, ActorAddress, MAX_MESSAGE_SIZE};
+use aether_core::mesh::message::{ActorAddress, MAX_MESSAGE_SIZE, parse_frame};
 use proptest::prelude::*;
 use std::panic::AssertUnwindSafe;
 use std::sync::OnceLock;
@@ -84,7 +84,10 @@ fn fuzz_wasm_module_valid_header_garbage_body() {
         data.extend_from_slice(&garbage);
         let _ = wasmtime::Module::validate(engine, &data);
     }));
-    assert!(result.is_ok(), "valid header + garbage body should not panic");
+    assert!(
+        result.is_ok(),
+        "valid header + garbage body should not panic"
+    );
 }
 
 #[test]
@@ -190,6 +193,9 @@ fn fuzz_mesh_address_various_strings() {
         let result = std::panic::catch_unwind(|| {
             let _ = ActorAddress::parse(input);
         });
-        assert!(result.is_ok(), "address parse should not panic for: {input:?}");
+        assert!(
+            result.is_ok(),
+            "address parse should not panic for: {input:?}"
+        );
     }
 }

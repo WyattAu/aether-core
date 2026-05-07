@@ -62,21 +62,13 @@ pub struct LogsArgs {
 #[derive(Debug, Clone)]
 pub enum LogSource {
     /// Tail a log file
-    File {
-        path: PathBuf,
-    },
+    File { path: PathBuf },
     /// Connect to WebSocket endpoint
-    WebSocket {
-        url: String,
-    },
+    WebSocket { url: String },
     /// Subscribe to tracing subscriber (via dashboard API)
-    Tracing {
-        filter: String,
-    },
+    Tracing { filter: String },
     /// Read from actor via dashboard API
-    Actor {
-        actor_id: String,
-    },
+    Actor { actor_id: String },
 }
 
 /// Log entry structure
@@ -378,7 +370,9 @@ impl DashboardLogStreamer {
             return Err(Error::HostNotFound);
         }
 
-        let ws_url = base_url.replace("http://", "ws://").replace("https://", "wss://");
+        let ws_url = base_url
+            .replace("http://", "ws://")
+            .replace("https://", "wss://");
 
         let (ws_stream, _) = connect_async(format!("{}/ws", ws_url))
             .await
@@ -500,14 +494,17 @@ impl DashboardLogFetcher {
             if resp.status().is_success() {
                 if let Ok(traces) = resp.json::<Vec<serde_json::Value>>().await {
                     for trace in &traces {
-                        let operation = trace.get("operation")
+                        let operation = trace
+                            .get("operation")
                             .and_then(|v| v.as_str())
                             .unwrap_or("unknown");
-                        let duration = trace.get("duration_us")
+                        let duration = trace
+                            .get("duration_us")
                             .and_then(|v| v.as_u64())
                             .unwrap_or(0);
 
-                        let actor = trace.get("operation")
+                        let actor = trace
+                            .get("operation")
                             .and_then(|v| v.as_str())
                             .and_then(|s| s.split("::").next())
                             .map(|s| s.to_string());
@@ -518,7 +515,13 @@ impl DashboardLogFetcher {
                             }
                         }
 
-                        entries.push(LogEntry::new(LogLevel::Info, format!("{} ({}us)", operation, duration)).with_actor(actor.unwrap_or_else(|| "system".to_string())));
+                        entries.push(
+                            LogEntry::new(
+                                LogLevel::Info,
+                                format!("{} ({}us)", operation, duration),
+                            )
+                            .with_actor(actor.unwrap_or_else(|| "system".to_string())),
+                        );
                     }
                 }
             }
@@ -557,10 +560,7 @@ fn parse_level_filter(level: Option<&str>) -> Result<Option<LogLevel>, Error> {
     }
 }
 
-async fn create_streamer(
-    source: LogSource,
-    api_addr: &str,
-) -> Result<Box<dyn LogStreamer>, Error> {
+async fn create_streamer(source: LogSource, api_addr: &str) -> Result<Box<dyn LogStreamer>, Error> {
     match source {
         LogSource::File { path } => {
             let streamer = FileLogStreamer::new(path)?;
@@ -905,7 +905,7 @@ mod tests {
     fn test_log_entry_serialization() {
         let entry = LogEntry::new(LogLevel::Info, "Test message").with_actor("test");
 
-        let json = serde_json::to_string(&entry).unwrap();
+        let json = serde_json::to_string(&entry).unwrap_or_else(|_| "{}".to_string());
         assert!(json.contains("\"level\":\"Info\""));
         assert!(json.contains("\"message\":\"Test message\""));
         assert!(json.contains("\"actor\":\"test\""));

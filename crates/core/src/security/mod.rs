@@ -357,7 +357,10 @@ mod tests {
     fn test_certificate_type_lifetimes() {
         assert_eq!(CertificateType::Ca.lifetime(), CERTIFICATE_LIFETIME_CA);
         assert_eq!(CertificateType::Node.lifetime(), CERTIFICATE_LIFETIME_NODE);
-        assert_eq!(CertificateType::Actor.lifetime(), CERTIFICATE_LIFETIME_ACTOR);
+        assert_eq!(
+            CertificateType::Actor.lifetime(),
+            CERTIFICATE_LIFETIME_ACTOR
+        );
     }
 
     #[test]
@@ -415,9 +418,18 @@ mod tests {
 
     #[test]
     fn test_constants() {
-        assert_eq!(CERTIFICATE_LIFETIME_ACTOR, Duration::from_secs(24 * 60 * 60));
-        assert_eq!(CERTIFICATE_LIFETIME_NODE, Duration::from_secs(7 * 24 * 60 * 60));
-        assert_eq!(CERTIFICATE_LIFETIME_CA, Duration::from_secs(7 * 24 * 60 * 60));
+        assert_eq!(
+            CERTIFICATE_LIFETIME_ACTOR,
+            Duration::from_secs(24 * 60 * 60)
+        );
+        assert_eq!(
+            CERTIFICATE_LIFETIME_NODE,
+            Duration::from_secs(7 * 24 * 60 * 60)
+        );
+        assert_eq!(
+            CERTIFICATE_LIFETIME_CA,
+            Duration::from_secs(7 * 24 * 60 * 60)
+        );
         assert_eq!(CRL_UPDATE_INTERVAL, Duration::from_secs(60));
     }
 }

@@ -96,7 +96,10 @@ mod tests {
         assert_eq!(config.endpoint, "http://localhost:3100/loki/api/v1/push");
         assert!(config.tenant_id.is_empty());
         assert_eq!(config.extra_labels.len(), 1);
-        assert_eq!(config.extra_labels[0], ("job".to_string(), "aether".to_string()));
+        assert_eq!(
+            config.extra_labels[0],
+            ("job".to_string(), "aether".to_string())
+        );
     }
 
     #[test]

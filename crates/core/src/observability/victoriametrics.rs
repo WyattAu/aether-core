@@ -58,7 +58,11 @@ impl VictoriaMetricsPusher {
 
         match response {
             Ok(resp) if resp.status().is_success() => Ok(()),
-            Ok(resp) => Err(format!("VictoriaMetrics returned {}: {}", resp.status(), url)),
+            Ok(resp) => Err(format!(
+                "VictoriaMetrics returned {}: {}",
+                resp.status(),
+                url
+            )),
             Err(e) => Err(format!("Failed to push to VictoriaMetrics: {}", e)),
         }
     }
@@ -98,7 +102,10 @@ mod tests {
         let pusher = VictoriaMetricsPusher::new(config);
         assert!(pusher.is_ok());
         let pusher = pusher.unwrap();
-        assert_eq!(pusher.config().endpoint, "http://localhost:8428/api/v1/write");
+        assert_eq!(
+            pusher.config().endpoint,
+            "http://localhost:8428/api/v1/write"
+        );
     }
 
     #[test]

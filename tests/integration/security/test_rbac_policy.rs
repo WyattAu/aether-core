@@ -1,6 +1,6 @@
 use aether_core::security::{
-    Permission, PolicyDocument, PolicyEffect, PolicyEvaluator, PolicyStatement,
-    PolicyEvaluationResult, ResourcePattern, Role, RoleAssignment, RoleManager, RoleName,
+    Permission, PolicyDocument, PolicyEffect, PolicyEvaluationResult, PolicyEvaluator,
+    PolicyStatement, ResourcePattern, Role, RoleAssignment, RoleManager, RoleName,
 };
 use std::sync::Arc;
 use std::time::Duration;
@@ -102,10 +102,20 @@ async fn test_rbac_role_hierarchy() {
     let manager = RoleManager::new();
 
     manager
-        .assign_role(RoleAssignment::new("user-1", RoleName::Viewer, "default", "admin"))
+        .assign_role(RoleAssignment::new(
+            "user-1",
+            RoleName::Viewer,
+            "default",
+            "admin",
+        ))
         .unwrap();
     manager
-        .assign_role(RoleAssignment::new("user-1", RoleName::Developer, "default", "admin"))
+        .assign_role(RoleAssignment::new(
+            "user-1",
+            RoleName::Developer,
+            "default",
+            "admin",
+        ))
         .unwrap();
 
     assert!(manager.check_permission("user-1", "actor://test", &Permission::Read));
@@ -118,7 +128,12 @@ async fn test_rbac_role_hierarchy() {
     assert!(!manager.check_permission("user-1", "secret://db-pass", &Permission::Write));
 
     manager
-        .assign_role(RoleAssignment::new("user-1", RoleName::Admin, "default", "admin"))
+        .assign_role(RoleAssignment::new(
+            "user-1",
+            RoleName::Admin,
+            "default",
+            "admin",
+        ))
         .unwrap();
 
     assert!(manager.check_permission("user-1", "node://node-1", &Permission::Write));
@@ -137,10 +152,7 @@ async fn test_rbac_condition_evaluation() {
     assert!(stmt.conditions.contains_key("hour"));
     assert_eq!(stmt.conditions.get("hour").unwrap(), ">= 9");
     assert!(stmt.conditions.contains_key("environment"));
-    assert_eq!(
-        stmt.conditions.get("environment").unwrap(),
-        "production"
-    );
+    assert_eq!(stmt.conditions.get("environment").unwrap(), "production");
 
     assert!(stmt.matches("user-1", &Permission::Read, "actor://test"));
     assert!(!stmt.matches("user-2", &Permission::Read, "actor://test"));
@@ -150,7 +162,10 @@ async fn test_rbac_condition_evaluation() {
     let restored = PolicyDocument::from_json(&json).expect("deserialize failed");
     assert_eq!(restored.statements.len(), 1);
     assert_eq!(restored.statements[0].conditions.len(), 2);
-    assert_eq!(restored.statements[0].conditions.get("hour").unwrap(), ">= 9");
+    assert_eq!(
+        restored.statements[0].conditions.get("hour").unwrap(),
+        ">= 9"
+    );
 }
 
 #[tokio::test]

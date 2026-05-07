@@ -51,7 +51,9 @@ pub async fn execute(args: ObservabilityArgs) -> Result<(), Error> {
 }
 
 async fn push_metrics() -> Result<(), Error> {
-    use aether_core::observability::{MetricsCollector, VictoriaMetricsConfig, VictoriaMetricsPusher};
+    use aether_core::observability::{
+        MetricsCollector, VictoriaMetricsConfig, VictoriaMetricsPusher,
+    };
     use std::time::Duration;
 
     let url = std::env::var("VICTORIAMETRICS_URL")
@@ -69,7 +71,10 @@ async fn push_metrics() -> Result<(), Error> {
     let metrics = MetricsCollector::new();
     let data = metrics.export_prometheus();
 
-    pusher.push(&data).await.map_err(|e| Error::PushMetrics(e.to_string()))?;
+    pusher
+        .push(&data)
+        .await
+        .map_err(|e| Error::PushMetrics(e.to_string()))?;
 
     println!("Metrics pushed to {}", url);
     Ok(())
@@ -106,7 +111,7 @@ async fn push_logs() -> Result<(), Error> {
     }
 
     if let Some(url) = loki_url {
-        use aether_core::observability::{LokiConfig, LokiPusher, LogEntryStream, LogStream};
+        use aether_core::observability::{LogEntryStream, LogStream, LokiConfig, LokiPusher};
         use std::collections::HashMap;
 
         let tenant_id = std::env::var("LOKI_TENANT_ID").unwrap_or_default();
@@ -117,8 +122,7 @@ async fn push_logs() -> Result<(), Error> {
             extra_labels: vec![("job".to_string(), "aether".to_string())],
         };
 
-        let pusher =
-            LokiPusher::new(config).map_err(|e| Error::PushLogs(e.to_string()))?;
+        let pusher = LokiPusher::new(config).map_err(|e| Error::PushLogs(e.to_string()))?;
 
         let streams = vec![LogStream {
             streams: vec![LogEntryStream {
@@ -127,7 +131,10 @@ async fn push_logs() -> Result<(), Error> {
             }],
         }];
 
-        pusher.push(&streams).await.map_err(|e| Error::PushLogs(e.to_string()))?;
+        pusher
+            .push(&streams)
+            .await
+            .map_err(|e| Error::PushLogs(e.to_string()))?;
 
         println!("Logs pushed to Loki at {}", url);
     }
@@ -155,10 +162,10 @@ async fn status() -> Result<(), Error> {
 
     let vm_url = std::env::var("VICTORIAMETRICS_URL")
         .unwrap_or_else(|_| "http://localhost:8428".to_string());
-    let vl_url = std::env::var("VICTORIALOGS_URL")
-        .unwrap_or_else(|_| "http://localhost:9428".to_string());
-    let loki_url = std::env::var("LOKI_URL")
-        .unwrap_or_else(|_| "http://localhost:3100".to_string());
+    let vl_url =
+        std::env::var("VICTORIALOGS_URL").unwrap_or_else(|_| "http://localhost:9428".to_string());
+    let loki_url =
+        std::env::var("LOKI_URL").unwrap_or_else(|_| "http://localhost:3100".to_string());
 
     let (vm_status, vl_status, loki_status) = tokio::join!(
         check_reachable("VictoriaMetrics", &vm_url),
@@ -175,16 +182,29 @@ async fn status() -> Result<(), Error> {
     println!("├──────────────────────┼───────────────────────────────┤");
 
     for (name, _url, reachable) in &checks {
-        let status_str = if *reachable { "reachable" } else { "unreachable" };
+        let status_str = if *reachable {
+            "reachable"
+        } else {
+            "unreachable"
+        };
         println!("│ {:<20} │ {:<29} │", name, status_str);
     }
 
     println!("├──────────────────────┴───────────────────────────────┤");
     println!("│ Configuration                                         │");
     println!("├──────────────────────┬───────────────────────────────┤");
-    println!("│ VictoriaMetrics URL  │ {}", &vm_url[..vm_url.len().min(29)]);
-    println!("│ VictoriaLogs URL     │ {}", &vl_url[..vl_url.len().min(29)]);
-    println!("│ Loki URL             │ {}", &loki_url[..loki_url.len().min(29)]);
+    println!(
+        "│ VictoriaMetrics URL  │ {}",
+        &vm_url[..vm_url.len().min(29)]
+    );
+    println!(
+        "│ VictoriaLogs URL     │ {}",
+        &vl_url[..vl_url.len().min(29)]
+    );
+    println!(
+        "│ Loki URL             │ {}",
+        &loki_url[..loki_url.len().min(29)]
+    );
     println!("└──────────────────────┴───────────────────────────────┘");
 
     let config_path = "aether.toml";

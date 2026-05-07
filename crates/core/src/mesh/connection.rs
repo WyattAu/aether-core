@@ -25,8 +25,8 @@ use quinn::Connection;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::num::NonZeroUsize;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 use tokio::sync::{Mutex, Semaphore};
 
@@ -332,7 +332,8 @@ impl ConnectionPool {
             entry.stats.last_activity = Instant::now();
         }
         self.total_messages_received.fetch_add(1, Ordering::Relaxed);
-        self.total_bytes_received.fetch_add(bytes, Ordering::Relaxed);
+        self.total_bytes_received
+            .fetch_add(bytes, Ordering::Relaxed);
     }
 
     /// Marks a connection as unhealthy.

@@ -286,11 +286,23 @@ log_shipping_enabled = true
 log_shipping_batch_size = 500
 "#;
         let config = AetherConfig::from_toml(toml).expect("Failed to parse");
-        let obs = config.observability.as_ref().expect("Missing observability");
-        assert_eq!(obs.victoriametrics_url.as_deref(), Some("http://vm:8428/api/v1/write"));
+        let obs = config
+            .observability
+            .as_ref()
+            .expect("Missing observability");
+        assert_eq!(
+            obs.victoriametrics_url.as_deref(),
+            Some("http://vm:8428/api/v1/write")
+        );
         assert_eq!(obs.victoriametrics_push_interval, Some(30));
-        assert_eq!(obs.victorialogs_url.as_deref(), Some("http://vl:9428/insert/jsonline"));
-        assert_eq!(obs.loki_url.as_deref(), Some("http://loki:3100/loki/api/v1/push"));
+        assert_eq!(
+            obs.victorialogs_url.as_deref(),
+            Some("http://vl:9428/insert/jsonline")
+        );
+        assert_eq!(
+            obs.loki_url.as_deref(),
+            Some("http://loki:3100/loki/api/v1/push")
+        );
         assert_eq!(obs.loki_tenant_id.as_deref(), Some("team-a"));
         assert!(obs.metrics_push_enabled);
         assert_eq!(obs.metrics_push_interval, Some(10));
@@ -305,7 +317,10 @@ log_shipping_batch_size = 500
 metrics_push_enabled = true
 "#;
         let config = AetherConfig::from_toml(toml).expect("Failed to parse");
-        let obs = config.observability.as_ref().expect("Missing observability");
+        let obs = config
+            .observability
+            .as_ref()
+            .expect("Missing observability");
         assert!(obs.victoriametrics_url.is_none());
         assert_eq!(obs.victoriametrics_push_interval, Some(15));
         assert_eq!(obs.metrics_push_interval, Some(15));
