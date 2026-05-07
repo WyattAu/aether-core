@@ -39,7 +39,7 @@ pub struct RollbackArgs {
 #[allow(clippy::enum_variant_names)]
 pub enum Error {
     #[error("Actor not found: {0}")]
-    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
+    #[allow(dead_code)]
     ActorNotFound(String),
 
     #[error("No previous revision found")]
@@ -102,7 +102,7 @@ impl DeploymentHistory {
         std::fs::write(path, content).map_err(|e| Error::IoError(e.to_string()))
     }
 
-    #[allow(dead_code)] // Public API for deployment history queries
+    #[allow(dead_code)]
     pub fn get_actor_records(&self, actor: &str) -> Vec<&DeploymentRecord> {
         self.records.iter().filter(|r| r.actor == actor).collect()
     }

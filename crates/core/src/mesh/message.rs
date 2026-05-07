@@ -590,4 +590,191 @@ mod tests {
         msg.ttl_ms = 0;
         assert!(msg.is_expired());
     }
+
+    #[test]
+    fn test_actor_address_parse_invalid() {
+        assert!(ActorAddress::parse("").is_none());
+        assert!(ActorAddress::parse("actor://").is_none());
+        assert!(ActorAddress::parse("actor://ns").is_none());
+        assert!(ActorAddress::parse("actor://ns/actor").is_none());
+        assert!(ActorAddress::parse("http://ns/actor/inst").is_none());
+        assert!(ActorAddress::parse("actor://a/b/c/d").is_none());
+    }
+
+    #[test]
+    fn test_actor_address_is_local() {
+        let addr = ActorAddress::new("production", "svc", "1");
+        assert!(addr.is_local("production"));
+        assert!(!addr.is_local("staging"));
+    }
+
+    #[test]
+    fn test_actor_address_default() {
+        let addr = ActorAddress::default();
+        assert_eq!(addr.namespace, "default");
+        assert!(addr.actor_name.is_empty());
+        assert!(addr.instance_id.is_empty());
+    }
+
+    #[test]
+    fn test_actor_address_display() {
+        let addr = ActorAddress::new("ns", "svc", "inst");
+        let display = format!("{}", addr);
+        assert_eq!(display, "actor://ns/svc/inst");
+    }
+
+    #[test]
+    fn test_message_response_correlation() {
+        let source = ActorAddress::new("ns", "src", "1");
+        let target = ActorAddress::new("ns", "dst", "2");
+        let request = MeshMessage::request(source.clone(), target.clone(), vec![]);
+
+        let response = MeshMessage::response(request.id, target.clone(), source.clone(), vec![42]);
+        assert_eq!(response.correlation_id, Some(request.id));
+        assert_eq!(response.msg_type, MessageType::Response);
+    }
+
+    #[test]
+    fn test_message_error_creation() {
+        let source = ActorAddress::new("ns", "src", "1");
+        let target = ActorAddress::new("ns", "dst", "2");
+        let request = MeshMessage::request(source.clone(), target.clone(), vec![]);
+
+        let error = MeshMessage::error(request.id, target, source, "something failed");
+        assert_eq!(error.msg_type, MessageType::Error);
+        assert_eq!(error.payload, b"something failed");
+        assert!(error.correlation_id.is_some());
+    }
+
+    #[test]
+    fn test_message_with_priority_and_ttl() {
+        let source = ActorAddress::new("ns", "src", "1");
+        let target = ActorAddress::new("ns", "dst", "2");
+        let msg = MeshMessage::request(source, target, vec![])
+            .with_priority(10)
+            .with_ttl(60_000);
+
+        assert_eq!(msg.priority, 10);
+        assert_eq!(msg.ttl_ms, 60_000);
+    }
+
+    #[test]
+    fn test_message_not_expired_with_large_ttl() {
+        let source = ActorAddress::new("ns", "src", "1");
+        let target = ActorAddress::new("ns", "dst", "2");
+        let msg = MeshMessage::request(source, target, vec![]).with_ttl(1_000_000);
+        assert!(!msg.is_expired());
+    }
+
+    #[test]
+    fn test_compression_below_threshold() {
+        let source = ActorAddress::new("ns", "src", "1");
+        let target = ActorAddress::new("ns", "dst", "2");
+        let small_payload = vec![0u8; 10];
+        let mut msg = MeshMessage::request(source, target, small_payload);
+
+        msg.compress().unwrap();
+        assert_eq!(msg.compression, CompressionType::None);
+    }
+
+    #[test]
+    fn test_decompress_non_compressed() {
+        let source = ActorAddress::new("ns", "src", "1");
+        let target = ActorAddress::new("ns", "dst", "2");
+        let mut msg = MeshMessage::request(source, target, vec![1, 2, 3]);
+
+        msg.decompress().unwrap();
+        assert_eq!(msg.compression, CompressionType::None);
+        assert_eq!(msg.payload, vec![1, 2, 3]);
+    }
+
+    #[test]
+    fn test_parse_frame_incomplete() {
+        let data = [0u8; 3];
+        let result = parse_frame(&data).unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_parse_frame_oversize_length() {
+        let data = vec![0xFF; 4];
+        let result = parse_frame(&data);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_actor_packet_creation() {
+        let packet = ActorPacket::new("actor-1", "actor-2", vec![1, 2, 3]);
+        assert_eq!(packet.source_actor_id, "actor-1");
+        assert_eq!(packet.target_actor_id, "actor-2");
+        assert_eq!(packet.payload, vec![1, 2, 3]);
+    }
+
+    #[test]
+    fn test_actor_packet_into_mesh_message() {
+        let packet = ActorPacket::new("actor-1", "actor-2", vec![42]);
+        let source = ActorAddress::new("ns", "actor-1", "inst-1");
+        let target = ActorAddress::new("ns", "actor-2", "inst-2");
+        let msg = packet.into_mesh_message(source, target);
+
+        assert_eq!(msg.msg_type, MessageType::Request);
+        assert_eq!(msg.payload, vec![42]);
+    }
+
+    #[test]
+    fn test_handshake_creation() {
+        let handshake = Handshake {
+            node_id: "node-1".to_string(),
+            public_key: vec![1, 2, 3],
+            protocol_version: 1,
+            supported_compression: vec![CompressionType::None, CompressionType::Zstd],
+            window_size: 1024,
+        };
+
+        assert_eq!(handshake.node_id, "node-1");
+        assert_eq!(handshake.supported_compression.len(), 2);
+    }
+
+    #[test]
+    fn test_flow_control() {
+        let pause = FlowControl {
+            action: FlowAction::Pause,
+            buffer_remaining: 0,
+        };
+        assert_eq!(pause.action, FlowAction::Pause);
+
+        let resume = FlowControl {
+            action: FlowAction::Resume,
+            buffer_remaining: 1024,
+        };
+        assert_eq!(resume.action, FlowAction::Resume);
+
+        let window_update = FlowControl {
+            action: FlowAction::WindowUpdate { size: 2048 },
+            buffer_remaining: 2048,
+        };
+        assert_eq!(window_update.action, FlowAction::WindowUpdate { size: 2048 });
+    }
+
+    #[test]
+    fn test_message_flags() {
+        let flags = MessageFlags::COMPRESSED | MessageFlags::HIGH_PRIORITY;
+        assert!(flags.contains(MessageFlags::COMPRESSED));
+        assert!(flags.contains(MessageFlags::HIGH_PRIORITY));
+        assert!(!flags.contains(MessageFlags::REQUIRES_ACK));
+    }
+
+    #[test]
+    fn test_message_header() {
+        let header = MessageHeader {
+            msg_type: MessageType::Request,
+            compression: CompressionType::None,
+            payload_len: 100,
+            message_id: 42,
+            correlation_id: 0,
+            flags: 0,
+        };
+        assert_eq!(header.payload_len, 100);
+        assert_eq!(header.message_id, 42);
+    }
 }

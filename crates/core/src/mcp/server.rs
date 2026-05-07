@@ -362,7 +362,6 @@ impl McpServer {
 }
 
 /// Run the MCP server on stdio
-/// Note: Public API for running MCP server. Currently unused but kept for future CLI use.
 #[allow(dead_code)]
 pub async fn run_stdio(server: McpServer) -> Result<()> {
     let mut transport = StdioTransport::new();
@@ -384,4 +383,283 @@ pub async fn run_stdio(server: McpServer) -> Result<()> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::mcp::transport::Transport;
+    use crate::mcp::types::ToolContent;
+    use tokio::io::duplex;
+
+    struct MockTool {
+        name: String,
+    }
+
+    impl MockTool {
+        fn new(name: &str) -> Self {
+            Self { name: name.to_string() }
+        }
+    }
+
+    #[async_trait]
+    impl ToolExecutor for MockTool {
+        async fn execute(&self, _args: serde_json::Value) -> Result<ToolResult> {
+            Ok(ToolResult {
+                content: vec![ToolContent::text(format!("executed {}", self.name))],
+                is_error: None,
+            })
+        }
+
+        fn definition(&self) -> Tool {
+            Tool {
+                name: self.name.clone(),
+                description: format!("{} tool", self.name),
+                input_schema: serde_json::json!({"type": "object"}),
+            }
+        }
+    }
+
+    struct MockResourceProvider;
+
+    #[async_trait]
+    impl ResourceProvider for MockResourceProvider {
+        async fn list(&self) -> Result<Vec<Resource>> {
+            Ok(vec![Resource {
+                uri: "test://resource".to_string(),
+                name: "test-resource".to_string(),
+                description: Some("A test resource".to_string()),
+                mime_type: Some("text/plain".to_string()),
+            }])
+        }
+
+        async fn read(&self, uri: &str) -> Result<Option<ResourceContents>> {
+            if uri == "test://resource" {
+                Ok(Some(ResourceContents::Text {
+                    uri: "test://resource".to_string(),
+                    text: "hello world".to_string(),
+                    mime_type: Some("text/plain".to_string()),
+                }))
+            } else {
+                Ok(None)
+            }
+        }
+    }
+
+    struct MockPromptProvider;
+
+    #[async_trait]
+    impl PromptProvider for MockPromptProvider {
+        async fn list(&self) -> Result<Vec<Prompt>> {
+            Ok(vec![Prompt {
+                name: "test-prompt".to_string(),
+                description: Some("A test prompt".to_string()),
+                arguments: None,
+            }])
+        }
+
+        async fn get(&self, name: &str, _args: HashMap<String, String>) -> Result<PromptGetResult> {
+            if name == "test-prompt" {
+                Ok(PromptGetResult {
+                    description: Some("Test prompt result".to_string()),
+                    messages: vec![PromptMessage {
+                        role: "user".to_string(),
+                        content: "Hello".to_string(),
+                    }],
+                })
+            } else {
+                Err(Error::internal(format!("Prompt not found: {}", name)))
+            }
+        }
+    }
+
+    fn make_transport_pair() -> (StdioTransport, StdioTransport) {
+        let (r1, w1) = duplex(8192);
+        let (r2, w2) = duplex(8192);
+        let t1 = StdioTransport::with_handles(
+            Box::pin(tokio::io::BufReader::new(r1)),
+            Box::pin(w1),
+        );
+        let t2 = StdioTransport::with_handles(
+            Box::pin(tokio::io::BufReader::new(r2)),
+            Box::pin(w2),
+        );
+        (t1, t2)
+    }
+
+    #[tokio::test]
+    async fn test_server_creation() {
+        let server = McpServer::new("test-server", "1.0.0");
+        assert_eq!(server.name, "test-server");
+        assert_eq!(server.version, "1.0.0");
+    }
+
+    #[tokio::test]
+    async fn test_server_with_instructions() {
+        let server = McpServer::new("test", "1.0.0").with_instructions("Do things");
+        assert_eq!(server.instructions.as_deref(), Some("Do things"));
+    }
+
+    #[tokio::test]
+    async fn test_server_register_tool() {
+        let mut server = McpServer::new("test", "1.0.0");
+        server.register_tool(Arc::new(MockTool::new("my-tool")));
+
+        let tools = server.tools.read();
+        assert!(tools.contains_key("my-tool"));
+    }
+
+    #[tokio::test]
+    async fn test_server_register_resource() {
+        let mut server = McpServer::new("test", "1.0.0");
+        server.register_resource("test-provider", Arc::new(MockResourceProvider));
+
+        let resources = server.resources.read();
+        assert!(resources.contains_key("test-provider"));
+    }
+
+    #[tokio::test]
+    async fn test_server_register_prompt() {
+        let mut server = McpServer::new("test", "1.0.0");
+        server.register_prompt("test-prompt", Arc::new(MockPromptProvider));
+
+        let prompts = server.prompts.read();
+        assert!(prompts.contains_key("test-prompt"));
+    }
+
+    #[tokio::test]
+    async fn test_handle_ping() {
+        let server = McpServer::new("test", "1.0.0");
+        let (client, mut server_transport) = make_transport_pair();
+
+        let request = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "ping"
+        });
+
+        client.send(&request.to_string()).await.unwrap();
+        drop(client);
+
+        server
+            .handle_message(
+                &serde_json::to_string(&request).unwrap(),
+                &mut server_transport,
+            )
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_handle_initialize() {
+        let server = McpServer::new("test-server", "2.0.0");
+        let (client, mut server_transport) = make_transport_pair();
+
+        let request = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+                "protocolVersion": "2024-11-05",
+                "capabilities": {},
+                "clientInfo": {"name": "test-client", "version": "1.0.0"}
+            }
+        });
+
+        client.send(&request.to_string()).await.unwrap();
+        drop(client);
+
+        server
+            .handle_message(
+                &serde_json::to_string(&request).unwrap(),
+                &mut server_transport,
+            )
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_handle_tools_list() {
+        let mut server = McpServer::new("test", "1.0.0");
+        server.register_tool(Arc::new(MockTool::new("tool-a")));
+        server.register_tool(Arc::new(MockTool::new("tool-b")));
+
+        let (client, mut server_transport) = make_transport_pair();
+
+        let request = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/list"
+        });
+
+        client.send(&request.to_string()).await.unwrap();
+        drop(client);
+
+        server
+            .handle_message(
+                &serde_json::to_string(&request).unwrap(),
+                &mut server_transport,
+            )
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_handle_tools_call_not_found() {
+        let server = McpServer::new("test", "1.0.0");
+        let (client, mut server_transport) = make_transport_pair();
+
+        let request = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 3,
+            "method": "tools/call",
+            "params": {"name": "nonexistent"}
+        });
+
+        client.send(&request.to_string()).await.unwrap();
+        drop(client);
+
+        server
+            .handle_message(
+                &serde_json::to_string(&request).unwrap(),
+                &mut server_transport,
+            )
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_handle_invalid_json() {
+        let server = McpServer::new("test", "1.0.0");
+        let (client, mut server_transport) = make_transport_pair();
+
+        client.send("not json at all").await.unwrap();
+        drop(client);
+
+        let result = server.handle_message("not json at all", &mut server_transport).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_handle_unknown_method() {
+        let server = McpServer::new("test", "1.0.0");
+        let (client, mut server_transport) = make_transport_pair();
+
+        let request = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 99,
+            "method": "nonexistent/method"
+        });
+
+        client.send(&request.to_string()).await.unwrap();
+        drop(client);
+
+        server
+            .handle_message(
+                &serde_json::to_string(&request).unwrap(),
+                &mut server_transport,
+            )
+            .await
+            .unwrap();
+    }
 }

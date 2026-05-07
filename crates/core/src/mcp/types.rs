@@ -444,3 +444,143 @@ pub enum PromptContent {
         text: String,
     },
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_request_id_display() {
+        assert_eq!(RequestId::String("abc".to_string()).to_string(), "abc");
+        assert_eq!(RequestId::Number(42).to_string(), "42");
+    }
+
+    #[test]
+    fn test_request_id_default() {
+        let id = RequestId::default();
+        assert_eq!(id, RequestId::Number(0));
+    }
+
+    #[test]
+    fn test_json_rpc_request_serialization() {
+        let req = JsonRpcRequest {
+            jsonrpc: "2.0".to_string(),
+            id: RequestId::Number(1),
+            method: "ping".to_string(),
+            params: None,
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        assert!(json.contains("\"method\":\"ping\""));
+        assert!(json.contains("\"id\":1"));
+    }
+
+    #[test]
+    fn test_json_rpc_request_deserialization() {
+        let json = r#"{"jsonrpc":"2.0","id":42,"method":"tools/list"}"#;
+        let req: JsonRpcRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.method, "tools/list");
+        assert_eq!(req.id, RequestId::Number(42));
+    }
+
+    #[test]
+    fn test_json_rpc_response_success() {
+        let resp = JsonRpcResponse::success(RequestId::Number(1), serde_json::json!({"key": "val"}));
+        let json = serde_json::to_string(&resp).unwrap();
+        assert!(json.contains("\"result\""));
+    }
+
+    #[test]
+    fn test_json_rpc_response_error() {
+        let err = JsonRpcError::method_not_found("bad/method");
+        let resp = JsonRpcResponse::error_response(Some(RequestId::Number(1)), err);
+        let json = serde_json::to_string(&resp).unwrap();
+        assert!(json.contains("\"error\""));
+        assert!(json.contains("-32601"));
+    }
+
+    #[test]
+    fn test_json_rpc_error_constructors() {
+        let parse_err = JsonRpcError::parse_error("bad json");
+        assert_eq!(parse_err.code, -32700);
+
+        let invalid_req = JsonRpcError::invalid_request("missing fields");
+        assert_eq!(invalid_req.code, -32600);
+
+        let method_nf = JsonRpcError::method_not_found("foo");
+        assert_eq!(method_nf.code, -32601);
+        assert_eq!(method_nf.message, "Method not found: foo");
+
+        let invalid_params = JsonRpcError::invalid_params("missing name");
+        assert_eq!(invalid_params.code, -32602);
+
+        let internal = JsonRpcError::internal_error("boom");
+        assert_eq!(internal.code, -32603);
+    }
+
+    #[test]
+    fn test_tool_result_text() {
+        let result = ToolResult::text("hello");
+        assert_eq!(result.content.len(), 1);
+        assert_eq!(result.is_error, Some(false));
+    }
+
+    #[test]
+    fn test_tool_result_error() {
+        let result = ToolResult::error("something failed");
+        assert_eq!(result.is_error, Some(true));
+    }
+
+    #[test]
+    fn test_tool_content_text() {
+        let content = ToolContent::text("hello world");
+        let json = serde_json::to_string(&content).unwrap();
+        assert!(json.contains("\"type\":\"text\""));
+        assert!(json.contains("hello world"));
+    }
+
+    #[test]
+    fn test_prompt_argument() {
+        let arg = PromptArgument {
+            name: "topic".to_string(),
+            description: Some("The topic to write about".to_string()),
+            required: Some(true),
+        };
+        let json = serde_json::to_string(&arg).unwrap();
+        assert!(json.contains("\"required\":true"));
+    }
+
+    #[test]
+    fn test_resource_serialization() {
+        let resource = Resource {
+            uri: "test://resource".to_string(),
+            name: "test".to_string(),
+            description: Some("A test resource".to_string()),
+            mime_type: Some("text/plain".to_string()),
+        };
+        let json = serde_json::to_string(&resource).unwrap();
+        assert!(json.contains("\"uri\":\"test://resource\""));
+    }
+
+    #[test]
+    fn test_prompt_message_serialization() {
+        let msg = PromptMessage {
+            role: "user".to_string(),
+            content: PromptContent::Text { text: "Hello".to_string() },
+        };
+        let json = serde_json::to_string(&msg).unwrap();
+        assert!(json.contains("\"role\":\"user\""));
+        assert!(json.contains("\"type\":\"text\""));
+    }
+
+    #[test]
+    fn test_mcp_version() {
+        assert_eq!(MCP_VERSION, "2024-11-05");
+    }
+
+    #[test]
+    fn test_server_capabilities_default() {
+        let caps = ServerCapabilities::default();
+        assert!(caps.experimental.is_none());
+        assert!(caps.tools.is_none());
+    }
+}

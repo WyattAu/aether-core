@@ -122,9 +122,8 @@ impl SupervisionStrategy {
     }
 
     /// Get the max restarts limit for this strategy
-    /// Note: Public API for supervisor configuration. Currently unused but kept for future monitoring.
     #[allow(dead_code)]
-    fn max_restarts(&self) -> Option<u32> {
+    pub(crate) fn max_restarts(&self) -> Option<u32> {
         match self {
             Self::OneForOne { max_restarts, .. }
             | Self::OneForAll { max_restarts, .. }

@@ -221,7 +221,6 @@ impl Mailbox {
 /// Builder for creating mailboxes.
 ///
 /// This builder provides a fluent API for configuring mailbox options.
-/// Note: Currently unused but retained for future public API use.
 #[allow(dead_code)]
 pub struct MailboxBuilder {
     config: MailboxConfig,

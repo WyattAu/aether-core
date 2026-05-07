@@ -78,3 +78,54 @@ impl VictoriaLogsShipper {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_victorialogs_config_default() {
+        let config = VictoriaLogsConfig::default();
+        assert_eq!(config.endpoint, "http://localhost:9428/insert/jsonline");
+        assert_eq!(config.batch_size, 1000);
+        assert!(config.extra_labels.is_empty());
+    }
+
+    #[test]
+    fn test_victorialogs_config_custom() {
+        let config = VictoriaLogsConfig {
+            endpoint: "http://vl:9428/insert/jsonline".to_string(),
+            extra_labels: vec![("app".to_string(), "aether".to_string())],
+            batch_size: 500,
+        };
+        assert_eq!(config.batch_size, 500);
+        assert_eq!(config.extra_labels.len(), 1);
+    }
+
+    #[test]
+    fn test_victorialogs_shipper_creation() {
+        let config = VictoriaLogsConfig::default();
+        let shipper = VictoriaLogsShipper::new(config);
+        assert!(shipper.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_victorialogs_ship_empty_batch() {
+        let config = VictoriaLogsConfig::default();
+        let shipper = VictoriaLogsShipper::new(config).unwrap();
+        let result = shipper.ship(&[]).await;
+        assert!(result.is_ok(), "Shipping empty batch should succeed");
+    }
+
+    #[test]
+    fn test_victorialogs_config_clone() {
+        let config = VictoriaLogsConfig {
+            endpoint: "http://test:9428".to_string(),
+            extra_labels: vec![("key".to_string(), "val".to_string())],
+            batch_size: 200,
+        };
+        let cloned = config.clone();
+        assert_eq!(cloned.endpoint, config.endpoint);
+        assert_eq!(cloned.batch_size, config.batch_size);
+    }
+}

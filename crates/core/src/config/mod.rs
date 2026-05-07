@@ -337,4 +337,205 @@ image = "isolated.wasm"
         let caps = config.get_capabilities("isolated").unwrap();
         assert!(caps.is_empty(), "Capabilities should be empty by default");
     }
+
+    #[test]
+    fn test_parse_invalid_toml() {
+        let result = AetherConfig::from_toml("this is not valid toml [[[");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_get_capabilities_nonexistent_actor() {
+        let toml = r#"
+[[actor]]
+name = "test"
+kind = "wasm"
+image = "test.wasm"
+"#;
+        let config = AetherConfig::from_toml(toml).unwrap();
+        assert!(config.get_capabilities("nonexistent").is_none());
+    }
+
+    #[test]
+    fn test_empty_actors() {
+        let toml = "";
+        let config = AetherConfig::from_toml(toml).unwrap();
+        assert!(config.actor.is_empty());
+    }
+
+    #[test]
+    fn test_instance_count_fixed() {
+        let toml = r#"
+[[actor]]
+name = "test"
+kind = "wasm"
+image = "test.wasm"
+instances = 5
+"#;
+        let config = AetherConfig::from_toml(toml).unwrap();
+        assert_eq!(config.actor[0].instances, InstanceCount::Fixed(5));
+    }
+
+    #[test]
+    fn test_instance_count_default() {
+        let toml = r#"
+[[actor]]
+name = "test"
+kind = "wasm"
+image = "test.wasm"
+"#;
+        let config = AetherConfig::from_toml(toml).unwrap();
+        assert_eq!(config.actor[0].instances, InstanceCount::Fixed(1));
+    }
+
+    #[test]
+    fn test_actor_kind_oci() {
+        let toml = r#"
+[[actor]]
+name = "db"
+kind = "oci"
+image = "postgres:15"
+"#;
+        let config = AetherConfig::from_toml(toml).unwrap();
+        assert_eq!(config.actor[0].kind, ActorKind::Oci);
+    }
+
+    #[test]
+    fn test_volume_config_read_only() {
+        let toml = r#"
+[[actor]]
+name = "app"
+kind = "wasm"
+image = "app.wasm"
+
+[actor.capabilities.volumes.data]
+path = "/data"
+read_only = true
+"#;
+        let config = AetherConfig::from_toml(toml).unwrap();
+        let caps = config.get_capabilities("app").unwrap();
+        assert!(caps.contains(CapabilitySet::FS_READ));
+        assert!(!caps.contains(CapabilitySet::FS_WRITE));
+    }
+
+    #[test]
+    fn test_volume_config_read_write() {
+        let toml = r#"
+[[actor]]
+name = "app"
+kind = "wasm"
+image = "app.wasm"
+
+[actor.capabilities.volumes.data]
+path = "/data"
+size = "10GB"
+"#;
+        let config = AetherConfig::from_toml(toml).unwrap();
+        let caps = config.get_capabilities("app").unwrap();
+        assert!(caps.contains(CapabilitySet::FS_READ));
+        assert!(caps.contains(CapabilitySet::FS_WRITE));
+    }
+
+    #[test]
+    fn test_env_capability() {
+        let toml = r#"
+[[actor]]
+name = "app"
+kind = "wasm"
+image = "app.wasm"
+
+[actor.capabilities]
+env = true
+"#;
+        let config = AetherConfig::from_toml(toml).unwrap();
+        let caps = config.get_capabilities("app").unwrap();
+        assert!(caps.contains(CapabilitySet::ENV));
+    }
+
+    #[test]
+    fn test_project_config() {
+        let toml = r#"
+[project]
+name = "my-project"
+version = "2.0.0"
+"#;
+        let config = AetherConfig::from_toml(toml).unwrap();
+        assert_eq!(config.project.name, "my-project");
+        assert_eq!(config.project.version, "2.0.0");
+    }
+
+    #[test]
+    fn test_project_config_defaults() {
+        let toml = "";
+        let config = AetherConfig::from_toml(toml).unwrap();
+        assert!(config.project.name.is_empty());
+        assert!(config.project.version.is_empty());
+    }
+
+    #[test]
+    fn test_networking_private() {
+        let toml = r#"
+[[actor]]
+name = "app"
+kind = "wasm"
+image = "app.wasm"
+
+[actor.capabilities]
+networking = "private"
+"#;
+        let config = AetherConfig::from_toml(toml).unwrap();
+        let caps = config.get_capabilities("app").unwrap();
+        assert!(caps.contains(CapabilitySet::NETWORK_OUTBOUND));
+        assert!(caps.contains(CapabilitySet::NETWORK_INBOUND));
+        assert!(!caps.contains(CapabilitySet::NETWORK_PUBLIC));
+    }
+
+    #[test]
+    fn test_networking_none() {
+        let toml = r#"
+[[actor]]
+name = "app"
+kind = "wasm"
+image = "app.wasm"
+
+[actor.capabilities]
+networking = "none"
+"#;
+        let config = AetherConfig::from_toml(toml).unwrap();
+        let caps = config.get_capabilities("app").unwrap();
+        assert!(!caps.contains(CapabilitySet::NETWORK_OUTBOUND));
+    }
+
+    #[test]
+    fn test_multiple_actors() {
+        let toml = r#"
+[[actor]]
+name = "a"
+kind = "wasm"
+image = "a.wasm"
+
+[[actor]]
+name = "b"
+kind = "wasm"
+image = "b.wasm"
+
+[[actor]]
+name = "c"
+kind = "oci"
+image = "c:latest"
+"#;
+        let config = AetherConfig::from_toml(toml).unwrap();
+        assert_eq!(config.actor.len(), 3);
+        assert_eq!(config.actor[0].name, "a");
+        assert_eq!(config.actor[1].name, "b");
+        assert_eq!(config.actor[2].name, "c");
+    }
+
+    #[test]
+    fn test_default_config() {
+        let config = AetherConfig::default();
+        assert!(config.actor.is_empty());
+        assert!(config.observability.is_none());
+        assert!(config.project.name.is_empty());
+    }
 }

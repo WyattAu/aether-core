@@ -68,3 +68,48 @@ impl VictoriaMetricsPusher {
         &self.config
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_victoriametrics_config_default() {
+        let config = VictoriaMetricsConfig::default();
+        assert_eq!(config.endpoint, "http://localhost:8428/api/v1/write");
+        assert_eq!(config.push_interval, Duration::from_secs(15));
+        assert!(config.extra_labels.is_empty());
+    }
+
+    #[test]
+    fn test_victoriametrics_config_custom() {
+        let config = VictoriaMetricsConfig {
+            endpoint: "http://vm:8428/api/v1/write".to_string(),
+            push_interval: Duration::from_secs(30),
+            extra_labels: vec![("app".to_string(), "aether".to_string())],
+        };
+        assert_eq!(config.push_interval, Duration::from_secs(30));
+        assert_eq!(config.extra_labels.len(), 1);
+    }
+
+    #[test]
+    fn test_victoriametrics_pusher_creation() {
+        let config = VictoriaMetricsConfig::default();
+        let pusher = VictoriaMetricsPusher::new(config);
+        assert!(pusher.is_ok());
+        let pusher = pusher.unwrap();
+        assert_eq!(pusher.config().endpoint, "http://localhost:8428/api/v1/write");
+    }
+
+    #[test]
+    fn test_victoriametrics_pusher_config_clone() {
+        let config = VictoriaMetricsConfig {
+            endpoint: "http://custom:8428/api/v1/write".to_string(),
+            push_interval: Duration::from_secs(5),
+            extra_labels: vec![("dc".to_string(), "us-east".to_string())],
+        };
+        let pusher = VictoriaMetricsPusher::new(config.clone()).unwrap();
+        assert_eq!(pusher.config().push_interval, Duration::from_secs(5));
+        assert_eq!(pusher.config().extra_labels.len(), 1);
+    }
+}

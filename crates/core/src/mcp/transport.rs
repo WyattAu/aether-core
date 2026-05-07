@@ -1,9 +1,5 @@
 //! MCP Transport Layer
 
-// Allow dead code for trait methods that are part of the interface
-// but may not be called in current implementation
-#![allow(dead_code)]
-
 use std::io;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -22,13 +18,13 @@ pub trait Transport: Send + Sync {
     /// Receive the next message from the transport, or `None` if closed.
     async fn receive(&self) -> Result<Option<String>>;
     /// Close the transport, preventing further sends/receives.
+    #[allow(dead_code)]
     async fn close(&self) -> Result<()>;
     /// Returns `true` if the transport has been closed.
     fn is_closed(&self) -> bool;
 }
 
 /// Boxed transport
-/// Note: Reserved for future dynamic dispatch use.
 #[allow(dead_code)]
 pub type BoxedTransport = Box<dyn Transport>;
 
@@ -132,5 +128,83 @@ impl Transport for StdioTransport {
 
     fn is_closed(&self) -> bool {
         self.closed.load(std::sync::atomic::Ordering::SeqCst)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tokio::io::duplex;
+
+    #[test]
+    fn test_stdio_transport_is_not_closed_after_creation() {
+        let (reader, writer) = duplex(1024);
+        let (reader2, writer2) = duplex(1024);
+
+        let transport = StdioTransport::with_handles(
+            Box::pin(BufReader::new(reader)),
+            Box::pin(writer),
+        );
+        let _server_transport = StdioTransport::with_handles(
+            Box::pin(BufReader::new(reader2)),
+            Box::pin(writer2),
+        );
+
+        assert!(!transport.is_closed());
+    }
+
+    #[tokio::test]
+    async fn test_stdio_transport_close_prevents_receive() {
+        let (reader, _writer) = duplex(1024);
+        let (_reader2, writer) = duplex(1024);
+
+        let transport = StdioTransport::with_handles(
+            Box::pin(BufReader::new(reader)),
+            Box::pin(writer),
+        );
+
+        transport.close().await.unwrap();
+        assert!(transport.is_closed());
+
+        let result = transport.receive().await.unwrap();
+        assert!(result.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_stdio_transport_send_after_close_fails() {
+        let (_reader, writer) = duplex(1024);
+        let (reader2, _writer2) = duplex(1024);
+
+        let transport = StdioTransport::with_handles(
+            Box::pin(BufReader::new(reader2)),
+            Box::pin(writer),
+        );
+
+        transport.close().await.unwrap();
+
+        let result = transport.send("test").await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_stdio_transport_send_fails_on_closed() {
+        let (reader, writer) = duplex(1024);
+        let (reader2, writer2) = duplex(1024);
+
+        let transport = StdioTransport::with_handles(
+            Box::pin(BufReader::new(reader)),
+            Box::pin(writer),
+        );
+
+        assert!(!transport.is_closed());
+
+        transport.close().await.unwrap();
+        assert!(transport.is_closed());
+
+        let _ = transport.send("test").await;
+        assert!(transport.is_closed());
+
+        drop(reader2);
+        drop(writer2);
     }
 }

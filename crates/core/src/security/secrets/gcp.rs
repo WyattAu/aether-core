@@ -84,29 +84,6 @@ impl GcpSecretsConfig {
     }
 }
 
-/// Secret version metadata from GCP Secret Manager
-/// Note: Reserved for future list/versions functionality.
-#[allow(dead_code)]
-#[derive(Debug, Deserialize)]
-struct SecretVersion {
-    name: String,
-    state: String,
-    #[serde(rename = "createTime")]
-    create_time: Option<String>,
-    #[serde(rename = "destroyTime")]
-    destroy_time: Option<String>,
-}
-
-/// Response from listing secret versions
-/// Note: Reserved for future list/versions functionality.
-#[allow(dead_code)]
-#[derive(Debug, Deserialize)]
-struct SecretVersionsResponse {
-    versions: Vec<SecretVersion>,
-    #[serde(rename = "nextPageToken")]
-    next_page_token: Option<String>,
-}
-
 #[derive(Debug, Deserialize)]
 struct SecretPayload {
     data: String,
@@ -213,9 +190,8 @@ impl GcpSecretsProvider {
     }
 
     /// Build the secret path for GCP Secret Manager
-    /// Note: Used in tests and reserved for future API use.
     #[allow(dead_code)]
-    fn build_secret_path(&self, secret_id: &str) -> String {
+    pub(crate) fn build_secret_path(&self, secret_id: &str) -> String {
         format!("projects/{}/secrets/{}", self.config.project_id, secret_id)
     }
 

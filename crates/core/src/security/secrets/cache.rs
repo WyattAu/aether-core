@@ -117,20 +117,6 @@ impl CachedSecretProvider {
         cache.retain(|_, entry| entry.cached_at.elapsed() < self.ttl);
         before - cache.len()
     }
-
-    /// Check if a secret is cached and still valid
-    /// Note: Public API for cache inspection. Currently unused but kept for future monitoring.
-    #[allow(dead_code)]
-    fn is_cached_and_valid(&self, path: &str, key: &str) -> bool {
-        let cache_key = Self::cache_key(path, key);
-        let cache = self.cache.read();
-
-        if let Some(entry) = cache.get(&cache_key) {
-            entry.cached_at.elapsed() < self.ttl
-        } else {
-            false
-        }
-    }
 }
 
 #[async_trait]

@@ -159,7 +159,6 @@ pub enum Error {
     ActorNotFound(String),
 
     #[error("Invalid log level: {0}")]
-    #[allow(dead_code)]
     InvalidLevel(String),
 
     #[error("File error: {0}")]
@@ -167,7 +166,6 @@ pub enum Error {
     FileError(String),
 
     #[error("WebSocket error: {0}")]
-    #[allow(dead_code)]
     WebSocketError(String),
 
     #[error("IO error: {0}")]
@@ -195,6 +193,7 @@ pub trait LogStreamer: Send {
 pub struct FileLogStreamer {
     receiver: Option<mpsc::Receiver<LogEntry>>,
     shutdown_tx: Option<mpsc::Sender<()>>,
+    #[allow(dead_code)]
     path: PathBuf,
 }
 
@@ -287,6 +286,7 @@ impl LogStreamer for FileLogStreamer {
 /// WebSocket log streamer
 pub struct WebSocketLogStreamer {
     ws: Option<WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>>,
+    #[allow(dead_code)]
     url: String,
 }
 

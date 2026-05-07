@@ -348,3 +348,76 @@ impl SecurityConfig {
         self
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_certificate_type_lifetimes() {
+        assert_eq!(CertificateType::Ca.lifetime(), CERTIFICATE_LIFETIME_CA);
+        assert_eq!(CertificateType::Node.lifetime(), CERTIFICATE_LIFETIME_NODE);
+        assert_eq!(CertificateType::Actor.lifetime(), CERTIFICATE_LIFETIME_ACTOR);
+    }
+
+    #[test]
+    fn test_certificate_type_as_str() {
+        assert_eq!(CertificateType::Ca.as_str(), "CA");
+        assert_eq!(CertificateType::Node.as_str(), "Node");
+        assert_eq!(CertificateType::Actor.as_str(), "Actor");
+    }
+
+    #[test]
+    fn test_certificate_type_equality() {
+        assert_eq!(CertificateType::Ca, CertificateType::Ca);
+        assert_ne!(CertificateType::Ca, CertificateType::Node);
+        assert_ne!(CertificateType::Node, CertificateType::Actor);
+    }
+
+    #[test]
+    fn test_security_config_default() {
+        let config = SecurityConfig::default();
+        assert_eq!(config.namespace, "default");
+        assert!(config.ca_cert_path.is_none());
+        assert!(config.ca_key_path.is_none());
+        assert!(config.enable_revocation);
+        assert!(config.crl_path.is_none());
+        assert_eq!(config.rotation_check_interval, Duration::from_secs(300));
+    }
+
+    #[test]
+    fn test_security_config_new() {
+        let config = SecurityConfig::new("node-42");
+        assert_eq!(config.node_id, "node-42");
+        assert_eq!(config.namespace, "default");
+    }
+
+    #[test]
+    fn test_security_config_builder() {
+        let config = SecurityConfig::new("node-1")
+            .with_namespace("production")
+            .with_ca("/path/to/ca.crt", "/path/to/ca.key")
+            .with_crl("/path/to/crl.pem");
+
+        assert_eq!(config.node_id, "node-1");
+        assert_eq!(config.namespace, "production");
+        assert_eq!(config.ca_cert_path, Some("/path/to/ca.crt".to_string()));
+        assert_eq!(config.ca_key_path, Some("/path/to/ca.key".to_string()));
+        assert_eq!(config.crl_path, Some("/path/to/crl.pem".to_string()));
+    }
+
+    #[test]
+    fn test_security_config_revocation_disabled() {
+        let mut config = SecurityConfig::default();
+        config.enable_revocation = false;
+        assert!(!config.enable_revocation);
+    }
+
+    #[test]
+    fn test_constants() {
+        assert_eq!(CERTIFICATE_LIFETIME_ACTOR, Duration::from_secs(24 * 60 * 60));
+        assert_eq!(CERTIFICATE_LIFETIME_NODE, Duration::from_secs(7 * 24 * 60 * 60));
+        assert_eq!(CERTIFICATE_LIFETIME_CA, Duration::from_secs(7 * 24 * 60 * 60));
+        assert_eq!(CRL_UPDATE_INTERVAL, Duration::from_secs(60));
+    }
+}

@@ -66,9 +66,8 @@ impl ScenarioResult {
     }
 
     /// Add a failure message to the result
-    /// Note: Public API for scenario results. Currently unused but kept for future use.
     #[allow(dead_code)]
-    fn with_failure(mut self, message: impl Into<String>) -> Self {
+    pub(crate) fn with_failure(mut self, message: impl Into<String>) -> Self {
         self.passed = false;
         self.failure_message = Some(message.into());
         self

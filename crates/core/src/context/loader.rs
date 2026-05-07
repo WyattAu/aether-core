@@ -4,25 +4,9 @@
 //! that provide AI assistants with project-specific knowledge.
 
 use std::path::{Path, PathBuf};
-use std::time::Duration;
 
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
-
-/// Maximum total memory size (1MB)
-/// Note: Reserved for future memory limiting feature.
-#[allow(dead_code)]
-const MAX_TOTAL_SIZE: usize = 1024 * 1024;
-
-/// Maximum entries
-/// Note: Reserved for future entry limiting feature.
-#[allow(dead_code)]
-const MAX_ENTRIES: usize = 1000;
-
-/// Maximum entry age (7 days)
-/// Note: Reserved for future entry expiration feature.
-#[allow(dead_code)]
-const MAX_ENTRY_AGE: std::time::Duration = Duration::from_secs(60 * 60 * 24 * 7);
 
 /// Type of context file
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]

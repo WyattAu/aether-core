@@ -85,3 +85,72 @@ pub struct LogEntryStream {
     /// Log entry values in `[timestamp, line]` format.
     pub values: Vec<Value>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_loki_config_default() {
+        let config = LokiConfig::default();
+        assert_eq!(config.endpoint, "http://localhost:3100/loki/api/v1/push");
+        assert!(config.tenant_id.is_empty());
+        assert_eq!(config.extra_labels.len(), 1);
+        assert_eq!(config.extra_labels[0], ("job".to_string(), "aether".to_string()));
+    }
+
+    #[test]
+    fn test_loki_config_custom() {
+        let config = LokiConfig {
+            endpoint: "http://loki:3100/loki/api/v1/push".to_string(),
+            tenant_id: "team-a".to_string(),
+            extra_labels: vec![("env".to_string(), "prod".to_string())],
+        };
+        assert_eq!(config.tenant_id, "team-a");
+        assert_eq!(config.extra_labels.len(), 1);
+    }
+
+    #[test]
+    fn test_loki_pusher_creation() {
+        let config = LokiConfig::default();
+        let pusher = LokiPusher::new(config);
+        assert!(pusher.is_ok());
+    }
+
+    #[test]
+    fn test_loki_pusher_creation_with_tenant() {
+        let config = LokiConfig {
+            endpoint: "http://loki:3100/loki/api/v1/push".to_string(),
+            tenant_id: "tenant-1".to_string(),
+            extra_labels: vec![],
+        };
+        let pusher = LokiPusher::new(config).unwrap();
+        assert_eq!(pusher.config.tenant_id, "tenant-1");
+    }
+
+    #[test]
+    fn test_log_stream_serialization() {
+        let stream = LogStream {
+            streams: vec![LogEntryStream {
+                stream: {
+                    let mut m = HashMap::new();
+                    m.insert("job".to_string(), "test".to_string());
+                    m
+                },
+                values: vec![serde_json::json!(["1234", "hello world"])],
+            }],
+        };
+        let json = serde_json::to_string(&stream).unwrap();
+        assert!(json.contains("test"));
+        assert!(json.contains("hello world"));
+    }
+
+    #[test]
+    fn test_log_entry_stream_empty_values() {
+        let stream = LogEntryStream {
+            stream: HashMap::new(),
+            values: vec![],
+        };
+        assert!(stream.values.is_empty());
+    }
+}
