@@ -1,0 +1,60 @@
+[project]
+name = "aether-us-east"
+version = "1.0.0"
+
+[node]
+id = "us-east-1"
+region = "us-east-1"
+datacenter = "us-east-1a"
+
+[node.advertise]
+host = "0.0.0.0"
+port = 9000
+
+[node.api]
+host = "0.0.0.0"
+port = 9001
+
+[node.peers]
+addresses = [
+  "aether-eu-west:9000",
+  "aether-ap-southeast:9000",
+]
+
+[placement]
+strategy = "regional-aware"
+prefer_local = true
+replication_factor = 3
+regions = ["us-east-1", "eu-west-1", "ap-southeast-1"]
+
+[placement.latency]
+us-east-1_to_eu-west-1_ms = 75
+us-east-1_to_ap-southeast-1_ms = 220
+eu-west-1_to_ap-southeast-1_ms = 180
+
+[security]
+tls_enabled = true
+mtls_enabled = true
+ca_cert_path = "/etc/aether/certs/ca.crt"
+cert_path = "/etc/aether/certs/us-east-1.crt"
+key_path = "/etc/aether/certs/us-east-1.key"
+cert_rotation_interval = "1h"
+max_cert_lifetime = "168h"
+
+[observability]
+metrics_enabled = true
+metrics_endpoint = "http://victoria-metrics-us-east:8428/api/v1/write"
+tracing_enabled = true
+tracing_endpoint = "http://victoria-metrics-us-east:4318"
+logging_enabled = true
+log_level = "info"
+
+[observability.logs]
+backend = "victorialogs"
+endpoint = "http://victoria-logs-us-east:9428/insert/jsonline"
+loki_endpoint = "http://loki-us-east:3100/loki/api/v1/push"
+
+[raft]
+snapshot_interval = 10000
+election_timeout = "1500ms"
+heartbeat_interval = "500ms"

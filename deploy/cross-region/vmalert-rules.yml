@@ -1,0 +1,39 @@
+groups:
+  - name: aether_cross_region
+    interval: 30s
+    rules:
+      - alert: AetherNodeDown
+        expr: up{job=~"aether-.*"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Aether node {{ $labels.job }} is down"
+          description: "Node {{ $labels.job }} has been unreachable for more than 1 minute."
+
+      - alert: CrossRegionLatencyHigh
+        expr: aether_mesh_latency_seconds{quantile="0.99"} > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High cross-region latency from {{ $labels.region }}"
+          description: "99th percentile mesh latency exceeds 500ms from {{ $labels.region }}."
+
+      - alert: RegionMetricsGap
+        expr: absent_over_time(aether_actor_count[5m])
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Metrics gap detected for region"
+          description: "No actor count metrics received in the last 5 minutes."
+
+      - alert: ActorRestartBurst
+        expr: rate(aether_actor_restarts_total[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High actor restart rate in {{ $labels.region }}"
+          description: "Actor restarts are exceeding 0.1/s in {{ $labels.region }}."

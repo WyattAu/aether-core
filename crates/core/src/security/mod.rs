@@ -147,6 +147,8 @@
 pub mod audit;
 /// Submodule for authorization (RBAC) enforcement.
 pub mod authorizer;
+/// Submodule for automatic mTLS certificate rotation.
+pub mod cert_rotation;
 /// Submodule for certificate management and signing.
 pub mod certs;
 /// Submodule for security hardening checks and compliance reporting.
@@ -179,6 +181,7 @@ pub use authorizer::{
     Action, AuditEntry, AuditLog, AuthorizationDecision, AuthorizationRequest, Authorizer,
     DecisionReason, Resource, Subject, SubjectType,
 };
+pub use cert_rotation::{CertInfo, CertRotationConfig, CertRotator, CertStatus};
 pub use certs::{CertificateAuthority, CertificateRevocationList, CertificateValidator};
 pub use hardening::{
     CategorySummary, CheckCategory, CheckSeverity, CheckStatus, HardeningCheck, HardeningConfig,

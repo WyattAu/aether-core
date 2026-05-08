@@ -1,0 +1,34 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: "aether-us-east"
+    static_configs:
+      - targets: ["aether-us-east:9001"]
+    metrics_path: "/metrics"
+    scrape_interval: 10s
+
+  - job_name: "aether-eu-west"
+    static_configs:
+      - targets: ["aether-eu-west:9001"]
+    metrics_path: "/metrics"
+    scrape_interval: 10s
+
+  - job_name: "aether-ap-southeast"
+    static_configs:
+      - targets: ["aether-ap-southeast:9001"]
+    metrics_path: "/metrics"
+    scrape_interval: 10s
+
+  - job_name: "victoriametrics-us-east"
+    static_configs:
+      - targets: ["victoria-metrics-us-east:8428"]
+
+  - job_name: "victoriametrics-eu-west"
+    static_configs:
+      - targets: ["victoria-metrics-eu-west:8428"]
+
+  - job_name: "victoriametrics-ap-southeast"
+    static_configs:
+      - targets: ["victoria-metrics-ap-southeast:8428"]

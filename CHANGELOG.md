@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.0.0] - 2026-05-08
+
+### Added
+- Multi-tenancy system with namespace isolation, resource quotas, tenant resolver
+- Geographically distributed mesh with region-aware actor placement (4 strategies)
+- WASM Component Model support alongside core WASM modules
+- Plugin marketplace with manifest validation, signature verification, registry
+- OPA policy engine with deny-by-default, priority-ordered rule evaluation
+- VictoriaMetrics, VictoriaLogs, Loki observability exporters
+- 4 Grafana dashboards (overview, resilience, logs, mesh)
+- FoundationDB transaction wrapper with automatic retry
+- CLI observability commands (push-metrics, push-logs, status)
+- Cluster deployment guide with docker-compose examples
+- 130+ new tests (~1000+ total)
+
+### Changed
+- Upgraded aws-lc-sys 0.38→0.40 (fixes RUSTSEC-2026-0044/0048)
+- Upgraded quinn-proto 0.11.13→0.11.14 (fixes RUSTSEC-2026-0037)
+- Replaced serde_yml with yaml_serde (fixes RUSTSEC-2025-0068)
+- Replaced serde_yaml with serde_yml then yaml_serde
+- Upgraded tokio-tungstenite 0.24→0.26, thiserror 1.x→2.x
+- 12 Mutex→RwLock conversions in observability
+- Session clone reduction via Arc<Vec<T>> + Arc::make_mut
+
+### Removed
+- 132 lines dead code (duplicate constants, unused structs, unreachable methods)
+- 4 critical stubs replaced with real implementations
+- sdks/js/ removed (focus on compiled languages)
+
+### Security
+- 22→19 vulnerabilities (3 fixed, remaining are low-severity dev dependencies)
+- 17 fuzz tests for WASM/capability/message/config/address parsing
+- 20 security tests (mTLS, capability bypass, audit tampering, privilege escalation)
+- cargo-deny license compliance added
+
+### Performance
+- All 5 roadmap targets PASS: WASM 61µs, actor 1.7µs, mesh 726ns, state 180ns, density 100K@378K/s
+
+---
+
 ## [1.8.0] - 2026-03-29
 
 ### Added

@@ -1,0 +1,334 @@
+version: "3.9"
+
+x-aether-common: &aether-common
+  build:
+    context: ../..
+    dockerfile: Dockerfile
+  restart: unless-stopped
+  volumes:
+    - certs:/etc/aether/certs:ro
+  environment:
+    - RUST_LOG=info
+  security_opt:
+    - no-new-privileges:true
+  pids_limit: 256
+  ulimits:
+    nofile:
+      soft: 65536
+      hard: 65536
+  logging:
+    driver: json-file
+    options:
+      max-size: "50m"
+      max-file: "5"
+
+x-vm-common: &vm-common
+  image: victoriametrics/victoria-metrics:latest
+  restart: unless-stopped
+  volumes:
+    - vm-data:/victoria-metrics-data
+  command:
+    - "--retentionPeriod=30d"
+    - "--storageDataPath=/victoria-metrics-data"
+    - "--httpListenAddr=:8428"
+
+x-vl-common: &vl-common
+  image: victoriametrics/victorialogs:latest
+  restart: unless-stopped
+  volumes:
+    - vl-data:/victorialogs-data
+  command:
+    - "--storageDataPath=/victorialogs-data"
+    - "--httpListenAddr=:9428"
+    - "--retentionPeriod=14d"
+
+x-loki-common: &loki-common
+  image: grafana/loki:latest
+  restart: unless-stopped
+  volumes:
+    - loki-data:/loki-data
+  command:
+    - "-config.file=/etc/loki/local-config.yaml"
+
+services:
+  # =========================================================================
+  # US-EAST Region
+  # =========================================================================
+  aether-us-east:
+    <<: *aether-common
+    container_name: aether-us-east
+    ports:
+      - "9000:9000/udp"
+      - "9001:9001/tcp"
+    volumes:
+      - certs:/etc/aether/certs:ro
+      - us-east-data:/var/lib/aether
+      - ./aether-us-east.toml:/etc/aether/aether.toml:ro
+    environment:
+      - AETHER_NODE_ID=us-east-1
+      - AETHER_REGION=us-east-1
+      - AETHER_CONFIG=/etc/aether/aether.toml
+      - AETHER_DATA=/var/lib/aether
+    networks:
+      - us-east-net
+      - global-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9001/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+
+  victoria-metrics-us-east:
+    <<: *vm-common
+    container_name: vm-us-east
+    networks:
+      - us-east-net
+      - global-net
+
+  victoria-logs-us-east:
+    <<: *vl-common
+    container_name: vl-us-east
+    networks:
+      - us-east-net
+      - global-net
+
+  loki-us-east:
+    <<: *loki-common
+    container_name: loki-us-east
+    networks:
+      - us-east-net
+      - global-net
+
+  # =========================================================================
+  # EU-WEST Region
+  # =========================================================================
+  aether-eu-west:
+    <<: *aether-common
+    container_name: aether-eu-west
+    ports:
+      - "19000:9000/udp"
+      - "19001:9001/tcp"
+    volumes:
+      - certs:/etc/aether/certs:ro
+      - eu-west-data:/var/lib/aether
+      - ./aether-eu-west.toml:/etc/aether/aether.toml:ro
+    environment:
+      - AETHER_NODE_ID=eu-west-1
+      - AETHER_REGION=eu-west-1
+      - AETHER_CONFIG=/etc/aether/aether.toml
+      - AETHER_DATA=/var/lib/aether
+    networks:
+      - eu-west-net
+      - global-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9001/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+
+  victoria-metrics-eu-west:
+    <<: *vm-common
+    container_name: vm-eu-west
+    volumes:
+      - vm-eu-data:/victoria-metrics-data
+    networks:
+      - eu-west-net
+      - global-net
+
+  victoria-logs-eu-west:
+    <<: *vl-common
+    container_name: vl-eu-west
+    volumes:
+      - vl-eu-data:/victorialogs-data
+    networks:
+      - eu-west-net
+      - global-net
+
+  loki-eu-west:
+    <<: *loki-common
+    container_name: loki-eu-west
+    volumes:
+      - loki-eu-data:/loki-data
+    networks:
+      - eu-west-net
+      - global-net
+
+  # =========================================================================
+  # AP-SOUTHEAST Region
+  # =========================================================================
+  aether-ap-southeast:
+    <<: *aether-common
+    container_name: aether-ap-southeast
+    ports:
+      - "29000:9000/udp"
+      - "29001:9001/tcp"
+    volumes:
+      - certs:/etc/aether/certs:ro
+      - ap-southeast-data:/var/lib/aether
+      - ./aether-ap-southeast.toml:/etc/aether/aether.toml:ro
+    environment:
+      - AETHER_NODE_ID=ap-southeast-1
+      - AETHER_REGION=ap-southeast-1
+      - AETHER_CONFIG=/etc/aether/aether.toml
+      - AETHER_DATA=/var/lib/aether
+    networks:
+      - ap-southeast-net
+      - global-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9001/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+
+  victoria-metrics-ap-southeast:
+    <<: *vm-common
+    container_name: vm-ap-southeast
+    volumes:
+      - vm-ap-data:/victoria-metrics-data
+    networks:
+      - ap-southeast-net
+      - global-net
+
+  victoria-logs-ap-southeast:
+    <<: *vl-common
+    container_name: vl-ap-southeast
+    volumes:
+      - vl-ap-data:/victorialogs-data
+    networks:
+      - ap-southeast-net
+      - global-net
+
+  loki-ap-southeast:
+    <<: *loki-common
+    container_name: loki-ap-southeast
+    volumes:
+      - loki-ap-data:/loki-data
+    networks:
+      - ap-southeast-net
+      - global-net
+
+  # =========================================================================
+  # Global Grafana (queries all regional backends)
+  # =========================================================================
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana-global
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana-datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
+      - ./grafana-dashboards.yml:/etc/grafana/provisioning/dashboards/dashboards.yml:ro
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+      - GF_SERVER_ROOT_URL=http://localhost:3000
+    networks:
+      - global-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # =========================================================================
+  # vmagent (scrapes all regional VM instances)
+  # =========================================================================
+  vmagent:
+    image: victoriametrics/vmagent:latest
+    container_name: vmagent-global
+    volumes:
+      - ./vmagent-scrape.yml:/etc/vmagent/scrape.yml:ro
+    command:
+      - "-promscrape.config=/etc/vmagent/scrape.yml"
+      - "-remoteWrite.url=http://victoria-metrics-us-east:8428/api/v1/write"
+    networks:
+      - us-east-net
+      - eu-west-net
+      - ap-southeast-net
+      - global-net
+    restart: unless-stopped
+
+  # =========================================================================
+  # vmalert (cross-region alerting)
+  # =========================================================================
+  vmalert:
+    image: victoriametrics/vmalert:latest
+    container_name: vmalert-global
+    volumes:
+      - ./vmalert-rules.yml:/etc/vmalert/rules.yml:ro
+    command:
+      - "-rule=/etc/vmalert/rules.yml"
+      - "-datasource.url=http://victoria-metrics-us-east:8428"
+      - "-remoteWrite.url=http://victoria-metrics-us-east:8428/api/v1/write"
+      - "-notifier.url=http://alertmanager:9093"
+    networks:
+      - global-net
+    restart: unless-stopped
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager-global
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    networks:
+      - global-net
+    restart: unless-stopped
+
+volumes:
+  certs:
+  us-east-data:
+  eu-west-data:
+  ap-southeast-data:
+  vm-data:
+  vm-eu-data:
+  vm-ap-data:
+  vl-data:
+  vl-eu-data:
+  vl-ap-data:
+  loki-data:
+  loki-eu-data:
+  loki-ap-data:
+  grafana-data:
+
+networks:
+  us-east-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.31.0.0/16
+  eu-west-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.32.0.0/16
+  ap-southeast-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.33.0.0/16
+  global-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.34.0.0/16

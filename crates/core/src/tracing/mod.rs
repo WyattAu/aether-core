@@ -43,10 +43,15 @@
 //! - **Jaeger**: Jaeger trace collector
 //! - **None**: Disable trace export (logging only)
 
+pub mod distributed;
 pub mod exporter;
 pub mod propagation;
 pub mod span;
 
+pub use distributed::{
+    Span as DistributedSpan, SpanBuilder, SpanEvent, SpanStatus, SpanValue,
+    TraceContext as DistributedTraceContext, TraceContextError, TracePropagator,
+};
 pub use exporter::{ExporterError, TracingConfig, TracingExporter};
 pub use propagation::{TraceContext, extract_context, inject_context};
 pub use span::{ActorSpan, MeshSpan, SpanAttributes, SpanKind, StateSpan};

@@ -121,6 +121,7 @@ pub mod instance;
 pub mod linker;
 pub mod module;
 pub mod pool;
+pub mod wit;
 
 pub use component::{ComponentInstanceBuilder, ComponentInstanceConfig, ComponentPool};
 #[cfg(feature = "wasm")]
@@ -131,3 +132,6 @@ pub use linker::{InstanceHost, create_linker, create_store};
 #[cfg(feature = "wasm")]
 pub use module::{WasmModule, create_engine};
 pub use pool::InstancePool;
+pub use wit::{
+    WitFunction, WitInterface, WitParam, WitRegistry, WitType, WitTypeKind, WitValidator,
+};
