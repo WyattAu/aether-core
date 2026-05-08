@@ -116,11 +116,15 @@
 //! - Resource limits via `RuntimeLimiter`
 //! - No unsafe code in hot path
 
+pub mod component;
 pub mod instance;
 pub mod linker;
 pub mod module;
 pub mod pool;
 
+pub use component::{ComponentInstanceBuilder, ComponentInstanceConfig, ComponentPool};
+#[cfg(feature = "wasm")]
+pub use component::{WasmComponent, WasmComponentError};
 pub use instance::WasmInstance;
 #[cfg(feature = "wasm")]
 pub use linker::{InstanceHost, create_linker, create_store};

@@ -116,18 +116,18 @@
 
 pub mod cache;
 pub mod checkpoint;
+pub mod fdb;
 pub mod hydration;
 pub mod kv;
 pub mod transaction;
-
-#[cfg(feature = "fdb")]
-pub mod fdb;
 
 pub use cache::StateCache;
 pub use checkpoint::{
     CHECKPOINT_PREFIX, CHECKPOINT_VERSION, Checkpoint, CheckpointManager, CheckpointMetadata,
     CheckpointStore, CheckpointVersion, MAX_CHECKPOINTS_PER_ACTOR, SequenceNumber,
 };
+pub use fdb::{FdbConfig, FdbMetrics, HealthStatus, InMemoryFdb, InMemoryTransaction};
+pub use fdb::{WatchEvent as FdbWatchEvent, WatchEventType as FdbWatchEventType};
 pub use hydration::HydrationEngine;
 pub use kv::{BatchOp, InMemoryStore, KeyValueStore, ScopedStore, WatchEvent, WatchEventType};
 pub use transaction::{
@@ -135,10 +135,7 @@ pub use transaction::{
 };
 
 #[cfg(feature = "fdb")]
-pub use fdb::{
-    ActorDirectory, FdbClient, FdbConfig, FdbMetrics, HealthStatus, InMemoryFdb,
-    InMemoryTransaction, WatchEvent as FdbWatchEvent, WatchEventType as FdbWatchEventType,
-};
+pub use fdb::{ActorDirectory, FdbClient, FdbTransaction};
 
 #[cfg(feature = "fdb")]
 pub use kv::FdbStore;

@@ -169,6 +169,125 @@ impl FdbMetrics {
 }
 
 #[cfg(feature = "fdb")]
+/// A wrapper around a FoundationDB transaction for multi-key atomic operations.
+///
+/// Created via [`FdbClient::transaction`]. Buffers reads and writes until
+/// [`commit`](FdbTransaction::commit) is called. On conflict, the commit
+/// fails and the caller should retry.
+pub struct FdbTransaction {
+    trx: Option<foundationdb::Transaction>,
+    committed: bool,
+    metrics: FdbMetrics,
+}
+
+#[cfg(feature = "fdb")]
+impl FdbTransaction {
+    /// Reads a single key within the transaction.
+    pub async fn get(&self, key: &[u8]) -> Result<Option<Vec<u8>>> {
+        let trx = self
+            .trx
+            .as_ref()
+            .ok_or_else(|| Error::storage("Transaction already consumed"))?;
+        trx.get(key, false)
+            .await
+            .map(|v| v.map(|v| v.to_vec()))
+            .map_err(|e| Error::storage(format!("Transaction get failed: {}", e)))
+    }
+
+    /// Queues a key-value write in the transaction buffer.
+    pub fn set(&self, key: &[u8], value: &[u8]) {
+        if let Some(trx) = &self.trx {
+            trx.set(key, value);
+        }
+    }
+
+    /// Queues a key deletion in the transaction buffer.
+    pub fn clear(&self, key: &[u8]) {
+        if let Some(trx) = &self.trx {
+            trx.clear(key);
+        }
+    }
+
+    /// Alias for [`FdbTransaction::clear`].
+    pub fn delete(&self, key: &[u8]) {
+        self.clear(key);
+    }
+
+    /// Performs a range scan within the transaction over keys in `[begin, end)`.
+    pub async fn get_range(&self, begin: &[u8], end: &[u8]) -> Result<Vec<(Vec<u8>, Vec<u8>)>> {
+        let trx = self
+            .trx
+            .as_ref()
+            .ok_or_else(|| Error::storage("Transaction already consumed"))?;
+        let range = RangeOption::from((begin, end));
+        trx.get_range(&range, 1_000_000, false)
+            .await
+            .map(|items| {
+                items
+                    .into_iter()
+                    .map(|kv| (kv.key().to_vec(), kv.value().to_vec()))
+                    .collect()
+            })
+            .map_err(|e| Error::storage(format!("Transaction range scan failed: {}", e)))
+    }
+
+    /// Adds a read conflict range to the transaction.
+    pub fn add_read_conflict_range(&self, begin: &[u8], end: &[u8]) -> Result<()> {
+        let trx = self
+            .trx
+            .as_ref()
+            .ok_or_else(|| Error::storage("Transaction already consumed"))?;
+        use foundationdb::options::ConflictRangeType;
+        trx.add_conflict_range(begin, end, ConflictRangeType::Read)
+            .map_err(|e| Error::storage(format!("add_read_conflict_range failed: {}", e)))
+    }
+
+    /// Adds a write conflict range to the transaction.
+    pub fn add_write_conflict_range(&self, begin: &[u8], end: &[u8]) -> Result<()> {
+        let trx = self
+            .trx
+            .as_ref()
+            .ok_or_else(|| Error::storage("Transaction already consumed"))?;
+        use foundationdb::options::ConflictRangeType;
+        trx.add_conflict_range(begin, end, ConflictRangeType::Write)
+            .map_err(|e| Error::storage(format!("add_write_conflict_range failed: {}", e)))
+    }
+
+    /// Commits the transaction, applying all buffered writes atomically.
+    ///
+    /// Returns `Ok(())` on success, or an error if the transaction conflicted.
+    pub async fn commit(mut self) -> Result<()> {
+        let trx = self
+            .trx
+            .take()
+            .ok_or_else(|| Error::storage("Transaction already consumed"))?;
+        self.committed = true;
+        trx.commit()
+            .await
+            .map_err(|e| Error::storage(format!("Transaction commit failed: {}", e)))?;
+        self.metrics.record_success();
+        self.metrics.transaction_completed();
+        Ok(())
+    }
+
+    /// Resets the transaction to its initial state for retry.
+    pub fn reset(&mut self) {
+        if let Some(trx) = &mut self.trx {
+            trx.reset();
+        }
+    }
+}
+
+#[cfg(feature = "fdb")]
+impl Drop for FdbTransaction {
+    fn drop(&mut self) {
+        if !self.committed && self.trx.is_some() {
+            self.metrics.transaction_completed();
+        }
+    }
+}
+
+#[cfg(feature = "fdb")]
 /// FoundationDB client with connection pooling and retry logic.
 ///
 /// Requires the `fdb` feature flag. Without it, operations return errors.
@@ -477,6 +596,58 @@ impl FdbClient {
     /// Returns the cached health status without performing a check.
     pub async fn health(&self) -> HealthStatus {
         *self.health.lock().await
+    }
+
+    /// Creates a new FoundationDB transaction for multi-key atomic operations.
+    ///
+    /// The returned [`FdbTransaction`] buffers reads and writes until
+    /// [`commit`](FdbTransaction::commit) is called. If the commit fails due
+    /// to a conflict, the caller should create a new transaction and retry.
+    pub fn transaction(&self) -> Result<FdbTransaction> {
+        let trx = self
+            .db
+            .create_trx()
+            .map_err(|e| Error::storage(format!("Failed to create transaction: {}", e)))?;
+        self.metrics.transaction_started();
+        Ok(FdbTransaction {
+            trx: Some(trx),
+            committed: false,
+            metrics: self.metrics.clone(),
+        })
+    }
+
+    /// Executes a closure inside a transaction with automatic retry on conflict.
+    ///
+    /// The closure receives a [`FdbTransaction`] and returns a `Result<T>`.
+    /// If the transaction conflicts, it is automatically retried up to
+    /// [`MAX_RETRIES`] times.
+    pub async fn transact<F, Fut, T>(&self, f: F) -> Result<T>
+    where
+        F: Fn(FdbTransaction) -> Fut,
+        Fut: std::future::Future<Output = Result<T>>,
+    {
+        let mut last_err = None;
+
+        for attempt in 0..MAX_RETRIES {
+            let tx = self.transaction()?;
+
+            let result = f(tx).await;
+
+            match result {
+                Ok(value) => return Ok(value),
+                Err(e) => {
+                    if attempt == MAX_RETRIES - 1 {
+                        last_err = Some(e);
+                        break;
+                    }
+                    let delay = Duration::from_millis(10 * (1 << attempt.min(6)));
+                    tokio::time::sleep(delay).await;
+                }
+            }
+        }
+
+        self.metrics.record_failure();
+        Err(last_err.unwrap_or_else(|| Error::storage("Transaction failed after retries")))
     }
 }
 
@@ -1032,12 +1203,181 @@ mod fdb_integration_tests {
         let config = FdbConfig::default();
         let client = FdbClient::new(config).await.unwrap();
 
-        client.set(b"test_key", b"test_value").await.unwrap();
-        let value = client.get(b"test_key").await.unwrap();
-        assert_eq!(value, Some(b"test_value".to_vec()));
+        let test_key = b"test_integration_crud_key";
+        let test_val = b"test_value";
 
-        client.clear(b"test_key").await.unwrap();
-        let value = client.get(b"test_key").await.unwrap();
+        client.set(test_key, test_val).await.unwrap();
+        let value = client.get(test_key).await.unwrap();
+        assert_eq!(value, Some(test_val.to_vec()));
+
+        client.clear(test_key).await.unwrap();
+        let value = client.get(test_key).await.unwrap();
         assert_eq!(value, None);
+
+        client.delete(test_key).await.unwrap();
+    }
+
+    #[tokio::test]
+    #[ignore = "Requires running FDB instance"]
+    async fn test_real_fdb_range_scan() {
+        let config = FdbConfig::default();
+        let client = FdbClient::new(config).await.unwrap();
+
+        let prefix = b"test_range_";
+        for i in 0u32..10 {
+            let key = format!("{:?}", (prefix, i));
+            client.set(key.as_bytes(), b"value").await.unwrap();
+        }
+
+        let results = client
+            .get_range(b"test_range_", b"test_range_\xff")
+            .await
+            .unwrap();
+        assert_eq!(results.len(), 10);
+
+        for i in 0u32..10 {
+            let key = format!("{:?}", (prefix, i));
+            client.clear(key.as_bytes()).await.unwrap();
+        }
+    }
+
+    #[tokio::test]
+    #[ignore = "Requires running FDB instance"]
+    async fn test_real_fdb_compare_and_swap() {
+        let config = FdbConfig::default();
+        let client = FdbClient::new(config).await.unwrap();
+
+        let cas_key = b"test_integration_cas";
+
+        let swapped = client
+            .compare_and_swap(cas_key, b"", b"initial")
+            .await
+            .unwrap();
+        assert!(swapped);
+
+        let swapped = client
+            .compare_and_swap(cas_key, b"wrong", b"updated")
+            .await
+            .unwrap();
+        assert!(!swapped);
+
+        let swapped = client
+            .compare_and_swap(cas_key, b"initial", b"updated")
+            .await
+            .unwrap();
+        assert!(swapped);
+
+        let value = client.get(cas_key).await.unwrap();
+        assert_eq!(value, Some(b"updated".to_vec()));
+
+        client.clear(cas_key).await.unwrap();
+    }
+
+    #[tokio::test]
+    #[ignore = "Requires running FDB instance"]
+    async fn test_real_fdb_transaction() {
+        let config = FdbConfig::default();
+        let client = FdbClient::new(config).await.unwrap();
+
+        let prefix = b"test_tx_";
+
+        let tx = client.transaction().unwrap();
+        tx.set(b"test_tx_a", b"1");
+        tx.set(b"test_tx_b", b"2");
+        tx.commit().await.unwrap();
+
+        let a = client.get(b"test_tx_a").await.unwrap();
+        let b = client.get(b"test_tx_b").await.unwrap();
+        assert_eq!(a, Some(b"1".to_vec()));
+        assert_eq!(b, Some(b"2".to_vec()));
+
+        client.clear(b"test_tx_a").await.unwrap();
+        client.clear(b"test_tx_b").await.unwrap();
+    }
+
+    #[tokio::test]
+    #[ignore = "Requires running FDB instance"]
+    async fn test_real_fdb_transact_helper() {
+        let config = FdbConfig::default();
+        let client = FdbClient::new(config).await.unwrap();
+
+        let key = b"test_transact_helper";
+
+        client.set(key, &0i64.to_be_bytes()).await.unwrap();
+
+        let result: i64 = client
+            .transact(|tx| {
+                let key = key.to_vec();
+                async move {
+                    let raw = tx.get(&key).await?;
+                    let mut val: i64 = raw
+                        .as_deref()
+                        .map(|b| i64::from_be_bytes(b.try_into().unwrap()))
+                        .unwrap_or(0);
+                    val += 1;
+                    tx.set(&key, &val.to_be_bytes());
+                    tx.commit().await?;
+                    Ok(val)
+                }
+            })
+            .await
+            .unwrap();
+
+        assert_eq!(result, 1);
+
+        client.clear(key).await.unwrap();
+    }
+
+    #[tokio::test]
+    #[ignore = "Requires running FDB instance"]
+    async fn test_real_fdb_atomic_increment() {
+        let config = FdbConfig::default();
+        let client = FdbClient::new(config).await.unwrap();
+
+        let key = b"test_atomic_inc";
+
+        client.atomic_increment(key, 5).await.unwrap();
+        client.atomic_increment(key, 3).await.unwrap();
+
+        let raw = client.get(key).await.unwrap().unwrap();
+        let val = i64::from_be_bytes(raw.try_into().unwrap());
+        assert_eq!(val, 8);
+
+        client.clear(key).await.unwrap();
+    }
+
+    #[tokio::test]
+    #[ignore = "Requires running FDB instance"]
+    async fn test_real_fdb_actor_directory() {
+        let config = FdbConfig::default();
+        let client = FdbClient::new(config).await.unwrap();
+        let dir = ActorDirectory::new(Arc::new(client));
+
+        let actor_key = dir.create_or_open("actor-001").await.unwrap();
+        assert!(!actor_key.is_empty());
+
+        let opened_key = dir.open("actor-001").await.unwrap();
+        assert_eq!(actor_key, opened_key);
+
+        let actors = dir.list("").await.unwrap();
+        assert!(actors.contains(&"actor-001".to_string()));
+
+        dir.remove("actor-001").await.unwrap();
+    }
+
+    #[tokio::test]
+    #[ignore = "Requires running FDB instance"]
+    async fn test_real_fdb_metrics() {
+        let config = FdbConfig::default();
+        let client = FdbClient::new(config).await.unwrap();
+
+        client.set(b"test_metrics_key", b"v").await.unwrap();
+        client.get(b"test_metrics_key").await.unwrap();
+
+        let metrics = client.metrics();
+        assert!(metrics.total_operations.load(Ordering::Relaxed) >= 2);
+        assert!(metrics.successful_operations.load(Ordering::Relaxed) >= 2);
+
+        client.clear(b"test_metrics_key").await.unwrap();
     }
 }

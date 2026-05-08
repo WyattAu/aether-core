@@ -120,6 +120,7 @@ pub mod connection;
 pub mod message;
 pub mod node;
 pub mod quic;
+pub mod region;
 pub mod resolver;
 
 pub use backpressure::{
@@ -141,6 +142,9 @@ pub use message::{
 };
 pub use node::{MeshNode, ShutdownResult};
 pub use quic::{CertificateConfig, QuicClient, QuicConfig, QuicEndpoint, QuicServer};
+pub use region::{
+    PlacementDecision, PlacementPolicy, PlacementReason, PlacementStrategy, Region, RegionConfig,
+};
 pub use resolver::{
     ActorLocation, ActorResolver, BroadcastQuery, BroadcastResponse, CacheStats, NodeInfo,
     ResolverConfig,

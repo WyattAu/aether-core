@@ -21,7 +21,7 @@ tokio = { workspace = true, features = ["fs", "sync", "time", "macros", "rt", "r
 crossbeam-deque = "0.8"
 crossbeam-utils = "0.8"
 monoio = { workspace = true, optional = true }
-wasmtime = { workspace = true, optional = true }
+wasmtime = { workspace = true, optional = true, features = ["component-model"] }
 wasmtime-wasi = { workspace = true, optional = true }
 quinn = { workspace = true, optional = true }
 rustls = { workspace = true, optional = true }

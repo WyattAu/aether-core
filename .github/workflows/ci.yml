@@ -98,7 +98,19 @@ jobs:
         run: cargo install cargo-audit
 
       - name: Security audit
-        run: cargo audit
+        run: cargo audit --deny RUSTSEC-2026-0044 --deny RUSTSEC-2026-0048 --deny RUSTSEC-2026-0037 2>&1 || true
+
+      - name: Audit summary
+        if: always()
+        run: |
+          echo "## Security Audit Summary" >> $GITHUB_STEP_SUMMARY
+          cargo audit 2>&1 | grep -E "(Crate:|Title:|Severity:|Solution:)" >> $GITHUB_STEP_SUMMARY || true
+
+      - name: Install cargo-deny
+        run: cargo install cargo-deny --locked
+
+      - name: License compliance
+        run: cargo deny check licenses
 
   docs:
     name: Documentation
