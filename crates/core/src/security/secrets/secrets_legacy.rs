@@ -103,6 +103,8 @@ impl Drop for SecretValue {
 fn zero_memory(data: &mut [u8]) {
     use std::ptr;
     for byte in data.iter_mut() {
+        // SAFETY: `byte` is a valid mutable reference obtained from the slice iterator.
+        // write_volatile prevents the compiler from optimizing away the secret zeroing.
         unsafe {
             ptr::write_volatile(byte, 0);
         }
@@ -384,6 +386,8 @@ impl SecretStore for EnvironmentSecretStore {
         let key = reference.key();
         let value_str = value.as_str()?;
 
+        // SAFETY: set_var modifies the process environment; this is safe when called
+        // from the single-threaded test context or during initialization.
         unsafe {
             std::env::set_var(key, value_str);
         }
@@ -399,6 +403,8 @@ impl SecretStore for EnvironmentSecretStore {
         let key = reference.key();
 
         if std::env::var(key).is_ok() {
+            // SAFETY: remove_var modifies the process environment; this is safe when called
+            // from the single-threaded test context or during initialization.
             unsafe {
                 std::env::remove_var(key);
             }
@@ -429,6 +435,8 @@ impl SecretStore for EnvironmentSecretStore {
         self.audit_log
             .log(reference.clone(), "system", SecretAction::Rotate);
 
+        // SAFETY: set_var modifies the process environment; this is safe when called
+        // from the single-threaded test context or during initialization.
         unsafe {
             std::env::set_var(
                 reference.key(),

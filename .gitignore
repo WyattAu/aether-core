@@ -47,3 +47,19 @@ coverage/
 # Docs build output (regenerate from source)
 sdks/python/docs/_build/
 pytestdebug.log
+
+# Environment
+.envrc
+.env
+.env.*
+
+# macOS
+.DS_Store
+
+# Editor
+*.swp
+*.swo
+*~
+
+# direnv
+.direnv/

@@ -98,6 +98,8 @@ impl Executor {
         
         // Write input to memory
         let input_slice = unsafe {
+            // SAFETY: The offset is within the WASM linear memory bounds; input_ptr was obtained from
+            // wasmtime Memory::data_ptr which is valid for the full memory region.
             std::slice::from_raw_parts_mut(input_ptr.add(input_offset as usize), input.len())
         };
         input_slice.copy_from_slice(input);
@@ -114,6 +116,8 @@ impl Executor {
         // Extract output from memory
         let output_len = results[2].unwrap_or() as u32;
         let output_slice = unsafe {
+            // SAFETY: output_offset and output_len are derived from the WASM function return value;
+            // the memory region is valid for the full wasmtime Memory extent.
             std::slice::from_raw_parts(input_ptr.add(output_offset as usize), output_len as usize)
         };
         

@@ -161,10 +161,10 @@ impl TenantResolver {
     }
 
     /// Returns the default tenant configuration.
-    pub fn default_tenant(&self) -> &TenantConfig {
-        self.tenants
-            .get(&self.default_tenant_id)
-            .unwrap_or_else(|| unreachable!("default tenant always exists"))
+    pub fn default_tenant(&self) -> crate::error::Result<&TenantConfig> {
+        self.tenants.get(&self.default_tenant_id).ok_or_else(|| {
+            crate::error::Error::internal("default tenant not found (should never happen)")
+        })
     }
 
     /// Lists all registered tenant IDs.
@@ -210,7 +210,7 @@ mod tests {
     #[test]
     fn test_default_tenant_exists() {
         let resolver = TenantResolver::new();
-        let default = resolver.default_tenant();
+        let default = resolver.default_tenant().unwrap();
         assert_eq!(default.tenant_id, "default");
         assert_eq!(default.namespace, "default");
     }
@@ -328,7 +328,7 @@ mod tests {
             .unwrap();
         resolver.set_default_tenant("acme");
         assert_eq!(resolver.default_tenant_id(), "acme");
-        assert_eq!(resolver.default_tenant().tenant_id, "acme");
+        assert_eq!(resolver.default_tenant().unwrap().tenant_id, "acme");
     }
 
     #[test]

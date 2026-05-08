@@ -24,7 +24,7 @@ use ratatui::{
 
 use serde::Deserialize;
 
-const DEFAULT_DASHBOARD_ADDR: &str = "http://127.0.0.1:8080";
+use super::DEFAULT_DASHBOARD_ADDR;
 
 /// Top command arguments
 #[derive(Args, Debug)]

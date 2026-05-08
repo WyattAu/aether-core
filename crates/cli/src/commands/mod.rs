@@ -5,6 +5,9 @@
 use clap::Subcommand;
 use thiserror::Error;
 
+/// Default dashboard address for CLI commands.
+pub const DEFAULT_DASHBOARD_ADDR: &str = "http://127.0.0.1:8080";
+
 pub mod capability;
 pub mod completion;
 pub mod config;

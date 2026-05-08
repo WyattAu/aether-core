@@ -193,6 +193,7 @@ pub struct HostContext {
 
 impl HostContext {
     /// Create a new HostContext with current time and system entropy
+    // TODO: Migrate to non-deprecated WASI API when wasmtime updates.
     #[allow(deprecated)]
     pub fn new() -> Self {
         let now = std::time::SystemTime::now()
@@ -213,6 +214,7 @@ impl HostContext {
     }
 
     /// Create a deterministic HostContext for replay/debugging
+    // TODO: Migrate to non-deprecated WASI API when wasmtime updates.
     #[allow(deprecated)]
     pub fn deterministic() -> Self {
         Self {
@@ -226,6 +228,7 @@ impl HostContext {
     }
 
     /// Set wall clock time (builder pattern)
+    // TODO: Migrate to non-deprecated WASI API when wasmtime updates.
     #[allow(deprecated)]
     pub fn with_wall_time(mut self, nanos: u64) -> Self {
         self.wall_time_ns = nanos;
@@ -404,6 +407,7 @@ impl DefaultWasiHost {
 }
 
 impl WasiHost for DefaultWasiHost {
+    // TODO: Migrate to non-deprecated WASI API when wasmtime updates.
     #[allow(deprecated)]
     fn get_context(&self) -> HostContext {
         let now = std::time::SystemTime::now()
@@ -455,6 +459,7 @@ mod tests {
     }
 
     #[test]
+    // TODO: Migrate to non-deprecated WASI API when wasmtime updates.
     #[allow(deprecated)]
     fn test_host_context_deterministic_builder() {
         let ctx = HostContext::deterministic()
@@ -469,6 +474,7 @@ mod tests {
     }
 
     #[test]
+    // TODO: Migrate to non-deprecated WASI API when wasmtime updates.
     #[allow(deprecated)]
     fn test_host_context_create_clocks() {
         let ctx = HostContext::deterministic()

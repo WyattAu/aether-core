@@ -60,7 +60,11 @@ macro_rules! export_actor {
     ($actor_type:ty, $handler:expr) => {
         #[no_mangle]
         pub extern "C" fn handle_request(ptr: *const u8, len: usize) -> *const u8 {
-            let slice = unsafe { core::slice::from_raw_parts(ptr, len) };
+            let slice = unsafe {
+                // SAFETY: The caller guarantees that `ptr` points to a valid buffer of at least `len` bytes.
+                // This is the WASM ABI entry point contract enforced by the host runtime.
+                core::slice::from_raw_parts(ptr, len)
+            };
             let result = $handler.handle(slice.to_vec());
             // Return result - simplified for now
             core::ptr::null()

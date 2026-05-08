@@ -74,6 +74,8 @@ impl StateHandle {
             // Start with a reasonable buffer; the host will tell us the actual size
             let mut buf = vec![0u8; 4096];
             let rc = unsafe {
+                // SAFETY: All pointers are obtained from valid Rust allocations (key slice, buf Vec, out_len).
+                // The host function is an extern "C" ABI call defined in the WASM actor SDK.
                 host::aether_state_read(
                     key.as_ptr(),
                     key.len() as u32,
@@ -108,6 +110,8 @@ impl StateHandle {
         #[cfg(target_arch = "wasm32")]
         {
             let rc = unsafe {
+                // SAFETY: All pointers are obtained from valid Rust allocations (key/value slices).
+                // The host function is an extern "C" ABI call defined in the WASM actor SDK.
                 host::aether_state_write(
                     key.as_ptr(),
                     key.len() as u32,

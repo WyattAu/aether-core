@@ -16,7 +16,7 @@ use tokio::signal::unix::{SignalKind, signal};
 use tokio::sync::mpsc;
 use tokio_tungstenite::{WebSocketStream, connect_async};
 
-const DEFAULT_DASHBOARD_ADDR: &str = "http://127.0.0.1:8080";
+use super::DEFAULT_DASHBOARD_ADDR;
 
 /// Logs command arguments
 #[derive(Args, Debug)]

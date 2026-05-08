@@ -233,9 +233,12 @@ impl SecureMemoryRegion {
         #[cfg(target_os = "linux")]
         {
             let addr = self.data.as_ptr() as usize;
+            // SAFETY: sysconf returns a valid value for _SC_PAGESIZE on all supported platforms.
             let page_size = unsafe { libc::sysconf(libc::_SC_PAGESIZE) as usize };
             let aligned = addr & !(page_size - 1);
             let len = self.data.len() + (addr - aligned);
+            // SAFETY: mprotect requires page-aligned addresses; we aligned `addr` down to the
+            // nearest page boundary above. The region is within the process address space.
             let result =
                 unsafe { libc::mprotect(aligned as *mut libc::c_void, len, libc::PROT_READ) };
             if result != 0 {
@@ -257,9 +260,12 @@ impl SecureMemoryRegion {
         #[cfg(target_os = "linux")]
         {
             let addr = self.data.as_ptr() as usize;
+            // SAFETY: sysconf returns a valid value for _SC_PAGESIZE on all supported platforms.
             let page_size = unsafe { libc::sysconf(libc::_SC_PAGESIZE) as usize };
             let aligned = addr & !(page_size - 1);
             let len = self.data.len() + (addr - aligned);
+            // SAFETY: mprotect requires page-aligned addresses; we aligned `addr` down to the
+            // nearest page boundary above. The region is within the process address space.
             let result =
                 unsafe { libc::mprotect(aligned as *mut libc::c_void, len, libc::PROT_NONE) };
             if result != 0 {
@@ -286,6 +292,8 @@ impl Drop for SecureMemoryRegion {
 fn zero_memory(data: &mut [u8]) {
     use std::ptr;
     for byte in data.iter_mut() {
+        // SAFETY: `byte` is a valid mutable reference obtained from the slice iterator.
+        // write_volatile prevents the compiler from optimizing away the secret zeroing.
         unsafe {
             ptr::write_volatile(byte, 0);
         }
