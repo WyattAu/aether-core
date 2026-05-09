@@ -109,7 +109,6 @@ struct SecretMetadata {
 struct ListSecretsResponse {
     secrets: Vec<SecretMetadata>,
     #[serde(rename = "nextPageToken")]
-    #[allow(dead_code)] // Deserialized from API response
     next_page_token: Option<String>,
 }
 
@@ -285,47 +284,64 @@ impl SecretsProvider for GcpSecretsProvider {
     async fn list(&self, path_prefix: &str) -> Result<Vec<String>> {
         let token = self.get_access_token().await?;
         let endpoint = self.config.api_endpoint();
+        let mut all_names = Vec::new();
+        let mut page_token: Option<String> = None;
 
-        let url = format!(
-            "{}/v1/projects/{}/secrets",
-            endpoint, self.config.project_id
-        );
+        loop {
+            let url = format!(
+                "{}/v1/projects/{}/secrets",
+                endpoint, self.config.project_id
+            );
 
-        let response = self
-            .client
-            .get(&url)
-            .bearer_auth(&token)
-            .query(&[("pageSize", "50")])
-            .send()
-            .await
-            .map_err(|e| Error::security(format!("GCP list request failed: {}", e)))?;
+            let mut request = self
+                .client
+                .get(&url)
+                .bearer_auth(&token)
+                .query(&[("pageSize", "50")]);
 
-        if !response.status().is_success() {
-            return Err(self.handle_error_response(response).await);
+            if let Some(ref token) = page_token {
+                request = request.query(&[("pageToken", token)]);
+            }
+
+            let response = request
+                .send()
+                .await
+                .map_err(|e| Error::security(format!("GCP list request failed: {}", e)))?;
+
+            if !response.status().is_success() {
+                return Err(self.handle_error_response(response).await);
+            }
+
+            let list_response: ListSecretsResponse = response
+                .json()
+                .await
+                .map_err(|e| Error::serialization(format!("Invalid GCP list response: {}", e)))?;
+
+            let page_names: Vec<String> = list_response
+                .secrets
+                .into_iter()
+                .filter(|meta| {
+                    let name = meta.name.rsplit('/').next().unwrap_or(&meta.name);
+                    name.starts_with(path_prefix)
+                })
+                .map(|meta| {
+                    meta.name
+                        .rsplit('/')
+                        .next()
+                        .unwrap_or(&meta.name)
+                        .to_string()
+                })
+                .collect();
+
+            all_names.extend(page_names);
+
+            page_token = list_response.next_page_token;
+            if page_token.is_none() {
+                break;
+            }
         }
 
-        let list_response: ListSecretsResponse = response
-            .json()
-            .await
-            .map_err(|e| Error::serialization(format!("Invalid GCP list response: {}", e)))?;
-
-        let names: Vec<String> = list_response
-            .secrets
-            .into_iter()
-            .filter(|meta| {
-                let name = meta.name.rsplit('/').next().unwrap_or(&meta.name);
-                name.starts_with(path_prefix)
-            })
-            .map(|meta| {
-                meta.name
-                    .rsplit('/')
-                    .next()
-                    .unwrap_or(&meta.name)
-                    .to_string()
-            })
-            .collect();
-
-        Ok(names)
+        Ok(all_names)
     }
 
     async fn health_check(&self) -> Result<()> {

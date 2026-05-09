@@ -60,7 +60,7 @@ strip = true
 panic = "abort"
 
 [workspace.lints.rust]
-unsafe_op_in_unsafe_fn = "warn"
+unsafe_op_in_unsafe_fn = "deny"
 missing_docs = "warn"
 
 [workspace.lints.clippy]

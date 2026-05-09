@@ -127,5 +127,17 @@ required-features = ["mesh"]
 name = "scheduler_bench"
 harness = false
 
+[[bench]]
+name = "policy_bench"
+harness = false
+
+[[bench]]
+name = "registry_bench"
+harness = false
+
+[[bench]]
+name = "circuit_breaker_bench"
+harness = false
+
 [lints]
 workspace = true

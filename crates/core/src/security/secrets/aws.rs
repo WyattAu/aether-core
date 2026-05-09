@@ -144,7 +144,6 @@ struct GetSecretValueResponse {
 #[derive(Debug, Deserialize)]
 struct ListSecretsResponse {
     secret_list: Vec<SecretMetadata>,
-    #[allow(dead_code)] // Deserialized from API response
     next_token: Option<String>,
 }
 
@@ -441,39 +440,53 @@ impl SecretsProvider for AwsSecretsProvider {
 
     async fn list(&self, path_prefix: &str) -> Result<Vec<String>> {
         let credentials = self.get_credentials().await?;
+        let mut all_names = Vec::new();
+        let mut next_token: Option<String> = None;
 
-        let payload = serde_json::json!({
-            "MaxResults": 50
-        })
-        .to_string();
+        loop {
+            let mut payload = serde_json::json!({
+                "MaxResults": 50
+            });
+            if let Some(ref token) = next_token {
+                payload["NextToken"] = serde_json::json!(token);
+            }
 
-        let builder = self.build_aws_request("POST", "ListSecrets", &payload, &credentials)?;
+            let builder =
+                self.build_aws_request("POST", "ListSecrets", &payload.to_string(), &credentials)?;
 
-        let response = builder
-            .send()
-            .await
-            .map_err(|e| Error::security(format!("AWS list request failed: {}", e)))?;
+            let response = builder
+                .send()
+                .await
+                .map_err(|e| Error::security(format!("AWS list request failed: {}", e)))?;
 
-        if !response.status().is_success() {
-            return Err(self.handle_error_response(response).await);
+            if !response.status().is_success() {
+                return Err(self.handle_error_response(response).await);
+            }
+
+            let body = response
+                .text()
+                .await
+                .map_err(|e| Error::security(format!("Failed to read response: {}", e)))?;
+
+            let list_response: ListSecretsResponse = serde_json::from_str(&body)
+                .map_err(|e| Error::serialization(format!("Invalid AWS list response: {}", e)))?;
+
+            let page_names: Vec<String> = list_response
+                .secret_list
+                .into_iter()
+                .filter(|meta| meta.name.starts_with(path_prefix))
+                .map(|meta| meta.name)
+                .collect();
+
+            all_names.extend(page_names);
+
+            next_token = list_response.next_token;
+            if next_token.is_none() {
+                break;
+            }
         }
 
-        let body = response
-            .text()
-            .await
-            .map_err(|e| Error::security(format!("Failed to read response: {}", e)))?;
-
-        let list_response: ListSecretsResponse = serde_json::from_str(&body)
-            .map_err(|e| Error::serialization(format!("Invalid AWS list response: {}", e)))?;
-
-        let names: Vec<String> = list_response
-            .secret_list
-            .into_iter()
-            .filter(|meta| meta.name.starts_with(path_prefix))
-            .map(|meta| meta.name)
-            .collect();
-
-        Ok(names)
+        Ok(all_names)
     }
 
     async fn health_check(&self) -> Result<()> {

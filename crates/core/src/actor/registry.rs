@@ -41,7 +41,8 @@ struct ActorEntry {
 }
 
 impl ActorState {
-    fn to_u8(self) -> u8 {
+    /// Convert the actor state to its numeric representation.
+    pub fn to_u8(self) -> u8 {
         match self {
             ActorState::Creating => 0,
             ActorState::Running => 1,
@@ -51,7 +52,9 @@ impl ActorState {
         }
     }
 
-    fn from_u8(v: u8) -> Self {
+    /// Create an actor state from its numeric representation.
+    /// Returns `ActorState::Failed` for invalid values.
+    pub fn from_u8(v: u8) -> Self {
         match v {
             0 => ActorState::Creating,
             1 => ActorState::Running,

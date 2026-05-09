@@ -3,6 +3,7 @@
 //! Represents a node in the Aether mesh network, integrating QUIC transport,
 //! connection pooling, actor resolution, and flow control.
 
+use crate::chaos::FaultInjector;
 use crate::error::{Error, Result};
 use crate::mesh::{
     ActorAddress, ActorLocation, ActorResolver, BackpressureController, ConnectionPool, MeshConfig,
@@ -40,6 +41,8 @@ pub struct MeshNode {
     task_handles: Arc<tokio::sync::Mutex<Vec<tokio::task::JoinHandle<()>>>>,
     /// Pending messages queue.
     pending_messages: Arc<tokio::sync::Mutex<VecDeque<MeshMessage>>>,
+    /// Optional chaos fault injector for testing resilience.
+    fault_injector: Option<Arc<FaultInjector>>,
 }
 
 impl MeshNode {
@@ -94,6 +97,7 @@ impl MeshNode {
             local_request_handler: RwLock::new(None),
             task_handles: Arc::new(tokio::sync::Mutex::new(Vec::new())),
             pending_messages: Arc::new(tokio::sync::Mutex::new(VecDeque::new())),
+            fault_injector: None,
         })
     }
 
@@ -130,6 +134,11 @@ impl MeshNode {
     /// Returns the QUIC endpoint.
     pub fn endpoint(&self) -> &Arc<QuicEndpoint> {
         &self.endpoint
+    }
+
+    /// Set a chaos fault injector for simulating network failures.
+    pub fn set_fault_injector(&mut self, injector: Arc<FaultInjector>) {
+        self.fault_injector = Some(injector);
     }
 
     /// Set the local request handler for processing requests to local actors.
@@ -193,6 +202,26 @@ impl MeshNode {
 
         if !self.backpressure.can_send(msg_size) {
             self.backpressure.wait_for_credits(msg_size).await;
+        }
+
+        // Chaos fault injection: check partition and packet loss
+        if let Some(ref injector) = self.fault_injector {
+            if injector.is_fault_active(crate::chaos::FaultType::NetworkPartition)
+                && injector.should_drop_packet()
+            {
+                tracing::debug!(
+                    target_node = %node_id,
+                    "Message dropped by chaos fault injector (simulated partition)"
+                );
+                return Ok(());
+            }
+            if injector.should_drop_packet() {
+                tracing::debug!(
+                    target_node = %node_id,
+                    "Message dropped by chaos fault injector (packet loss)"
+                );
+                return Ok(());
+            }
         }
 
         self.endpoint.send_message(&node_id, packet).await?;
@@ -262,6 +291,24 @@ impl MeshNode {
 
         if !self.backpressure.can_send(msg_size) {
             self.backpressure.wait_for_credits(msg_size).await;
+        }
+
+        // Chaos fault injection: check partition and packet loss
+        if let Some(ref injector) = self.fault_injector {
+            if injector.is_fault_active(crate::chaos::FaultType::NetworkPartition)
+                && injector.should_drop_packet()
+            {
+                return Err(Error::actor(format!(
+                    "Network partition: cannot reach {}",
+                    node_id
+                )));
+            }
+            if injector.should_drop_packet() {
+                return Err(Error::actor(format!(
+                    "Packet dropped by chaos fault injector: {}",
+                    node_id
+                )));
+            }
         }
 
         let response = self.endpoint.send_bidirectional(&node_id, packet).await?;

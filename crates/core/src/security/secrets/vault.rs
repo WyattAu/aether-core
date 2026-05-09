@@ -186,6 +186,7 @@ struct VaultAuth {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct VaultErrorResponse {
     errors: Vec<String>,
 }
