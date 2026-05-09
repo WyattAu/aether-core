@@ -61,8 +61,6 @@ struct LockEntry {
 struct TransactionMeta {
     state: TransactionState,
     start_time: Instant,
-    #[allow(dead_code)] // Available for inspection/monitoring queries
-    isolation_level: IsolationLevel,
     read_set: HashSet<Vec<u8>>,
     write_set: HashMap<Vec<u8>, Vec<u8>>,
     delete_set: HashSet<Vec<u8>>,
@@ -335,7 +333,6 @@ impl<S: KeyValueStore + Clone> TransactionManager<S> {
         let meta = Arc::new(Mutex::new(TransactionMeta {
             state: TransactionState::Active,
             start_time: Instant::now(),
-            isolation_level: level,
             read_set: HashSet::new(),
             write_set: HashMap::new(),
             delete_set: HashSet::new(),

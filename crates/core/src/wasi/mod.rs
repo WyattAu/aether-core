@@ -185,16 +185,10 @@ pub struct HostContext {
 
     /// Deterministic mode flag
     pub deterministic: bool,
-
-    /// Legacy field for backwards compatibility
-    #[deprecated(note = "Use wall_time_ns instead")]
-    pub timestamp_ns: u64,
 }
 
 impl HostContext {
     /// Create a new HostContext with current time and system entropy
-    // TODO: Migrate to non-deprecated WASI API when wasmtime updates.
-    #[allow(deprecated)]
     pub fn new() -> Self {
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -209,13 +203,10 @@ impl HostContext {
             entropy,
             network: None,
             deterministic: false,
-            timestamp_ns: now.as_nanos() as u64,
         }
     }
 
     /// Create a deterministic HostContext for replay/debugging
-    // TODO: Migrate to non-deprecated WASI API when wasmtime updates.
-    #[allow(deprecated)]
     pub fn deterministic() -> Self {
         Self {
             wall_time_ns: 0,
@@ -223,16 +214,12 @@ impl HostContext {
             entropy: Vec::new(),
             network: None,
             deterministic: true,
-            timestamp_ns: 0,
         }
     }
 
     /// Set wall clock time (builder pattern)
-    // TODO: Migrate to non-deprecated WASI API when wasmtime updates.
-    #[allow(deprecated)]
     pub fn with_wall_time(mut self, nanos: u64) -> Self {
         self.wall_time_ns = nanos;
-        self.timestamp_ns = nanos;
         self
     }
 
@@ -407,8 +394,6 @@ impl DefaultWasiHost {
 }
 
 impl WasiHost for DefaultWasiHost {
-    // TODO: Migrate to non-deprecated WASI API when wasmtime updates.
-    #[allow(deprecated)]
     fn get_context(&self) -> HostContext {
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -429,7 +414,6 @@ impl WasiHost for DefaultWasiHost {
             entropy,
             network,
             deterministic: false,
-            timestamp_ns: now.as_nanos() as u64,
         }
     }
 
@@ -459,8 +443,6 @@ mod tests {
     }
 
     #[test]
-    // TODO: Migrate to non-deprecated WASI API when wasmtime updates.
-    #[allow(deprecated)]
     fn test_host_context_deterministic_builder() {
         let ctx = HostContext::deterministic()
             .with_wall_time(1_234_567_890_000_000_000)
@@ -474,8 +456,6 @@ mod tests {
     }
 
     #[test]
-    // TODO: Migrate to non-deprecated WASI API when wasmtime updates.
-    #[allow(deprecated)]
     fn test_host_context_create_clocks() {
         let ctx = HostContext::deterministic()
             .with_wall_time(2_000_000_000)

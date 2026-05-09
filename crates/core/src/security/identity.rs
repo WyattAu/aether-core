@@ -181,7 +181,6 @@ pub struct ActorIdentity {
     certificate: CertificateDer<'static>,
     private_key: Vec<u8>,
     serial: u64,
-    #[allow(dead_code)] // Available for inspection/monitoring queries
     created_at: SystemTime,
     expires_at: SystemTime,
 }
@@ -278,6 +277,11 @@ impl ActorIdentity {
     /// Returns the certificate serial number.
     pub fn serial(&self) -> u64 {
         self.serial
+    }
+
+    /// Returns when this identity was created.
+    pub fn created_at(&self) -> SystemTime {
+        self.created_at
     }
 
     /// Returns `true` if the certificate has expired.

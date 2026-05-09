@@ -1,9 +1,27 @@
 # Project Aether Version Tracking
 
-# v1.8.0 - In Progress 2026-03-29
+# v2.0.0 - Current (2026-05-09)
+current_phase: post-v2.0.0-hardening
+current_version: 2.0.0
+status: Active Development
+  - Workspace: 4 crates (core, cli, actor-sdk, tests) — Rust 2024 edition, MSRV 1.85
+  - Tests: 1,225 passing, 0 failed, 101 ignored (require FDB/Firecracker/KVM/cluster)
+  - Quality: Zero clippy warnings, zero todo!/unimplemented! stubs, deny-all safety lints (unwrap, expect, panic)
+  - Build: LTO + strip + codegen-units=1, panic=abort
+  - Features: WASM (wasmtime 25), QUIC mesh, mTLS, RBAC, secrets (Vault/AWS/GCP), multi-tenancy,
+    chaos testing, OTLP tracing, MCP, AI integration, Firecracker VM, FDB state, OPA policy engine,
+    distributed tracing, VictoriaMetrics/VictoriaLogs
+last_updated: 2026-05-09
+error_level: null
+rollback_checkpoint: v1.8.0
+recovery_time_estimate: null
+actual_recovery_time: null
+capability_matrix_status: complete
+
+# v1.8.0 - Released 2026-03-29
 current_phase: post-v1.8.0-distribution
 current_version: 1.8.0
-status: In Progress
+status: Released
   - Dead Letter Queue (DLQ): ✅ COMPLETE (API + 448 lines of tests)
   - Distributed Pub/Sub: ✅ COMPLETE (cluster propagation + 718 lines of tests)
   - Leader Election: ✅ COMPLETE (40 tests: 29 unit + 11 integration)

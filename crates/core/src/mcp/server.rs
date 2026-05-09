@@ -362,7 +362,6 @@ impl McpServer {
 }
 
 /// Run the MCP server on stdio
-#[allow(dead_code)]
 pub async fn run_stdio(server: McpServer) -> Result<()> {
     let mut transport = StdioTransport::new();
 

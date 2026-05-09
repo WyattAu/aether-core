@@ -10,7 +10,12 @@ use std::time::Duration;
 
 #[tokio::test]
 async fn test_cascading_failure_basic() {
-    let runner = ChaosTestRunner::new(ChaosConfig::new().with_seed(42).with_intensity(0.5));
+    let runner = ChaosTestRunner::new(
+        ChaosConfig::new()
+            .with_seed(42)
+            .with_intensity(0.5)
+            .with_max_duration(Duration::from_millis(300)),
+    );
 
     let scenario = CascadingFailureScenario::new()
         .with_initial_failure(InitialFailure::ActorCrash)

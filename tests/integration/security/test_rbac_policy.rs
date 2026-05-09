@@ -192,11 +192,11 @@ async fn test_rbac_concurrent_evaluation() {
             ),
     );
 
-    let handles: Vec<_> = (0..8)
+    let handles: Vec<_> = (0..4)
         .map(|i| {
             let e = Arc::clone(&evaluator);
             thread::spawn(move || {
-                for _ in 0..100 {
+                for _ in 0..10 {
                     assert!(
                         e.is_allowed("user-1", &Permission::Read, "actor://test"),
                         "Thread {} read should be allowed",

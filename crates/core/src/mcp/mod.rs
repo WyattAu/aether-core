@@ -21,6 +21,7 @@ pub use memory_tools::{
     ClearMemoryTool, MemoryStatsTool, RecallMemoryTool, SearchMemoryTool, StoreMemoryTool,
 };
 pub use server::McpServer;
+pub use server::run_stdio;
 pub use tools::register_builtin_tools;
 pub use transport::StdioTransport;
 pub use types::*;

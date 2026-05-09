@@ -218,53 +218,6 @@ impl Mailbox {
     }
 }
 
-/// Builder for creating mailboxes.
-///
-/// This builder provides a fluent API for configuring mailbox options.
-#[allow(dead_code)]
-pub struct MailboxBuilder {
-    config: MailboxConfig,
-}
-
-#[allow(dead_code)]
-impl MailboxBuilder {
-    /// Create a new mailbox builder.
-    pub fn new() -> Self {
-        Self {
-            config: MailboxConfig::default(),
-        }
-    }
-
-    /// Set the mailbox capacity.
-    pub fn capacity(mut self, capacity: usize) -> Self {
-        self.config.capacity = capacity;
-        self
-    }
-
-    /// Enable or disable priority queuing.
-    pub fn priority_queue(mut self, enabled: bool) -> Self {
-        self.config.priority_queue = enabled;
-        self
-    }
-
-    /// Set the backpressure threshold.
-    pub fn backpressure_threshold(mut self, threshold: f32) -> Self {
-        self.config.backpressure_threshold = threshold.clamp(0.0, 1.0);
-        self
-    }
-
-    /// Build the mailbox.
-    pub fn build(self, actor_id: ActorId) -> Mailbox {
-        Mailbox::new(actor_id, self.config)
-    }
-}
-
-impl Default for MailboxBuilder {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

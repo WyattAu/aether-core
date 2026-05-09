@@ -14,11 +14,16 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
-use tokio::sync::{Mutex, RwLock, Semaphore, broadcast};
-use tracing::{info, warn};
+#[cfg(feature = "fdb")]
+use tokio::sync::{Mutex, Semaphore};
+use tokio::sync::{RwLock, broadcast};
+#[cfg(feature = "fdb")]
+use tracing::warn;
 
 #[cfg(feature = "fdb")]
 use foundationdb::{Database, RangeOption};
+#[cfg(feature = "fdb")]
+use tracing::info;
 
 /// Default path to the FoundationDB cluster file.
 pub const DEFAULT_CLUSTER_FILE: &str = "/etc/foundationdb/fdb.cluster";
@@ -88,13 +93,6 @@ impl FdbConfig {
     pub fn with_logging(mut self, enabled: bool) -> Self {
         self.enable_logging = enabled;
         self
-    }
-
-    fn cluster_file_str(&self) -> &str {
-        self.cluster_path
-            .as_deref()
-            .and_then(|p| p.to_str())
-            .unwrap_or(DEFAULT_CLUSTER_FILE)
     }
 }
 
@@ -304,7 +302,11 @@ pub struct FdbClient {
 impl FdbClient {
     /// Creates a new FDB client from the given configuration.
     pub async fn new(config: FdbConfig) -> Result<Self> {
-        let cluster_file = config.cluster_file_str();
+        let cluster_file = config
+            .cluster_path
+            .as_deref()
+            .and_then(|p| p.to_str())
+            .unwrap_or(DEFAULT_CLUSTER_FILE);
 
         let db = Database::new(Some(cluster_file))
             .map_err(|e| Error::storage(format!("Failed to connect to FDB: {}", e)))?;

@@ -13,7 +13,6 @@ use crate::Result;
 
 /// Fault injector for chaos testing
 pub struct FaultInjector {
-    #[allow(dead_code)] // Available for inspection/monitoring queries
     config: ChaosConfig,
     network: NetworkFaultInjector,
     memory: MemoryFaultInjector,
@@ -129,6 +128,11 @@ impl FaultInjector {
             active_faults: RwLock::new(Vec::new()),
             fault_count: AtomicU64::new(0),
         }
+    }
+
+    /// Get the chaos configuration
+    pub fn config(&self) -> &ChaosConfig {
+        &self.config
     }
 
     /// Inject a network fault
@@ -272,11 +276,6 @@ impl FaultInjector {
         self.active_faults.read().len()
     }
 
-    /// Get total faults injected
-    pub fn total_faults(&self) -> u64 {
-        self.fault_count.load(Ordering::SeqCst)
-    }
-
     /// Check if a specific fault type is active
     pub fn is_fault_active(&self, fault_type: FaultType) -> bool {
         self.active_faults
@@ -333,12 +332,11 @@ pub struct NetworkFaultInjector {
     stop_signal: Arc<Notify>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct NetworkLatencyConfig {
     min_ms: u64,
     max_ms: u64,
-    #[allow(dead_code)] // Available for inspection/monitoring queries
-    jitter: f64,
 }
 
 impl NetworkFaultInjector {
@@ -358,11 +356,7 @@ impl NetworkFaultInjector {
                 max_ms,
                 jitter,
             } => {
-                *self.latency_config.write() = Some(NetworkLatencyConfig {
-                    min_ms,
-                    max_ms,
-                    jitter,
-                });
+                *self.latency_config.write() = Some(NetworkLatencyConfig { min_ms, max_ms });
                 Ok(InjectResult {
                     success: true,
                     message: format!(
@@ -423,20 +417,7 @@ impl NetworkFaultInjector {
         Ok(())
     }
 
-    /// Get current latency (simulated)
-    #[allow(dead_code)]
-    pub fn get_latency(&self) -> Duration {
-        if let Some(config) = self.latency_config.read().as_ref() {
-            let range = config.max_ms.saturating_sub(config.min_ms);
-            let base = config.min_ms + (range / 2);
-            Duration::from_millis(base)
-        } else {
-            Duration::ZERO
-        }
-    }
-
     /// Check if packet should be dropped (simulated)
-    #[allow(dead_code)]
     pub fn should_drop_packet(&self) -> bool {
         let rate = *self.packet_loss_rate.read();
         if rate <= 0.0 {
@@ -580,12 +561,6 @@ impl MemoryFaultInjector {
     #[allow(dead_code)]
     pub fn is_pressure_active(&self) -> bool {
         self.pressure_active.load(Ordering::Acquire)
-    }
-
-    /// Get target pressure percentage
-    #[allow(dead_code)]
-    pub fn pressure_target(&self) -> f64 {
-        *self.pressure_target.read()
     }
 }
 

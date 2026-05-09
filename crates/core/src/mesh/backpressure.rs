@@ -173,7 +173,6 @@ pub struct BackpressureController {
     send_credits: CreditAccount,
     recv_credits: CreditAccount,
     buffer_pool: Arc<BufferPool>,
-    #[allow(dead_code)] // Available for inspection/monitoring queries
     high_watermark: AtomicU64,
     low_watermark: AtomicU64,
 }
@@ -201,6 +200,11 @@ impl BackpressureController {
     /// Returns the receive-side credit account.
     pub fn recv_credits(&self) -> &CreditAccount {
         &self.recv_credits
+    }
+
+    /// Returns the high watermark threshold.
+    pub fn high_watermark(&self) -> u64 {
+        self.high_watermark.load(Ordering::Relaxed)
     }
 
     /// Returns the shared buffer pool.

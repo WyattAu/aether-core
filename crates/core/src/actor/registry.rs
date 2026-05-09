@@ -28,9 +28,6 @@ pub enum ActorState {
 
 /// Entry in the actor registry.
 struct ActorEntry {
-    /// Actor ID
-    #[allow(dead_code)] // Available for inspection/monitoring queries
-    id: ActorId,
     /// Actor name (optional)
     name: Option<String>,
     /// Actor state (stored as atomic u8)
@@ -105,7 +102,6 @@ impl ActorRegistry {
         let mailbox = Arc::new(Mailbox::new(id, self.mailbox_config.clone()));
 
         let entry = Arc::new(ActorEntry {
-            id,
             name: name.clone(),
             state: std::sync::atomic::AtomicU8::new(ActorState::Creating.to_u8()),
             mailbox: mailbox.clone(),

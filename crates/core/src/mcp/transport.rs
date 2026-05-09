@@ -18,15 +18,15 @@ pub trait Transport: Send + Sync {
     /// Receive the next message from the transport, or `None` if closed.
     async fn receive(&self) -> Result<Option<String>>;
     /// Close the transport, preventing further sends/receives.
+    ///
+    /// Default implementation is a no-op. Implementors may override to perform cleanup.
     #[allow(dead_code)]
-    async fn close(&self) -> Result<()>;
+    async fn close(&self) -> Result<()> {
+        Ok(())
+    }
     /// Returns `true` if the transport has been closed.
     fn is_closed(&self) -> bool;
 }
-
-/// Boxed transport
-#[allow(dead_code)]
-pub type BoxedTransport = Box<dyn Transport>;
 
 /// Stdio transport for local MCP servers
 pub struct StdioTransport {
@@ -64,7 +64,6 @@ impl Default for StdioTransport {
 }
 
 /// Transport implementation for stdio
-#[allow(dead_code)]
 #[async_trait]
 impl Transport for StdioTransport {
     async fn send(&self, message: &str) -> Result<()> {

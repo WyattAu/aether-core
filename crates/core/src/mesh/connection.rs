@@ -139,7 +139,6 @@ struct ConnectionEntry {
 /// # Ok::<(), aether_core::Error>(())
 /// ```
 pub struct ConnectionPool {
-    #[allow(dead_code)] // Available for inspection/monitoring queries
     node_id: String,
     connections: DashMap<String, ConnectionEntry>,
     lru: ParkingRwLock<LruCache<String, Instant>>,
@@ -188,6 +187,11 @@ impl ConnectionPool {
             total_messages_sent: AtomicU64::new(0),
             total_messages_received: AtomicU64::new(0),
         }
+    }
+
+    /// Returns the node ID for this connection pool.
+    pub fn node_id(&self) -> &str {
+        &self.node_id
     }
 
     /// Returns the total number of connections in the pool.
