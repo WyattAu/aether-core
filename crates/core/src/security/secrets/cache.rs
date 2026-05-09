@@ -11,7 +11,7 @@ use super::providers::{ExternalSecretValue, SecretsProvider};
 struct CachedEntry {
     value: ExternalSecretValue,
     cached_at: Instant,
-    #[allow(dead_code)] // Deserialized from API response
+    #[allow(dead_code)] // Secret path for cache key tracking
     path: String,
 }
 

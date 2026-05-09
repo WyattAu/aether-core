@@ -189,7 +189,6 @@ impl GcpSecretsProvider {
     }
 
     /// Build the secret path for GCP Secret Manager
-    #[allow(dead_code)]
     pub(crate) fn build_secret_path(&self, secret_id: &str) -> String {
         format!("projects/{}/secrets/{}", self.config.project_id, secret_id)
     }
@@ -288,10 +287,7 @@ impl SecretsProvider for GcpSecretsProvider {
         let mut page_token: Option<String> = None;
 
         loop {
-            let url = format!(
-                "{}/v1/projects/{}/secrets",
-                endpoint, self.config.project_id
-            );
+            let url = format!("{}/v1/{}", endpoint, self.build_secret_path(""));
 
             let mut request = self
                 .client

@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.0.1] - 2026-05-09
+
+### Added
+- Chaos fault injector wired into mesh message routing (`MeshNode::send()` and `request()`)
+- Automatic pagination for AWS Secrets Manager (`next_token`) and GCP Secret Manager (`nextPageToken`) — fixes silent data loss when >50 secrets exist
+- 16 property-based tests using proptest for ActorState, CapabilitySet, PolicyEngine, and CircuitBreaker
+- 3 new Criterion benchmark suites: policy evaluation, actor registry, and circuit breaker
+- `StateHandle::name()` getter for WASI debugging
+- `MeshNode::set_fault_injector()` for runtime chaos testing integration
+- `#[serde(deny_unknown_fields)]` on `VaultErrorResponse` for strict error parsing
+
+### Changed
+- Upgraded `unsafe_op_in_unsafe_fn` lint from `warn` to `deny`
+- Made `ActorState::to_u8()` and `from_u8()` public for property testing
+- Wired `GcpSecretsProvider::build_secret_path()` into production `list()` method
+- Removed `#[allow(dead_code)]` from `SupervisorStrategy::max_restarts()` (used in tests)
+
+### Removed
+- Dead `cluster_file_str()` method from `FdbConfig`
+- Dead `isolation_level` field from `TransactionMeta`
+- Dead `id` field from `ActorEntry` (redundant with DashMap key)
+- Dead `MailboxBuilder` struct and impl block (47 lines, unused API)
+- Dead `BoxedTransport` type alias
+- Dead `total_faults()`, `get_latency()`, `pressure_target()` methods from chaos module
+- Dead `jitter` field from `NetworkLatencyConfig`
+- Dead `CpuFaultInjector::is_starvation_active()` method
+- Dead `ProcessFaultInjector::is_hung()` method
+- Dead `DefaultWasiHost::start_instant` field
+- Deprecated `HostContext::timestamp_ns` field (migrated to `wall_time_ns`)
+- 6 `// TODO: Migrate to non-deprecated WASI API` comments (resolved)
+
+### Fixed
+- `test_cascading_failure_basic` timeout (300s → 300ms by adding `max_duration`)
+- `test_rbac_concurrent_evaluation` slowdown (3200 → 160 evaluations)
+- Gated `fdb.rs` imports behind `#[cfg(feature = "fdb")]` (eliminated release warnings)
+- Removed unused `workspace.edition` key from root `Cargo.toml`
+- Zero warnings across dev, release, clippy, and doc builds
+
 ## [2.0.0] - 2026-05-08
 
 ### Added

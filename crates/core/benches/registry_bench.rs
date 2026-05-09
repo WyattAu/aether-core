@@ -9,7 +9,7 @@ fn bench_register_actor(c: &mut Criterion) {
             b.iter_with_setup(
                 || ActorRegistry::new(),
                 |registry| {
-                    for i in 0..size {
+                    for _i in 0..size {
                         black_box(registry.register(ActorId::new()).unwrap());
                     }
                     registry
@@ -28,12 +28,12 @@ fn bench_lookup_actor(c: &mut Criterion) {
         for _ in 0..size {
             let id = ActorId::new();
             registry
-                .register_named(id, Some(format!("actor-{id}")))
+                .register_named(id, Some(format!("actor-{}", id.0)))
                 .unwrap();
             ids.push(id);
         }
         let lookup_id = ids[size / 2];
-        let lookup_name = format!("actor-{lookup_id}");
+        let _lookup_name = format!("actor-{}", lookup_id.0);
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, _| {
             b.iter(|| black_box(registry.get_mailbox(black_box(&lookup_id))))
         });
@@ -65,10 +65,10 @@ fn bench_concurrent_registration(c: &mut Criterion) {
                     .map(|t| {
                         let reg = Arc::clone(&registry);
                         std::thread::spawn(move || {
-                            for i in 0..1000 {
+                            for _i in 0..1000 {
                                 let id = ActorId::new();
                                 black_box(
-                                    reg.register_named(id, Some(format!("t{t}-actor-{i}")))
+                                    reg.register_named(id, Some(format!("t{t}-actor-{_i}")))
                                         .unwrap(),
                                 );
                             }

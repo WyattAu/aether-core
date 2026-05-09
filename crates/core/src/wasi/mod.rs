@@ -276,7 +276,6 @@ impl Default for HostContext {
 /// State handle for persistent actor state
 pub struct StateHandle {
     /// State name
-    #[allow(dead_code)]
     name: String,
 
     /// Capability set for this handle
@@ -324,6 +323,11 @@ impl StateHandle {
         let mut store = self.store.write();
         store.remove(key);
         Ok(())
+    }
+
+    /// Returns the name of this state handle.
+    pub fn name(&self) -> &str {
+        &self.name
     }
 
     /// List all keys with a given prefix
@@ -375,10 +379,6 @@ pub trait WasiHost {
 
 /// Default WASI host implementation
 pub struct DefaultWasiHost {
-    /// Start time for relative timestamps
-    #[allow(dead_code)]
-    start_instant: Instant,
-
     /// Capability set
     capabilities: CapabilitySet,
 }
@@ -386,10 +386,7 @@ pub struct DefaultWasiHost {
 impl DefaultWasiHost {
     /// Create a new default WASI host
     pub fn new(capabilities: CapabilitySet) -> Self {
-        Self {
-            start_instant: Instant::now(),
-            capabilities,
-        }
+        Self { capabilities }
     }
 }
 

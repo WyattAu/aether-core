@@ -122,7 +122,7 @@ impl SupervisionStrategy {
     }
 
     /// Get the max restarts limit for this strategy
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub(crate) fn max_restarts(&self) -> Option<u32> {
         match self {
             Self::OneForOne { max_restarts, .. }

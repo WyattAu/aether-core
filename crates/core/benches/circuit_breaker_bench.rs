@@ -15,9 +15,13 @@ fn bench_config() -> CircuitBreakerConfig {
 fn bench_record_success(c: &mut Criterion) {
     let mut group = c.benchmark_group("circuit_breaker/record_success");
     group.bench_function("closed_state", |b| {
+        let rt = tokio::runtime::Runtime::new().unwrap();
         let mut breaker = CircuitBreaker::new("bench", bench_config());
-        b.iter(|| {
-            black_box(breaker.call(async { Ok::<_, String>(()) }).await.unwrap());
+        b.iter(move || {
+            black_box(
+                rt.block_on(breaker.call(async { Ok::<_, String>(()) }))
+                    .unwrap(),
+            );
         })
     });
     group.finish();
@@ -26,12 +30,12 @@ fn bench_record_success(c: &mut Criterion) {
 fn bench_record_failure(c: &mut Criterion) {
     let mut group = c.benchmark_group("circuit_breaker/record_failure");
     group.bench_function("closed_state", |b| {
+        let rt = tokio::runtime::Runtime::new().unwrap();
         let mut breaker = CircuitBreaker::new("bench", bench_config());
-        b.iter(|| {
+        b.iter(move || {
             let mut breaker = black_box(&mut breaker);
-            let result = breaker
-                .call(async { Err::<(), _>("simulated failure".to_string()) })
-                .await;
+            let result =
+                rt.block_on(breaker.call(async { Err::<(), _>("simulated failure".to_string()) }));
             black_box(result);
             if breaker.state().is_open() {
                 breaker.reset();
@@ -53,19 +57,18 @@ fn bench_check_state(c: &mut Criterion) {
 fn bench_throughput(c: &mut Criterion) {
     let mut group = c.benchmark_group("circuit_breaker/throughput");
     group.bench_function("mixed_success_failure", |b| {
+        let rt = tokio::runtime::Runtime::new().unwrap();
         let mut breaker = CircuitBreaker::new("bench", bench_config());
-        b.iter(|| {
+        b.iter(move || {
             let mut breaker = black_box(&mut breaker);
             for i in 0u32..20 {
                 if breaker.state().is_open() {
                     breaker.reset();
                 }
                 let result = if i % 3 == 0 {
-                    breaker
-                        .call(async { Err::<(), _>("fail".to_string()) })
-                        .await
+                    rt.block_on(breaker.call(async { Err::<(), _>("fail".to_string()) }))
                 } else {
-                    breaker.call(async { Ok::<_, String>(()) }).await
+                    rt.block_on(breaker.call(async { Ok::<_, String>(()) }))
                 };
                 black_box(result);
             }

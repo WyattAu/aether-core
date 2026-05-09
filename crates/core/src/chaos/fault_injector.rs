@@ -658,12 +658,6 @@ impl CpuFaultInjector {
         self.stop_signal.notify_waiters();
         Ok(())
     }
-
-    /// Check if CPU starvation is active
-    #[allow(dead_code)]
-    pub fn is_starvation_active(&self) -> bool {
-        self.starvation_active.load(Ordering::Acquire)
-    }
 }
 
 /// Disk fault types
@@ -866,12 +860,6 @@ impl ProcessFaultInjector {
         self.stop_signal.notify_waiters();
         self.hung_processes.write().clear();
         Ok(())
-    }
-
-    /// Check if a process is hung
-    #[allow(dead_code)]
-    pub fn is_hung(&self, pattern: &str) -> bool {
-        self.hung_processes.read().iter().any(|p| p == pattern)
     }
 }
 
