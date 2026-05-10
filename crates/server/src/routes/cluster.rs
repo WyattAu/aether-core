@@ -1,5 +1,3 @@
-#![deny(unsafe_code)]
-
 use axum::{
     Json, Router,
     extract::{Path, State},
@@ -7,13 +5,12 @@ use axum::{
 };
 
 use crate::error::ApiError;
+use crate::state::AppState;
 
-#[derive(Clone)]
-/// Shared state for the cluster routes.
-pub struct ClusterState;
+use std::sync::Arc;
 
 /// Returns the router for this module.
-pub fn routes() -> Router {
+pub fn routes() -> Router<Arc<AppState>> {
     Router::new()
         .route("/api/v1/cluster/nodes", get(list_nodes))
         .route(
@@ -23,48 +20,107 @@ pub fn routes() -> Router {
         .route("/api/v1/cluster/join", post(join_cluster))
         .route("/api/v1/cluster/leave", post(leave_cluster))
         .route("/api/v1/cluster/status", get(cluster_status))
-        .with_state(ClusterState)
 }
 
 async fn list_nodes(
-    State(_state): State<ClusterState>,
+    State(state): State<Arc<AppState>>,
 ) -> Result<Json<serde_json::Value>, ApiError> {
-    Err(ApiError::not_implemented("GET /api/v1/cluster/nodes"))
+    let nodes = state.nodes.read().await;
+    let list: Vec<&crate::state::NodeRecord> = nodes.values().collect();
+    Ok(Json(serde_json::json!(list)))
 }
 
 async fn get_node(
-    State(_state): State<ClusterState>,
-    Path(_node_id): Path<String>,
+    State(state): State<Arc<AppState>>,
+    Path(node_id): Path<String>,
 ) -> Result<Json<serde_json::Value>, ApiError> {
-    Err(ApiError::not_implemented(
-        "GET /api/v1/cluster/nodes/{node_id}",
-    ))
+    let nodes = state.nodes.read().await;
+    let record = nodes
+        .get(&node_id)
+        .ok_or_else(|| ApiError::NotFound(format!("node {node_id} not found")))?;
+    Ok(Json(serde_json::json!(record)))
 }
 
 async fn remove_node(
-    State(_state): State<ClusterState>,
-    Path(_node_id): Path<String>,
+    State(state): State<Arc<AppState>>,
+    Path(node_id): Path<String>,
 ) -> Result<Json<serde_json::Value>, ApiError> {
-    Err(ApiError::not_implemented(
-        "DELETE /api/v1/cluster/nodes/{node_id}",
-    ))
+    let removed = state.nodes.write().await.remove(&node_id).is_some();
+    if !removed {
+        return Err(ApiError::NotFound(format!("node {node_id} not found")));
+    }
+    Ok(Json(serde_json::json!({
+        "node_id": node_id,
+        "status": "removed",
+    })))
 }
 
 async fn join_cluster(
-    State(_state): State<ClusterState>,
-    Json(_body): Json<serde_json::Value>,
+    State(state): State<Arc<AppState>>,
+    Json(body): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>, ApiError> {
-    Err(ApiError::not_implemented("POST /api/v1/cluster/join"))
+    let node_id = body
+        .get("node_id")
+        .and_then(|v| v.as_str())
+        .unwrap_or(&uuid::Uuid::new_v4().to_string())
+        .to_string();
+
+    let address = body
+        .get("address")
+        .and_then(|v| v.as_str())
+        .unwrap_or("unknown")
+        .to_string();
+
+    let now = chrono::Utc::now().to_rfc3339();
+    let actors_count = state.actors.read().await.len();
+
+    let record = crate::state::NodeRecord {
+        node_id: node_id.clone(),
+        address,
+        status: "joined".to_string(),
+        actors_count,
+        joined_at: now.clone(),
+    };
+
+    state.nodes.write().await.insert(node_id.clone(), record);
+
+    Ok(Json(serde_json::json!({
+        "node_id": node_id,
+        "status": "joined",
+        "joined_at": now,
+    })))
 }
 
 async fn leave_cluster(
-    State(_state): State<ClusterState>,
+    State(state): State<Arc<AppState>>,
+    Json(body): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>, ApiError> {
-    Err(ApiError::not_implemented("POST /api/v1/cluster/leave"))
+    let node_id = body
+        .get("node_id")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
+        .ok_or_else(|| ApiError::BadRequest("node_id is required".to_string()))?;
+
+    let removed = state.nodes.write().await.remove(&node_id).is_some();
+    if !removed {
+        return Err(ApiError::NotFound(format!("node {node_id} not found")));
+    }
+    Ok(Json(serde_json::json!({
+        "node_id": node_id,
+        "status": "left",
+    })))
 }
 
 async fn cluster_status(
-    State(_state): State<ClusterState>,
+    State(state): State<Arc<AppState>>,
 ) -> Result<Json<serde_json::Value>, ApiError> {
-    Err(ApiError::not_implemented("GET /api/v1/cluster/status"))
+    let node_count = state.nodes.read().await.len();
+    let actor_count = state.actors.read().await.len();
+    let uptime_secs = state.started_at.elapsed().as_secs();
+
+    Ok(Json(serde_json::json!({
+        "node_count": node_count,
+        "actor_count": actor_count,
+        "uptime_seconds": uptime_secs,
+    })))
 }

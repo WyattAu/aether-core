@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# Aether pre-push hook
+# Fast quality gate: clippy + unit tests only (no integration, no doc build).
+# For full validation, use the pre-commit hook or `make lint && make test`.
+set -euo pipefail
+
+readonly RED='\033[0;31m'
+readonly GREEN='\033[0;32m'
+readonly NC='\033[0m'
+
+log_step() { echo -e "${GREEN}[pre-push]${NC} $1"; }
+log_fail() { echo -e "${RED}[pre-push]${NC} $1"; }
+
+# Step 1: Check formatting
+log_step "1/3: Checking code formatting..."
+if ! cargo fmt --all -- --check; then
+    log_fail "Formatting errors detected. Run 'cargo fmt --all' to fix."
+    exit 1
+fi
+
+# Step 2: Clippy lint
+log_step "2/3: Running clippy lints..."
+if ! cargo clippy --workspace --all-features -- -D warnings 2>&1; then
+    log_fail "Clippy errors detected. Fix warnings before pushing."
+    exit 1
+fi
+
+# Step 3: Unit tests only (skip integration, benchmarks, property tests)
+log_step "3/3: Running unit tests..."
+if ! cargo test --workspace --all-features --lib 2>&1; then
+    log_fail "Unit test failures detected. Fix before pushing."
+    exit 1
+fi
+
+log_step "All pre-push checks passed."
+exit 0

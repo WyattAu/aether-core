@@ -767,3 +767,661 @@ Each SDK includes 5 comprehensive examples:
 
 ---
 
+## [0.7.0-alpha] - 2026-03-06
+
+### Added - Phase 7: Documentation & Branding
+
+#### Documentation
+- `.docs/user_guide.md` - Comprehensive end-user guide
+- `.docs/api_reference.md` - Complete API documentation
+- `.docs/architecture_overview.md` - System architecture documentation
+- `.docs/performance_guide.md` - Performance tuning guide
+- `.docs/troubleshooting.md` - Troubleshooting common issues
+
+#### Branding
+- `.specs/05_branding/brand_narrative.md` - Brand story and messaging
+- `.specs/05_branding/ux_philosophy.md` - UX design principles
+
+#### Reports
+- `.reports/phase_07_documentation_report.md` - Documentation phase report
+
+### Metrics
+- Documentation lines: ~4,000
+- Code examples: 150
+- CLI commands documented: 15
+- WIT interfaces: 6
+- Error codes: 40
+- Configuration options: 50
+
+---
+
+## [0.6.0-alpha] - 2026-03-06
+
+### Added - Phase 6: CI/CD Pipeline
+
+#### Pipeline Configuration
+- `.specs/07_ci_cd/pipeline_config.toml` - Pipeline configuration
+- `.specs/07_ci_cd/build_pipeline.md` - Multi-stage build pipeline
+- `.specs/07_ci_cd/test_pipeline.md` - Automated testing strategy
+- `.specs/07_ci_cd/security_pipeline.md` - Security scanning pipeline
+- `.specs/07_ci_cd/deployment_strategy.md` - Deployment and rollout strategy
+- `.specs/07_ci_cd/quality_gates.md` - Quality gate definitions
+
+#### GitHub Actions
+- `.github/workflows/ci.yml` - Complete CI workflow
+
+#### Reports
+- `.reports/phase_06_ci_cd_report.md` - CI/CD phase report
+
+### Metrics
+- Pipeline stages: 6
+- Quality gates: 8
+- Security scans: 5
+
+---
+
+## [0.5.0-alpha] - 2026-03-06
+
+### Added - Phase 5: Prototyping
+
+#### Prototypes
+- `.specs/06_prototypes/cold_start_spike/` - WASM cold start optimization prototype
+  - Benchmark suite for measuring cold start latency
+  - Pool-based prewarming implementation
+  - Results: < 35ms P99 cold start achieved
+  
+- `.specs/06_prototypes/hal_mock/` - Hardware abstraction layer mock
+  - Mock interfaces for testing
+  - Simulated resource management
+  
+- `.specs/06_prototypes/mesh_spike/` - QUIC mesh networking prototype
+  - Multi-node communication proof-of-concept
+  - Certificate management implementation
+  - Results: < 10ms P99 latency achieved
+  
+- `.specs/06_prototypes/capability_spike/` - Capability enforcement prototype
+  - Deny-by-default security model
+  - Runtime capability checking
+  - Results: < 1ms overhead per check
+
+- `.specs/06_prototypes/fuzzing/` - Security fuzzing framework
+  - AFL-based fuzzing infrastructure
+  - Custom mutators for Aether types
+
+#### Documentation
+- `.specs/06_prototypes/README.md` - Prototype overview and results
+
+#### Reports
+- `.reports/phase_05_prototype_results.md` - Prototype validation report
+
+### Metrics
+- Prototypes built: 4
+- Critical decisions validated: 5
+- Performance baselines: 4
+
+---
+
+## [0.4.5-alpha] - 2026-03-06
+
+### Added - Phase 4.5: Cross-Platform Compatibility
+
+#### Compatibility Analysis
+- `.specs/04_5_cross_platform/os_compatibility.md` - OS compatibility matrix
+  - Linux (primary)
+  - macOS (development)
+  - Windows (evaluation)
+  - FreeBSD (evaluation)
+  
+- `.specs/04_5_cross_platform/compiler_compatibility.md` - Compiler requirements
+  - Rust 1.75+ required
+  - Nightly features documented
+  
+- `.specs/04_5_cross_platform/architecture_compatibility.md` - Architecture support
+  - x86_64 (primary)
+  - ARM64 (supported)
+  - RISC-V (future)
+  
+- `.specs/04_5_cross_platform/testing_matrix.md` - Testing tiers
+  - Tier 1: Linux x86_64 (required)
+  - Tier 2: macOS ARM64, Linux ARM64 (best effort)
+  - Tier 3: Windows, FreeBSD (experimental)
+  
+- `.specs/04_5_cross_platform/conditional_compilation.md` - CFG patterns
+  - Platform-specific code organization
+  - Feature flags for platform capabilities
+
+#### Reports
+- `.reports/phase_04_5_compatibility_report.md` - Compatibility phase report
+
+### Metrics
+- OS platforms analyzed: 4
+- Architectures supported: 3
+- Testing tiers: 3
+- Platform modules: 12
+
+---
+
+## [0.4.0-alpha] - 2026-03-05
+
+### Added - Phase 4: Performance Engineering
+
+#### Performance Requirements
+- `.specs/04_performance/performance_requirements.md` - 150 performance requirements
+  - Latency targets (cold start, invocation, mesh)
+  - Throughput targets (requests/second, messages/second)
+  - Resource utilization targets
+  
+- `.specs/04_performance/benchmark_suite.md` - 50 benchmark definitions
+  - Microbenchmarks for individual components
+  - Integration benchmarks for subsystems
+  - End-to-end benchmarks for full system
+  
+- `.specs/04_performance/profiling_strategy.md` - Profiling approach
+  - Continuous profiling in CI
+  - Production profiling capabilities
+  - Performance regression detection
+  
+- `.specs/04_performance/optimization_roadmap.md` - 30 optimization techniques
+  - Memory optimization strategies
+  - CPU optimization strategies
+  - I/O optimization strategies
+  
+- `.specs/04_performance/wcet_analysis.md` - 20 WCET analyses
+  - Worst-case execution time bounds
+  - Real-time constraint verification
+
+#### Reports
+- `.reports/phase_04_performance_report.md` - Performance phase report
+
+### Metrics
+- Performance targets: 26
+- Performance requirements: 150
+- Benchmarks: 50
+- Profiling tools: 15
+- Optimization techniques: 30
+
+---
+
+## [0.3.5-alpha] - 2026-03-05
+
+### Added - Phase 3.5: Resource Management
+
+#### Resource Specifications
+- `.specs/03_5_resource_management/memory_management.md` - Memory pool design
+  - Arena allocators for actors
+  - Pool-based allocation for hot paths
+  - Memory tiering (hot/warm/cold)
+  
+- `.specs/03_5_resource_management/resource_limits.md` - Resource quotas
+  - Per-actor resource limits
+  - Per-namespace quotas
+  - System-wide resource caps
+  
+- `.specs/03_5_resource_management/cleanup_protocols.md` - Shutdown protocols
+  - Graceful shutdown sequence
+  - Resource cleanup on termination
+  - Emergency cleanup procedures
+  
+- `.specs/03_5_resource_management/handle_management.md` - Handle lifecycle
+  - Resource handle abstraction
+  - Reference counting
+  - Automatic cleanup
+  
+- `.specs/03_5_resource_management/leak_detection.md` - Leak detection
+  - Memory leak detection
+  - Resource leak tracking
+  - Debug instrumentation
+
+#### Reports
+- `.reports/phase_03_5_resource_report.md` - Resource management report
+
+### Metrics
+- Memory pools: 4
+- Actor tiers: 5
+- Resource types: 4
+- Leak detection layers: 3
+
+---
+
+## [0.3.0-alpha] - 2026-03-05
+
+### Added - Phase 3: Security Analysis
+
+#### Security Documentation
+- `.specs/03_security/threat_model.md` - STRIDE threat model
+  - 73 threats identified
+  - 19 critical, 25 high severity
+  - Mitigation strategies documented
+  
+- `.specs/03_security/attack_surface.md` - Attack surface analysis
+  - 50 entry points analyzed
+  - Network attack vectors
+  - API attack vectors
+  - Physical attack vectors
+  
+- `.specs/03_security/security_test_plan.md` - Security test plan
+  - 370 security test cases
+  - 20 fuzzing targets
+  - Penetration test scenarios
+  
+- `.specs/03_security/compliance_matrix.md` - Compliance mapping
+  - 7 compliance frameworks
+  - 304 controls mapped
+  - Gap analysis completed
+  
+- `.specs/03_security/secrets_management.md` - Secrets handling
+  - Encryption at rest
+  - Key rotation strategy
+  - Secret distribution
+  
+- `.specs/03_security/capability_security_model.md` - Capability model
+  - Deny-by-default policy
+  - Capability types defined
+  - Enforcement strategy
+
+#### Reports
+- `.reports/phase_03_security_report.md` - Security phase report
+
+### Metrics
+- Threats identified: 73
+- Attack surface entry points: 50
+- Security test cases: 370
+- Compliance frameworks: 7
+
+---
+
+## [0.2.5-alpha] - 2026-03-05
+
+### Added - Phase 2.5: Concurrency Analysis
+
+#### Concurrency Documentation
+- `.specs/02_5_concurrency/thread_safety_analysis.md` - Thread safety requirements
+  - 5 major components analyzed
+  - 23 shared state structures identified
+  
+- `.specs/02_5_concurrency/deadlock_analysis.md` - Deadlock scenarios
+  - 12 deadlock scenarios identified
+  - Prevention strategies documented
+  
+- `.specs/02_5_concurrency/race_condition_analysis.md` - Race condition analysis
+  - 8 race condition categories
+  - Detection and prevention strategies
+  
+- `.specs/02_5_concurrency/synchronization_design.md` - Sync primitives
+  - Lock-free data structures (12)
+  - Channel patterns (5)
+  - Memory ordering guarantees
+  
+- `.specs/02_5_concurrency/concurrency_patterns.md` - 15 concurrency patterns
+  - Actor pattern
+  - Supervisor pattern
+  - Circuit breaker pattern
+  
+- `.specs/02_5_concurrency/formal_proofs.md` - Formal proofs
+  - 6 proof skeletons
+  - Lean 4 proof language
+  - Safety properties verified
+
+#### Reports
+- `.reports/phase_02_5_concurrency_report.md` - Concurrency phase report
+
+### Metrics
+- Components analyzed: 5
+- Deadlock scenarios: 12
+- Lock-free structures: 12
+- Formal proofs: 6
+
+---
+
+## [0.2.0-alpha] - 2026-03-05
+
+### Added - Phase 2: Architecture & Blue Papers
+
+#### Blue Papers (IEEE 1016 Compliant)
+- `.specs/02_architecture/BP-HOST-RUNTIME-001.md` - Host Runtime Component
+  - Main orchestrator daemon design
+  - Component lifecycle management
+  - Interface definitions (IF-HOST-001, 002, 003)
+  
+- `.specs/02_architecture/BP-WASM-ENGINE-001.md` - WASM Execution Engine
+  - wasmtime integration
+  - Capability enforcement
+  - Fuel metering system
+  - Interface definitions (IF-WASM-001, 002, 003)
+  
+- `.specs/02_architecture/BP-FIRECRACKER-MANAGER-001.md` - Firecracker MicroVM Manager
+  - VM lifecycle management
+  - Jailer integration
+  - Snapshot/restore design
+  - Interface definitions (IF-FC-001, 002, 003)
+  
+- `.specs/02_architecture/BP-MESH-NETWORK-001.md` - QUIC Mesh Network
+  - Multi-node communication
+  - Actor addressing scheme
+  - Connection pooling
+  - Interface definitions (IF-NET-001, 002, 003)
+  
+- `.specs/02_architecture/BP-STATE-MANAGER-001.md` - Distributed State Manager
+  - FoundationDB integration
+  - Actor checkpointing
+  - Migration support
+  - Interface definitions (IF-STATE-001, 002, 003)
+
+#### Architecture Decision Records
+- `.adrs/ADR-001-dual-runtime.md` - Dual runtime architecture decision
+- `.adrs/ADR-002-deny-by-default.md` - Security model decision
+- `.adrs/ADR-003-panic-abort.md` - Error handling strategy
+- `.adrs/ADR-004-wasmtime-selection.md` - WASM runtime selection
+- `.adrs/ADR-005-firecracker-selection.md` - VM manager selection
+
+#### Other
+- `.specs/02_architecture/blue_paper_registry.toml` - Blue paper registry
+- `.adrs/README.md` - ADR index and guidelines
+
+#### Reports
+- `.reports/phase_02_architecture_report.md` - Architecture phase report
+
+### Metrics
+- Blue papers: 5
+- Components designed: 75
+- Interfaces defined: 15
+- Formal proof skeletons: 45
+- ADRs: 5
+
+---
+
+## [0.1.25-alpha] - 2026-03-05
+
+### Added - Phase 1.25: Knowledge Integration
+
+#### Integration Documentation
+- `.specs/01_25_knowledge_integration/integrated_findings.md` - Synthesized research findings
+  - Cross-domain concept mapping
+  - Unified terminology
+  
+- `.specs/01_25_knowledge_integration/concept_mappings.md` - Concept relationships
+  - 38 concepts mapped
+  - 6 languages integrated
+  
+- `.specs/01_25_knowledge_integration/gap_analysis.md` - Research gaps
+  - Identified missing research areas
+  - Prioritized additional investigation
+  
+- `.specs/01_25_knowledge_integration/conflict_resolution.md` - Conflict resolution
+  - 50 conflicts resolved
+  - Resolution rationale documented
+  
+- `.knowledge_graph/aether_concepts.json` - Knowledge graph
+  - Machine-readable concept relationships
+  - Graph database format
+
+#### Reports
+- `.reports/phase_01_25_integration_report.md` - Integration phase report
+
+### Metrics
+- Concepts integrated: 38
+- Conflicts resolved: 50
+- Languages integrated: 6
+
+---
+
+## [0.1.5-alpha] - 2026-03-05
+
+### Added - Phase 1.5: Supply Chain Management
+
+#### Supply Chain Documentation
+- `.specs/01_5_supply_chain/supply_chain.lock` - Locked dependency versions
+  - 42 direct dependencies
+  - 250 total dependencies
+  
+- `.specs/01_5_supply_chain/sbom.spdx` - Software Bill of Materials
+  - SPDX 2.3 format
+  - Complete dependency tree
+  
+- `.specs/01_5_supply_chain/vulnerability_policy.md` - Vulnerability handling
+  - CVE monitoring process
+  - Response SLAs
+  - Remediation procedures
+  
+- `.specs/01_5_supply_chain/license_compliance.md` - License compliance
+  - License compatibility matrix
+  - 100% compliance achieved
+  - Patent grant coverage: 60%
+
+- `.dep_spec/README.md` - Dependency specification guidelines
+
+#### Reports
+- `.reports/phase_01_5_supply_chain_report.md` - Supply chain phase report
+
+### Metrics
+- Direct dependencies: 42
+- Total dependencies: 250
+- Critical CVEs: 0
+- License compliance: 100%
+
+---
+
+## [0.1.0-alpha] - 2026-03-05
+
+### Added - Phase 1: Research & Yellow Papers
+
+#### Yellow Papers (Technical Deep-Dives)
+- `.specs/01_research/YP-WASM-RUNTIME-001.md` - WASM Runtime Analysis
+  - wasmtime architecture
+  - WASI Preview 2 compliance
+  - Cold start optimization techniques
+  - Memory management strategies
+  
+- `.specs/01_research/YP-VIRT-KVM-001.md` - KVM/Firecracker Virtualization
+  - KVM architecture
+  - Firecracker integration
+  - Snapshot/restore mechanisms
+  - Jailer security model
+  
+- `.specs/01_research/YP-NETWORK-MESH-001.md` - QUIC Mesh Networking
+  - QUIC protocol analysis
+  - Actor addressing scheme
+  - Connection pooling strategies
+  - Failover mechanisms
+  
+- `.specs/01_research/YP-SERIAL-RKYV-001.md` - rkyv Zero-Copy Serialization
+  - rkyv architecture
+  - Zero-copy deserialization
+  - Schema evolution
+  - Performance characteristics
+  
+- `.specs/01_research/YP-ASYNC-IOURING-001.md` - io_uring Async I/O
+  - io_uring system calls
+  - Async runtime integration
+  - Performance benchmarks
+  - Linux kernel requirements
+
+#### Test Vectors
+- `.specs/01_research/test_vectors/test_vectors_wasm.toml` - 43 WASM test vectors
+- `.specs/01_research/test_vectors/test_vectors_virt.toml` - 35 VM test vectors
+- `.specs/01_research/test_vectors/test_vectors_mesh.toml` - 45 mesh test vectors
+- `.specs/01_research/test_vectors/test_vectors_serial.toml` - 40 serialization test vectors
+- `.specs/01_research/test_vectors/test_vectors_async.toml` - 54 async test vectors
+
+#### Domain Constraints
+- `.specs/01_research/domain_constraints/domain_constraints_wasm.toml`
+- `.specs/01_research/domain_constraints/domain_constraints_virt.toml`
+- `.specs/01_research/domain_constraints/domain_constraints_mesh.toml`
+- `.specs/01_research/domain_constraints/domain_constraints_serial.toml`
+- `.specs/01_research/domain_constraints/domain_constraints_async.toml`
+
+#### Other
+- `.specs/01_research/yellow_paper_registry.toml` - Yellow paper registry
+- `.specs/01_research/bibliography.md` - 52 bibliography references
+
+#### Reports
+- `.reports/phase_01_research_summary.md` - Research phase summary
+
+### Metrics
+- Yellow papers: 5
+- Test vectors: 217
+- Bibliography references: 52
+- Average confidence: 0.97
+
+---
+
+## [0.0.1-alpha] - 2026-03-05
+
+### Added - Phase 0: Requirements Engineering
+
+#### Requirements Documentation
+- `.specs/00_requirements/requirements.md` - 40 EARS-compliant requirements
+  - 25 functional requirements
+  - 15 non-functional requirements
+  - Full traceability to standards
+  
+- `.specs/00_requirements/acceptance_criteria.md` - Acceptance criteria
+  - Testable success criteria
+  - Verification methods
+  
+- `.specs/00_requirements/stakeholder_analysis.md` - Stakeholder analysis
+  - 8 stakeholder profiles
+  - Needs and expectations
+  
+- `.specs/00_requirements/moscow_priority.md` - MoSCoW prioritization
+  - Must: 18 requirements
+  - Should: 12 requirements
+  - Could: 7 requirements
+  - Won't: 3 requirements
+  
+- `.specs/00_requirements/traceability_matrix.md` - Requirements traceability
+  - Requirement → Standard mapping
+  - Requirement → Test mapping
+  
+- `.specs/00_requirements/applicable_standards.md` - 17 applicable standards
+  - IEEE 1016-2009 (Architecture)
+  - IEC 62443 (Security)
+  - WASI Preview 2
+  - OCI Runtime Spec
+  - And 13 more...
+  
+- `.specs/00_requirements/capability_requirements.md` - Security capabilities
+  - Network capabilities
+  - Filesystem capabilities
+  - System capabilities
+  
+- `.specs/00_requirements/standard_conflicts.md` - Conflict resolution
+  - Identified standard conflicts
+  - Resolution rationale
+
+#### Traceability
+- `.specs/TRACEABILITY_MATRIX.md` - Master traceability matrix
+
+#### Reports
+- `.reports/phase_00_requirements_report.md` - Requirements phase report
+
+### Metrics
+- Total requirements: 40
+- Standards identified: 17
+- Stakeholders: 8
+
+---
+
+## [0.0.0-alpha] - 2026-03-05
+
+### Added - Project Initialization
+
+#### Environment Setup
+- Development environment configuration
+- Tooling setup
+- Initial project structure
+
+#### Context Discovery
+- Project context analysis
+- Stakeholder identification
+- Constraint catalog
+
+#### Initial Research
+- Technology evaluation
+- Feasibility assessment
+
+#### Reports
+- `.reports/phase_-0.5_environment_report.md` - Environment setup report
+- `.reports/phase_-1_context_discovery_report.md` - Context discovery report
+
+---
+
+## Version History
+
+| Version | Date | Phase | Description |
+|---------|------|-------|-------------|
+| 1.8.0 | 2026-03-29 | 23 | Clustering & Distribution — DLQ, Pub/Sub, Leader Election, Migration |
+| 1.7.1 | 2026-03-29 | 22 | Production Hardening & gRPC SDK Clients |
+| 1.7.0 | 2026-03-27 | 22 | Server Hardening & Ecosystem — "Atlas" |
+| 1.6.0 | 2026-03-26 | 21 | Enhancement & Polish — "Horizon" |
+| 1.4.0 | 2026-03-18 | 20 | Resilience — Circuit Breaker, Observability, Security |
+| 1.3.1 | 2026-03-16 | 18 | SDK Publishing & Examples |
+| 1.3.0 | 2026-03-16 | 18 | Multi-Language SDKs & Documentation |
+| 1.2.0-alpha | 2026-03-14 | 17 | Multi-Provider AI Support |
+| 1.1.0-alpha | 2026-03-14 | 16 | AI Integration Features |
+| 1.0.0-alpha | 2026-03-06 | 8 | R&D Lifecycle Complete |
+| 0.7.0-alpha | 2026-03-06 | 7 | Documentation & Branding |
+| 0.6.0-alpha | 2026-03-06 | 6 | CI/CD Pipeline |
+| 0.5.0-alpha | 2026-03-06 | 5 | Prototyping |
+| 0.4.5-alpha | 2026-03-06 | 4.5 | Cross-Platform |
+| 0.4.0-alpha | 2026-03-05 | 4 | Performance |
+| 0.3.5-alpha | 2026-03-05 | 3.5 | Resource Management |
+| 0.3.0-alpha | 2026-03-05 | 3 | Security |
+| 0.2.5-alpha | 2026-03-05 | 2.5 | Concurrency |
+| 0.2.0-alpha | 2026-03-05 | 2 | Architecture |
+| 0.1.25-alpha | 2026-03-05 | 1.25 | Knowledge Integration |
+| 0.1.5-alpha | 2026-03-05 | 1.5 | Supply Chain |
+| 0.1.0-alpha | 2026-03-05 | 1 | Research |
+| 0.0.1-alpha | 2026-03-05 | 0 | Requirements |
+| 0.0.0-alpha | 2026-03-05 | -1 | Initialization |
+
+---
+
+## Future Releases
+
+### [1.0.0-beta] - Target: Week 8
+
+**Milestone: M1 - Local WASM Execution**
+
+Planned features:
+- Complete Phase 1 implementation (Core Runtime Foundation)
+- Complete Phase 2 implementation (WASM Engine)
+- Single-node WASM actor execution
+- Cold start < 50ms P99
+- All CLI commands working locally
+
+### [1.0.0-rc1] - Target: Week 12
+
+**Milestone: M2 - Local OCI Execution**
+
+Planned features:
+- Complete Phase 3 implementation (Firecracker Integration)
+- Dual-runtime support
+- VM start < 125ms P99
+- OCI container execution
+
+### [1.0.0] - Target: Week 16
+
+**Milestone: M4 - Production Ready**
+
+Planned features:
+- Complete all phases (1-8)
+- Multi-node mesh networking
+- Distributed state management
+- Production observability
+- Security audit passed
+
+---
+
+## Notes
+
+- All versions prior to 1.0.0 are considered pre-release
+- Semantic versioning is followed for all releases
+- Breaking changes will be documented with upgrade guides
+- Each phase completion is tagged as a separate version
+- The project uses a monorepo structure
+
+---
+
+**Last Updated:** 2026-03-29
+**Next Release:** TBD

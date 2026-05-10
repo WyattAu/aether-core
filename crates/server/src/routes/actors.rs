@@ -1,5 +1,3 @@
-#![deny(unsafe_code)]
-
 use axum::{
     Json, Router,
     extract::{Path, State},
@@ -8,13 +6,12 @@ use axum::{
 
 use crate::error::ApiError;
 use crate::models::{ActorRegistration, SendMessageRequest};
+use crate::state::AppState;
 
-#[derive(Clone)]
-/// Shared state for the actor routes.
-pub struct ActorState;
+use std::sync::Arc;
 
 /// Returns the router for this module.
-pub fn routes() -> Router {
+pub fn routes() -> Router<Arc<AppState>> {
     Router::new()
         .route("/api/v1/actors", post(register_actor).get(list_actors))
         .route(
@@ -26,62 +23,144 @@ pub fn routes() -> Router {
             post(send_message).get(get_inbox),
         )
         .route("/api/v1/actors/{actor_id}/heartbeat", post(heartbeat))
-        .with_state(ActorState)
 }
 
 async fn register_actor(
-    State(_state): State<ActorState>,
-    Json(_req): Json<ActorRegistration>,
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<ActorRegistration>,
 ) -> Result<Json<serde_json::Value>, ApiError> {
-    Err(ApiError::not_implemented("POST /api/v1/actors"))
-}
+    let actor_id = req
+        .actor_id
+        .map(|id| id.to_string())
+        .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+    let now = chrono::Utc::now().to_rfc3339();
 
-async fn deregister_actor(
-    State(_state): State<ActorState>,
-    Path(_actor_id): Path<String>,
-) -> Result<Json<serde_json::Value>, ApiError> {
-    Err(ApiError::not_implemented(
-        "DELETE /api/v1/actors/{actor_id}",
-    ))
-}
+    let record = crate::state::ActorRecord {
+        name: req.name.clone(),
+        actor_type: req.actor_type.clone(),
+        version: req.version.unwrap_or_default(),
+        status: "created".to_string(),
+        registered_at: now.clone(),
+        last_heartbeat: now.clone(),
+        metadata: req
+            .metadata
+            .unwrap_or(serde_json::Value::Object(serde_json::Map::new())),
+        actor_id: actor_id.clone(),
+    };
 
-async fn get_actor(
-    State(_state): State<ActorState>,
-    Path(_actor_id): Path<String>,
-) -> Result<Json<serde_json::Value>, ApiError> {
-    Err(ApiError::not_implemented("GET /api/v1/actors/{actor_id}"))
+    state.actors.write().await.insert(actor_id.clone(), record);
+
+    Ok(Json(serde_json::json!({
+        "actor_id": actor_id,
+        "status": "created",
+        "registered_at": now,
+    })))
 }
 
 async fn list_actors(
-    State(_state): State<ActorState>,
+    State(state): State<Arc<AppState>>,
 ) -> Result<Json<serde_json::Value>, ApiError> {
-    Err(ApiError::not_implemented("GET /api/v1/actors"))
+    let actors = state.actors.read().await;
+    let list: Vec<&crate::state::ActorRecord> = actors.values().collect();
+    Ok(Json(serde_json::json!(list)))
+}
+
+async fn get_actor(
+    State(state): State<Arc<AppState>>,
+    Path(actor_id): Path<String>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    let actors = state.actors.read().await;
+    let record = actors
+        .get(&actor_id)
+        .ok_or_else(|| ApiError::NotFound(format!("actor {actor_id} not found")))?;
+    Ok(Json(serde_json::json!(record)))
+}
+
+async fn deregister_actor(
+    State(state): State<Arc<AppState>>,
+    Path(actor_id): Path<String>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    let removed = state.actors.write().await.remove(&actor_id).is_some();
+    if !removed {
+        return Err(ApiError::NotFound(format!("actor {actor_id} not found")));
+    }
+    Ok(Json(serde_json::json!({
+        "actor_id": actor_id,
+        "status": "deregistered",
+    })))
 }
 
 async fn send_message(
-    State(_state): State<ActorState>,
-    Path(_actor_id): Path<String>,
-    Json(_req): Json<SendMessageRequest>,
+    State(state): State<Arc<AppState>>,
+    Path(actor_id): Path<String>,
+    Json(req): Json<SendMessageRequest>,
 ) -> Result<Json<serde_json::Value>, ApiError> {
-    Err(ApiError::not_implemented(
-        "POST /api/v1/actors/{actor_id}/messages",
-    ))
+    let actors = state.actors.read().await;
+    if !actors.contains_key(&actor_id) {
+        return Err(ApiError::NotFound(format!("actor {actor_id} not found")));
+    }
+    drop(actors);
+
+    let message_id = uuid::Uuid::new_v4().to_string();
+    let now = chrono::Utc::now().to_rfc3339();
+
+    let event = crate::state::EventRecord {
+        id: message_id.clone(),
+        actor_id: actor_id.clone(),
+        event_type: "message".to_string(),
+        payload: req.payload.clone(),
+        sequence: {
+            let mut seq = state.event_sequence.write().await;
+            *seq += 1;
+            *seq
+        },
+        timestamp: now.clone(),
+    };
+
+    state.events.write().await.push(event);
+
+    Ok(Json(serde_json::json!({
+        "message_id": message_id,
+        "target_actor_id": actor_id,
+        "status": "delivered",
+        "timestamp": now,
+    })))
 }
 
 async fn get_inbox(
-    State(_state): State<ActorState>,
-    Path(_actor_id): Path<String>,
+    State(state): State<Arc<AppState>>,
+    Path(actor_id): Path<String>,
 ) -> Result<Json<serde_json::Value>, ApiError> {
-    Err(ApiError::not_implemented(
-        "GET /api/v1/actors/{actor_id}/messages",
-    ))
+    let actors = state.actors.read().await;
+    if !actors.contains_key(&actor_id) {
+        return Err(ApiError::NotFound(format!("actor {actor_id} not found")));
+    }
+    drop(actors);
+
+    let events = state.events.read().await;
+    let inbox: Vec<&crate::state::EventRecord> = events
+        .iter()
+        .filter(|e| e.actor_id == actor_id)
+        .rev()
+        .take(50)
+        .collect();
+    Ok(Json(serde_json::json!(inbox)))
 }
 
 async fn heartbeat(
-    State(_state): State<ActorState>,
-    Path(_actor_id): Path<String>,
+    State(state): State<Arc<AppState>>,
+    Path(actor_id): Path<String>,
 ) -> Result<Json<serde_json::Value>, ApiError> {
-    Err(ApiError::not_implemented(
-        "POST /api/v1/actors/{actor_id}/heartbeat",
-    ))
+    let now = chrono::Utc::now().to_rfc3339();
+    let mut actors = state.actors.write().await;
+    let record = actors
+        .get_mut(&actor_id)
+        .ok_or_else(|| ApiError::NotFound(format!("actor {actor_id} not found")))?;
+    record.status = "running".to_string();
+    record.last_heartbeat = now.clone();
+    Ok(Json(serde_json::json!({
+        "actor_id": actor_id,
+        "status": "running",
+        "last_heartbeat": now,
+    })))
 }

@@ -82,6 +82,56 @@ jobs:
       - name: Run memory benchmarks
         run: cargo test --test memory_benchmarks --all-features -- --nocapture
 
+      - name: Run property tests
+        run: cargo test --test property_tests --all-features
+
+      - name: Run security tests
+        run: cargo test --test security_tests --all-features
+
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+    needs: check
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: nightly-2026-03-01
+          components: llvm-tools-preview
+
+      - name: Install cargo-llvm-cov
+        run: cargo install cargo-llvm-cov --locked || true
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+            /usr/local/cargo/bin/
+          key: ${{ runner.os }}-cargo-cov-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Generate coverage report
+        run: |
+          cargo llvm-cov --workspace --all-features --html --output-dir target/coverage --fail-under-lines 80 2>&1 | tee coverage-report.txt
+          echo ""
+          echo "## Code Coverage Report" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          tail -30 coverage-report.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: |
+            coverage-report.txt
+            target/coverage/
+
   security:
     name: Security Audit
     runs-on: ubuntu-latest
@@ -182,3 +232,43 @@ jobs:
           files: aether-*/aether
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  integration-fdb:
+    name: FDB Integration Tests
+    runs-on: ubuntu-latest
+    needs: check
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: nightly-2026-03-01
+
+      - name: Start FoundationDB
+        run: |
+          docker run -d --name fdb-ci \
+            -p 4500:4500 -p 4501:4501 \
+            foundationdb/foundationdb:7.3
+          sleep 10
+          docker exec fdb-ci fdbcli --exec "configure single memory localhost:4500"
+          docker exec fdb-ci fdbcli --exec "status minimal"
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-fdb-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Run FDB integration tests
+        env:
+          FDB_ADDRESS: localhost:4500
+        run: cargo test --workspace --features fdb -- --test-threads=1 -- --nocapture
+        continue-on-error: true
+
+      - name: Cleanup FDB
+        if: always()
+        run: docker rm -f fdb-ci

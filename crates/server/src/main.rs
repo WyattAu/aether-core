@@ -4,11 +4,13 @@
 
 use clap::Parser;
 use std::net::SocketAddr;
+use std::sync::Arc;
 use tower_http::compression::CompressionLayer;
 use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::EnvFilter;
 
+use aether_server::AppState;
 use aether_server::config::ServerConfig;
 use aether_server::routes;
 
@@ -40,11 +42,14 @@ async fn main() {
     tracing::info!("aether-server v{} starting", env!("CARGO_PKG_VERSION"));
     tracing::info!("http port: {port}");
 
+    let state = Arc::new(AppState::new());
+
     let app = routes::actors::routes()
         .merge(routes::state::routes())
-        .merge(routes::health::routes())
+        .merge(routes::health::routes::<Arc<AppState>>())
         .merge(routes::events::routes())
         .merge(routes::cluster::routes())
+        .with_state(state)
         .layer(CompressionLayer::new())
         .layer(CorsLayer::permissive())
         .layer(TraceLayer::new_for_http());

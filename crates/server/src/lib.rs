@@ -10,6 +10,10 @@ pub mod error;
 pub mod models;
 /// HTTP route handlers.
 pub mod routes;
+/// Shared application state.
+pub mod state;
 
 /// Re-export of [`ServerConfig`].
 pub use config::ServerConfig;
+/// Re-export of [`AppState`].
+pub use state::AppState;

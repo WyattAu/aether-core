@@ -6,7 +6,10 @@ use chrono::Utc;
 use crate::models::{HealthResponse, InfoResponse};
 
 /// Returns the router for this module.
-pub fn routes() -> Router {
+pub fn routes<S>() -> Router<S>
+where
+    S: Clone + Send + Sync + 'static,
+{
     Router::new()
         .route("/health", axum::routing::get(get_health))
         .route("/health/ready", axum::routing::get(get_ready))
