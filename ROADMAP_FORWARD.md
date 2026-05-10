@@ -1,0 +1,268 @@
+# Aether-Core: Path Forward and Roadmap
+
+**Date:** May 10, 2026
+**Current Version:** 2.0.0
+**Commit:** 9d70f29
+
+---
+
+## 1. Current State Assessment
+
+### 1.1 What Exists (v2.0.0)
+
+The monorepo contains a production-grade Rust actor runtime with 4 workspace crates:
+
+| Crate | Purpose | Status |
+|-------|---------|--------|
+| `aether-core` | Runtime engine, WASM, mesh, security, state, AI, VM | Complete |
+| `aether-cli` | Command-line interface | Functional |
+| `aether-actor-sdk` | Guest-facing SDK for WASM actors | Scaffold |
+| `aether-server` | Axum-based HTTP reference server | Scaffold |
+| `aether-tests` | Shared test fixtures and integration test suite | Complete |
+
+### 1.2 Quality Metrics (Verified)
+
+| Metric | Value |
+|--------|-------|
+| Total tests | 1,283 (938 core + 267 integration + 16 property + 4 benchmark + 20 security + 17 fuzz + 7 fixtures + 2 doc + 58 doc-ignored) |
+| Test failures | 0 |
+| Tests ignored (require external deps) | 36 (FDB, Firecracker, KVM, cluster) |
+| Clippy warnings | 0 (deny-all at workspace level) |
+| `unwrap()`/`expect()` in production code | 0 (denied by workspace lints) |
+| `todo!`/`unimplemented!` stubs | 0 |
+| Doc warnings | 0 |
+| Format violations | 0 |
+| Pre-commit hook | Installed (fmt + clippy + test + doc) |
+
+### 1.3 Technical Debt Identified
+
+1. **21 integration tests ignored** -- require running FoundationDB, Firecracker/KVM, or multi-node cluster. No CI environment provisions these.
+2. **15 e2e tests ignored** -- same cluster dependency.
+3. **56 doc-tests ignored** -- reference external runtime behavior (FDB, network).
+4. **CHANGELOG.md** is 1,427 lines -- pre-v1.0 alpha history should be archived.
+5. **PROGRESS.md** is stale (March 8 snapshot).
+6. **TRACEABILITY_MATRIX.md** shows Phase 0 as current (reality: post-v2.0.0).
+7. **INSTRUCTION_VERSIONS.md** stale (March 5).
+8. **STANDARD_CONFLICTS.md** stale (March 5).
+9. **`basic_spec.md` and `basic_sop.md`** still contain aspirational claims not yet implemented (e.g., "No-Allocation Hot Path").
+10. **No `cargo-mutants` integration** -- mutation testing not yet in CI.
+11. **Go/Java SDKs** written but not compiled/tested in CI.
+12. **No code coverage reporting** in CI (no `cargo-llvm-cov` in workflows).
+
+---
+
+## 2. Immediate Priorities (v2.1.0 -- Next 2 Weeks)
+
+### 2.1 CI/CD Hardening
+
+The most impactful investment is making CI exercise more of the codebase.
+
+**R1: Enable code coverage reporting**
+- Add `cargo-llvm-cov` to CI workflow
+- Set minimum coverage threshold: 80% branch, 95% critical path
+- Add coverage badge to README
+- Files: `.github/workflows/ci.yml`
+
+**R2: Real-environment integration testing**
+- Add FDB Docker service to CI matrix for `fdb` feature tests (9 tests)
+- Add multi-node mesh test using Docker Compose (6 tests)
+- This unblocks 15 of the 36 ignored integration tests
+- Files: `.github/workflows/integration.yml`, `docker-compose.ci.yml`
+
+**R3: Pre-push hook with fast feedback**
+- The current pre-commit hook runs full test suite (~30s). Add a lighter pre-push hook that runs only clippy + unit tests (skip integration).
+- Files: `scripts/pre-push`
+
+### 2.2 Documentation Hygiene
+
+**R4: Archive stale documents**
+- Move pre-v1.0 changelog entries to `CHANGELOG.archive.md`
+- Trim CHANGELOG.md to v1.8.0 through v2.0.0
+- Delete PROGRESS.md (superseded by IMPLEMENTATION_SUMMARY.md)
+- Update TRACEABILITY_MATRIX.md to reflect v2.0.0 state
+- Update STANDARD_CONFLICTS.md and INSTRUCTION_VERSIONS.md dates
+
+**R5: Fix remaining doc-test ignores**
+- Convert doc-test examples that do not require external deps from `ignore` to working tests
+- Target: reduce 56 ignored doc-tests to <20
+
+### 2.3 Server Crate Completion
+
+**R6: Implement server route handlers**
+- `crates/server/src/routes/` contains only `Err(ApiError::not_implemented(...))` stubs
+- Implement: actors (CRUD), state (get/put/delete), events (pub/sub), cluster (nodes/status)
+- This makes the reference server functional for demo purposes
+
+### 2.4 Performance Validation
+
+**R7: Benchmark baseline publication**
+- Run Criterion benchmarks in CI on every PR to main
+- Establish regression detection with 5% threshold
+- Publish results to GitHub Actions artifacts
+- Files: `.github/workflows/benchmarks.yml`
+
+---
+
+## 3. Medium-Term Goals (v2.2.0 -- 1-3 Months)
+
+### 3.1 Deterministic Execution
+
+**R8: Deterministic replay engine**
+- Record all inputs (messages, timestamps, randomness) per actor
+- Replay from recorded inputs and verify identical state
+- Implement in `crates/core/src/tracing/deterministic.rs` (scaffold exists)
+- Test: replay 1,000 message sequences with bit-exact state match
+
+**R9: WASI clock injection verification**
+- Verify all WASM actors receive host-injected time, not CPU RDTSC
+- Add property test: for any message sequence, state is deterministic function of (initial_state, messages, injected_time)
+
+### 3.2 Formal Methods
+
+**R10: TLA+ specifications for consensus**
+- Model the actor scheduler state machine in TLA+
+- Model the mesh gossip protocol in TLA+
+- Verify safety properties (no message loss, no split-brain) with TLC
+- Files: `.specs/02_architecture/proofs/`
+
+**R11: Lean4 proof sketches**
+- Property: capability set is closed under intersection
+- Property: RBAC evaluation is monotonic (adding policies cannot grant more permissions)
+- Property: audit chain hash is collision-resistant
+- Note: full Lean4 proofs require significant investment; start with proof sketches
+
+### 3.3 SDK Parity
+
+**R12: Go SDK compilation and CI**
+- Add Go build + test to CI workflow (`sdk-ci.yml` exists)
+- Target: `go build ./...` and `go test ./...` pass in CI
+- Current: 373 tests written, not compiled
+
+**R13: Java SDK compilation and CI**
+- Add Gradle build + test to CI workflow
+- Target: `gradle build` and `gradle test` pass in CI
+- Current: 387 tests written, not compiled
+
+### 3.4 Multi-Tenancy Hardening
+
+**R14: Namespace isolation enforcement**
+- Currently namespace isolation exists in `tenant/` module but is not wired to the host runtime
+- Wire namespace checks into the Host message dispatch path
+- Test: cross-namespace message delivery is rejected
+
+**R15: Resource quota enforcement**
+- Wire `tenant/quota.rs` enforcement into actor scheduling
+- Test: actor spawn rejected when tenant exceeds memory/actor limit
+
+---
+
+## 4. Long-Term Goals (v3.0.0 -- 3-6 Months)
+
+### 4.1 Production Infrastructure
+
+**R16: Real FDB integration testing**
+- Add FDB cluster to CI for `fdb` feature tests
+- Test distributed state replication across nodes
+- Test actor migration with state transfer
+
+**R17: Firecracker CI testing**
+- Add KVM-enabled runner for Firecracker tests
+- Test VM lifecycle, snapshot/restore, jailer isolation
+- Note: requires bare-metal or nested KVM (GHA doesn't support this)
+
+**R18: Blue-green deployment pipeline**
+- Implement rolling update with zero-downtime actor migration
+- Canary deployment with automatic rollback on error spike
+- Files: `.specs/07_ci_cd/deployment_strategy.md`
+
+### 4.2 Performance Optimization
+
+**R19: io_uring integration**
+- `monoio` is in Cargo.toml as optional dep but unused
+- Implement io_uring-based async I/O for state operations
+- Benchmark against tokio-based implementation
+- Target: 2x throughput improvement for state-heavy workloads
+
+**R20: No-allocation hot path**
+- Implement SOP requirement: zero dynamic allocations in request processing loop
+- Use `arrayvec`, `bytes::Bytes` with static buffers
+- Validate with `dhat` allocation profiler
+- Target: <100 allocations per message round-trip
+
+### 4.3 WASM Marketplace
+
+**R21: Actor registry and distribution**
+- OCI-compliant actor registry (push/pull .wasm modules)
+- Versioning, dependency resolution, signature verification
+- `aether push` and `aether pull` CLI commands
+
+### 4.4 Dashboard
+
+**R22: TUI dashboard**
+- Ratatui-based terminal dashboard (ratatui in Cargo.toml)
+- Real-time actor status, mesh topology, metrics
+- `aether dashboard` command
+
+**R23: Web dashboard**
+- REST API consumed by web frontend
+- Actor topology graph, metrics charts, deployment management
+
+---
+
+## 5. Technical Risk Register
+
+| Risk | Probability | Impact | Mitigation |
+|------|------------|--------|------------|
+| io_uring compatibility issues across kernels | Medium | High | Feature-gate behind `io_uring` feature; fallback to tokio |
+| Firecracker requires KVM (not available in CI) | High | Medium | Mock-based testing; deferred to bare-metal CI |
+| FDB cluster setup complexity | Medium | High | InMemoryFdb for tests; Docker-based CI for integration |
+| Lean4 proof investment exceeds value | Medium | Low | Proof sketches only; formal proofs only for safety-critical paths |
+| Performance targets unsubstantiated | High | High | Criterion benchmarks in CI with regression detection |
+| Multi-language SDK drift | Medium | Medium | Shared API schema (protobuf); CI builds all SDKs |
+
+---
+
+## 6. Success Criteria by Version
+
+### v2.1.0
+
+- [ ] Code coverage reporting in CI (80% branch minimum)
+- [ ] 15+ previously-ignored integration tests running in CI
+- [ ] Server route handlers implemented (no stubs)
+- [ ] Benchmark regression detection in CI
+- [ ] CHANGELOG archived, stale docs updated
+- [ ] Pre-push hook installed
+
+### v2.2.0
+
+- [ ] Deterministic replay engine (record + verify)
+- [ ] TLA+ specs for scheduler and gossip protocol
+- [ ] Go SDK compiled and tested in CI
+- [ ] Java SDK compiled and tested in CI
+- [ ] Namespace isolation wired to host runtime
+- [ ] Resource quota enforcement wired to scheduling
+
+### v3.0.0
+
+- [ ] Real FDB integration tests in CI
+- [ ] Blue-green deployment with zero-downtime migration
+- [ ] io_uring integration (feature-gated)
+- [ ] Actor registry (push/pull)
+- [ ] TUI dashboard
+- [ ] No-allocation hot path verified
+- [ ] External security audit completed
+
+---
+
+## 7. Recommended Immediate Actions
+
+1. **Create `docker-compose.ci.yml`** with FDB service for CI integration tests
+2. **Update `.github/workflows/ci.yml`** to add coverage reporting and benchmark regression
+3. **Implement server route handlers** in `crates/server/src/routes/`
+4. **Archive CHANGELOG.md** and update stale traceability docs
+5. **Add `cargo-mutants`** to CI for mutation testing (start with core/actor module)
+6. **Update ROADMAP.md** to reflect this plan
+
+---
+
+*Generated: 2026-05-10. Next review: 2026-05-17.*
