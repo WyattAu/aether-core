@@ -29,14 +29,18 @@ type Actor interface {
 // BaseActor provides a base implementation of the Actor interface.
 // Embed this in your actor struct to get default implementations.
 type BaseActor struct {
-	name        string
+	name         string
 	capabilities *CapabilitySet
-	state       *StateHandle
-	mailbox     chan mailboxItem
-	pendingRPC  map[string]chan *Message
-	pendingMu   sync.RWMutex
-	running     bool
-	runningMu   sync.RWMutex
+	state        *StateHandle
+	mailbox      chan mailboxItem
+	pendingRPC   map[string]chan *Message
+	pendingMu    sync.RWMutex
+	running      bool
+	runningMu    sync.RWMutex
+
+	OnStartFunc      func(ctx context.Context) error
+	OnStopFunc       func(ctx context.Context) error
+	HandleMessageFunc func(ctx context.Context, sender string, message *Message) (*Message, error)
 }
 
 type mailboxItem struct {
@@ -65,7 +69,24 @@ func (a *BaseActor) Name() string {
 // HandleMessage is the default message handler.
 // Override this in your actor implementation.
 func (a *BaseActor) HandleMessage(ctx context.Context, sender string, message *Message) (*Message, error) {
+	if a.HandleMessageFunc != nil {
+		return a.HandleMessageFunc(ctx, sender, message)
+	}
 	return nil, nil
+}
+
+func (a *BaseActor) OnStart(ctx context.Context) error {
+	if a.OnStartFunc != nil {
+		return a.OnStartFunc(ctx)
+	}
+	return nil
+}
+
+func (a *BaseActor) OnStop(ctx context.Context) error {
+	if a.OnStopFunc != nil {
+		return a.OnStopFunc(ctx)
+	}
+	return nil
 }
 
 // OnStart is called when the actor starts.

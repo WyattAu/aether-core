@@ -22,13 +22,13 @@ capability_matrix_status: complete
 current_phase: post-v1.8.0-distribution
 current_version: 1.8.0
 status: Released
-  - Dead Letter Queue (DLQ): ✅ COMPLETE (API + 448 lines of tests)
-  - Distributed Pub/Sub: ✅ COMPLETE (cluster propagation + 718 lines of tests)
-  - Leader Election: ✅ COMPLETE (40 tests: 29 unit + 11 integration)
-  - Actor Migration: ✅ COMPLETE (3-phase handoff, 64 tests)
-  - GraphQL Subscriptions: ✅ COMPLETE (pubsub_events subscription)
-  - WebSocket Authentication: ✅ COMPLETE (token via query param or message)
-  - Docker/K8s Deployment: ✅ COMPLETE
+  - Dead Letter Queue (DLQ): [DONE] COMPLETE (API + 448 lines of tests)
+  - Distributed Pub/Sub: [DONE] COMPLETE (cluster propagation + 718 lines of tests)
+  - Leader Election: [DONE] COMPLETE (40 tests: 29 unit + 11 integration)
+  - Actor Migration: [DONE] COMPLETE (3-phase handoff, 64 tests)
+  - GraphQL Subscriptions: [DONE] COMPLETE (pubsub_events subscription)
+  - WebSocket Authentication: [DONE] COMPLETE (token via query param or message)
+  - Docker/K8s Deployment: [DONE] COMPLETE
     - Root Dockerfile converted from Rust to Python/FastAPI
     - docker-compose.cluster.yml (3-node cluster with gossip)
     - Helm chart updated with gossip port + clustering env vars
@@ -47,10 +47,10 @@ capability_matrix_status: complete
 current_phase: post-v1.7.0-clustering
 current_version: 1.7.1
 status: Released
-  - Production Hardening: ✅ COMPLETE (metrics, logging, shutdown wiring)
-  - gRPC Metrics Interceptor: ✅ COMPLETE (28 tests, fixed protobuf deserialization)
-  - gRPC SDK Clients: ✅ COMPLETE (Python 33, JavaScript 35 tests)
-  - Multi-Node Clustering: ✅ COMPLETE (102 tests)
+  - Production Hardening: [DONE] COMPLETE (metrics, logging, shutdown wiring)
+  - gRPC Metrics Interceptor: [DONE] COMPLETE (28 tests, fixed protobuf deserialization)
+  - gRPC SDK Clients: [DONE] COMPLETE (Python 33, JavaScript 35 tests)
+  - Multi-Node Clustering: [DONE] COMPLETE (102 tests)
     - Consistent Hash Ring: 28 tests
     - Cluster Membership (SWIM gossip): 30 tests
     - Cluster Node & Config: 25 tests
@@ -72,12 +72,12 @@ capability_matrix_status: complete
 current_phase: 7.0
 current_version: 1.7.0
 status: Released
-  - Python SDK: ✅ COMPLETE (1,190 tests passing)
-  - JavaScript SDK: ✅ COMPLETE (1,004 tests passing)
-  - Go SDK: ✅ COMPLETE (373 tests written, not compiled)
-  - Java SDK: ✅ COMPLETE (387 tests written, not compiled)
-  - Reference Server: ✅ COMPLETE (125 tests passing)
-  - SDK Server Clients: ✅ COMPLETE (Python 31, JavaScript 40, Go 26, Java 30)
+  - Python SDK: [DONE] COMPLETE (1,190 tests passing)
+  - JavaScript SDK: [DONE] COMPLETE (1,004 tests passing)
+  - Go SDK: [DONE] COMPLETE (373 tests written, not compiled)
+  - Java SDK: [DONE] COMPLETE (387 tests written, not compiled)
+  - Reference Server: [DONE] COMPLETE (125 tests passing)
+  - SDK Server Clients: [DONE] COMPLETE (Python 31, JavaScript 40, Go 26, Java 30)
 last_updated: 2026-03-27T00:00:00Z
 error_level: null
 rollback_checkpoint: v1.6.0
@@ -86,7 +86,7 @@ actual_recovery_time: null
 capability_matrix_status: complete
 ## Phase 21: v1.4.0-alpha (Planning Started 2026-03-19)
 ### Theme: Stream Processing & Event-Driven Architecture
-### M1: Streaming Foundation ✅
+### M1: Streaming Foundation [DONE]
 - [x] Stream actor type for continuous data processing (Python, Go, JavaScript, Java)
 - [x] Windowing functions - tumbling, sliding, session windows (All SDKs)
 - [x] Backpressure handling with reactive streams (All SDKs)
@@ -94,13 +94,13 @@ capability_matrix_status: complete
 ### Commits in M1
 - `191dc04` - feat(sdk/python): add streaming module for v1.5.0 m1
     - `7244dac` - feat(sdk): add streaming modules for Go, JavaScript, and Java SDKs
-### M2: Event System ✅ COMPLETE
+### M2: Event System [DONE] COMPLETE
 - [x] Pub/sub messaging with topic-based routing
 - [x] Event sourcing for actor state
 - [x] Guaranteed delivery semantics (at-least-once, exactly-once)
 - [x] Event schema registry
 - [x] 35 comprehensive tests passing (Pub/Sub, Event Sourcing, Delivery, Schema)
-### M3: Workflow Engine ✅ COMPLETE
+### M3: Workflow Engine [DONE] COMPLETE
 - [x] Python SDK
     - [x] Saga pattern with compensation and retry with backoff
     - [x] Workflow state machine with transitions
@@ -122,7 +122,7 @@ capability_matrix_status: complete
 - `a3fcc93` - feat(sdk/go): add workflow types module
 - `72476d7` - feat(sdk): complete M3 workflow engine for all SDKs
 - `fa398ab` - test(sdk/python): add comprehensive tests for workflow module
-### M4: Performance & SDKs ✅ COMPLETE
+### M4: Performance & SDKs [DONE] COMPLETE
 - [x] Python SDK Performance Modules
     - [x] Zero-copy messaging (MemoryPool, PooledBuffer, ZeroCopyBuffer, RingBuffer, ZeroCopyEmitter)
     - [x] Batch processing optimization (BatchConfig, BatchCollector, BatchAggregator, BatchProcessor)
@@ -163,24 +163,24 @@ capability_matrix_status: complete
 
 ## Phase 20: v1.4.0 "Resilience" (Released 2026-03-18)
 
-### M1: Reliability Foundation ✅
+### M1: Reliability Foundation [DONE]
 - [x] Circuit breaker pattern for actor communication (Python, Go, JavaScript, Java)
 - [x] Retry with exponential backoff (fixed, linear, exponential, exponential-jitter)
 - [x] Bulkhead pattern for resource isolation
 - [x] Health check endpoints (Kubernetes liveness/readiness/startup probes)
 - [x] Rate limiting per actor/capability (token bucket, sliding window, fixed window)
 
-### M2: Observability ✅
+### M2: Observability [DONE]
 - [x] OpenTelemetry distributed tracing
 - [x] Prometheus metrics export
 - [x] Grafana dashboard for resilience metrics
 
-### M3: Security Hardening ✅
+### M3: Security Hardening [DONE]
 - [x] Schema-based message validation
 - [x] Input sanitization utilities (string, HTML, SQL, URL, JSON)
 - [x] Fluent validation API with common validators
 
-### M4: Performance & SDKs ✅
+### M4: Performance & SDKs [DONE]
 - [x] Performance benchmarks (Python, Go)
 - [x] SDK v0.2.0 releases (Python, Go, JavaScript)
 - [x] Java SDK v0.2.0
@@ -277,15 +277,15 @@ validation/
 ### Acceptance Criteria Status
 | Criteria | Status |
 |----------|--------|
-| Actors can invoke AI | ✅ Pass |
-| AI can interact with actors | ✅ Pass |
-| Memory persistence works | ✅ Pass |
-| Session checkpoint/restore | ✅ Pass |
-| MCP tools function correctly | ✅ Pass |
-| Capability enforcement | ✅ Pass |
-| All 594 tests passing | ✅ Pass |
-| Documentation complete | ✅ Pass |
-| Deployment ready | ✅ Pass |
+| Actors can invoke AI | [DONE] Pass |
+| AI can interact with actors | [DONE] Pass |
+| Memory persistence works | [DONE] Pass |
+| Session checkpoint/restore | [DONE] Pass |
+| MCP tools function correctly | [DONE] Pass |
+| Capability enforcement | [DONE] Pass |
+| All 594 tests passing | [DONE] Pass |
+| Documentation complete | [DONE] Pass |
+| Deployment ready | [DONE] Pass |
 
 ### Deliverables Complete
 - [x] Core library with AI integration
@@ -471,8 +471,8 @@ All benchmarks compile and run successfully using Criterion:
 - WASI fuzzer for input validation
 
 ### Test Results
-- Hardening tests: 8 passing ✓
-- Penetration tests: 19 passing ✓
+- Hardening tests: 8 passing [PASS]
+- Penetration tests: 19 passing [PASS]
 - All security tests pass
 
 ### Security Checklist Created
@@ -487,26 +487,26 @@ All benchmarks compile and run successfully using Criterion:
 ### Key Security Controls
 | Control | Implementation | Status |
 |--------|----------------|--------|
-| mTLS | Ed25519 certificates, TLS 1.3 | ✓ |
-| RBAC | Role-based access control | ✓ |
-| Capabilities | Deny-by-default | ✓ |
-| Audit | Tamper-evident chain | ✓ |
-| Secrets | Secure memory injection | ✓ |
-| Sandboxing | WASM with WASI | ✓ |
+| mTLS | Ed25519 certificates, TLS 1.3 | [PASS] |
+| RBAC | Role-based access control | [PASS] |
+| Capabilities | Deny-by-default | [PASS] |
+| Audit | Tamper-evident chain | [PASS] |
+| Secrets | Secure memory injection | [PASS] |
+| Sandboxing | WASM with WASI | [PASS] |
 
 ## Documentation Completion (Completed 2026-03-12)
 
 ### Documentation Files Updated
 | File | Description | Status |
 |------|-------------|--------|
-| `.docs/architecture_overview.md` | System architecture | ✓ Updated |
-| `.docs/user_guide.md` | End-user documentation | ✓ Updated |
-| `.docs/api_reference.md` | API documentation | ✓ Current |
-| `.docs/performance_guide.md` | Performance tuning | ✓ Updated |
-| `.docs/troubleshooting.md` | Common issues/solutions | ✓ Updated |
-| `README.md` | Project overview | ✓ Current |
-| `CONTRIBUTING.md` | Contribution guide | ✓ Current |
-| `SECURITY.md` | Security policy | ✓ Current |
+| `.docs/architecture_overview.md` | System architecture | [PASS] Updated |
+| `.docs/user_guide.md` | End-user documentation | [PASS] Updated |
+| `.docs/api_reference.md` | API documentation | [PASS] Current |
+| `.docs/performance_guide.md` | Performance tuning | [PASS] Updated |
+| `.docs/troubleshooting.md` | Common issues/solutions | [PASS] Updated |
+| `README.md` | Project overview | [PASS] Current |
+| `CONTRIBUTING.md` | Contribution guide | [PASS] Current |
+| `SECURITY.md` | Security policy | [PASS] Current |
 
 ### Documentation Statistics
 - Total documentation: ~4,000 lines across 8 primary documents
@@ -517,11 +517,11 @@ All benchmarks compile and run successfully using Criterion:
 ### Documentation Coverage
 | Component | Documented | Examples |
 |-----------|------------|----------|
-| CLI commands | ✓ All 12 commands | ✓ Yes |
-| Configuration schema | ✓ Complete | ✓ Yes |
-| WIT interfaces | ✓ All 6 interfaces | ✓ Yes |
-| Error codes | ✓ All 50+ codes | ✓ Yes |
-| Performance targets | ✓ All metrics | ✓ Yes |
+| CLI commands | [PASS] All 12 commands | [PASS] Yes |
+| Configuration schema | [PASS] Complete | [PASS] Yes |
+| WIT interfaces | [PASS] All 6 interfaces | [PASS] Yes |
+| Error codes | [PASS] All 50+ codes | [PASS] Yes |
+| Performance targets | [PASS] All metrics | [PASS] Yes |
 
 ### Chaos Testing Status
 Chaos testing infrastructure is already comprehensive:
@@ -533,12 +533,12 @@ Chaos testing infrastructure is already comprehensive:
 ## Session Complete
 
 All priority tasks have been completed:
-1. ✓ Performance benchmarks (9 suites)
-2. ✓ Security audit preparation (checklist + 89 tests)
-3. ✓ Documentation completion (8 documents, 4,000+ lines)
-4. ✓ Chaos testing infrastructure (5 test files, comprehensive coverage)
+1. [PASS] Performance benchmarks (9 suites)
+2. [PASS] Security audit preparation (checklist + 89 tests)
+3. [PASS] Documentation completion (8 documents, 4,000+ lines)
+4. [PASS] Chaos testing infrastructure (5 test files, comprehensive coverage)
 
-**Project Status:** Ready for 1.0.0-alpha release
+**Project Status:** v2.0.0 released (2026-05-08)
 
 ---
 
@@ -548,14 +548,14 @@ All priority tasks have been completed:
 
 | Component | Files | Tests | Status |
 |-----------|------|-------|--------|
-| Capability System | `capability.rs` | 3 | ✅ Complete |
-| Certificate Authority | `certs.rs`, `tls.rs` | 8 | ✅ Complete |
-| RBAC | `rbac.rs`, `authorizer.rs` | 14 | ✅ Complete |
-| Audit Logging | `audit.rs` | 10 | ✅ Complete |
-| Secrets Management | `secrets/` | 15 | ✅ Complete |
-| Security Hardening | `hardening.rs` | 8 | ✅ Complete |
-| Penetration Testing | `penetration.rs` | 12 | ✅ Complete |
-| Vulnerability Scanner | `vulnerability.rs` | 5 | ✅ Complete |
+| Capability System | `capability.rs` | 3 | [DONE] Complete |
+| Certificate Authority | `certs.rs`, `tls.rs` | 8 | [DONE] Complete |
+| RBAC | `rbac.rs`, `authorizer.rs` | 14 | [DONE] Complete |
+| Audit Logging | `audit.rs` | 10 | [DONE] Complete |
+| Secrets Management | `secrets/` | 15 | [DONE] Complete |
+| Security Hardening | `hardening.rs` | 8 | [DONE] Complete |
+| Penetration Testing | `penetration.rs` | 12 | [DONE] Complete |
+| Vulnerability Scanner | `vulnerability.rs` | 5 | [DONE] Complete |
 
 ### Security Test Coverage
 - **Unit Tests**: 89 security-specific tests
@@ -592,12 +592,12 @@ All priority tasks have been completed:
 
 | Component | Files | Tests | Status |
 |-----------|-------|-------|--------|
-| MCP Tools | `mcp/file_tools.rs`, `mcp/execution_tools.rs`, `mcp/actor_tools.rs`, `mcp/memory_tools.rs` | 19 | ✅ Complete |
-| Memory Persistence | `context/persistent_memory.rs` | 8 | ✅ Complete |
-| Session Management | `context/session.rs` | 9 | ✅ Complete |
-| Actor-AI Integration | `actor/ai_integration.rs` | 9 | ✅ Complete |
-| Context Loading | `context/loader.rs` | 12 | ✅ Complete |
-| Memory Store | `context/memory.rs` | 10 | ✅ Complete |
+| MCP Tools | `mcp/file_tools.rs`, `mcp/execution_tools.rs`, `mcp/actor_tools.rs`, `mcp/memory_tools.rs` | 19 | [DONE] Complete |
+| Memory Persistence | `context/persistent_memory.rs` | 8 | [DONE] Complete |
+| Session Management | `context/session.rs` | 9 | [DONE] Complete |
+| Actor-AI Integration | `actor/ai_integration.rs` | 9 | [DONE] Complete |
+| Context Loading | `context/loader.rs` | 12 | [DONE] Complete |
+| Memory Store | `context/memory.rs` | 10 | [DONE] Complete |
 
 ### New Capabilities
 - `AI_USE`: Actors can invoke AI capabilities

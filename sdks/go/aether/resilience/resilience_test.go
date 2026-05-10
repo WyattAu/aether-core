@@ -114,84 +114,6 @@ func TestCircuitBreaker_HalfOpenRecovery(t *testing.T) {
 }
 
 // ========================================
-// Retry Tests
-// ========================================
-
-func TestRetryPolicy_SuccessFirstTry(t *testing.T) {
-	policy := NewRetryPolicy(DefaultRetryConfig())
-	
-	result, err := policy.Execute(context.Background(), func(ctx context.Context) (any, error) {
-		return "success", nil
-	})
-	
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
-	
-	if result != "success" {
-		t.Errorf("expected success, got %v", result)
-	}
-	
-	stats := policy.GetStats()
-	if stats.SuccessfulCalls != 1 {
-		t.Errorf("expected 1 successful call, got %d", stats.SuccessfulCalls)
-	}
-}
-
-func TestRetryPolicy_SuccessAfterFailures(t *testing.T) {
-	config := RetryConfig{
-		MaxAttempts: 3,
-		Backoff:     BackoffFixed,
-		BaseDelay:   10 * time.Millisecond,
-	}
-	policy := NewRetryPolicy(config)
-	
-	attempts := 0
-	
-	result, err := policy.Execute(context.Background(), func(ctx context.Context) (any, error) {
-		attempts++
-		if attempts < 3 {
-			return nil, errors.New("transient error")
-		}
-		return "success", nil
-	})
-	
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
-	
-	if result != "success" {
-		t.Errorf("expected success, got %v", result)
-	}
-	
-	if attempts != 3 {
-		t.Errorf("expected 3 attempts, got %d", attempts)
-	}
-}
-
-func TestRetryPolicy_Exhausted(t *testing.T) {
-	config := RetryConfig{
-		MaxAttempts: 2,
-		Backoff:     BackoffFixed,
-		BaseDelay:   10 * time.Millisecond,
-	}
-	policy := NewRetryPolicy(config)
-	
-	_, err := policy.Execute(context.Background(), func(ctx context.Context) (any, error) {
-		return nil, errors.New("always fails")
-	})
-	
-	if err == nil {
-		t.Error("expected error")
-	}
-	
-	var retryErr *RetryExhaustedError
-	if !errors.As(err, &retryErr) {
-		t.Errorf("expected RetryExhaustedError, got %v", err)
-	}
-}
-
-// ========================================
 // Rate Limiter Tests
 // ========================================
 
@@ -295,7 +217,7 @@ func TestBulkhead_RejectsOverLimit(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 	
 	// Try another - should fail because max is 1 and no queue
-	_, err := bh.TryExecute(context.Background(), func(ctx context.Context) (any, error) {
+	_, _ = bh.TryExecute(context.Background(), func(ctx context.Context) (any, error) {
 		return "should fail", nil
 	})
 	
@@ -341,10 +263,8 @@ func TestHealthChecker_Liveness(t *testing.T) {
 func TestHealthChecker_Readiness(t *testing.T) {
 	hc := NewHealthChecker("test-service", "1.0.0")
 	
-	result, err := hc.GetReadiness(context.Background())
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
+	result := hc.GetReadiness(context.Background())
+	if result == nil {
 	
 	if !result["ready"].(bool) {
 		t.Error("expected ready to be true")

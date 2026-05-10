@@ -1,6 +1,6 @@
 # Project Aether User Guide
 
-**Version:** 1.0.0-alpha  
+**Version:** 2.0.0
 **Last Updated:** 2026-03-12  
 **Audience:** Platform Operators, Application Developers
 
@@ -65,7 +65,7 @@ aether status
 
 ```bash
 # Download latest release
-curl -LO https://github.com/aether-project/aether/releases/latest/download/aether-linux-amd64
+curl -LO https://github.com/WyattAu/aether-core/releases/latest/download/aether-linux-amd64
 
 # Make executable
 chmod +x aether-linux-amd64
@@ -80,7 +80,7 @@ aether version
 #### Linux (ARM64)
 
 ```bash
-curl -LO https://github.com/aether-project/aether/releases/latest/download/aether-linux-arm64
+curl -LO https://github.com/WyattAu/aether-core/releases/latest/download/aether-linux-arm64
 chmod +x aether-linux-arm64
 sudo mv aether-linux-arm64 /usr/local/bin/aether
 ```
@@ -89,7 +89,7 @@ sudo mv aether-linux-arm64 /usr/local/bin/aether
 
 ```bash
 # Clone repository
-git clone https://github.com/aether-project/aether.git
+git clone https://github.com/WyattAu/aether-core.git
 cd aether
 
 # Build release binary
@@ -575,7 +575,7 @@ kubectl get pods -l app=aether
 - Reduced hardware access
 - Not recommended for production AI workloads
 
-> ⚠️ **Important:** Kubernetes deployment is intended for evaluation and migration only. For production workloads, plan migration to native deployment. See the [Deployment Guide](deployment_guide.md) for migration instructions.
+> [WARN] **Important:** Kubernetes deployment is intended for evaluation and migration only. For production workloads, plan migration to native deployment. See the [Deployment Guide](deployment_guide.md) for migration instructions.
 
 ---
 

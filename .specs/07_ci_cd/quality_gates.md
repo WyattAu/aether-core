@@ -473,38 +473,38 @@ pre_deploy_gates:
 ```markdown
 # Quality Gate Report
 
-## Overall Status: ✓ PASS
+## Overall Status: [PASS] PASS
 
 ### Coverage
-- Overall: 85.4% ✓ (target: 85%)
-- Critical Modules: 96.2% ✓ (target: 95%)
-- Regression: -1.2% ✓ (max: -5%)
+- Overall: 85.4% [PASS] (target: 85%)
+- Critical Modules: 96.2% [PASS] (target: 95%)
+- Regression: -1.2% [PASS] (max: -5%)
 
 ### Performance
-- Latency: All within limits ✓
-- Throughput: All within limits ✓
-- Regression: None detected ✓
+- Latency: All within limits [PASS]
+- Throughput: All within limits [PASS]
+- Regression: None detected [PASS]
 
 ### Security
-- Critical CVEs: 0 ✓
-- High CVEs: 0 ✓
+- Critical CVEs: 0 [PASS]
+- High CVEs: 0 [PASS]
 - Medium CVEs: 2 (tracked)
-- Secrets: 0 ✓
-- CodeQL: 0 alerts ✓
+- Secrets: 0 [PASS]
+- CodeQL: 0 alerts [PASS]
 
 ### Mutation Score
-- Overall: 87.5% ✓ (minimum: 85%)
-- Critical: 96.8% ✓ (minimum: 95%)
+- Overall: 87.5% [PASS] (minimum: 85%)
+- Critical: 96.8% [PASS] (minimum: 95%)
 
 ### Code Quality
-- Clippy: 0 warnings ✓
-- Formatting: Pass ✓
-- Documentation: 100% ✓
+- Clippy: 0 warnings [PASS]
+- Formatting: Pass [PASS]
+- Documentation: 100% [PASS]
 
 ### Build Health
-- All builds: Pass ✓
-- Binary size: 42 MB ✓ (max: 50 MB)
-- Build time: 8 min ✓ (target: 10 min)
+- All builds: Pass [PASS]
+- Binary size: 42 MB [PASS] (max: 50 MB)
+- Build time: 8 min [PASS] (target: 10 min)
 ```
 
 ## Quality Gate Script
@@ -520,23 +520,23 @@ echo "Running quality gates..."
 # Coverage gate
 COVERAGE=$(cargo llvm-cov --summary-only 2>&1 | grep "TOTAL" | awk '{print $4}' | tr -d '%')
 if (( $(echo "$COVERAGE < 80" | bc -l) )); then
-    echo "❌ Coverage gate failed: $COVERAGE% < 80%"
+    echo "[FAIL] Coverage gate failed: $COVERAGE% < 80%"
     exit 1
 fi
-echo "✓ Coverage gate passed: $COVERAGE%"
+echo "[PASS] Coverage gate passed: $COVERAGE%"
 
 # Security gate
 CRITICAL=$(cargo audit 2>&1 | grep "Critical" | wc -l)
 if [ "$CRITICAL" -gt 0 ]; then
-    echo "❌ Security gate failed: $CRITICAL critical vulnerabilities"
+    echo "[FAIL] Security gate failed: $CRITICAL critical vulnerabilities"
     exit 1
 fi
-echo "✓ Security gate passed: 0 critical vulnerabilities"
+echo "[PASS] Security gate passed: 0 critical vulnerabilities"
 
 # Performance gate
 # ... similar checks
 
-echo "All quality gates passed ✓"
+echo "All quality gates passed [PASS]"
 ```
 
 ## Metrics and Monitoring

@@ -25,8 +25,8 @@ public final class Message {
         this.receiver = builder.receiver;
         this.correlationId = builder.correlationId;
         this.priority = builder.priority;
-        this.timestamp = builder.timestamp != null ? Instant.now() : builder.timestamp;
-        this.metadata = builder.metadata != null ? new HashMap<>() : new HashMap<>();
+        this.timestamp = builder.timestamp != null ? builder.timestamp : Instant.now();
+        this.metadata = builder.metadata != null ? new HashMap<>(builder.metadata) : new HashMap<>();
     }
     
     public String getId() {
@@ -79,21 +79,21 @@ public final class Message {
     /**
      * Create a direct message.
      */
-    public static Builder direct(String sender, String receiver, Object payload) {
+    public static Message direct(String sender, String receiver, Object payload) {
         return builder()
             .type(MessageType.DIRECT)
             .sender(sender)
             .receiver(receiver)
             .payload(payload)
-            .priority(Priority.NORMAL);
-            .timestamp(Instant.now());
+            .priority(Priority.NORMAL)
+            .timestamp(Instant.now())
             .build();
     }
     
     /**
      * Create an RPC request message.
      */
-    public static Builder rpcRequest(String sender, String receiver, Object payload, String correlationId) {
+    public static Message rpcRequest(String sender, String receiver, Object payload, String correlationId) {
         return builder()
             .type(MessageType.RPC_REQUEST)
             .sender(sender)
@@ -108,7 +108,7 @@ public final class Message {
     /**
      * Create an RPC response message.
      */
-    public static Builder rpcResponse(String sender, String receiver, Object payload, String correlationId) {
+    public static Message rpcResponse(String sender, String receiver, Object payload, String correlationId) {
         return builder()
             .type(MessageType.RPC_RESPONSE)
             .sender(sender)
@@ -123,7 +123,7 @@ public final class Message {
     /**
      * Create a broadcast message.
      */
-    public static Builder broadcast(String sender, Object payload) {
+    public static Message broadcast(String sender, Object payload) {
         return builder()
             .type(MessageType.BROADCAST)
             .sender(sender)

@@ -682,13 +682,13 @@ impl RuntimeBridge {
 │                Cross-Runtime Communication Patterns              │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
-│  ✅ SAFE Patterns:                                               │
+│  [DONE] SAFE Patterns:                                               │
 │  ├── Message passing via lock-free queues                       │
 │  ├── Shared immutable data (Arc)                                │
 │  ├── Atomic primitives                                          │
 │  └── One-way communication (no response needed)                 │
 │                                                                  │
-│  ❌ UNSAFE Patterns:                                             │
+│  [FAIL] UNSAFE Patterns:                                             │
 │  ├── Holding lock across runtime boundary                       │
 │  ├── Blocking wait on channel from other runtime               │
 │  ├── Direct function call across boundary                       │

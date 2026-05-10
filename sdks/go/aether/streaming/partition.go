@@ -174,7 +174,7 @@ func (p *Partitioner) GetStats() PartitionStats {
 	defer p.mu.RUnlock()
 
 	counts := make([]int64, len(p.stats.PartitionCount))
-	for i, c := range p.stats.PartitionCount {
+	for i := range p.stats.PartitionCount {
 		counts[i] = atomic.LoadInt64(&p.stats.PartitionCount[i])
 	}
 

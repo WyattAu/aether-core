@@ -1,6 +1,6 @@
 # Aether Community Guide
 
-**Version:** 1.0.0-alpha  
+**Version:** 2.0.0
 **Last Updated:** 2026-03-14
 
 ---
@@ -58,9 +58,9 @@ All Discord interactions follow our [Code of Conduct](../CODE_OF_CONDUCT.md). Pl
 
 | Platform | Purpose |
 |----------|---------|
-| [Issues](https://github.com/aether-project/aether/issues) | Bug reports, feature requests |
-| [Discussions](https://github.com/aether-project/aether/discussions) | Long-form discussions, Q&A |
-| [Pull Requests](https://github.com/aether-project/aether/pulls) | Code contributions |
+| [Issues](https://github.com/WyattAu/aether-core/issues) | Bug reports, feature requests |
+| [Discussions](https://github.com/WyattAu/aether-core/discussions) | Long-form discussions, Q&A |
+| [Pull Requests](https://github.com/WyattAu/aether-core/pulls) | Code contributions |
 
 ---
 
@@ -71,7 +71,7 @@ All Discord interactions follow our [Code of Conduct](../CODE_OF_CONDUCT.md). Pl
 1. **Search existing resources**
    - [Documentation](/.docs/)
    - [FAQ](#faq)
-   - [GitHub Issues](https://github.com/aether-project/aether/issues)
+   - [GitHub Issues](https://github.com/WyattAu/aether-core/issues)
    - [Discord history](https://discord.gg/aether)
 
 2. **Prepare your question**
@@ -142,12 +142,12 @@ See our [Contributing Guide](../CONTRIBUTING.md) for detailed information on:
 
 | Type | Description |
 |------|-------------|
-| 🐛 Bug fixes | Fix issues in existing code |
-| ✨ Features | Add new functionality |
-| 📝 Documentation | Improve docs, examples |
-| 🧪 Tests | Add or improve tests |
-| 🔧 Refactoring | Improve code quality |
-| 🌐 Translations | Translate documentation |
+|  Bug fixes | Fix issues in existing code |
+|  Features | Add new functionality |
+|  Documentation | Improve docs, examples |
+|  Tests | Add or improve tests |
+|  Refactoring | Improve code quality |
+|  Translations | Translate documentation |
 
 ---
 
@@ -156,8 +156,8 @@ See our [Contributing Guide](../CONTRIBUTING.md) for detailed information on:
 ### Finding Good First Issues
 
 1. **GitHub Labels**
-   - Look for [`good first issue`](https://github.com/aether-project/aether/issues?q=is%3Aopen+label%3A%22good+first+issue%22)
-   - Look for [`help wanted`](https://github.com/aether-project/aether/issues?q=is%3Aopen+label%3A%22help+wanted%22)
+   - Look for [`good first issue`](https://github.com/WyattAu/aether-core/issues?q=is%3Aopen+label%3A%22good+first+issue%22)
+   - Look for [`help wanted`](https://github.com/WyattAu/aether-core/issues?q=is%3Aopen+label%3A%22help+wanted%22)
 
 2. **Areas for New Contributors**
 
@@ -242,9 +242,9 @@ We respond within 48 hours and aim to fix critical issues within 7 days.
 |----------|--------|
 | Discord | [discord.gg/aether](https://discord.gg/aether) |
 | Twitter | [@aether_project](https://twitter.com/aether_project) |
-| GitHub | [aether-project/aether](https://github.com/aether-project/aether) |
+| GitHub | [WyattAu/aether-core](https://github.com/WyattAu/aether-core) |
 | Blog | [blog.aether.dev](https://blog.aether.dev) |
 
 ---
 
-Thank you for being part of the Aether community! 🚀
+Thank you for being part of the Aether community! 

@@ -50,8 +50,7 @@ const (
 	ErrCodeInvalidMessage = "INVALID_MESSAGE"
 	// ErrCodeStateError is returned for state operation errors.
 	ErrCodeStateError = "STATE_ERROR"
-	// ErrCodeRpcError is returned for RPC errors.
-	ErrCodeRpcError = "RPC_ERROR"
+
 )
 
 // CapabilityDenied creates a capability denied error.

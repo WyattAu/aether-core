@@ -280,12 +280,12 @@ unsafe impl GlobalAlloc for TrackingAllocator {
 
 | Scenario | Stack | Heap | Rationale |
 |----------|-------|------|-----------|
-| Small, fixed-size (<1KB) | ✅ | ❌ | Performance |
-| Large or variable size | ❌ | ✅ | Stack overflow prevention |
-| Long-lived across function calls | ❌ | ✅ | Lifetime requirements |
-| Temporary, function-scoped | ✅ | ❌ | Automatic cleanup |
-| Shared across threads | ❌ | ✅ | Sync requirements |
-| Performance-critical | ✅ | ❌ | Avoid allocator overhead |
+| Small, fixed-size (<1KB) | [DONE] | [FAIL] | Performance |
+| Large or variable size | [FAIL] | [DONE] | Stack overflow prevention |
+| Long-lived across function calls | [FAIL] | [DONE] | Lifetime requirements |
+| Temporary, function-scoped | [DONE] | [FAIL] | Automatic cleanup |
+| Shared across threads | [FAIL] | [DONE] | Sync requirements |
+| Performance-critical | [DONE] | [FAIL] | Avoid allocator overhead |
 
 ### 5.2 Stack Allocation Guidelines
 

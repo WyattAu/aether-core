@@ -27,13 +27,13 @@ Project Aether maintains a permissive open-source licensing strategy, predominan
 
 | License | SPDX ID | Commercial Use | Modification | Distribution | Patent Grant |
 |---------|---------|----------------|--------------|--------------|--------------|
-| Apache License 2.0 | Apache-2.0 | ✅ | ✅ | ✅ | ✅ |
-| MIT License | MIT | ✅ | ✅ | ✅ | ❌ |
-| BSD 2-Clause | BSD-2-Clause | ✅ | ✅ | ✅ | ❌ |
-| BSD 3-Clause | BSD-3-Clause | ✅ | ✅ | ✅ | ❌ |
-| ISC License | ISC | ✅ | ✅ | ✅ | ❌ |
-| Zlib License | Zlib | ✅ | ✅ | ✅ | ❌ |
-| Unicode-3.0 | Unicode-3.0 | ✅ | ✅ | ✅ | ✅ |
+| Apache License 2.0 | Apache-2.0 | [DONE] | [DONE] | [DONE] | [DONE] |
+| MIT License | MIT | [DONE] | [DONE] | [DONE] | [FAIL] |
+| BSD 2-Clause | BSD-2-Clause | [DONE] | [DONE] | [DONE] | [FAIL] |
+| BSD 3-Clause | BSD-3-Clause | [DONE] | [DONE] | [DONE] | [FAIL] |
+| ISC License | ISC | [DONE] | [DONE] | [DONE] | [FAIL] |
+| Zlib License | Zlib | [DONE] | [DONE] | [DONE] | [FAIL] |
+| Unicode-3.0 | Unicode-3.0 | [DONE] | [DONE] | [DONE] | [DONE] |
 
 ### 2.2 Tier 2: Approved with Conditions
 
@@ -71,82 +71,82 @@ Project Aether maintains a permissive open-source licensing strategy, predominan
 
 | Dependency | Version | License | Patent Grant | Notes |
 |------------|---------|---------|--------------|-------|
-| wasmtime | 25.0.0 | Apache-2.0 | ✅ | Bytecode Alliance |
-| wasmtime-wasi | 25.0.0 | Apache-2.0 | ✅ | Bytecode Alliance |
-| wasmtime-component-util | 25.0.0 | Apache-2.0 | ✅ | Bytecode Alliance |
+| wasmtime | 25.0.0 | Apache-2.0 | [DONE] | Bytecode Alliance |
+| wasmtime-wasi | 25.0.0 | Apache-2.0 | [DONE] | Bytecode Alliance |
+| wasmtime-component-util | 25.0.0 | Apache-2.0 | [DONE] | Bytecode Alliance |
 
 ### 3.2 Virtualization
 
 | Dependency | Version | License | Patent Grant | Notes |
 |------------|---------|---------|--------------|-------|
-| firecracker | 1.9.0 | Apache-2.0 | ✅ | Amazon |
-| kvm-bindings | 0.10.0 | Apache-2.0 | ✅ | Amazon |
-| kvm-ioctls | 0.19.0 | Apache-2.0 OR MIT | ✅ | Amazon |
+| firecracker | 1.9.0 | Apache-2.0 | [DONE] | Amazon |
+| kvm-bindings | 0.10.0 | Apache-2.0 | [DONE] | Amazon |
+| kvm-ioctls | 0.19.0 | Apache-2.0 OR MIT | [DONE] | Amazon |
 
 ### 3.3 Distributed State
 
 | Dependency | Version | License | Patent Grant | Notes |
 |------------|---------|---------|--------------|-------|
-| foundationdb | 0.9.0 | Apache-2.0 OR MIT | ✅ | Apple |
-| foundationdb-sys | 0.9.0 | Apache-2.0 OR MIT | ✅ | Apple |
+| foundationdb | 0.9.0 | Apache-2.0 OR MIT | [DONE] | Apple |
+| foundationdb-sys | 0.9.0 | Apache-2.0 OR MIT | [DONE] | Apple |
 
 ### 3.4 Networking
 
 | Dependency | Version | License | Patent Grant | Notes |
 |------------|---------|---------|--------------|-------|
-| quinn | 0.11.6 | Apache-2.0 OR MIT | ✅ | |
-| quinn-proto | 0.11.9 | Apache-2.0 OR MIT | ✅ | |
-| h3 | 0.0.6 | MIT | ❌ | |
-| h3-quinn | 0.0.7 | MIT | ❌ | |
+| quinn | 0.11.6 | Apache-2.0 OR MIT | [DONE] | |
+| quinn-proto | 0.11.9 | Apache-2.0 OR MIT | [DONE] | |
+| h3 | 0.0.6 | MIT | [FAIL] | |
+| h3-quinn | 0.0.7 | MIT | [FAIL] | |
 
 ### 3.5 Async Runtime
 
 | Dependency | Version | License | Patent Grant | Notes |
 |------------|---------|---------|--------------|-------|
-| tokio | 1.42.0 | MIT | ❌ | Tokio Contributors |
-| monoio | 0.2.4 | Apache-2.0 OR MIT | ✅ | |
-| io-uring | 0.7.4 | Apache-2.0 OR MIT | ✅ | |
+| tokio | 1.42.0 | MIT | [FAIL] | Tokio Contributors |
+| monoio | 0.2.4 | Apache-2.0 OR MIT | [DONE] | |
+| io-uring | 0.7.4 | Apache-2.0 OR MIT | [DONE] | |
 
 ### 3.6 Serialization
 
 | Dependency | Version | License | Patent Grant | Notes |
 |------------|---------|---------|--------------|-------|
-| rkyv | 0.8.9 | MIT | ❌ | David Koloski |
-| rkyv_derive | 0.8.9 | MIT | ❌ | David Koloski |
-| bytecheck | 0.8.1 | MIT | ❌ | David Koloski |
-| serde | 1.0.217 | Apache-2.0 OR MIT | ✅ | |
+| rkyv | 0.8.9 | MIT | [FAIL] | David Koloski |
+| rkyv_derive | 0.8.9 | MIT | [FAIL] | David Koloski |
+| bytecheck | 0.8.1 | MIT | [FAIL] | David Koloski |
+| serde | 1.0.217 | Apache-2.0 OR MIT | [DONE] | |
 
 ### 3.7 CLI & TUI
 
 | Dependency | Version | License | Patent Grant | Notes |
 |------------|---------|---------|--------------|-------|
-| clap | 4.5.23 | Apache-2.0 OR MIT | ✅ | |
-| ratatui | 0.29.0 | MIT | ❌ | |
-| crossterm | 0.28.1 | MIT | ❌ | |
+| clap | 4.5.23 | Apache-2.0 OR MIT | [DONE] | |
+| ratatui | 0.29.0 | MIT | [FAIL] | |
+| crossterm | 0.28.1 | MIT | [FAIL] | |
 
 ### 3.8 Web Framework
 
 | Dependency | Version | License | Patent Grant | Notes |
 |------------|---------|---------|--------------|-------|
-| leptos | 0.7.8 | MIT | ❌ | Greg Johnston |
-| leptos_axum | 0.7.8 | MIT | ❌ | Greg Johnston |
-| axum | 0.8.1 | MIT | ❌ | |
+| leptos | 0.7.8 | MIT | [FAIL] | Greg Johnston |
+| leptos_axum | 0.7.8 | MIT | [FAIL] | Greg Johnston |
+| axum | 0.8.1 | MIT | [FAIL] | |
 
 ### 3.9 Memory
 
 | Dependency | Version | License | Patent Grant | Notes |
 |------------|---------|---------|--------------|-------|
-| mimalloc | 0.1.43 | MIT | ❌ | Microsoft |
-| bytes | 1.9.0 | MIT | ❌ | |
+| mimalloc | 0.1.43 | MIT | [FAIL] | Microsoft |
+| bytes | 1.9.0 | MIT | [FAIL] | |
 
 ### 3.10 Cryptography
 
 | Dependency | Version | License | Patent Grant | Notes |
 |------------|---------|---------|--------------|-------|
-| ring | 0.17.8 | ISC AND OpenSSL AND MIT | ⚠️ | Complex; see below |
-| rustls | 0.23.20 | Apache-2.0 OR ISC OR MIT | ✅ | |
-| ed25519-dalek | 2.1.1 | Apache-2.0 OR MIT | ✅ | |
-| sha2 | 0.10.8 | Apache-2.0 OR MIT | ✅ | |
+| ring | 0.17.8 | ISC AND OpenSSL AND MIT | [WARN] | Complex; see below |
+| rustls | 0.23.20 | Apache-2.0 OR ISC OR MIT | [DONE] | |
+| ed25519-dalek | 2.1.1 | Apache-2.0 OR MIT | [DONE] | |
+| sha2 | 0.10.8 | Apache-2.0 OR MIT | [DONE] | |
 
 **ring License Note:** The `ring` crate uses a combination of ISC, OpenSSL, and MIT licenses. The OpenSSL license includes the advertising clause (deprecated in OpenSSL 3.0+). For Aether's use case (binary distribution without modification), this is compliant.
 
@@ -154,27 +154,27 @@ Project Aether maintains a permissive open-source licensing strategy, predominan
 
 | Dependency | Version | License | Patent Grant | Notes |
 |------------|---------|---------|--------------|-------|
-| tracing | 0.1.41 | MIT | ❌ | |
-| tracing-subscriber | 0.3.19 | MIT | ❌ | |
+| tracing | 0.1.41 | MIT | [FAIL] | |
+| tracing-subscriber | 0.3.19 | MIT | [FAIL] | |
 
 ### 3.12 Utilities
 
 | Dependency | Version | License | Patent Grant | Notes |
 |------------|---------|---------|--------------|-------|
-| thiserror | 2.0.9 | Apache-2.0 OR MIT | ✅ | David Tolnay |
-| anyhow | 1.0.95 | Apache-2.0 OR MIT | ✅ | David Tolnay |
-| uuid | 1.11.0 | Apache-2.0 OR MIT | ✅ | |
-| parking_lot | 0.12.3 | Apache-2.0 OR MIT | ✅ | |
-| dashmap | 6.1.0 | MIT | ❌ | |
-| once_cell | 1.20.2 | Apache-2.0 OR MIT | ✅ | |
+| thiserror | 2.0.9 | Apache-2.0 OR MIT | [DONE] | David Tolnay |
+| anyhow | 1.0.95 | Apache-2.0 OR MIT | [DONE] | David Tolnay |
+| uuid | 1.11.0 | Apache-2.0 OR MIT | [DONE] | |
+| parking_lot | 0.12.3 | Apache-2.0 OR MIT | [DONE] | |
+| dashmap | 6.1.0 | MIT | [FAIL] | |
+| once_cell | 1.20.2 | Apache-2.0 OR MIT | [DONE] | |
 
 ### 3.13 Dev Dependencies
 
 | Dependency | Version | License | Patent Grant | Notes |
 |------------|---------|---------|--------------|-------|
-| criterion | 0.5.1 | Apache-2.0 OR MIT | ✅ | Dev only |
-| proptest | 1.6.0 | Apache-2.0 OR MIT | ✅ | Dev only |
-| tempfile | 3.15.0 | Apache-2.0 OR MIT | ✅ | Dev only |
+| criterion | 0.5.1 | Apache-2.0 OR MIT | [DONE] | Dev only |
+| proptest | 1.6.0 | Apache-2.0 OR MIT | [DONE] | Dev only |
+| tempfile | 3.15.0 | Apache-2.0 OR MIT | [DONE] | Dev only |
 
 ---
 
@@ -208,9 +208,9 @@ cargo about generate about.hbs > NOTICE
 
 | License Type | Patent Grant | Scope |
 |--------------|--------------|-------|
-| Apache-2.0 | ✅ | Explicit grant for contribution |
-| MIT | ❌ | Implied estoppel only |
-| Apache-2.0 OR MIT | ✅ | Apache terms apply |
+| Apache-2.0 | [DONE] | Explicit grant for contribution |
+| MIT | [FAIL] | Implied estoppel only |
+| Apache-2.0 OR MIT | [DONE] | Apache terms apply |
 
 **Recommendation:** Prefer Apache-2.0 licensed dependencies when patent risk is a concern.
 
@@ -301,13 +301,13 @@ For code contributions to Aether:
 
 | Contributor License | Compatible with Apache-2.0? |
 |--------------------|------------------------------|
-| Apache-2.0 | ✅ |
-| MIT | ✅ |
-| BSD-2-Clause | ✅ |
-| BSD-3-Clause | ✅ |
-| GPL-2.0 | ❌ (would require relicense) |
-| GPL-3.0 | ❌ (would require relicense) |
-| LGPL-2.1 | ⚠️ (file-level only) |
+| Apache-2.0 | [DONE] |
+| MIT | [DONE] |
+| BSD-2-Clause | [DONE] |
+| BSD-3-Clause | [DONE] |
+| GPL-2.0 | [FAIL] (would require relicense) |
+| GPL-3.0 | [FAIL] (would require relicense) |
+| LGPL-2.1 | [WARN] (file-level only) |
 
 ### 6.2 Outbound License Compatibility
 
@@ -315,12 +315,12 @@ For users of Aether:
 
 | User License | Can Use Aether (Apache-2.0)? |
 |--------------|------------------------------|
-| Proprietary | ✅ |
-| Apache-2.0 | ✅ |
-| MIT | ✅ |
-| GPL-2.0 | ✅ |
-| GPL-3.0 | ✅ |
-| AGPL-3.0 | ✅ |
+| Proprietary | [DONE] |
+| Apache-2.0 | [DONE] |
+| MIT | [DONE] |
+| GPL-2.0 | [DONE] |
+| GPL-3.0 | [DONE] |
+| AGPL-3.0 | [DONE] |
 
 ---
 

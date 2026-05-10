@@ -1,6 +1,6 @@
 # Project Aether Performance Guide
 
-**Version:** 1.0.0-alpha  
+**Version:** 2.0.0
 **Last Updated:** 2026-03-12  
 **Audience:** Performance Engineers, Platform Operators
 
@@ -648,11 +648,11 @@ aether benchmark compare current.json baseline.json
 # Performance Comparison
 # ─────────────────────────────────
 #                    Baseline    Current    Change
-# Cold Start (P99):  45.2µs      48.1µs     +6.4% ⚠️
-# Latency (P99):     245µs       238µs      -2.9% ✓
-# Throughput:        507K/s      512K/s     +1.0% ✓
+# Cold Start (P99):  45.2µs      48.1µs     +6.4% [WARN]
+# Latency (P99):     245µs       238µs      -2.9% [PASS]
+# Throughput:        507K/s      512K/s     +1.0% [PASS]
 # 
-# ⚠️ 1 regression detected (threshold: 5%)
+# [WARN] 1 regression detected (threshold: 5%)
 ```
 
 ---

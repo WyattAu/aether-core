@@ -1,6 +1,6 @@
 # Project Aether Troubleshooting Guide
 
-**Version:** 1.0.0-alpha  
+**Version:** 2.0.0
 **Last Updated:** 2026-03-12  
 **Audience:** Platform Operators, Developers
 
@@ -336,7 +336,7 @@ aether trace view
 # Trace: req-abc123
 # ─────────────────────────────────
 # 0.000ms  Start request
-# 0.012ms  Capability check: net:tcp:connect ✓
+# 0.012ms  Capability check: net:tcp:connect [PASS]
 # 0.045ms  Connect to db:5432
 # 0.089ms  Send query
 # 0.156ms  Receive response
@@ -399,7 +399,7 @@ aether analyze memory my-actor
 #   10%  Other
 # 
 # Potential Leaks:
-#   ⚠️ 5MB in static HashMap (growing)
+#   [WARN] 5MB in static HashMap (growing)
 ```
 
 ---
@@ -582,7 +582,7 @@ aether replay rec-abc123
 # Replaying rec-abc123
 # ─────────────────────────────────
 # 0.000s  Message received: "test"
-# 0.001s  Capability check: compute ✓
+# 0.001s  Capability check: compute [PASS]
 # 0.002s  Processing message
 # 0.003s  State read: key="counter"
 # 0.004s  State write: key="counter" value=42
@@ -603,7 +603,7 @@ Step 1: Message received: "test"
 (aether-replay) print message
 message = "test"
 (aether-replay) step
-Step 2: Capability check: compute ✓
+Step 2: Capability check: compute [PASS]
 (aether-replay) step
 Step 3: Processing message
 (aether-replay) backtrace
@@ -696,11 +696,11 @@ aether diagnostic
 # Uptime:            2d 5h 30m
 # 
 # Components:
-#   Host Runtime:    ✓ Running
-#   WASM Engine:     ✓ Running (1,234 actors)
-#   Firecracker:     ✓ Running (5 VMs)
-#   Mesh Network:    ✓ Running (10 peers)
-#   State Manager:   ✓ Running
+#   Host Runtime:    [PASS] Running
+#   WASM Engine:     [PASS] Running (1,234 actors)
+#   Firecracker:     [PASS] Running (5 VMs)
+#   Mesh Network:    [PASS] Running (10 peers)
+#   State Manager:   [PASS] Running
 # 
 # Resources:
 #   CPU:             45% (healthy)

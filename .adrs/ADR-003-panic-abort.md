@@ -126,9 +126,9 @@ fn good_example() -> Result<(), Error> {
 
 ```rust
 fn bad_example() {
-    let resource = acquire_resource().unwrap();  // ❌ Can panic
-    let config = CONFIG.clone().expect("config");  // ❌ Can panic
-    process(resource);  // ❌ Should return Result
+    let resource = acquire_resource().unwrap();  // [FAIL] Can panic
+    let config = CONFIG.clone().expect("config");  // [FAIL] Can panic
+    process(resource);  // [FAIL] Should return Result
 }
 ```
 

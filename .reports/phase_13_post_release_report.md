@@ -36,12 +36,12 @@
 
 | Test | Status | Duration |
 |------|--------|----------|
-| Container builds | ✅ Pass | 2m 30s |
-| K8s deployment | ✅ Pass | 1m 15s |
-| Health check | ✅ Pass | 5s |
-| AI endpoint | ✅ Pass | 120ms |
-| Memory endpoint | ✅ Pass | 45ms |
-| Session endpoint | ✅ Pass | 80ms |
+| Container builds | [DONE] Pass | 2m 30s |
+| K8s deployment | [DONE] Pass | 1m 15s |
+| Health check | [DONE] Pass | 5s |
+| AI endpoint | [DONE] Pass | 120ms |
+| Memory endpoint | [DONE] Pass | 45ms |
+| Session endpoint | [DONE] Pass | 80ms |
 
 ### 2.2 Production Metrics Baseline
 
@@ -61,19 +61,19 @@
 
 | Alert | Status | Threshold |
 |-------|--------|-----------|
-| AIHighErrorRate | ✅ Active | >0.1/s |
-| MemoryStoreHigh | ✅ Active | >450MB |
-| SessionStoreFull | ✅ Active | >90% capacity |
-| AIRequestSlow | ✅ Active | P99 >300ms |
+| AIHighErrorRate | [DONE] Active | >0.1/s |
+| MemoryStoreHigh | [DONE] Active | >450MB |
+| SessionStoreFull | [DONE] Active | >90% capacity |
+| AIRequestSlow | [DONE] Active | P99 >300ms |
 
 ### 3.2 Dashboards Deployed
 
 | Dashboard | Status |
 |-----------|--------|
-| AI Overview | ✅ Active |
-| Memory Store | ✅ Active |
-| Sessions | ✅ Active |
-| Performance | ✅ Active |
+| AI Overview | [DONE] Active |
+| Memory Store | [DONE] Active |
+| Sessions | [DONE] Active |
+| Performance | [DONE] Active |
 
 ---
 
@@ -83,9 +83,9 @@
 
 | Channel | Purpose | Status |
 |---------|---------|--------|
-| GitHub Issues | Bug reports, features | ✅ Active |
-| GitHub Discussions | Questions, ideas | ✅ Active |
-| Discord | Real-time support | ✅ Active |
+| GitHub Issues | Bug reports, features | [DONE] Active |
+| GitHub Discussions | Questions, ideas | [DONE] Active |
+| Discord | Real-time support | [DONE] Active |
 
 ### 4.2 Metrics to Track
 
@@ -112,10 +112,10 @@
 
 | Runbook | Status | Last Tested |
 |---------|--------|-------------|
-| AIHighErrorRate | ✅ Ready | 2026-03-14 |
-| MemoryStoreFull | ✅ Ready | 2026-03-14 |
-| SessionDataLoss | ✅ Ready | 2026-03-14 |
-| CapabilityViolation | ✅ Ready | 2026-03-14 |
+| AIHighErrorRate | [DONE] Ready | 2026-03-14 |
+| MemoryStoreFull | [DONE] Ready | 2026-03-14 |
+| SessionDataLoss | [DONE] Ready | 2026-03-14 |
+| CapabilityViolation | [DONE] Ready | 2026-03-14 |
 
 ---
 

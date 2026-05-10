@@ -379,7 +379,7 @@ public class OrderStreamActor {
 
 ## Milestones
 
-### M1: Streaming Foundation ✅ COMPLETE
+### M1: Streaming Foundation [DONE] COMPLETE
 - [x] Stream actor type (Python, Go, JavaScript, Java SDKs)
 - [x] Windowing functions (tumbling, sliding, session)
 - [x] Backpressure handling with reactive streams
@@ -390,7 +390,7 @@ public class OrderStreamActor {
 - `191dc04` - feat(sdk/python): add streaming module for v1.5.0 M1
 - `7244dac` - feat(sdk): add streaming modules for Go, JavaScript, and Java SDKs
 
-### M2: Event System ✅ COMPLETE
+### M2: Event System [DONE] COMPLETE
 - [x] Pub/sub messaging with topic-based routing (Python, Go, JavaScript, Java)
 - [x] Event sourcing for actor state persistence (All SDKs)
 - [x] Guaranteed delivery semantics
@@ -404,7 +404,7 @@ public class OrderStreamActor {
     - `8844d26` - docs: update VERSION.md and ROADMAP_v1.5.md with M1 completion
     - Added commit references for M1 work
 
-### M3: Workflow Engine ✅ COMPLETE
+### M3: Workflow Engine [DONE] COMPLETE
 - [x] Saga pattern implementation (All SDKs)
 - [x] Workflow state machine with transitions (All SDKs)
 - [x] Persistence and checkpointing support

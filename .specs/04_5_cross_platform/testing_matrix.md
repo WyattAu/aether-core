@@ -476,9 +476,9 @@ qemu-system-x86_64 \
 
 | Architecture | QEMU Command | Use Case | Status |
 |--------------|--------------|----------|--------|
-| x86_64 | `qemu-system-x86_64 -enable-kvm` | Primary testing | ✅ Supported |
-| ARM64 | `qemu-system-aarch64 -M virt -cpu cortex-a57` | ARM64 testing | ⚠️ Slow |
-| RISC-V | `qemu-system-riscv64 -M virt` | Future testing | 🔍 Experimental |
+| x86_64 | `qemu-system-x86_64 -enable-kvm` | Primary testing | [DONE] Supported |
+| ARM64 | `qemu-system-aarch64 -M virt -cpu cortex-a57` | ARM64 testing | [WARN] Slow |
+| RISC-V | `qemu-system-riscv64 -M virt` | Future testing |  Experimental |
 
 ### ARM64 Emulation
 
@@ -572,7 +572,7 @@ qemu-aarch64 -L /usr/aarch64-linux-gnu \
 # Test Report - YYYY-MM-DD
 
 ## Summary
-- Overall Status: ✅ PASS
+- Overall Status: [DONE] PASS
 - Total Tests: 1,234
 - Passed: 1,200
 - Failed: 10
@@ -591,9 +591,9 @@ qemu-aarch64 -L /usr/aarch64-linux-gnu \
 
 | Metric | Baseline | Current | Status |
 |--------|----------|---------|--------|
-| Cold start | 50µs | 48µs | ✅ |
-| Throughput | 40 Gbps | 42 Gbps | ✅ |
-| VM boot | 125ms | 122ms | ✅ |
+| Cold start | 50µs | 48µs | [DONE] |
+| Throughput | 40 Gbps | 42 Gbps | [DONE] |
+| VM boot | 125ms | 122ms | [DONE] |
 
 ## Issues
 - #123: Intermittent failure on ARM64

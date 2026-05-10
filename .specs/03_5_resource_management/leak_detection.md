@@ -131,10 +131,10 @@ valgrind \
     --test-threads=1
 
 if grep "definitely lost: 0 bytes" valgrind_report.log; then
-    echo "✓ No memory leaks detected"
+    echo "[PASS] No memory leaks detected"
     exit 0
 else
-    echo "✗ Memory leaks detected!"
+    echo "[FAIL] Memory leaks detected!"
     cat valgrind_report.log
     exit 1
 fi
@@ -186,7 +186,7 @@ RUSTFLAGS="-Z sanitizer=address" \
 cargo +nightly test --lib --target x86_64-unknown-linux-gnu \
     -- --test-threads=1
 
-echo "✓ AddressSanitizer checks passed"
+echo "[PASS] AddressSanitizer checks passed"
 ```
 
 ### 5.2 ASAN Options
@@ -216,7 +216,7 @@ RUSTFLAGS="-Z sanitizer=memory" \
 cargo +nightly test --lib --target x86_64-unknown-linux-gnu \
     -- --test-threads=1
 
-echo "✓ MemorySanitizer checks passed"
+echo "[PASS] MemorySanitizer checks passed"
 ```
 
 ### 5.4 ThreadSanitizer (TSAN)
@@ -233,7 +233,7 @@ RUSTFLAGS="-Z sanitizer=thread" \
 cargo +nightly test --lib --target x86_64-unknown-linux-gnu \
     -- --test-threads=1
 
-echo "✓ ThreadSanitizer checks passed"
+echo "[PASS] ThreadSanitizer checks passed"
 ```
 
 ---
@@ -552,9 +552,9 @@ jobs:
             ./target/release/aether-runtime --long-running-test
           
           if grep "definitely lost: 0 bytes" valgrind_long_running.log; then
-            echo "✓ No leaks in long-running test"
+            echo "[PASS] No leaks in long-running test"
           else
-            echo "✗ Leaks detected!"
+            echo "[FAIL] Leaks detected!"
             cat valgrind_long_running.log
             exit 1
           fi

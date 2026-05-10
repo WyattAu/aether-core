@@ -741,45 +741,45 @@ echo "Checking KVM support..."
 
 # Check CPU virtualization
 if grep -q 'vmx' /proc/cpuinfo || grep -q 'svm' /proc/cpuinfo; then
-    echo "✓ CPU virtualization supported"
+    echo "[PASS] CPU virtualization supported"
 else
-    echo "✗ CPU virtualization NOT supported"
+    echo "[FAIL] CPU virtualization NOT supported"
     exit 1
 fi
 
 # Check KVM module
 if [ -c /dev/kvm ]; then
-    echo "✓ /dev/kvm exists"
+    echo "[PASS] /dev/kvm exists"
 else
-    echo "✗ /dev/kvm missing"
+    echo "[FAIL] /dev/kvm missing"
     exit 1
 fi
 
 # Check KVM permissions
 if [ -r /dev/kvm ] && [ -w /dev/kvm ]; then
-    echo "✓ /dev/kvm accessible"
+    echo "[PASS] /dev/kvm accessible"
 else
-    echo "✗ /dev/kvm not accessible"
+    echo "[FAIL] /dev/kvm not accessible"
     exit 1
 fi
 
 # Check cgroups v2
 if mountpoint -q /sys/fs/cgroup; then
-    echo "✓ cgroups v2 mounted"
+    echo "[PASS] cgroups v2 mounted"
 else
-    echo "✗ cgroups v2 not mounted"
+    echo "[FAIL] cgroups v2 not mounted"
     exit 1
 fi
 
 # Check seccomp
 if grep -q 'seccomp' /proc/self/status; then
-    echo "✓ seccomp supported"
+    echo "[PASS] seccomp supported"
 else
-    echo "✗ seccomp NOT supported"
+    echo "[FAIL] seccomp NOT supported"
     exit 1
 fi
 
-echo "✓ All KVM requirements satisfied"
+echo "[PASS] All KVM requirements satisfied"
 ```
 
 ### 8.2 Deployment Architecture
@@ -1073,26 +1073,26 @@ pub trait StorageHal: Send + Sync {
 
 | OCI Requirement | Implementation | Status |
 |-----------------|----------------|--------|
-| **Config Schema** | VmConfig maps to spec.Spec | ✓ Compliant |
-| **Root Filesystem** | Block device with rootfs | ✓ Compliant |
-| **Process** | Init process in VM | ✓ Compliant |
-| **Linux Namespaces** | VM provides full isolation | ✓ Compliant |
-| **Linux Devices** | virtio devices | ✓ Compliant |
-| **Linux Resources** | cgroups via jailer | ✓ Compliant |
-| **Hooks** | Prestart, poststop supported | ✓ Compliant |
-| **Annotations** | VmConfig.metadata | ✓ Compliant |
+| **Config Schema** | VmConfig maps to spec.Spec | [PASS] Compliant |
+| **Root Filesystem** | Block device with rootfs | [PASS] Compliant |
+| **Process** | Init process in VM | [PASS] Compliant |
+| **Linux Namespaces** | VM provides full isolation | [PASS] Compliant |
+| **Linux Devices** | virtio devices | [PASS] Compliant |
+| **Linux Resources** | cgroups via jailer | [PASS] Compliant |
+| **Hooks** | Prestart, poststop supported | [PASS] Compliant |
+| **Annotations** | VmConfig.metadata | [PASS] Compliant |
 
 ### 11.2 Firecracker API Compatibility
 
 | Firecracker API | Manager Interface | Status |
 |-----------------|-------------------|--------|
-| PUT /machine-config | IF-VM-001 (create_vm) | ✓ Compatible |
-| PUT /boot-source | IF-VM-001 (kernel config) | ✓ Compatible |
-| PUT /drives/{id} | IF-VM-003 (attach_volume) | ✓ Compatible |
-| PUT /network-interfaces/{id} | IF-VM-004 (configure_network) | ✓ Compatible |
-| PUT /actions | Internal (start instance) | ✓ Compatible |
-| GET /vm/config | VmStateRecord | ✓ Compatible |
-| GET /vm/info | VmMetrics | ✓ Compatible |
+| PUT /machine-config | IF-VM-001 (create_vm) | [PASS] Compatible |
+| PUT /boot-source | IF-VM-001 (kernel config) | [PASS] Compatible |
+| PUT /drives/{id} | IF-VM-003 (attach_volume) | [PASS] Compatible |
+| PUT /network-interfaces/{id} | IF-VM-004 (configure_network) | [PASS] Compatible |
+| PUT /actions | Internal (start instance) | [PASS] Compatible |
+| GET /vm/config | VmStateRecord | [PASS] Compatible |
+| GET /vm/info | VmMetrics | [PASS] Compatible |
 
 ### 11.3 Security Compliance
 
@@ -1144,7 +1144,7 @@ pub trait StorageHal: Send + Sync {
 
 | Reviewer | Role | Status | Date |
 |----------|------|--------|------|
-| Construct | Systems Architect | ✓ Approved | 2026-03-05 |
+| Construct | Systems Architect | [PASS] Approved | 2026-03-05 |
 | | Security Review | Pending | |
 | | Performance Review | Pending | |
 | | Implementation Lead | Pending | |

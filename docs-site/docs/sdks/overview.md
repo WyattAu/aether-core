@@ -6,10 +6,10 @@ Aether provides SDKs for multiple programming languages, all sharing the same co
 
 | SDK | Status | Package | Documentation |
 |-----|--------|---------|---------------|
-| Go | ✅ Stable | `github.com/WyattAu/aether-core/sdks/go/aether` | [Go SDK](go.md) |
-| Python | ✅ Stable | `aether-sdk` | [Python SDK](python.md) |
-| JavaScript | ✅ Stable | `@aether/sdk` | [JavaScript SDK](javascript.md) |
-| Rust | 🔄 Beta | `aether` | [Rust SDK](rust.md) |
+| Go | [DONE] Stable | `github.com/WyattAu/aether-core/sdks/go/aether` | [Go SDK](go.md) |
+| Python | [DONE] Stable | `aether-sdk` | [Python SDK](python.md) |
+| JavaScript | [DONE] Stable | `@aether/sdk` | [JavaScript SDK](javascript.md) |
+| Rust | [IN PROGRESS] Beta | `aether` | [Rust SDK](rust.md) |
 
 ## Common API Patterns
 
@@ -222,7 +222,7 @@ All SDKs use the same capability model:
 
 ### Go SDK
 
-✅ **Best for:**
+[DONE] **Best for:**
 - High-performance services
 - Microservices architecture
 - Infrastructure tooling
@@ -230,7 +230,7 @@ All SDKs use the same capability model:
 
 ### Python SDK
 
-✅ **Best for:**
+[DONE] **Best for:**
 - AI/ML applications
 - Data processing
 - Rapid prototyping
@@ -238,7 +238,7 @@ All SDKs use the same capability model:
 
 ### JavaScript SDK
 
-✅ **Best for:**
+[DONE] **Best for:**
 - Web applications
 - Node.js backends
 - Serverless functions
@@ -246,7 +246,7 @@ All SDKs use the same capability model:
 
 ### Rust SDK
 
-✅ **Best for:**
+[DONE] **Best for:**
 - System programming
 - Maximum performance
 - Safety-critical systems

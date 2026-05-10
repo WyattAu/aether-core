@@ -9,7 +9,7 @@ This guide covers best practices for building reliable, performant, and maintain
 Each actor should have a single, well-defined responsibility:
 
 ```typescript
-// ✓ Good: Focused responsibility
+// [PASS] Good: Focused responsibility
 class OrderActor extends Actor {
     // Only handles order-related operations
 }
@@ -18,7 +18,7 @@ class InventoryActor extends Actor {
     // Only handles inventory operations
 }
 
-// ✗ Bad: Multiple responsibilities
+// [FAIL] Bad: Multiple responsibilities
 class OrderAndInventoryActor extends Actor {
     // Handles both orders AND inventory
 }
@@ -29,7 +29,7 @@ class OrderAndInventoryActor extends Actor {
 Prefer stateless actors for better scalability:
 
 ```typescript
-// ✓ Good: Stateless transformation
+// [PASS] Good: Stateless transformation
 class TransformerActor extends Actor {
     async handleMessage(sender: string, message: Message): Promise<Message | null> {
         const result = this.transform(message.payload);
@@ -37,7 +37,7 @@ class TransformerActor extends Actor {
     }
 }
 
-// ✗ Bad: Unnecessary state
+// [FAIL] Bad: Unnecessary state
 class TransformerWithStateActor extends Actor {
     private callCount = 0;  // Only needed if count matters
     
@@ -54,7 +54,7 @@ class TransformerWithStateActor extends Actor {
 Always declare required capabilities explicitly:
 
 ```typescript
-// ✓ Good: Explicit capabilities
+// [PASS] Good: Explicit capabilities
 class DataActor extends Actor {
     constructor() {
         super('data-actor');
@@ -67,7 +67,7 @@ class DataActor extends Actor {
     }
 }
 
-// ✗ Bad: Missing capabilities
+// [FAIL] Bad: Missing capabilities
 class DataActor extends Actor {
     constructor() {
         super('data-actor');
@@ -83,7 +83,7 @@ class DataActor extends Actor {
 Save state immediately after modifications:
 
 ```typescript
-// ✓ Good: Save immediately
+// [PASS] Good: Save immediately
 async handleMessage(sender: string, message: Message): Promise<Message | null> {
     const payload = message.payload as Record<string, any>;
     
@@ -93,7 +93,7 @@ async handleMessage(sender: string, message: Message): Promise<Message | null> {
     return Message.response({ success: true });
 }
 
-// ✗ Bad: Delayed persistence
+// [FAIL] Bad: Delayed persistence
 async handleMessage(sender: string, message: Message): Promise<Message | null> {
     const payload = message.payload as Record<string, any>;
     
@@ -109,7 +109,7 @@ async handleMessage(sender: string, message: Message): Promise<Message | null> {
 Use namespaced keys to avoid collisions:
 
 ```typescript
-// ✓ Good: Namespaced keys
+// [PASS] Good: Namespaced keys
 private getStateKey(key: string): string {
     return `${this.name}:${key}`;
 }
@@ -118,14 +118,14 @@ private getStateKey(key: string): string {
 const stateKey = this.getStateKey('user_data');
 // Result: 'user-actor:user_data'
 
-// ✗ Bad: Generic keys
+// [FAIL] Bad: Generic keys
 const stateKey = 'data';  // Could collide with other actors
 ```
 
 ### Handle Missing State Gracefully
 
 ```typescript
-// ✓ Good: Graceful handling
+// [PASS] Good: Graceful handling
 async onStart(): Promise<void> {
     const data = await this.state.read(this.stateKey);
     if (data) {
@@ -148,7 +148,7 @@ async onStart(): Promise<void> {
 Always validate incoming messages:
 
 ```typescript
-// ✓ Good: Input validation
+// [PASS] Good: Input validation
 async handleMessage(sender: string, message: Message): Promise<Message | null> {
     const payload = message.payload;
     
@@ -170,7 +170,7 @@ async handleMessage(sender: string, message: Message): Promise<Message | null> {
 Define interfaces for message payloads:
 
 ```typescript
-// ✓ Good: Typed payloads
+// [PASS] Good: Typed payloads
 interface CreateOrderPayload {
     action: 'create';
     customer: string;
@@ -201,7 +201,7 @@ async handleMessage(sender: string, message: Message): Promise<Message | null> {
 ### Return Consistent Responses
 
 ```typescript
-// ✓ Good: Consistent response format
+// [PASS] Good: Consistent response format
 async handleMessage(sender: string, message: Message): Promise<Message | null> {
     try {
         const result = await this.processAction(message.payload);
@@ -225,7 +225,7 @@ async handleMessage(sender: string, message: Message): Promise<Message | null> {
 Avoid throwing uncaught exceptions:
 
 ```typescript
-// ✓ Good: Return error responses
+// [PASS] Good: Return error responses
 async handleMessage(sender: string, message: Message): Promise<Message | null> {
     try {
         const result = await this.riskyOperation();
@@ -239,7 +239,7 @@ async handleMessage(sender: string, message: Message): Promise<Message | null> {
     }
 }
 
-// ✗ Bad: Uncaught exceptions
+// [FAIL] Bad: Uncaught exceptions
 async handleMessage(sender: string, message: Message): Promise<Message | null> {
     const result = await this.riskyOperation();  // Could throw!
     return Message.response({ result });
@@ -249,7 +249,7 @@ async handleMessage(sender: string, message: Message): Promise<Message | null> {
 ### Use Structured Errors
 
 ```typescript
-// ✓ Good: Structured errors
+// [PASS] Good: Structured errors
 class ActorError extends Error {
     constructor(
         public code: string,
@@ -283,13 +283,13 @@ async handleMessage(sender: string, message: Message): Promise<Message | null> {
 ### Avoid Blocking Operations
 
 ```typescript
-// ✓ Good: Non-blocking
+// [PASS] Good: Non-blocking
 async handleMessage(sender: string, message: Message): Promise<Message | null> {
     const result = await this.asyncOperation();
     return Message.response(result);
 }
 
-// ✗ Bad: Blocking
+// [FAIL] Bad: Blocking
 async handleMessage(sender: string, message: Message): Promise<Message | null> {
     const result = this.blockingOperation();  // Blocks the event loop!
     return Message.response(result);
@@ -299,7 +299,7 @@ async handleMessage(sender: string, message: Message): Promise<Message | null> {
 ### Batch Operations
 
 ```typescript
-// ✓ Good: Batch processing
+// [PASS] Good: Batch processing
 async handleBatch(items: any[]): Promise<Message> {
     const results = await Promise.all(
         items.map(item => this.processItem(item))
@@ -311,7 +311,7 @@ async handleBatch(items: any[]): Promise<Message> {
 ### Cache Frequently Accessed Data
 
 ```typescript
-// ✓ Good: Caching
+// [PASS] Good: Caching
 class CachedActor extends Actor {
     private cache: Map<string, { data: any; expiry: number }> = new Map();
     private cacheTTL = 60000; // 1 minute
@@ -337,7 +337,7 @@ class CachedActor extends Actor {
 ### Structured Logging
 
 ```typescript
-// ✓ Good: Structured logging
+// [PASS] Good: Structured logging
 class MyActor extends Actor {
     private log(level: string, message: string, data?: any): void {
         console.log(JSON.stringify({
@@ -439,7 +439,7 @@ it('should handle missing required fields', async () => {
 ### Validate All Inputs
 
 ```typescript
-// ✓ Good: Input validation
+// [PASS] Good: Input validation
 async handleMessage(sender: string, message: Message): Promise<Message | null> {
     const payload = message.payload as Record<string, any>;
     
@@ -463,7 +463,7 @@ async handleMessage(sender: string, message: Message): Promise<Message | null> {
 ### Don't Expose Internal State
 
 ```typescript
-// ✓ Good: Return copies
+// [PASS] Good: Return copies
 async handleMessage(sender: string, message: Message): Promise<Message | null> {
     return Message.response({
         items: [...this.items],  // Copy, not reference
@@ -471,7 +471,7 @@ async handleMessage(sender: string, message: Message): Promise<Message | null> {
     });
 }
 
-// ✗ Bad: Expose internal state
+// [FAIL] Bad: Expose internal state
 async handleMessage(sender: string, message: Message): Promise<Message | null> {
     return Message.response({
         items: this.items  // Direct reference to internal state!
@@ -484,7 +484,7 @@ async handleMessage(sender: string, message: Message): Promise<Message | null> {
 ### Clean Up Resources
 
 ```typescript
-// ✓ Good: Clean up in onStop
+// [PASS] Good: Clean up in onStop
 class ResourceActor extends Actor {
     private timer?: ReturnType<typeof setInterval>;
     private connections: Connection[] = [];
@@ -509,7 +509,7 @@ class ResourceActor extends Actor {
 ### Graceful Shutdown
 
 ```typescript
-// ✓ Good: Graceful shutdown
+// [PASS] Good: Graceful shutdown
 async function main(): Promise<void> {
     const actor = new MyActor();
     await actor.start();

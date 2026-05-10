@@ -13,7 +13,7 @@
 //!
 //! # Example: Actor Spans
 //!
-//! ```ignore
+//! ```rust
 //! use aether_core::tracing::{ActorSpan, SpanKind};
 //!
 //! // Create actor span
@@ -32,7 +32,7 @@
 //!
 //! # Example: Mesh Spans
 //!
-//! ```ignore
+//! ```rust
 //! use aether_core::tracing::MeshSpan;
 //!
 //! // Create mesh span
@@ -48,7 +48,7 @@
 //!
 //! # Example: State Spans
 //!
-//! ```ignore
+//! ```rust
 //! use aether_core::tracing::StateSpan;
 //!
 //! // Create state span

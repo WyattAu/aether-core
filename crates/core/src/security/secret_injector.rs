@@ -71,7 +71,7 @@ impl InjectionRecord {
     ///
     /// # Example
     ///
-    /// ```ignore
+    /// ```rust
     /// use aether_core::security::secret_injector::InjectionRecord;
     /// use aether_core::security::SecretReference;
     ///
@@ -136,7 +136,7 @@ impl SecureMemoryRegion {
     ///
     /// # Example
     ///
-    /// ```ignore
+    /// ```rust
     /// use aether_core::security::secret_injector::SecureMemoryRegion;
     ///
     /// let mut region = SecureMemoryRegion::allocate(100, "inj-123")?;
@@ -314,7 +314,7 @@ fn align_to_page(size: usize) -> usize {
 ///
 /// # Example
 ///
-/// ```ignore
+/// ```no_run
 /// use std::sync::Arc;
 /// use aether_core::security::{SecretManager, SecretInjector, SecretReference};
 ///
@@ -322,10 +322,13 @@ fn align_to_page(size: usize) -> usize {
 /// let injector = Arc::new(SecretInjector::new(manager));
 ///
 /// let reference = SecretReference::memory("db", "password");
+/// # let injector = async {
 /// let injection_id = injector.inject("actor-1", &reference).await?;
 ///
 /// let data = injector.consume(&injection_id)?;
 /// # Ok::<(), aether_core::Error>(())
+/// # };
+/// # let _ = injector;
 /// ```
 pub struct SecretInjector {
     secret_manager: Arc<SecretManager>,

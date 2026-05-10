@@ -40,12 +40,12 @@ We select **Firecracker 1.10** as our Virtual Machine Monitor (VMM).
 
 | Criterion | Firecracker | gVisor | Kata | QEMU |
 |-----------|-------------|--------|------|------|
-| Boot Time | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐ |
-| Security | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ |
-| Density | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐ |
-| Overhead | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐ |
-| Simplicity | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐ | ⭐⭐ |
-| Production | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
+| Boot Time | ***** | **** | *** | ** |
+| Security | ***** | **** | ***** | *** |
+| Density | ***** | ***** | *** | ** |
+| Overhead | ***** | *** | **** | *** |
+| Simplicity | ***** | **** | ** | ** |
+| Production | ***** | **** | **** | ***** |
 
 ### Key Advantages
 
@@ -227,12 +227,12 @@ fn configure_network(vm: &mut Firecracker, config: &NetworkConfig) {
 
 | Property | Mechanism | Status |
 |----------|-----------|--------|
-| Memory isolation | KVM + EPT | ✅ Hardware enforced |
-| CPU isolation | KVM + VMX/SVM | ✅ Hardware enforced |
-| Device isolation | Minimal devices | ✅ Reduced attack surface |
-| Seccomp | Jailer | ✅ Configurable |
-| Cgroups | Jailer | ✅ Resource limits |
-| Namespaces | Jailer | ✅ Process isolation |
+| Memory isolation | KVM + EPT | [DONE] Hardware enforced |
+| CPU isolation | KVM + VMX/SVM | [DONE] Hardware enforced |
+| Device isolation | Minimal devices | [DONE] Reduced attack surface |
+| Seccomp | Jailer | [DONE] Configurable |
+| Cgroups | Jailer | [DONE] Resource limits |
+| Namespaces | Jailer | [DONE] Process isolation |
 
 ## Operational Considerations
 

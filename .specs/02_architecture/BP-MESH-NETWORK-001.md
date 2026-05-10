@@ -771,7 +771,7 @@ Sender Node              Intermediate Node           Receiver Node
      │                         │ Buffer: 70% full          │
      │                         ├──────────────────────────▶│
      │                         │                           │ Process message
-     │                         │                           │ Buffer: 85% ★
+     │                         │                           │ Buffer: 85% *
      │                         │                           │ β = 1 (backpressure)
      │                         │◀─── STOP_SENDING ─────────┤
      │                         │                           │
@@ -1125,59 +1125,59 @@ fn test_hal_conformance() {
 | Section | Requirement | Status | Implementation Notes |
 |---------|-------------|--------|----------------------|
 | **5. Connections** | | | |
-| 5.1 | Connection ID | ✓ Compliant | 8-byte random CID |
-| 5.2 | Version Negotiation | ✓ Compliant | Supports version 1 |
-| 5.3 | Stateless Reset | ✓ Compliant | 16-byte stateless reset token |
+| 5.1 | Connection ID | [PASS] Compliant | 8-byte random CID |
+| 5.2 | Version Negotiation | [PASS] Compliant | Supports version 1 |
+| 5.3 | Stateless Reset | [PASS] Compliant | 16-byte stateless reset token |
 | **6. Version Negotiation** | | | |
-| 6.1 | Send Version Negotiation | ✓ Compliant | On unsupported version |
-| 6.2 | Handle Version Negotiation | ✓ Compliant | Retry with supported version |
+| 6.1 | Send Version Negotiation | [PASS] Compliant | On unsupported version |
+| 6.2 | Handle Version Negotiation | [PASS] Compliant | Retry with supported version |
 | **7. Cryptographic Handshake** | | | |
-| 7.1 | TLS 1.3 Integration | ✓ Compliant | Via rustls |
-| 7.2 | 0-RTT Data | ✓ Compliant | Session resumption |
-| 7.3 | 1-RTT Handshake | ✓ Compliant | Standard handshake |
+| 7.1 | TLS 1.3 Integration | [PASS] Compliant | Via rustls |
+| 7.2 | 0-RTT Data | [PASS] Compliant | Session resumption |
+| 7.3 | 1-RTT Handshake | [PASS] Compliant | Standard handshake |
 | **8. Address Validation** | | | |
-| 8.1 | Retry Packet | ✓ Compliant | Optional address validation |
-| 8.2 | NEW_TOKEN Frame | ✓ Compliant | Token-based validation |
+| 8.1 | Retry Packet | [PASS] Compliant | Optional address validation |
+| 8.2 | NEW_TOKEN Frame | [PASS] Compliant | Token-based validation |
 | **9. Connection Migration** | | | |
-| 9.1 | Initiating Migration | ✓ Compliant | PATH_CHALLENGE/RESPONSE |
-| 9.2 | Responding to Migration | ✓ Compliant | Peer address update |
-| 9.3 | Migration during Handshake | ⚠ Partial | Not recommended during 0-RTT |
+| 9.1 | Initiating Migration | [PASS] Compliant | PATH_CHALLENGE/RESPONSE |
+| 9.2 | Responding to Migration | [PASS] Compliant | Peer address update |
+| 9.3 | Migration during Handshake | [WARN] Partial | Not recommended during 0-RTT |
 | **10. Stream Multiplexing** | | | |
-| 10.1 | Stream Types | ✓ Compliant | Unidirectional + bidirectional |
-| 10.2 | Stream Identifiers | ✓ Compliant | 62-bit stream IDs |
-| 10.3 | Stream State Machine | ✓ Compliant | Via quinn library |
+| 10.1 | Stream Types | [PASS] Compliant | Unidirectional + bidirectional |
+| 10.2 | Stream Identifiers | [PASS] Compliant | 62-bit stream IDs |
+| 10.3 | Stream State Machine | [PASS] Compliant | Via quinn library |
 | **11. Flow Control** | | | |
-| 11.1 | Stream Flow Control | ✓ Compliant | Per-stream windows |
-| 11.2 | Connection Flow Control | ✓ Compliant | Connection-level windows |
-| 11.3 | Incrementing Flow Control | ✓ Compliant | MAX_STREAM_DATA frames |
+| 11.1 | Stream Flow Control | [PASS] Compliant | Per-stream windows |
+| 11.2 | Connection Flow Control | [PASS] Compliant | Connection-level windows |
+| 11.3 | Incrementing Flow Control | [PASS] Compliant | MAX_STREAM_DATA frames |
 | **12. Congestion Control** | | | |
-| 12.1 | Congestion Controller | ✓ Compliant | CUBIC (quinn default) |
-| 12.2 | Loss Recovery | ✓ Compliant | RFC 9002 compliant |
+| 12.1 | Congestion Controller | [PASS] Compliant | CUBIC (quinn default) |
+| 12.2 | Loss Recovery | [PASS] Compliant | RFC 9002 compliant |
 | **13. Frame Types** | | | |
-| 13.1 | All Required Frames | ✓ Compliant | Via quinn library |
-| 13.2 | Extension Frames | ✗ Not Required | N/A |
+| 13.1 | All Required Frames | [PASS] Compliant | Via quinn library |
+| 13.2 | Extension Frames | [FAIL] Not Required | N/A |
 
 ### 11.2 RFC 9001 (QUIC TLS) Compliance
 
 | Section | Requirement | Status | Notes |
 |---------|-------------|--------|-------|
-| 4.1 | TLS 1.3 Only | ✓ Compliant | rustls enforces |
-| 4.2 | ALPN Negotiation | ✓ Compliant | "h3" for HTTP/3 compatibility |
-| 4.3 | Session Resumption | ✓ Compliant | 0-RTT enabled |
-| 4.4 | Key Update | ✓ Compliant | Automatic key rotation |
-| 5.1 | Retry Integrity | ✓ Compliant | Retry packet integrity |
-| 5.2 | Client Authentication | ✓ Compliant | mTLS supported |
-| 6.1 | 0-RTT Data | ✓ Compliant | Application opt-in |
+| 4.1 | TLS 1.3 Only | [PASS] Compliant | rustls enforces |
+| 4.2 | ALPN Negotiation | [PASS] Compliant | "h3" for HTTP/3 compatibility |
+| 4.3 | Session Resumption | [PASS] Compliant | 0-RTT enabled |
+| 4.4 | Key Update | [PASS] Compliant | Automatic key rotation |
+| 5.1 | Retry Integrity | [PASS] Compliant | Retry packet integrity |
+| 5.2 | Client Authentication | [PASS] Compliant | mTLS supported |
+| 6.1 | 0-RTT Data | [PASS] Compliant | Application opt-in |
 
 ### 11.3 Security Compliance
 
 | Standard | Requirement | Status | Implementation |
 |----------|-------------|--------|----------------|
-| CWE-319 | Cleartext Transmission | ✓ Mitigated | mTLS encryption |
-| CWE-400 | Uncontrolled Resource Consumption | ✓ Mitigated | Connection pooling + flow control |
-| CWE-770 | Allocation of Resources Without Limits | ✓ Mitigated | Bounded buffers |
-| NIST SP 800-52 Rev2 | TLS Guidelines | ✓ Compliant | TLS 1.3 only, strong ciphers |
-| PCI DSS 4.0 | Encryption in Transit | ✓ Compliant | mTLS with strong certificates |
+| CWE-319 | Cleartext Transmission | [PASS] Mitigated | mTLS encryption |
+| CWE-400 | Uncontrolled Resource Consumption | [PASS] Mitigated | Connection pooling + flow control |
+| CWE-770 | Allocation of Resources Without Limits | [PASS] Mitigated | Bounded buffers |
+| NIST SP 800-52 Rev2 | TLS Guidelines | [PASS] Compliant | TLS 1.3 only, strong ciphers |
+| PCI DSS 4.0 | Encryption in Transit | [PASS] Compliant | mTLS with strong certificates |
 
 ---
 
@@ -1188,55 +1188,55 @@ fn test_hal_conformance() {
 | Item | Status | Evidence |
 |------|--------|----------|
 | **BP-1: Design Overview** | | |
-| System purpose defined | ✓ | Section 1.1 |
-| System scope defined | ✓ | Section 1.2 |
-| Design goals documented | ✓ | Section 1.4 |
-| Design constraints documented | ✓ | Section 1.5 |
+| System purpose defined | [PASS] | Section 1.1 |
+| System scope defined | [PASS] | Section 1.2 |
+| Design goals documented | [PASS] | Section 1.4 |
+| Design constraints documented | [PASS] | Section 1.5 |
 | **BP-2: Design Decomposition** | | |
-| All components identified | ✓ | Section 2.1 |
-| Component responsibilities defined | ✓ | Section 2.2 |
-| Component interfaces specified | ✓ | Section 2.2 |
+| All components identified | [PASS] | Section 2.1 |
+| Component responsibilities defined | [PASS] | Section 2.2 |
+| Component interfaces specified | [PASS] | Section 2.2 |
 | **BP-3: Design Rationale** | | |
-| QUIC vs TCP rationale | ✓ | Section 3.1 |
-| Connection pooling rationale | ✓ | Section 3.2 |
-| Backpressure strategy rationale | ✓ | Section 3.3 |
+| QUIC vs TCP rationale | [PASS] | Section 3.1 |
+| Connection pooling rationale | [PASS] | Section 3.2 |
+| Backpressure strategy rationale | [PASS] | Section 3.3 |
 | **BP-4: Traceability** | | |
-| Requirements traced | ✓ | Section 4.1 |
-| Theorems traced | ✓ | Section 4.2 |
-| Algorithms traced | ✓ | Section 4.3 |
+| Requirements traced | [PASS] | Section 4.1 |
+| Theorems traced | [PASS] | Section 4.2 |
+| Algorithms traced | [PASS] | Section 4.3 |
 | **BP-5: Interface Design** | | |
-| All interfaces cataloged | ✓ | Section 5.1 |
-| Interface signatures defined | ✓ | Section 5.2 |
-| Preconditions/postconditions specified | ✓ | Section 5.2 |
+| All interfaces cataloged | [PASS] | Section 5.1 |
+| Interface signatures defined | [PASS] | Section 5.2 |
+| Preconditions/postconditions specified | [PASS] | Section 5.2 |
 | **BP-6: Data Design** | | |
-| Data structures defined | ✓ | Section 6.1 |
-| Data relationships documented | ✓ | Section 6.2 |
-| Persistence strategy defined | ✓ | Section 6.3 |
+| Data structures defined | [PASS] | Section 6.1 |
+| Data relationships documented | [PASS] | Section 6.2 |
+| Persistence strategy defined | [PASS] | Section 6.3 |
 | **BP-7: Component Design** | | |
-| Message routing flow | ✓ | Section 7.1 |
-| Connection establishment | ✓ | Section 7.2 |
-| TCP proxying sequence | ✓ | Section 7.3 |
-| Backpressure handling | ✓ | Section 7.4 |
+| Message routing flow | [PASS] | Section 7.1 |
+| Connection establishment | [PASS] | Section 7.2 |
+| TCP proxying sequence | [PASS] | Section 7.3 |
+| Backpressure handling | [PASS] | Section 7.4 |
 | **BP-8: Deployment Design** | | |
-| Network requirements | ✓ | Section 8.1 |
-| Certificate management | ✓ | Section 8.2 |
-| Deployment topology | ✓ | Section 8.3 |
-| Monitoring strategy | ✓ | Section 8.4 |
+| Network requirements | [PASS] | Section 8.1 |
+| Certificate management | [PASS] | Section 8.2 |
+| Deployment topology | [PASS] | Section 8.3 |
+| Monitoring strategy | [PASS] | Section 8.4 |
 | **BP-9: Formal Verification** | | |
-| Properties specified | ✓ | Section 9.1 |
-| Invariants defined | ✓ | Section 9.3 |
-| Proof references included | ✓ | Section 9.1 |
+| Properties specified | [PASS] | Section 9.1 |
+| Invariants defined | [PASS] | Section 9.3 |
+| Proof references included | [PASS] | Section 9.1 |
 | **BP-10: HAL Specification** | | |
-| Network HAL defined | ✓ | Section 10.1 |
-| Platform implementations | ✓ | Section 10.2 |
-| HAL testing strategy | ✓ | Section 10.3 |
+| Network HAL defined | [PASS] | Section 10.1 |
+| Platform implementations | [PASS] | Section 10.2 |
+| HAL testing strategy | [PASS] | Section 10.3 |
 | **BP-11: Compliance** | | |
-| RFC 9000 compliance matrix | ✓ | Section 11.1 |
-| RFC 9001 compliance matrix | ✓ | Section 11.2 |
-| Security compliance | ✓ | Section 11.3 |
+| RFC 9000 compliance matrix | [PASS] | Section 11.1 |
+| RFC 9001 compliance matrix | [PASS] | Section 11.2 |
+| Security compliance | [PASS] | Section 11.3 |
 | **Supporting Artifacts** | | |
-| Interface contracts TOML | ✓ | interface_contracts_mesh.toml |
-| Formal proofs | ✓ | proof_mesh.lean |
+| Interface contracts TOML | [PASS] | interface_contracts_mesh.toml |
+| Formal proofs | [PASS] | proof_mesh.lean |
 
 ### 12.2 Quality Attributes Verification
 
@@ -1255,7 +1255,7 @@ fn test_hal_conformance() {
 | Max actors per node | 10,000 | 10,000 | Load test |
 | Max mesh diameter | 10 hops | 10 | Simulation |
 | **Security** | | | |
-| Encryption strength | TLS 1.3 | ✓ | Config audit |
+| Encryption strength | TLS 1.3 | [PASS] | Config audit |
 | Certificate validity | < 90 days | 90 | Monitoring |
 | Key rotation frequency | < 30 days | 30 | Automation |
 
@@ -1263,7 +1263,7 @@ fn test_hal_conformance() {
 
 | Reviewer Role | Name | Date | Status |
 |---------------|------|------|--------|
-| Systems Architect | Construct | 2026-03-05 | ✓ Approved |
+| Systems Architect | Construct | 2026-03-05 | [PASS] Approved |
 | Security Engineer | TBD | - | Pending |
 | Performance Engineer | TBD | - | Pending |
 | Principal Engineer | TBD | - | Pending |

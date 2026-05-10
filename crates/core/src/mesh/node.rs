@@ -9,6 +9,7 @@ use crate::mesh::{
     ActorAddress, ActorLocation, ActorResolver, BackpressureController, ConnectionPool, MeshConfig,
     MeshMessage, QuicEndpoint,
 };
+use crate::tenant::NamespaceIsolation;
 use std::collections::VecDeque;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -43,6 +44,8 @@ pub struct MeshNode {
     pending_messages: Arc<tokio::sync::Mutex<VecDeque<MeshMessage>>>,
     /// Optional chaos fault injector for testing resilience.
     fault_injector: Option<Arc<FaultInjector>>,
+    /// Optional namespace isolation enforcer.
+    namespace_isolation: Option<Arc<NamespaceIsolation>>,
 }
 
 impl MeshNode {
@@ -98,6 +101,7 @@ impl MeshNode {
             task_handles: Arc::new(tokio::sync::Mutex::new(Vec::new())),
             pending_messages: Arc::new(tokio::sync::Mutex::new(VecDeque::new())),
             fault_injector: None,
+            namespace_isolation: None,
         })
     }
 
@@ -141,6 +145,11 @@ impl MeshNode {
         self.fault_injector = Some(injector);
     }
 
+    /// Set a namespace isolation enforcer.
+    pub fn set_namespace_isolation(&mut self, isolation: Arc<NamespaceIsolation>) {
+        self.namespace_isolation = Some(isolation);
+    }
+
     /// Set the local request handler for processing requests to local actors.
     ///
     /// The handler is called when a request targets an actor on this node.
@@ -179,6 +188,12 @@ impl MeshNode {
 
     /// Send a fire-and-forget message to a target actor.
     pub async fn send(&self, packet: &MeshMessage) -> Result<()> {
+        if let Some(ref isolation) = self.namespace_isolation {
+            isolation
+                .check_message(&packet.source.namespace, &packet.target.namespace)
+                .map_err(|e| Error::actor(e.to_string()))?;
+        }
+
         let target_id = packet.target.to_uri();
 
         let location = self
@@ -236,8 +251,12 @@ impl MeshNode {
     }
 
     async fn send_local(&self, packet: &MeshMessage) -> Result<()> {
-        // Fire-and-forget local delivery
-        // In a full implementation, this would push to a local actor's mailbox
+        if let Some(ref isolation) = self.namespace_isolation {
+            isolation
+                .check_message(&packet.source.namespace, &packet.target.namespace)
+                .map_err(|e| Error::actor(e.to_string()))?;
+        }
+
         tracing::trace!(
             source = %packet.source,
             target = %packet.target,
@@ -248,6 +267,12 @@ impl MeshNode {
 
     /// Handle a request to a local actor.
     async fn request_local(&self, packet: &MeshMessage) -> Result<MeshMessage> {
+        if let Some(ref isolation) = self.namespace_isolation {
+            isolation
+                .check_message(&packet.source.namespace, &packet.target.namespace)
+                .map_err(|e| Error::actor(e.to_string()))?;
+        }
+
         let handler = self.local_request_handler.read().await;
 
         if let Some(handler) = handler.as_ref() {

@@ -236,7 +236,7 @@ jobs:
             
             ```bash
             # Linux/macOS
-            curl -LO https://github.com/aether-project/aether/releases/download/${{ github.ref_name }}/aether-linux-x86_64.tar.gz
+            curl -LO https://github.com/WyattAu/aether-core/releases/download/${{ github.ref_name }}/aether-linux-x86_64.tar.gz
             tar xzf aether-linux-x86_64.tar.gz
             sudo mv aether /usr/local/bin/
             ```

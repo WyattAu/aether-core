@@ -87,11 +87,4 @@ func (s *StateHandle) Exists(ctx context.Context, key string) (bool, error) {
 	return ok, nil
 }
 
-// Delete removes a key from state.
-func (s *StateHandle) Delete(ctx context.Context, key string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 
-	delete(s.store, key)
-	return nil
-}

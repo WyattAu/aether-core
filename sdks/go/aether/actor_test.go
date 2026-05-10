@@ -59,18 +59,12 @@ func TestBaseActor_OnStart_OnStop(t *testing.T) {
 	startCalled := false
 	stopCalled := false
 
-	actor := &BaseActor{
-		name: "test",
-		capabilities: NewCapabilitySet(),
-		state:       NewStateHandle(),
-		mailbox:     make(chan mailboxItem, 100),
-		pendingRPC:  make(map[string]chan *Message),
-	}
-	actor.OnStart = func(ctx context.Context) error {
+	actor := NewBaseActor("test")
+	actor.OnStartFunc = func(ctx context.Context) error {
 		startCalled = true
 		return nil
 	}
-	actor.OnStop = func(ctx context.Context) error {
+	actor.OnStopFunc = func(ctx context.Context) error {
 		stopCalled = true
 		return nil
 	}
@@ -87,7 +81,7 @@ func TestBaseActor_OnStart_OnStop(t *testing.T) {
 
 func TestBaseActor_OnStart_Error(t *testing.T) {
 	actor := NewBaseActor("test")
-	actor.OnStart = func(ctx context.Context) error {
+	actor.OnStartFunc = func(ctx context.Context) error {
 		return errors.New("start failed")
 	}
 
@@ -229,7 +223,7 @@ func TestBaseActor_Call_ContextCancel(t *testing.T) {
 func TestBaseActor_Run_ProcessesMessages(t *testing.T) {
 	actor := NewBaseActor("test")
 	received := false
-	actor.HandleMessage = func(ctx context.Context, sender string, msg *Message) (*Message, error) {
+	actor.HandleMessageFunc = func(ctx context.Context, sender string, msg *Message) (*Message, error) {
 		received = true
 		return nil, nil
 	}

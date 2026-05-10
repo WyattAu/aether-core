@@ -18,7 +18,7 @@ These issues pose production risk and must be addressed:
 
 ### 1.1 WASM Execution Not Implemented
 **File:** `crates/core/src/mcp/execution_tools.rs:183-192`  
-**Priority:** 🔴 Critical  
+**Priority:** [BLOCKED] Critical  
 **Effort:** Medium (2-3 days)
 
 The `ExecuteWasmTool` loads and validates WASM modules but never executes them. This breaks the MCP tool contract.
@@ -41,7 +41,7 @@ async fn execute(&self, args: Value) -> Result<ToolResult> {
 
 ### 1.2 Local Mesh Requests Return Error
 **File:** `crates/core/src/mesh/node.rs:169`  
-**Priority:** 🔴 Critical  
+**Priority:** [BLOCKED] Critical  
 **Effort:** Low (1 day)
 
 Intra-node actor communication fails because local request handling is not implemented.
@@ -59,7 +59,7 @@ pub async fn send_request(&self, target: &ActorId, request: Vec<u8>) -> Result<V
 
 ### 1.3 Vault Secrets Integration is Non-Functional
 **File:** `crates/core/src/security/secrets/secrets_legacy.rs:434-467`  
-**Priority:** 🔴 Critical  
+**Priority:** [BLOCKED] Critical  
 **Effort:** Medium (2-3 days)
 
 All Vault operations return errors. HashiCorp Vault integration is a documented feature.
@@ -68,7 +68,7 @@ All Vault operations return errors. HashiCorp Vault integration is a documented 
 
 ### 1.4 Panic-Prone Code Paths
 **Files:** Multiple (see analysis)  
-**Priority:** 🔴 Critical  
+**Priority:** [BLOCKED] Critical  
 **Effort:** Medium (2-3 days)
 
 Multiple `expect()` and `unwrap()` calls in production paths can cause runtime panics.
@@ -88,9 +88,9 @@ Multiple `expect()` and `unwrap()` calls in production paths can cause runtime p
 
 ### 2.1 Deadlock Prevention - MutexGuard Across Await
 **Files:** `actor/rpc.rs`, `actor/supervisor.rs`, `chaos/mod.rs`, `mcp/server.rs`  
-**Priority:** 🟠 High  
+**Priority:** [IN PROGRESS] High  
 **Effort:** Medium (2-3 days)  
-**Status:** ✅ Done
+**Status:** [DONE] Done
 
 Multiple locations hold `MutexGuard` across `.await` points, which can cause deadlocks.
 
@@ -110,9 +110,9 @@ some_async_op(data).await;
 ```
 
 ### 2.2 Complete Actor SDK (Currently 50%)
-**Priority:** 🟠 High  
+**Priority:** [IN PROGRESS] High  
 **Effort:** High (1-2 weeks)
-**Status:** 🔄 In Progress
+**Status:** [IN PROGRESS] In Progress
 
 Missing SDK components:
 - [ ] Full API coverage for all actor operations
@@ -122,9 +122,9 @@ Missing SDK components:
 - [ ] Comprehensive examples
 
 ### 2.3 Test Coverage Gaps
-**Priority:** 🟠 High  
+**Priority:** [IN PROGRESS] High  
 **Effort:** Medium (1 week)
-**Status:** ✅ Done
+**Status:** [DONE] Done
 
 Files without test modules:
 - `mcp/server.rs`, `mcp/tools.rs`, `mcp/actor_tools.rs`
@@ -132,9 +132,9 @@ Files without test modules:
 - `dashboard/handlers.rs`
 
 ### 2.4 Dashboard Module Issues
-**Priority:** 🟠 High  
+**Priority:** [IN PROGRESS] High  
 **Effort:** Medium (1 week)
-**Status:** ✅ Done
+**Status:** [DONE] Done
 
 - Axum version conflict (0.7.9 from tonic vs 0.8.8)
 - Missing `ui/dist` folder for static files
@@ -142,16 +142,16 @@ Files without test modules:
 
 ### 2.5 Deprecated Field Usage
 **File:** `crates/core/src/wasi/mod.rs:381`  
-**Priority:** 🟡 Medium  
+**Priority:** [PLANNED] Medium  
 **Effort:** Low (1 hour)
-**Status:** ✅ Done
+**Status:** [DONE] Done
 
 Using deprecated `timestamp_ns` instead of `wall_time_ns`.
 
 ### 2.6 Clippy Warning Cleanup
-**Priority:** 🟡 Medium  
+**Priority:** [PLANNED] Medium  
 **Effort:** Low (1 day)
-**Status:** ✅ Done
+**Status:** [DONE] Done
 
 Fixed:
 - Identical blocks in conditionals
@@ -208,17 +208,17 @@ Implemented but not exposed:
 
 | Feature | Priority | Status |
 |---------|----------|--------|
-| WASM execution fix | Critical | ✅ Done |
-| Local mesh fix | Critical | ✅ Done |
-| Vault secrets fix | Critical | ✅ Done |
-| Panic elimination | Critical | ✅ Done |
-| Deadlock fixes | High | ✅ Done |
-| MutexGuard across await | High | ✅ Done |
-| Test coverage (MCP tools) | High | ✅ Done |
-| Python SDK | High | ✅ Enhanced |
-| JavaScript SDK | High | ✅ Tests added |
-| Dashboard fixes | High | ✅ Done |
-| Unused code cleanup | Low | ✅ Done |
+| WASM execution fix | Critical | [DONE] Done |
+| Local mesh fix | Critical | [DONE] Done |
+| Vault secrets fix | Critical | [DONE] Done |
+| Panic elimination | Critical | [DONE] Done |
+| Deadlock fixes | High | [DONE] Done |
+| MutexGuard across await | High | [DONE] Done |
+| Test coverage (MCP tools) | High | [DONE] Done |
+| Python SDK | High | [DONE] Enhanced |
+| JavaScript SDK | High | [DONE] Tests added |
+| Dashboard fixes | High | [DONE] Done |
+| Unused code cleanup | Low | [DONE] Done |
 | Missing documentation | Low | In Progress |
 
 ### v1.4.0 (SDK Release)
@@ -227,9 +227,9 @@ Implemented but not exposed:
 
 | Feature | Priority | Status |
 |---------|----------|--------|
-| Python SDK | High | ✅ Enhanced |
-| JavaScript SDK | High | ✅ Tests added |
-| Go SDK | High | ✅ Done |
+| Python SDK | High | [DONE] Enhanced |
+| JavaScript SDK | High | [DONE] Tests added |
+| Go SDK | High | [DONE] Done |
 | CLI improvements | Medium | Partial |
 | Examples library | Medium | Partial |
 | Documentation site | Medium | Partial |

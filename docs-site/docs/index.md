@@ -10,12 +10,12 @@
 
 Aether is a distributed actor framework that enables you to build highly scalable, fault-tolerant applications using the actor model. It provides:
 
-- **🚀 Lightweight Actors** - Spawn millions of actors with minimal overhead
-- **🔄 Automatic Recovery** - Self-healing with supervisor hierarchies
-- **🌐 Mesh Networking** - Seamless distributed communication
-- **🔒 Capability-based Security** - Fine-grained permission control
-- **💾 Persistent State** - State survives actor restarts
-- **🔗 Multi-language SDKs** - Go, Python, JavaScript, Rust
+- ** Lightweight Actors** - Spawn millions of actors with minimal overhead
+- **[IN PROGRESS] Automatic Recovery** - Self-healing with supervisor hierarchies
+- ** Mesh Networking** - Seamless distributed communication
+- ** Capability-based Security** - Fine-grained permission control
+- ** Persistent State** - State survives actor restarts
+- ** Multi-language SDKs** - Go, Python, JavaScript, Rust
 
 ## Quick Start
 

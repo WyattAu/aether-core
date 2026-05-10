@@ -85,23 +85,23 @@ This guide explains how to set up the Aether Discord server as described in the 
 Create a welcome message in `#welcome`:
 
 ```markdown
-# Welcome to Aether! 🚀
+# Welcome to Aether! 
 
 Aether is a high-performance distributed computing platform for WebAssembly actors and containers.
 
 ## Getting Started
 
-1. Read the [Code of Conduct](link)
+1. Read the [Code of Conduct](../CODE_OF_CONDUCT.md)
 2. Pick a role in #roles
 3. Introduce yourself in #introductions
-4. Check out [documentation](link)
+4. Check out [documentation](../README.md)
 
 ## Quick Links
 
-- 📖 [Documentation](https://github.com/WyattAu/aether-core/tree/main/.docs)
-- 🐛 [Report a Bug](https://github.com/WyattAu/aether-core/issues/new?template=bug_report.md)
-- ✨ [Request a Feature](https://github.com/WyattAu/aether-core/issues/new?template=feature_request.md)
-- 💬 [GitHub Discussions](https://github.com/WyattAu/aether-core/discussions)
+-  [Documentation](https://github.com/WyattAu/aether-core/tree/main/.docs)
+-  [Report a Bug](https://github.com/WyattAu/aether-core/issues/new?template=bug_report.md)
+-  [Request a Feature](https://github.com/WyattAu/aether-core/issues/new?template=feature_request.md)
+-  [GitHub Discussions](https://github.com/WyattAu/aether-core/discussions)
 
 ## Need Help?
 

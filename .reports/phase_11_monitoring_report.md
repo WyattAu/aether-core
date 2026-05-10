@@ -83,11 +83,11 @@ dashboards:
 
 | Check | Frequency | Automated | Status |
 |-------|-----------|-----------|--------|
-| Capability audit | Daily | ✅ | Active |
-| Secret rotation check | Weekly | ✅ | Active |
-| Certificate expiry | Daily | ✅ | Active |
-| RBAC review | Monthly | ⚠️ Manual | Active |
-| Audit log integrity | Daily | ✅ | Active |
+| Capability audit | Daily | [DONE] | Active |
+| Secret rotation check | Weekly | [DONE] | Active |
+| Certificate expiry | Daily | [DONE] | Active |
+| RBAC review | Monthly | [WARN] Manual | Active |
+| Audit log integrity | Daily | [DONE] | Active |
 
 ### 2.2 Compliance Metrics
 

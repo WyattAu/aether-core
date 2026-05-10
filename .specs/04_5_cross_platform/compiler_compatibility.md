@@ -48,13 +48,13 @@ targets = ["wasm32-wasip1", "x86_64-unknown-linux-gnu"]
 
 | Component | Purpose | Required |
 |-----------|---------|----------|
-| `rustc` | Rust compiler | ✅ Yes |
-| `cargo` | Package manager | ✅ Yes |
-| `rust-src` | Rust source code | ✅ Yes (for WASM) |
-| `clippy` | Linter | ✅ Yes |
-| `rustfmt` | Code formatter | ✅ Yes |
-| `rust-analyzer` | IDE support | ⚠️ Recommended |
-| `llvm-tools-preview` | LLVM tools | ⚠️ Optional |
+| `rustc` | Rust compiler | [DONE] Yes |
+| `cargo` | Package manager | [DONE] Yes |
+| `rust-src` | Rust source code | [DONE] Yes (for WASM) |
+| `clippy` | Linter | [DONE] Yes |
+| `rustfmt` | Code formatter | [DONE] Yes |
+| `rust-analyzer` | IDE support | [WARN] Recommended |
+| `llvm-tools-preview` | LLVM tools | [WARN] Optional |
 
 ---
 
@@ -247,11 +247,11 @@ cross build --target riscv64gc-unknown-linux-gnu --release
 
 | Host | Target | Method | Status |
 |------|--------|--------|--------|
-| x86_64 Linux | wasm32-wasip1 | Native | ✅ Supported |
-| x86_64 Linux | aarch64-linux | Cross | ✅ Supported |
-| x86_64 Linux | riscv64-linux | Cross | 🔍 Experimental |
-| x86_64 macOS | x86_64-linux | Cross | ⚠️ Limited |
-| ARM64 macOS | aarch64-linux | Cross | ⚠️ Limited |
+| x86_64 Linux | wasm32-wasip1 | Native | [DONE] Supported |
+| x86_64 Linux | aarch64-linux | Cross | [DONE] Supported |
+| x86_64 Linux | riscv64-linux | Cross |  Experimental |
+| x86_64 macOS | x86_64-linux | Cross | [WARN] Limited |
+| ARM64 macOS | aarch64-linux | Cross | [WARN] Limited |
 
 ---
 

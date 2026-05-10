@@ -17,12 +17,12 @@ Phase 1.25 successfully synthesized multi-lingual research findings from five Ye
 
 | Objective | Status | Completion |
 |-----------|--------|------------|
-| Synthesize Yellow Paper findings | ✅ Complete | 100% |
-| Create concept mappings (6 languages) | ✅ Complete | 100% |
-| Identify knowledge gaps | ✅ Complete | 100% |
-| Document conflict resolutions | ✅ Complete | 100% |
-| Initialize knowledge graph | ✅ Complete | 100% |
-| Update VERSION.md | ✅ Complete | 100% |
+| Synthesize Yellow Paper findings | [DONE] Complete | 100% |
+| Create concept mappings (6 languages) | [DONE] Complete | 100% |
+| Identify knowledge gaps | [DONE] Complete | 100% |
+| Document conflict resolutions | [DONE] Complete | 100% |
+| Initialize knowledge graph | [DONE] Complete | 100% |
+| Update VERSION.md | [DONE] Complete | 100% |
 
 ---
 
@@ -32,12 +32,12 @@ Phase 1.25 successfully synthesized multi-lingual research findings from five Ye
 
 | Document | Path | Size | Status |
 |----------|------|------|--------|
-| Integrated Findings | `.specs/01_25_knowledge_integration/integrated_findings.md` | ~8KB | ✅ |
-| Concept Mappings | `.specs/01_25_knowledge_integration/concept_mappings.md` | ~12KB | ✅ |
-| Gap Analysis | `.specs/01_25_knowledge_integration/gap_analysis.md` | ~10KB | ✅ |
-| Conflict Resolution | `.specs/01_25_knowledge_integration/conflict_resolution.md` | ~9KB | ✅ |
-| Knowledge Graph | `.knowledge_graph/aether_concepts.json` | ~15KB | ✅ |
-| Phase Report | `.reports/phase_01_25_integration_report.md` | This file | ✅ |
+| Integrated Findings | `.specs/01_25_knowledge_integration/integrated_findings.md` | ~8KB | [DONE] |
+| Concept Mappings | `.specs/01_25_knowledge_integration/concept_mappings.md` | ~12KB | [DONE] |
+| Gap Analysis | `.specs/01_25_knowledge_integration/gap_analysis.md` | ~10KB | [DONE] |
+| Conflict Resolution | `.specs/01_25_knowledge_integration/conflict_resolution.md` | ~9KB | [DONE] |
+| Knowledge Graph | `.knowledge_graph/aether_concepts.json` | ~15KB | [DONE] |
+| Phase Report | `.reports/phase_01_25_integration_report.md` | This file | [DONE] |
 
 ### 2.2 Knowledge Graph Statistics
 
@@ -227,11 +227,11 @@ CAP_Theorem
 
 | Prerequisite | Status | Notes |
 |--------------|--------|-------|
-| Concept definitions | ✅ Ready | 38 concepts formalized |
-| Algorithm specifications | ✅ Ready | 5 core algorithms documented |
-| Theorem foundations | ✅ Ready | 9 theorems with proof sketches |
-| Gap prioritization | ✅ Ready | P0 gaps identified |
-| Conflict resolution | ✅ Ready | 50 conflicts resolved |
+| Concept definitions | [DONE] Ready | 38 concepts formalized |
+| Algorithm specifications | [DONE] Ready | 5 core algorithms documented |
+| Theorem foundations | [DONE] Ready | 9 theorems with proof sketches |
+| Gap prioritization | [DONE] Ready | P0 gaps identified |
+| Conflict resolution | [DONE] Ready | 50 conflicts resolved |
 
 ### 9.2 Recommended Phase 1.5 Focus Areas
 
@@ -311,7 +311,7 @@ Phase 1.25 has successfully established a unified, multi-lingual knowledge found
 │ Average Confidence:          0.97                           │
 │ TQA Level:                   4                              │
 ├─────────────────────────────────────────────────────────────┤
-│ Status: COMPLETE ✅                                         │
+│ Status: COMPLETE [DONE]                                         │
 └─────────────────────────────────────────────────────────────┘
 ```
 

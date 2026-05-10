@@ -438,7 +438,7 @@ Phase 2.5 established a comprehensive concurrency foundation for Project Aether:
 
 The dual-runtime architecture (Monoio + Tokio) with actor isolation provides a robust foundation for high-performance, safe concurrent execution.
 
-**Phase Status:** ✅ Complete
+**Phase Status:** [DONE] Complete
 
 **Artifacts:**
 - `.specs/02_5_concurrency/thread_safety_analysis.md`

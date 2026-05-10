@@ -11,7 +11,7 @@
 //!
 //! # Example
 //!
-//! ```ignore
+//! ```no_run
 //! use aether_core::chaos::{ChaosTestRunner, ChaosConfig, ActorCrashScenario};
 //!
 //! let config = ChaosConfig::new()
@@ -19,7 +19,11 @@
 //!     .with_intensity(0.5);
 //!
 //! let runner = ChaosTestRunner::new(config);
+//! # let run = async {
 //! runner.run_scenario(ActorCrashScenario::new()).await?;
+//! # Ok::<(), aether_core::error::Error>(())
+//! # };
+//! # let _ = run;
 //! ```
 
 mod fault_injector;

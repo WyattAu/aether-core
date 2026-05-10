@@ -20,12 +20,12 @@ Project Aether has strict OS compatibility requirements due to its reliance on L
 
 | Distribution | Minimum Version | Recommended Version | Status |
 |--------------|-----------------|---------------------|--------|
-| Ubuntu | 20.04 LTS | 22.04 LTS | ✅ Full Support |
-| Debian | 11 (Bullseye) | 12 (Bookworm) | ✅ Full Support |
-| CentOS/RHEL | 8 | 9 | ✅ Full Support |
-| Fedora | 35 | 38+ | ✅ Full Support |
-| Arch Linux | Rolling | Current | ✅ Full Support |
-| Alpine Linux | 3.18 | Edge | ⚠️ Partial (musl) |
+| Ubuntu | 20.04 LTS | 22.04 LTS | [DONE] Full Support |
+| Debian | 11 (Bullseye) | 12 (Bookworm) | [DONE] Full Support |
+| CentOS/RHEL | 8 | 9 | [DONE] Full Support |
+| Fedora | 35 | 38+ | [DONE] Full Support |
+| Arch Linux | Rolling | Current | [DONE] Full Support |
+| Alpine Linux | 3.18 | Edge | [WARN] Partial (musl) |
 
 ### Kernel Requirements
 
@@ -98,7 +98,7 @@ CONFIG_NUMA_BALANCING=y
 
 ### Supported Features
 
-✅ **Full Feature Set:**
+[DONE] **Full Feature Set:**
 - io_uring-based data plane (Monoio runtime)
 - KVM/Firecracker microVM isolation
 - All network mesh capabilities
@@ -128,13 +128,13 @@ None - Linux is the primary development and deployment platform.
 
 | Version | Status | Limitations |
 |---------|--------|-------------|
-| macOS 12 (Monterey) | ⚠️ Development Only | No io_uring, no KVM |
-| macOS 13 (Ventura) | ⚠️ Development Only | No io_uring, no KVM |
-| macOS 14 (Sonoma) | ⚠️ Development Only | No io_uring, no KVM |
+| macOS 12 (Monterey) | [WARN] Development Only | No io_uring, no KVM |
+| macOS 13 (Ventura) | [WARN] Development Only | No io_uring, no KVM |
+| macOS 14 (Sonoma) | [WARN] Development Only | No io_uring, no KVM |
 
 ### Supported Features
 
-✅ **Available:**
+[DONE] **Available:**
 - WASM runtime (Wasmtime)
 - Tokio control plane
 - Basic actor execution
@@ -144,7 +144,7 @@ None - Linux is the primary development and deployment platform.
 
 ### Limitations
 
-❌ **Not Available:**
+[FAIL] **Not Available:**
 - **io_uring:** No kernel support, cannot be emulated
 - **KVM:** No hardware virtualization support
 - **Firecracker VMs:** Requires KVM
@@ -234,9 +234,9 @@ cargo build --release --target x86_64-unknown-linux-gnu
 
 | Version | Status | Requirements |
 |---------|--------|--------------|
-| Windows 10 | ⚠️ WSL2 Only | WSL2 enabled |
-| Windows 11 | ⚠️ WSL2 Only | WSL2 enabled |
-| Windows Server 2019+ | ⚠️ WSL2 Only | WSL2 enabled |
+| Windows 10 | [WARN] WSL2 Only | WSL2 enabled |
+| Windows 11 | [WARN] WSL2 Only | WSL2 enabled |
+| Windows Server 2019+ | [WARN] WSL2 Only | WSL2 enabled |
 
 ### WSL2 Requirements
 
@@ -295,7 +295,7 @@ cp arch/x86/boot/bzImage /mnt/c/Users/YourUser/custom-kernel
 
 ### Supported Features (via WSL2)
 
-✅ **Full Linux Compatibility:**
+[DONE] **Full Linux Compatibility:**
 - io_uring (with custom kernel)
 - KVM (limited performance)
 - All Aether features
@@ -304,7 +304,7 @@ cp arch/x86/boot/bzImage /mnt/c/Users/YourUser/custom-kernel
 
 ### Limitations
 
-⚠️ **WSL2 Constraints:**
+[WARN] **WSL2 Constraints:**
 
 1. **KVM Performance:**
    - Nested virtualization overhead
@@ -370,18 +370,18 @@ networkingMode=mirrored
 
 ### Status
 
-🔍 **Experimental** - Not currently supported, potential future platform.
+ **Experimental** - Not currently supported, potential future platform.
 
 ### Current Support
 
-❌ **Not Available:**
+[FAIL] **Not Available:**
 - io_uring (Linux-specific)
 - KVM (Linux-specific)
 - Monoio runtime (Linux-only)
 
 ### Potential Support
 
-✅ **Available:**
+[DONE] **Available:**
 - **Bhyve:** FreeBSD hypervisor (alternative to KVM)
 - **kqueue:** Async I/O mechanism (alternative to epoll/io_uring)
 - **WASM:** Runtime support available
@@ -447,25 +447,25 @@ mod freebsd_platform {
 | Feature | Linux | macOS | Windows (WSL2) | FreeBSD |
 |---------|-------|-------|----------------|---------|
 | **Runtime** |
-| Monoio data plane | ✅ | ❌ | ✅ | ❌ |
-| Tokio control plane | ✅ | ✅ | ✅ | ✅ |
-| io_uring | ✅ | ❌ | ✅ | ❌ |
-| kqueue | ❌ | ✅ | ❌ | ✅ |
+| Monoio data plane | [DONE] | [FAIL] | [DONE] | [FAIL] |
+| Tokio control plane | [DONE] | [DONE] | [DONE] | [DONE] |
+| io_uring | [DONE] | [FAIL] | [DONE] | [FAIL] |
+| kqueue | [FAIL] | [DONE] | [FAIL] | [DONE] |
 | **Virtualization** |
-| KVM | ✅ | ❌ | ⚠️ | ❌ |
-| Bhyve | ❌ | ❌ | ❌ | 🔍 |
-| Firecracker | ✅ | ❌ | ⚠️ | ❌ |
+| KVM | [DONE] | [FAIL] | [WARN] | [FAIL] |
+| Bhyve | [FAIL] | [FAIL] | [FAIL] |  |
+| Firecracker | [DONE] | [FAIL] | [WARN] | [FAIL] |
 | **Performance** |
-| Zero-copy I/O | ✅ | ❌ | ✅ | ⚠️ |
-| Huge pages | ✅ | ❌ | ⚠️ | ✅ |
-| NUMA support | ✅ | ❌ | ❌ | ✅ |
-| **Production Ready** | ✅ | ❌ | ⚠️ | ❌ |
+| Zero-copy I/O | [DONE] | [FAIL] | [DONE] | [WARN] |
+| Huge pages | [DONE] | [FAIL] | [WARN] | [DONE] |
+| NUMA support | [DONE] | [FAIL] | [FAIL] | [DONE] |
+| **Production Ready** | [DONE] | [FAIL] | [WARN] | [FAIL] |
 
 **Legend:**
-- ✅ Full support
-- ⚠️ Partial/limited support
-- ❌ Not supported
-- 🔍 Experimental/potential
+- [DONE] Full support
+- [WARN] Partial/limited support
+- [FAIL] Not supported
+-  Experimental/potential
 
 ---
 

@@ -71,18 +71,18 @@ This phase establishes the immutable build environment and capability detection 
 ### Required Capabilities
 | Capability | Tool | Version | Status |
 |------------|------|---------|--------|
-| wasm-component-model | Wasmtime | >=25.0.0 | ⚠️ Not detected |
-| microvm-isolation | Firecracker | >=1.9.0 | ⚠️ Not detected |
-| distributed-tx-log | FoundationDB | >=7.3.0 | ⚠️ Not detected |
-| formal-verification | Lean4/Coq | >=4.12/8.19 | ⚠️ Not detected |
-| capability-based-auth | Native | N/A | ✅ Implemented |
+| wasm-component-model | Wasmtime | >=25.0.0 | [WARN] Not detected |
+| microvm-isolation | Firecracker | >=1.9.0 | [WARN] Not detected |
+| distributed-tx-log | FoundationDB | >=7.3.0 | [WARN] Not detected |
+| formal-verification | Lean4/Coq | >=4.12/8.19 | [WARN] Not detected |
+| capability-based-auth | Native | N/A | [DONE] Implemented |
 
 ### Optional Capabilities
 | Capability | Purpose | Status |
 |------------|---------|--------|
-| gpu-acceleration | Parallel proof verification | ⚠️ Not detected |
-| sgx-enclave | Hardware TEE | ⚠️ Not detected |
-| sev-snp | AMD secure encryption | ⚠️ Not detected |
+| gpu-acceleration | Parallel proof verification | [WARN] Not detected |
+| sgx-enclave | Hardware TEE | [WARN] Not detected |
+| sev-snp | AMD secure encryption | [WARN] Not detected |
 
 ## Build Instructions
 
@@ -150,5 +150,5 @@ The following system-level tools require manual installation or host access:
 
 ---
 
-**Phase -0.5 Status:** ✅ COMPLETE
+**Phase -0.5 Status:** [DONE] COMPLETE
 **Ready for Phase 0:** Pending system tool installation

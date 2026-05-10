@@ -1,6 +1,6 @@
 # Aether Deployment Guide
 
-**Version:** 1.1.0-alpha  
+**Version:** 2.0.0
 **Last Updated:** 2026-03-14  
 **Audience:** Platform Engineers, DevOps Teams, System Administrators
 
@@ -27,8 +27,8 @@ Aether supports two deployment models:
 
 | Model | Purpose | Production Ready |
 |-------|---------|------------------|
-| **Native** | Primary production deployment | ✅ Yes |
-| **Kubernetes** | Transitional/evaluation layer | ⚠️ Limited |
+| **Native** | Primary production deployment | [DONE] Yes |
+| **Kubernetes** | Transitional/evaluation layer | [WARN] Limited |
 
 ### 1.2 Comparison
 
@@ -301,14 +301,14 @@ aether status
 
 ### 3.1 When to Use
 
-✅ **Appropriate for:**
+[DONE] **Appropriate for:**
 - Initial evaluation and POC
 - Organizations with existing K8s investment
 - Gradual migration strategy
 - Development/test environments
 - Teams learning Aether concepts
 
-❌ **Not appropriate for:**
+[FAIL] **Not appropriate for:**
 - Production workloads requiring maximum performance
 - Low-latency AI inference
 - Maximum security (minimal attack surface)

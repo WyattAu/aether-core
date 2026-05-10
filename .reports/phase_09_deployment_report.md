@@ -14,8 +14,8 @@ Aether supports two deployment models to accommodate different organizational ne
 
 | Model | Purpose | Production Ready |
 |------|---------|------------------|
-| **Native** | Primary production deployment | ✅ Yes |
-| **Kubernetes** | Transitional/adoption layer | ⚠️ Limited |
+| **Native** | Primary production deployment | [DONE] Yes |
+| **Kubernetes** | Transitional/adoption layer | [WARN] Limited |
 
 **Native Deployment (Recommended):**
 - Direct on bare-metal or VM
@@ -32,7 +32,7 @@ Aether supports two deployment models to accommodate different organizational ne
 - Limited hardware access
 - **Not recommended for production AI workloads**
 
-> ⚠️ **Important:** Kubernetes deployment is provided for organizations that need to evaluate Aether on existing infrastructure. Plan migration to native deployment for production workloads. See [Deployment Guide](../.docs/deployment_guide.md) for detailed migration instructions.
+> [WARN] **Important:** Kubernetes deployment is provided for organizations that need to evaluate Aether on existing infrastructure. Plan migration to native deployment for production workloads. See [Deployment Guide](../.docs/deployment_guide.md) for detailed migration instructions.
 
 ### 0.2 When to Use Each Model
 
@@ -268,11 +268,11 @@ spec:
 
 | Requirement | Implementation | Status |
 |-------------|----------------|--------|
-| Data retention | TTL-based memory expiration | ✅ Implemented |
-| Audit logging | All AI operations logged | ✅ Implemented |
-| Access control | Capability-based AI_USE | ✅ Implemented |
-| Data isolation | Per-session memory | ✅ Implemented |
-| Encryption at rest | Volume encryption | ⚠️ Requires config |
+| Data retention | TTL-based memory expiration | [DONE] Implemented |
+| Audit logging | All AI operations logged | [DONE] Implemented |
+| Access control | Capability-based AI_USE | [DONE] Implemented |
+| Data isolation | Per-session memory | [DONE] Implemented |
+| Encryption at rest | Volume encryption | [WARN] Requires config |
 
 ### 5.2 Evidence Collection
 

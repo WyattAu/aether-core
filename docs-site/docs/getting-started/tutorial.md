@@ -534,7 +534,7 @@ async function testCounterActor() {
     assert((result?.payload as any).count === 0);
 
     await actor.stop();
-    console.log('✓ Counter actor tests passed');
+    console.log('[PASS] Counter actor tests passed');
 }
 
 async function runTests() {

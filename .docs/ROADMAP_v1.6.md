@@ -21,7 +21,7 @@ Following the successful completion of v1.5.0 "Flow" (Streaming Foundation, Even
 
 ---
 
-## Phase 1: Quality Gates (Week 1-2) ✅ ~95%
+## Phase 1: Quality Gates (Week 1-2) [DONE] ~95%
 
 **Priority**: Critical
 **Dependencies**: v1.5.0 M4 completion
@@ -34,38 +34,38 @@ Following the successful completion of v1.5.0 "Flow" (Streaming Foundation, Even
 ### Tasks
 
 #### 1.1 Test Coverage Audit
-- [x] Audit Python SDK test coverage ✅ **COMPLETE: 92% coverage, 1151 tests passing**
+- [x] Audit Python SDK test coverage [DONE] **COMPLETE: 92% coverage, 1151 tests passing**
   - [x] Identify modules with <80% coverage
   - [x] Create test matrix for uncovered paths
   - [x] Add integration tests for actor lifecycle
-- [x] Audit JavaScript SDK test coverage ✅ **COMPLETE: 93.55% coverage, 710 tests passing**
+- [x] Audit JavaScript SDK test coverage [DONE] **COMPLETE: 93.55% coverage, 710 tests passing**
   - [x] Jest coverage report analysis
   - [x] Fixed source compilation errors (streaming, validation, tracing)
   - [x] Added tests for tracing, window, actor, stream_actor modules
-- [ ] Audit Go SDK test coverage 🔄 **DEFERRED: Go SDK exists (28 source files) but only 3 test files — deferred to v1.6.1**
+- [ ] Audit Go SDK test coverage [IN PROGRESS] **DEFERRED: Go SDK exists (28 source files) but only 3 test files — deferred to v1.6.1**
   - [ ] Add table-driven tests for all public APIs
   - [ ] Edge case testing for error paths
   - [ ] Streaming and validation modules have zero tests
-- [ ] Audit Java SDK test coverage 🔄 **DEFERRED: Java SDK exists (28 source files) but has ZERO tests — deferred to v1.6.1**
+- [ ] Audit Java SDK test coverage [IN PROGRESS] **DEFERRED: Java SDK exists (28 source files) but has ZERO tests — deferred to v1.6.1**
   - [ ] JUnit5 coverage analysis
   - [ ] Mutation testing setup
 
 #### 1.2 Edge Case Testing
-- [x] Stream processing edge cases ✅ **COMPLETE: 14 Python + 56 JS edge case tests**
+- [x] Stream processing edge cases [DONE] **COMPLETE: 14 Python + 56 JS edge case tests**
   - [x] Empty streams
   - [x] Very large messages (>10MB)
   - [x] Rapid fire events (stress testing) — 10K events through backpressure
   - [ ] Network interruption during stream (deferred — requires runtime)
-- [x] Event system edge cases ✅ **COMPLETE: Python tests for pubsub, schema, event store**
+- [x] Event system edge cases [DONE] **COMPLETE: Python tests for pubsub, schema, event store**
   - [x] Circular pub/sub subscriptions
   - [x] Schema validation failures
   - [x] Event store corruption recovery
-- [x] Workflow edge cases ✅ **COMPLETE: Python tests for saga, state machine, human task**
+- [x] Workflow edge cases [DONE] **COMPLETE: Python tests for saga, state machine, human task**
   - [x] Saga compensation failures (all steps failing)
   - [x] State machine rapid transitions
   - [x] Human task timeouts (previously skipped test now passing)
-- [x] Resilience edge cases ✅ **COMPLETE: Concurrent circuit breaker, bulkhead timeout, rate limiter exhaustion, retry with timers**
-- [x] Validation edge cases ✅ **COMPLETE: Long strings, 20+ chained rules, Unicode/emoji/CJK/RTL/zero-width chars**
+- [x] Resilience edge cases [DONE] **COMPLETE: Concurrent circuit breaker, bulkhead timeout, rate limiter exhaustion, retry with timers**
+- [x] Validation edge cases [DONE] **COMPLETE: Long strings, 20+ chained rules, Unicode/emoji/CJK/RTL/zero-width chars**
 
 #### 1.3 Mutation Testing
 - [ ] Set up mutmut for Python
@@ -76,7 +76,7 @@ Following the successful completion of v1.5.0 "Flow" (Streaming Foundation, Even
 
 ---
 
-## Phase 2: Documentation Polish (Week 2-3) ✅ ~85%
+## Phase 2: Documentation Polish (Week 2-3) [DONE] ~85%
 
 **Priority**: High
 **Dependencies**: Phase 1
@@ -89,7 +89,7 @@ Following the successful completion of v1.5.0 "Flow" (Streaming Foundation, Even
 ### Tasks
 
 #### 2.1 API Documentation
-- [x] Python SDK ✅ **COMPLETE: ~503 docstrings added/improved across 17 files**
+- [x] Python SDK [DONE] **COMPLETE: ~503 docstrings added/improved across 17 files**
   - [x] Add docstrings to all public APIs
   - [x] Generate Sphinx documentation (conf.py + Makefile + docs built successfully)
   - [ ] Add type annotation examples
@@ -97,7 +97,7 @@ Following the successful completion of v1.5.0 "Flow" (Streaming Foundation, Even
   - [ ] Complete godoc comments
   - [ ] Add package-level documentation
   - [ ] Create Go package documentation site
-- [x] JavaScript SDK ✅ **COMPLETE: ~252 TSDoc comments added/improved across 22 files**
+- [x] JavaScript SDK [DONE] **COMPLETE: ~252 TSDoc comments added/improved across 22 files**
   - [x] Complete TSDoc comments
   - [x] Generate TypeDoc documentation (typedoc.json + docs built successfully)
   - [ ] Add React integration guide
@@ -107,12 +107,12 @@ Following the successful completion of v1.5.0 "Flow" (Streaming Foundation, Even
   - [ ] Add Spring integration guide
 
 #### 2.2 Examples & Tutorials
-- [x] Create comprehensive examples (Python + JavaScript) ✅ **COMPLETE: 8 example files**
+- [x] Create comprehensive examples (Python + JavaScript) [DONE] **COMPLETE: 8 example files**
   - [x] Real-time chat application (Python + JavaScript)
   - [x] Event-sourced order system (Python + JavaScript)
   - [x] Distributed workflow orchestrator (Python + JavaScript)
   - [x] IoT sensor pipeline (Python + JavaScript)
-- [x] Create tutorials ✅ **COMPLETE: 5 tutorials**
+- [x] Create tutorials [DONE] **COMPLETE: 5 tutorials**
   - [x] "Getting Started with Aether" (updated)
   - [x] "Stateful Actors" (updated with event sourcing + pub/sub)
   - [x] "Event-Driven Systems" (new)
@@ -120,7 +120,7 @@ Following the successful completion of v1.5.0 "Flow" (Streaming Foundation, Even
   - [x] "Distributed Workflows with Aether" (new)
 
 #### 2.3 Migration Guides
-- [x] Create migration guides ✅ **COMPLETE: 4 migration guides**
+- [x] Create migration guides [DONE] **COMPLETE: 4 migration guides**
   - [x] From v1.4.0 to v1.5.0
   - [x] From Kafka to Aether Event System
   - [x] From Temporal to Aether Workflows
@@ -128,7 +128,7 @@ Following the successful completion of v1.5.0 "Flow" (Streaming Foundation, Even
 
 ---
 
-## Phase 3: Performance Hardening (Week 3-4) ✅ ~40%
+## Phase 3: Performance Hardening (Week 3-4) [DONE] ~40%
 
 **Priority**: High
 **Dependencies**: Phase 1
@@ -151,7 +151,7 @@ Following the successful completion of v1.5.0 "Flow" (Streaming Foundation, Even
 | Memory efficiency | N/A | <1KB per active stream |
 
 #### 3.2 Benchmark Suite
-- [x] Create SDK benchmark suites ✅ **COMPLETE: Python (6) + JavaScript (12) benchmarks**
+- [x] Create SDK benchmark suites [DONE] **COMPLETE: Python (6) + JavaScript (12) benchmarks**
   - [x] Stream processing throughput (WindowAssigner, TumblingWindow)
   - [x] Backpressure throughput (Buffer, MultiLevel)
   - [x] Circuit breaker latency overhead
@@ -159,7 +159,7 @@ Following the successful completion of v1.5.0 "Flow" (Streaming Foundation, Even
   - [x] State handle operations throughput
   - [x] Validation throughput (email, UUID)
   - [x] Message serialization throughput (toJSON, fromJSON, round-trip)
-- [x] Integrate into CI ✅ **COMPLETE: sdk-ci.yml + benchmarks.yml updated**
+- [x] Integrate into CI [DONE] **COMPLETE: sdk-ci.yml + benchmarks.yml updated**
   - [x] JavaScript SDK benchmark job (nightly + main push)
   - [x] Python SDK benchmark job (nightly + main push)
   - [x] Benchmark results artifact upload
@@ -185,7 +185,7 @@ Following the successful completion of v1.5.0 "Flow" (Streaming Foundation, Even
 
 ---
 
-## Phase 4: Integration Testing (Week 4-5) ✅ ~50%
+## Phase 4: Integration Testing (Week 4-5) [DONE] ~50%
 
 **Priority**: High
 **Dependencies**: Phase 1, 2
@@ -198,7 +198,7 @@ Following the successful completion of v1.5.0 "Flow" (Streaming Foundation, Even
 ### Tasks
 
 #### 4.1 Cross-SDK Tests
-- [x] Cross-SDK contract tests ✅ **COMPLETE: Python (41) + JavaScript (23) tests**
+- [x] Cross-SDK contract tests [DONE] **COMPLETE: Python (41) + JavaScript (23) tests**
   - [x] Shared test vectors (test_vectors.json)
   - [x] Message serialization compatibility
   - [x] Timestamp/Duration/WindowSpec/Watermark cross-SDK format
@@ -215,18 +215,18 @@ Following the successful completion of v1.5.0 "Flow" (Streaming Foundation, Even
 - [ ] Workflow coordination across SDKs
 
 #### 4.2 End-to-End Scenarios
-- [x] E-commerce order processing ✅ **COMPLETE: Python (26) + JavaScript (26) E2E tests**
+- [x] E-commerce order processing [DONE] **COMPLETE: Python (26) + JavaScript (26) E2E tests**
   - [x] Order created → Payment processed → Inventory updated → Shipping scheduled
   - [x] Compensation flow (order cancelled)
-- [x] Real-time analytics pipeline ✅ **COMPLETE: E2E analytics pipeline tests**
+- [x] Real-time analytics pipeline [DONE] **COMPLETE: E2E analytics pipeline tests**
   - [x] Events ingested → Windowed → Aggregated → Alert triggered
   - [x] Late data handling
-- [x] IoT device management ✅ **COMPLETE: E2E IoT management tests**
+- [x] IoT device management [DONE] **COMPLETE: E2E IoT management tests**
   - [x] Device registration → Telemetry processing → Alert generation
   - [x] Firmware update coordination
 
 #### 4.3 Chaos Testing
-- [x] Resilience chaos tests ✅ **COMPLETE: Python (6) + JavaScript (6) chaos tests**
+- [x] Resilience chaos tests [DONE] **COMPLETE: Python (6) + JavaScript (6) chaos tests**
   - [x] Circuit breaker flapping
   - [x] Bulkhead exhaustion + recovery
   - [x] Rate limiter burst
@@ -241,7 +241,7 @@ Following the successful completion of v1.5.0 "Flow" (Streaming Foundation, Even
 
 ---
 
-## Phase 5: Deployment & Operations (Week 5-6) ✅ ~80%
+## Phase 5: Deployment & Operations (Week 5-6) [DONE] ~80%
 
 **Priority**: Medium
 **Dependencies**: Phase 3, 4
@@ -254,31 +254,31 @@ Following the successful completion of v1.5.0 "Flow" (Streaming Foundation, Even
 ### Tasks
 
 #### 5.1 Deployment
-- [x] Kubernetes Helm charts ✅ **COMPLETE: deploy/helm/aether/ with full templates**
+- [x] Kubernetes Helm charts [DONE] **COMPLETE: deploy/helm/aether/ with full templates**
   - [x] Aether Core chart (Chart.yaml, values.yaml, deployment, service, ingress, configmap)
-- [x] Docker Compose for development ✅ **COMPLETE: deploy/docker-compose.dev.yml**
-- [x] Docker Compose for production ✅ **COMPLETE: deploy/docker-compose.prod.yml with resource limits**
-- [x] Terraform modules for cloud deployment ✅ **COMPLETE: deploy/terraform/ (main.tf, variables.tf, outputs.tf)**
+- [x] Docker Compose for development [DONE] **COMPLETE: deploy/docker-compose.dev.yml**
+- [x] Docker Compose for production [DONE] **COMPLETE: deploy/docker-compose.prod.yml with resource limits**
+- [x] Terraform modules for cloud deployment [DONE] **COMPLETE: deploy/terraform/ (main.tf, variables.tf, outputs.tf)**
 - [ ] GitOps deployment pipeline
 
 #### 5.2 Operations
-- [x] Operational runbooks ✅ **COMPLETE**
+- [x] Operational runbooks [DONE] **COMPLETE**
   - [x] Incident response (deploy/runbooks/INCIDENT_RESPONSE.md)
   - [x] Scaling procedures (deploy/runbooks/SCALING.md)
   - [ ] Backup/recovery
-- [x] Alerting rules ✅ **COMPLETE: 21 rules across 5 groups**
+- [x] Alerting rules [DONE] **COMPLETE: 21 rules across 5 groups**
   - [x] Performance degradation
   - [x] Error rate spikes
   - [x] Resource exhaustion
 - [ ] On-call guide
 
 #### 5.3 Monitoring
-- [x] Grafana dashboards ✅ **COMPLETE: 18 panels across 4 rows**
+- [x] Grafana dashboards [DONE] **COMPLETE: 18 panels across 4 rows**
   - [x] System overview
   - [x] SDK metrics
   - [x] Performance metrics
   - [x] Error tracking
-- [x] Prometheus metrics ✅ **COMPLETE: 21 alerting rules**
+- [x] Prometheus metrics [DONE] **COMPLETE: 21 alerting rules**
   - [x] Custom Aether metrics
   - [x] SDK-specific metrics
 - [x] Log aggregation
@@ -287,7 +287,7 @@ Following the successful completion of v1.5.0 "Flow" (Streaming Foundation, Even
 
 ---
 
-## Phase 6: Release Preparation (Week 6-7) ✅ ~90%
+## Phase 6: Release Preparation (Week 6-7) [DONE] ~90%
 
 **Priority**: Critical
 **Dependencies**: All previous phases
@@ -301,10 +301,10 @@ Following the successful completion of v1.5.0 "Flow" (Streaming Foundation, Even
 
 #### 6.1 Release Candidate
 - [ ] Create release branch
-- [x] Final integration testing ✅ **COMPLETE: Python 1151 passed, JS 710 passed**
-- [x] Performance validation ✅ **COMPLETE: Benchmark suites integrated into CI**
-- [x] Security review ✅ **COMPLETE: deploy/SECURITY_REVIEW.md**
-- [x] Documentation review ✅ **COMPLETE: Sphinx + TypeDoc build successfully**
+- [x] Final integration testing [DONE] **COMPLETE: Python 1151 passed, JS 710 passed**
+- [x] Performance validation [DONE] **COMPLETE: Benchmark suites integrated into CI**
+- [x] Security review [DONE] **COMPLETE: deploy/SECURITY_REVIEW.md**
+- [x] Documentation review [DONE] **COMPLETE: Sphinx + TypeDoc build successfully**
 
 #### 6.2 Release Artifacts
 - [ ] SDK packages
@@ -324,15 +324,15 @@ Following the successful completion of v1.5.0 "Flow" (Streaming Foundation, Even
   - [x] Tutorial updates (5 tutorials)
 
 #### 6.3 Release Notes
-- [x] New features summary ✅ **COMPLETE: RELEASE_NOTES.md**
-- [x] Breaking changes (if any) ✅ **COMPLETE: None identified**
-- [x] Migration guide ✅ **COMPLETE: 4 migration guides**
-- [x] Known issues ✅ **COMPLETE: Documented in RELEASE_NOTES.md**
+- [x] New features summary [DONE] **COMPLETE: RELEASE_NOTES.md**
+- [x] Breaking changes (if any) [DONE] **COMPLETE: None identified**
+- [x] Migration guide [DONE] **COMPLETE: 4 migration guides**
+- [x] Known issues [DONE] **COMPLETE: Documented in RELEASE_NOTES.md**
 - [x] Acknowledgments
 
-- [x] Create CHANGELOG.md ✅ **COMPLETE: Keep-a-changelog format**
-- [x] Update VERSION.md to v1.6.0 ✅ **COMPLETE**
-- [x] Version bumped in all manifests ✅ **COMPLETE: _version.py, pyproject.toml, package.json, Cargo.toml**
+- [x] Create CHANGELOG.md [DONE] **COMPLETE: Keep-a-changelog format**
+- [x] Update VERSION.md to v1.6.0 [DONE] **COMPLETE**
+- [x] Version bumped in all manifests [DONE] **COMPLETE: _version.py, pyproject.toml, package.json, Cargo.toml**
 - [ ] Create git tag v1.6.0
 - [ ] Create GitHub release
 
@@ -341,13 +341,13 @@ Following the successful completion of v1.5.0 "Flow" (Streaming Foundation, Even
 ## Success Criteria
 
 ### Quality Gates
-- [x] Python SDK >90% test coverage ✅ (92%)
-- [x] JavaScript SDK >90% test coverage ✅ (93.55%)
+- [x] Python SDK >90% test coverage [DONE] (92%)
+- [x] JavaScript SDK >90% test coverage [DONE] (93.55%)
 - [ ] All SDKs have >90% test coverage (Go/Java deferred to v1.6.1)
 - [ ] All mutation tests pass with >80% mutation score
 - [ ] All performance benchmarks meet targets
-- [x] All integration tests pass ✅
-- [x] Documentation complete for all public APIs (Python + JavaScript) ✅
+- [x] All integration tests pass [DONE]
+- [x] Documentation complete for all public APIs (Python + JavaScript) [DONE]
 
 ### Performance Gates
 - [ ] Stream throughput: 500K events/s
@@ -357,16 +357,16 @@ Following the successful completion of v1.5.0 "Flow" (Streaming Foundation, Even
 - [ ] Backpressure recovery: <50ms
 
 ### Documentation Gates
-- [x] All public APIs documented (Python + JavaScript) ✅
-- [x] 4+ comprehensive examples per SDK ✅ (8 examples total)
-- [x] Migration guides complete ✅ (4 guides)
-- [x] Tutorials tested and reviewed ✅ (5 tutorials)
+- [x] All public APIs documented (Python + JavaScript) [DONE]
+- [x] 4+ comprehensive examples per SDK [DONE] (8 examples total)
+- [x] Migration guides complete [DONE] (4 guides)
+- [x] Tutorials tested and reviewed [DONE] (5 tutorials)
 
 ### Deployment Gates
 - [ ] Helm charts tested in staging
 - [ ] GitOps pipeline verified
-- [x] Monitoring dashboards functional ✅
-- [x] Runbooks reviewed ✅
+- [x] Monitoring dashboards functional [DONE]
+- [x] Runbooks reviewed [DONE]
 
 ---
 
@@ -438,10 +438,10 @@ Following the successful completion of v1.5.0 "Flow" (Streaming Foundation, Even
 8. [ ] Fix JS test timer/worker leaks (use --forceExit for stress/chaos suites)
 
 ### Infrastructure Improvements
-1. [x] Add CI/CD pipeline for SDK testing ✅
+1. [x] Add CI/CD pipeline for SDK testing [DONE]
 2. [ ] Set up continuous benchmarking
 3. [ ] Add security scanning automation
-4. [x] Improve documentation generation ✅
+4. [x] Improve documentation generation [DONE]
 5. [ ] Add performance regression detection
 
 ### Deferred to v1.6.1

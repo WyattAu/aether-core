@@ -101,11 +101,11 @@ cross build --release --target aarch64-unknown-linux-gnu
 
 | Feature | Description | Default |
 |---------|-------------|---------|
-| default | Standard runtime features | ✓ |
-| wasm-runtime | WASM execution engine | ✓ |
-| firecracker | Firecracker VM support | ✓ |
-| mesh-network | Distributed networking | ✓ |
-| all-features | All available features | ✗ |
+| default | Standard runtime features | [PASS] |
+| wasm-runtime | WASM execution engine | [PASS] |
+| firecracker | Firecracker VM support | [PASS] |
+| mesh-network | Distributed networking | [PASS] |
+| all-features | All available features | [FAIL] |
 
 ## Release Builds
 

@@ -2,6 +2,7 @@ package streaming
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -165,8 +166,8 @@ func (bc *BatchCollector[T]) flush() *BatchResult[T] {
 	}
 
 	bc.batchCount++
-	batchID := "batch-" + time.Now().Format("20060102-150405-") + 
-		time.Now().NanosecondFormat("999999999")
+	batchID := "batch-" + time.Now().Format("20060102-150405") + 
+		"-" + fmt.Sprintf("%09d", time.Now().Nanosecond())
 
 	result := &BatchResult[T]{
 		Items:          bc.items,

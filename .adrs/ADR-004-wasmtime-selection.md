@@ -41,13 +41,13 @@ We select **wasmtime 25.0.0** as our WASM runtime.
 
 | Criterion | wasmtime | wasmer | wasm3 | WasmEdge |
 |-----------|----------|--------|-------|----------|
-| Cold Start | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ |
-| Security | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐ |
-| Fuel Metering | ✅ | ✅ | ❌ | ✅ |
-| WASI | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐ |
-| Rust Ecosystem | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐ |
-| Maintenance | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐ |
-| Component Model | ⭐⭐⭐⭐⭐ | ⭐⭐ | ⭐ | ⭐⭐⭐ |
+| Cold Start | ***** | **** | ***** | **** |
+| Security | ***** | **** | *** | **** |
+| Fuel Metering | [DONE] | [DONE] | [FAIL] | [DONE] |
+| WASI | ***** | **** | *** | **** |
+| Rust Ecosystem | ***** | ***** | *** | **** |
+| Maintenance | ***** | **** | *** | **** |
+| Component Model | ***** | ** | * | *** |
 
 ### Key Advantages
 
@@ -197,11 +197,11 @@ fn limit_memory(store: &mut Store<HostState>, max: usize) {
 
 | Property | Mechanism | Status |
 |----------|-----------|--------|
-| Memory isolation | Linear memory bounds | ✅ Verified |
-| Control flow integrity | Cranelift | ✅ Verified |
-| Resource limits | Fuel + memory caps | ✅ Verified |
-| No escape | Sandbox design | ✅ Verified |
-| WASI capabilities | Capability-based | ✅ Implemented |
+| Memory isolation | Linear memory bounds | [DONE] Verified |
+| Control flow integrity | Cranelift | [DONE] Verified |
+| Resource limits | Fuel + memory caps | [DONE] Verified |
+| No escape | Sandbox design | [DONE] Verified |
+| WASI capabilities | Capability-based | [DONE] Implemented |
 
 ## References
 

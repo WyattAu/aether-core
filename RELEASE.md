@@ -312,7 +312,7 @@ Users can install Aether via:
 
 1. **Binary Download:**
    ```bash
-   curl -LO https://github.com/aether-project/aether/releases/latest/download/aether-linux-x86_64.tar.gz
+   curl -LO https://github.com/WyattAu/aether-core/releases/latest/download/aether-linux-x86_64.tar.gz
    tar xzf aether-linux-x86_64.tar.gz
    sudo mv aether /usr/local/bin/
    ```
@@ -324,7 +324,7 @@ Users can install Aether via:
 
 3. **From Source:**
    ```bash
-   git clone https://github.com/aether-project/aether
+   git clone https://github.com/WyattAu/aether-core
    cd aether
    cargo install --path crates/cli
    ```
@@ -333,6 +333,6 @@ Users can install Aether via:
 
 For release-related issues:
 
-- GitHub Issues: https://github.com/aether-project/aether/issues
-- Discussions: https://github.com/aether-project/aether/discussions
+- GitHub Issues: https://github.com/WyattAu/aether-core/issues
+- Discussions: https://github.com/WyattAu/aether-core/discussions
 - Security: security@aether-project.io

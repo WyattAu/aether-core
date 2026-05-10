@@ -7,8 +7,8 @@
 //!
 //! # Example
 //!
-//! ```ignore
-//! use aether_core::security::{CertificateAuthority, NodeIdentity, ActorIdentity};
+//! ```rust
+//! use aether_core::security::{CertificateAuthority, NodeIdentity, ActorIdentity, IdentityVerifier};
 //!
 //! // Create a certificate authority
 //! let ca = CertificateAuthority::generate("Aether CA")?;

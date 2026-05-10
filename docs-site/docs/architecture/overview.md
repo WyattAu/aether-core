@@ -198,10 +198,10 @@ Actor Request
 │                   ▼                      │
 │  ┌────────────────────────────────────┐ │
 │  │          Resource Access            │ │
-│  │  ✓ State Storage                   │ │
-│  │  ✓ External APIs                   │ │
-│  │  ✗ File System                     │ │
-│  │  ✗ Process Spawn                   │ │
+│  │  [PASS] State Storage                   │ │
+│  │  [PASS] External APIs                   │ │
+│  │  [FAIL] File System                     │ │
+│  │  [FAIL] Process Spawn                   │ │
 │  └────────────────────────────────────┘ │
 └─────────────────────────────────────────┘
 ```

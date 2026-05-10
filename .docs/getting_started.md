@@ -1,6 +1,6 @@
 # Project Aether - Getting Started
 
-**Version:** 1.0.0-alpha  
+**Version:** 2.0.0
 **Last Updated:** 2026-03-14  
 **Time to Complete:** ~15 minutes
 
@@ -31,7 +31,7 @@ In this guide, you'll:
 
 ```bash
 # Download latest release
-curl -LO https://github.com/aether-project/aether/releases/latest/download/aether-linux-amd64
+curl -LO https://github.com/WyattAu/aether-core/releases/latest/download/aether-linux-amd64
 
 # Install
 chmod +x aether-linux-amd64
@@ -45,7 +45,7 @@ aether version
 
 ```bash
 # Clone repository
-git clone https://github.com/aether-project/aether.git
+git clone https://github.com/WyattAu/aether-core.git
 cd aether
 
 # Build with Nix (recommended)
@@ -232,8 +232,8 @@ curl -X POST http://localhost:8080/api/v1/actors/actor-abc123/call \
 ### Join the Community
 
 - **Discord**: [discord.gg/aether](https://discord.gg/aether)
-- **GitHub Discussions**: [github.com/aether-project/aether/discussions](https://github.com/aether-project/aether/discussions)
-- **Issues**: [github.com/aether-project/aether/issues](https://github.com/aether-project/aether/issues)
+- **GitHub Discussions**: [github.com/WyattAu/aether-core/discussions](https://github.com/WyattAu/aether-core/discussions)
+- **Issues**: [github.com/WyattAu/aether-core/issues](https://github.com/WyattAu/aether-core/issues)
 
 ---
 
@@ -277,7 +277,7 @@ aether build
 ### Getting Help
 
 1. Check [Troubleshooting Guide](./troubleshooting.md)
-2. Search [GitHub Issues](https://github.com/aether-project/aether/issues)
+2. Search [GitHub Issues](https://github.com/WyattAu/aether-core/issues)
 3. Ask in [Discord](https://discord.gg/aether)
 
 ---

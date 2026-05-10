@@ -22,7 +22,10 @@
 //!
 //! ## Usage
 //!
-//! ```ignore
+//! ```rust
+//! use aether_core::wasi::HostContext;
+//! use aether_core::capability::CapabilitySet;
+//!
 //! // Enable deterministic mode for replay
 //! let ctx = HostContext::deterministic()
 //!     .with_wall_time(1_234_567_890_000_000_000) // nanoseconds
@@ -87,7 +90,7 @@
 //!
 //! # Example: Deterministic Replay
 //!
-//! ```ignore
+//! ```rust
 //! use aether_core::wasi::HostContext;
 //! use aether_core::capability::CapabilitySet;
 //!
@@ -131,6 +134,7 @@
 
 use crate::capability::CapabilitySet;
 use crate::error::{Error, Result};
+use std::cell::Cell;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -180,6 +184,9 @@ pub struct HostContext {
     /// Entropy pool for deterministic randomness
     pub entropy: Vec<u8>,
 
+    /// Entropy read cursor position
+    entropy_cursor: Cell<usize>,
+
     /// Network context for socket operations
     pub network: Option<NetworkContext>,
 
@@ -201,6 +208,7 @@ impl HostContext {
             wall_time_ns: now.as_nanos() as u64,
             monotonic_time_ns: 0,
             entropy,
+            entropy_cursor: Cell::new(0),
             network: None,
             deterministic: false,
         }
@@ -212,6 +220,7 @@ impl HostContext {
             wall_time_ns: 0,
             monotonic_time_ns: 0,
             entropy: Vec::new(),
+            entropy_cursor: Cell::new(0),
             network: None,
             deterministic: true,
         }
@@ -232,6 +241,7 @@ impl HostContext {
     /// Set entropy pool (builder pattern)
     pub fn with_entropy(mut self, entropy: Vec<u8>) -> Self {
         self.entropy = entropy;
+        self.entropy_cursor = Cell::new(0);
         self
     }
 
@@ -264,6 +274,20 @@ impl HostContext {
     /// Get monotonic clock time as Duration
     pub fn monotonic_time(&self) -> Duration {
         Duration::from_nanos(self.monotonic_time_ns)
+    }
+
+    /// Fill `buf` with bytes from the entropy pool, advancing the cursor.
+    ///
+    /// If the pool is exhausted, remaining bytes are filled with zeros.
+    /// Returns the number of bytes actually read from the pool.
+    pub fn next_entropy_bytes(&self, buf: &mut [u8]) -> usize {
+        let cursor = self.entropy_cursor.get();
+        let remaining = &self.entropy[cursor..];
+        let n = buf.len().min(remaining.len());
+        buf[..n].copy_from_slice(&remaining[..n]);
+        buf[n..].fill(0);
+        self.entropy_cursor.set(cursor + n);
+        n
     }
 }
 
@@ -409,6 +433,7 @@ impl WasiHost for DefaultWasiHost {
             wall_time_ns: now.as_nanos() as u64,
             monotonic_time_ns: 0,
             entropy,
+            entropy_cursor: Cell::new(0),
             network,
             deterministic: false,
         }
@@ -498,5 +523,33 @@ mod tests {
         let ctx = HostContext::default();
         assert!(!ctx.deterministic);
         assert!(!ctx.entropy.is_empty());
+    }
+
+    #[test]
+    fn test_host_context_entropy_bytes_deterministic() {
+        let ctx = HostContext::deterministic().with_entropy(vec![10, 20, 30, 40, 50, 60, 70, 80]);
+
+        let mut buf1 = [0u8; 4];
+        let mut buf2 = [0u8; 4];
+
+        let n1 = ctx.next_entropy_bytes(&mut buf1);
+        assert_eq!(n1, 4);
+        assert_eq!(buf1, [10, 20, 30, 40]);
+
+        let n2 = ctx.next_entropy_bytes(&mut buf2);
+        assert_eq!(n2, 4);
+        assert_eq!(buf2, [50, 60, 70, 80]);
+    }
+
+    #[test]
+    fn test_host_context_entropy_bytes_exhaustion() {
+        let ctx = HostContext::deterministic().with_entropy(vec![1, 2, 3]);
+
+        let mut buf = [0u8; 6];
+        let n = ctx.next_entropy_bytes(&mut buf);
+
+        assert_eq!(n, 3);
+        assert_eq!(&buf[..3], &[1, 2, 3]);
+        assert_eq!(&buf[3..], &[0, 0, 0]);
     }
 }

@@ -16,6 +16,7 @@ use crate::actor::rpc::RpcClient;
 use crate::actor::{
     ActorId, ActorRegistry, ActorState, MailboxConfig, Message, MessagePayload, Priority,
 };
+use crate::tenant::quota::QuotaEnforcer;
 
 /// Type alias for worker stealer entry (worker_id, stealer)
 type WorkerStealer = (usize, crossbeam_deque::Stealer<Task>);
@@ -142,33 +143,36 @@ pub struct ActorScheduler {
     worker_stats: Vec<Arc<WorkerStats>>,
     /// Optional executor for WASM execution
     executor: Option<Arc<dyn ActorExecutor>>,
+    /// Optional quota enforcer for resource limits
+    quota_enforcer: Option<Arc<QuotaEnforcer>>,
 }
 
 impl ActorScheduler {
     /// Create a new actor scheduler.
     pub fn new(config: SchedulerConfig) -> Self {
-        let worker_count = config.effective_workers();
-        let worker_stats: Vec<_> = (0..worker_count)
-            .map(|_| Arc::new(WorkerStats::default()))
-            .collect();
-
-        Self {
-            config,
-            global_queue: Arc::new(WorkQueue::new()),
-            priority_queue: Arc::new(PriorityQueue::new()),
-            registry: Arc::new(ActorRegistry::new()),
-            stealer_registry: StealerRegistry::new(),
-            worker_handles: Mutex::new(Vec::new()),
-            running: Arc::new(AtomicBool::new(false)),
-            total_actors: AtomicU64::new(0),
-            total_processed: Arc::new(AtomicU64::new(0)),
-            worker_stats,
-            executor: None,
-        }
+        Self::with_options(config, None, None)
     }
 
     /// Create a new scheduler with an executor.
     pub fn with_executor(config: SchedulerConfig, executor: Arc<dyn ActorExecutor>) -> Self {
+        Self::with_options(config, Some(executor), None)
+    }
+
+    /// Create a new scheduler with an executor and optional quota enforcer.
+    pub fn with_executor_and_quota(
+        config: SchedulerConfig,
+        executor: Arc<dyn ActorExecutor>,
+        quota_enforcer: Arc<QuotaEnforcer>,
+    ) -> Self {
+        Self::with_options(config, Some(executor), Some(quota_enforcer))
+    }
+
+    /// Create a new scheduler with optional executor and optional quota enforcer.
+    fn with_options(
+        config: SchedulerConfig,
+        executor: Option<Arc<dyn ActorExecutor>>,
+        quota_enforcer: Option<Arc<QuotaEnforcer>>,
+    ) -> Self {
         let worker_count = config.effective_workers();
         let worker_stats: Vec<_> = (0..worker_count)
             .map(|_| Arc::new(WorkerStats::default()))
@@ -185,7 +189,8 @@ impl ActorScheduler {
             total_actors: AtomicU64::new(0),
             total_processed: Arc::new(AtomicU64::new(0)),
             worker_stats,
-            executor: Some(executor),
+            executor,
+            quota_enforcer,
         }
     }
 
@@ -266,6 +271,11 @@ impl ActorScheduler {
 
     /// Spawn a new actor with a name.
     pub fn spawn_named(&self, name: Option<String>) -> crate::Result<ActorId> {
+        if let Some(ref enforcer) = self.quota_enforcer {
+            if let Err(reason) = enforcer.try_acquire_actor() {
+                return Err(Error::resource_exhausted(reason));
+            }
+        }
         let id = ActorId::new();
         self.registry.register_named(id, name)?;
         self.total_actors.fetch_add(1, Ordering::Relaxed);
@@ -278,7 +288,11 @@ impl ActorScheduler {
         if let Some(m) = self.registry.get_mailbox(id) {
             m.clear()
         }
-        self.registry.unregister(id)
+        self.registry.unregister(id)?;
+        if let Some(ref enforcer) = self.quota_enforcer {
+            enforcer.release_actor();
+        }
+        Ok(())
     }
 
     /// Set an actor to running state.
@@ -293,6 +307,12 @@ impl ActorScheduler {
 
     /// Send a message to an actor.
     pub async fn send(&self, target: ActorId, message: Message) -> crate::Result<()> {
+        if let Some(ref enforcer) = self.quota_enforcer {
+            if let Err(reason) = enforcer.check_message_rate() {
+                return Err(Error::resource_exhausted(reason));
+            }
+        }
+
         let mailbox = self
             .registry
             .get_mailbox(&target)
@@ -588,6 +608,7 @@ pub struct WorkerStatsInfo {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::tenant::quota::{QuotaLimits, ResourceQuota};
 
     #[test]
     fn test_scheduler_creation() {
@@ -711,6 +732,32 @@ mod tests {
         let stats = scheduler.stats();
         assert!(stats.total_messages_processed >= 5);
         assert_eq!(stats.worker_count, 4);
+
+        scheduler.stop();
+    }
+
+    #[tokio::test]
+    async fn test_scheduler_quota_enforcement_rejects_over_limit() {
+        let enforcer = Arc::new(QuotaEnforcer::new(ResourceQuota::with_limits(
+            "test-tenant",
+            QuotaLimits {
+                max_actors: 1,
+                ..QuotaLimits::default()
+            },
+        )));
+        let scheduler = ActorScheduler::with_executor_and_quota(
+            SchedulerConfig::new().workers(1),
+            Arc::new(NullExecutor::new()),
+            enforcer,
+        );
+
+        let first = scheduler.spawn().unwrap();
+        assert!(scheduler.registry().get_state(&first).is_some());
+
+        let result = scheduler.spawn();
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err().to_string();
+        assert!(err_msg.contains("actor limit exceeded"), "got: {err_msg}");
 
         scheduler.stop();
     }

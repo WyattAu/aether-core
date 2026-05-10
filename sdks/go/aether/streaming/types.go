@@ -361,18 +361,6 @@ func DefaultBackpressureConfig() BackpressureConfig {
 	}
 }
 
-type PartitionConfig struct {
-	Strategy      string
-	Partitions    int
-}
-
-func DefaultPartitionConfig() PartitionConfig {
-	return PartitionConfig{
-		Strategy:   "key",
-		Partitions: 1,
-	}
-}
-
 type DeliveryConfig struct {
 	Semantics        DeliverySemantics
 	MaxRetries       int

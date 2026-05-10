@@ -39,7 +39,7 @@ Following the completion of v1.6.0 "Horizon" (Quality Gates, Documentation, Perf
 ### Tasks
 
 #### 1.1 Redis State Backend
-- [ ] Implement Redis state backend for StateStore 🔄 **IN PROGRESS**
+- [ ] Implement Redis state backend for StateStore [IN PROGRESS] **IN PROGRESS**
   - [ ] Redis connection pooling (redis-py / aioredis)
   - [ ] State key namespacing by actor ID
   - [ ] TTL support for ephemeral state
@@ -54,24 +54,24 @@ Following the completion of v1.6.0 "Horizon" (Quality Gates, Documentation, Perf
   - [ ] Aggregate version tracking
 
 #### 1.2 gRPC Transport Layer
-- [x] Define gRPC service protos based on mesh-protocol.proto ✅
+- [x] Define gRPC service protos based on mesh-protocol.proto [DONE]
   - [x] ActorService (register, unregister, get, list, heartbeat)
   - [x] MessageService (send, get_pending)
   - [x] StateService (get, set, delete, get_all)
   - [x] EventService (publish, subscribe, append, get_events)
   - [x] HealthService (health, ready)
-- [x] Generate Python gRPC stubs (grpcio / grpcio-tools) ✅
-- [x] Implement gRPC server alongside FastAPI (dual-protocol) ✅
+- [x] Generate Python gRPC stubs (grpcio / grpcio-tools) [DONE]
+- [x] Implement gRPC server alongside FastAPI (dual-protocol) [DONE]
 - [ ] gRPC interceptors for auth, tracing, and rate limiting
 - [ ] gRPC keepalive and connection management
 
 #### 1.3 Server-Side Actor Execution
-- [x] Actor execution engine in server process ✅
+- [x] Actor execution engine in server process [DONE]
   - [x] Actor class loading from SDK packages
   - [x] Actor mailbox management on server
   - [x] Message dispatch to registered handlers
   - [x] Actor lifecycle management (spawn, stop, restart)
-- [x] Actor supervision tree ✅
+- [x] Actor supervision tree [DONE]
   - [x] Parent-child actor relationships
   - [x] Supervision strategies (restart, resume, stop, escalate)
   - [x] Automatic restart policies (max restarts, time window)
@@ -80,7 +80,7 @@ Following the completion of v1.6.0 "Horizon" (Quality Gates, Documentation, Perf
   - [ ] Mailbox recovery on restart
 
 #### 1.4 Authentication & Authorization
-- [ ] JWT authentication middleware 🔄 **IN PROGRESS**
+- [ ] JWT authentication middleware [IN PROGRESS] **IN PROGRESS**
   - [ ] Token generation and validation
   - [ ] Token refresh mechanism
   - [ ] Public key / secret key rotation
@@ -130,7 +130,7 @@ Following the completion of v1.6.0 "Horizon" (Quality Gates, Documentation, Perf
 ### Tasks
 
 #### 2.1 Python SDK Client
-- [ ] `aether_sdk.server` module 🔄 **IN PROGRESS**
+- [ ] `aether_sdk.server` module [IN PROGRESS] **IN PROGRESS**
   - [ ] `AetherClient` class (async, httpx/aiohttp based)
   - [ ] Actor operations (register, unregister, get, list)
   - [ ] Message operations (send, get_pending)
@@ -234,7 +234,7 @@ Following the completion of v1.6.0 "Horizon" (Quality Gates, Documentation, Perf
 - [ ] Connection pooling (redis-py connection pool)
 
 #### 3.4 PostgreSQL Integration
-- [x] PostgreSQL event store backend ✅
+- [x] PostgreSQL event store backend [DONE]
   - [x] Events table with aggregate_id, version, event_type
   - [x] Optimistic concurrency via version column
   - [ ] Snapshots table for aggregate state
@@ -287,7 +287,7 @@ Following the completion of v1.6.0 "Horizon" (Quality Gates, Documentation, Perf
 ### Tasks
 
 #### 4.1 GraphQL Subscriptions
-- [ ] Real-time GraphQL subscriptions via WebSocket 🔄 **IN PROGRESS**
+- [ ] Real-time GraphQL subscriptions via WebSocket [IN PROGRESS] **IN PROGRESS**
   - [ ] Actor state change subscriptions
   - [ ] Event stream subscriptions
   - [ ] Pub/Sub topic subscriptions
@@ -298,7 +298,7 @@ Following the completion of v1.6.0 "Horizon" (Quality Gates, Documentation, Perf
 - [ ] Subscription authentication and authorization
 
 #### 4.2 Multi-Node Clustering
-- [ ] Node discovery and membership 🔄 **IN PROGRESS**
+- [ ] Node discovery and membership [IN PROGRESS] **IN PROGRESS**
   - [ ] Gossip protocol for node discovery
   - [ ] Leader election (Raft-based)
   - [ ] Health monitoring and failure detection
@@ -366,7 +366,7 @@ Following the completion of v1.6.0 "Horizon" (Quality Gates, Documentation, Perf
 ### Tasks
 
 #### 5.1 VS Code Extension
-- [ ] Aether VS Code extension 🔄 **IN PROGRESS**
+- [ ] Aether VS Code extension [IN PROGRESS] **IN PROGRESS**
   - [ ] Syntax highlighting for actor definitions
   - [ ] Snippets for common patterns (actor, message, saga, workflow)
   - [ ] Language Server Protocol (LSP) integration
@@ -387,7 +387,7 @@ Following the completion of v1.6.0 "Horizon" (Quality Gates, Documentation, Perf
 - [ ] `aether-server migrate` — database migrations
 
 #### 5.3 Dashboard UI
-- [ ] React dashboard application 🔄 **IN PROGRESS**
+- [ ] React dashboard application [IN PROGRESS] **IN PROGRESS**
   - [ ] Actor overview (list, search, filter)
   - [ ] Actor detail view (state, messages, events)
   - [ ] Real-time event stream visualization
@@ -426,12 +426,12 @@ Following the completion of v1.6.0 "Horizon" (Quality Gates, Documentation, Perf
 ## Success Criteria
 
 ### Server Hardening
-- [x] Redis state backend with <5ms read latency ✅ (v1.7.0)
-- [x] gRPC transport functional alongside REST/WebSocket ✅ (v1.7.1)
-- [x] Server-side actor execution with supervision ✅ (v1.7.1)
-- [x] JWT authentication on all endpoints ✅ (v1.7.0)
-- [x] Rate limiting enforced on REST, WebSocket, and gRPC ✅ (v1.7.0 REST, pending WS/gRPC)
-- [x] Graceful shutdown with <30s drain time ✅ (v1.7.0)
+- [x] Redis state backend with <5ms read latency [DONE] (v1.7.0)
+- [x] gRPC transport functional alongside REST/WebSocket [DONE] (v1.7.1)
+- [x] Server-side actor execution with supervision [DONE] (v1.7.1)
+- [x] JWT authentication on all endpoints [DONE] (v1.7.0)
+- [x] Rate limiting enforced on REST, WebSocket, and gRPC [DONE] (v1.7.0 REST, pending WS/gRPC)
+- [x] Graceful shutdown with <30s drain time [DONE] (v1.7.0)
 
 ### SDK Integration
 - [ ] Client libraries for all 4 languages
@@ -442,9 +442,9 @@ Following the completion of v1.6.0 "Horizon" (Quality Gates, Documentation, Perf
 ### Production Readiness
 - [ ] Docker image <200MB
 - [ ] Kubernetes deployment with HPA
-- [x] PostgreSQL event store with >10K events/s write throughput ✅ (v1.7.1, backend ready)
-- [x] Prometheus metrics exported at /metrics ✅ (v1.7.0)
-- [x] Structured JSON logging with request/trace ID correlation ✅ (v1.7.0)
+- [x] PostgreSQL event store with >10K events/s write throughput [DONE] (v1.7.1, backend ready)
+- [x] Prometheus metrics exported at /metrics [DONE] (v1.7.0)
+- [x] Structured JSON logging with request/trace ID correlation [DONE] (v1.7.0)
 
 ### Advanced Features
 - [ ] GraphQL subscriptions delivering <100ms latency

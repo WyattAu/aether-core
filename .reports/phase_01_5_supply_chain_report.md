@@ -18,11 +18,11 @@ Phase 1.5 establishes a comprehensive supply chain security foundation for Proje
 |--------|-------|--------|--------|
 | Direct Dependencies | 38 | - | Documented |
 | Total Dependencies | ~250 | - | Cataloged |
-| Critical CVEs | 0 | 0 | ✅ |
-| High CVEs | 0 | 0 | ✅ |
-| Copyleft Dependencies | 0 | 0 | ✅ |
-| License Compliance | 100% | 100% | ✅ |
-| SBOM Generated | Yes | Yes | ✅ |
+| Critical CVEs | 0 | 0 | [DONE] |
+| High CVEs | 0 | 0 | [DONE] |
+| Copyleft Dependencies | 0 | 0 | [DONE] |
+| License Compliance | 100% | 100% | [DONE] |
+| SBOM Generated | Yes | Yes | [DONE] |
 
 ---
 
@@ -71,10 +71,10 @@ Estimated 200+ transitive dependencies, all captured in:
 
 | Severity | Count | Status |
 |----------|-------|--------|
-| Critical | 0 | ✅ None |
-| High | 0 | ✅ None |
-| Medium | 0 | ✅ None |
-| Low | 0 | ✅ None |
+| Critical | 0 | [DONE] None |
+| High | 0 | [DONE] None |
+| Medium | 0 | [DONE] None |
+| Low | 0 | [DONE] None |
 
 ### 2.2 Security Posture
 
@@ -111,7 +111,7 @@ Critical dependencies pinned with Architecture Board approval required for updat
 | MIT | 17 | 40% | Simple permissive |
 | Apache-2.0 OR MIT | 8 | 19% | Dual-licensed |
 | Other Permissive | 1 | 2% | ring (ISC+OpenSSL+MIT) |
-| Copyleft | 0 | 0% | None ✅ |
+| Copyleft | 0 | 0% | None [DONE] |
 
 ### 3.2 Patent Grant Coverage
 
@@ -123,11 +123,11 @@ Critical dependencies pinned with Architecture Board approval required for updat
 
 ### 3.3 Enterprise Compliance
 
-✅ All licenses OSI-approved  
-✅ No copyleft contamination risk  
-✅ Patent grants available for 60% of dependencies  
-✅ NOTICE file requirements documented  
-✅ Attribution requirements documented  
+[DONE] All licenses OSI-approved  
+[DONE] No copyleft contamination risk  
+[DONE] Patent grants available for 60% of dependencies  
+[DONE] NOTICE file requirements documented  
+[DONE] Attribution requirements documented  
 
 ---
 
@@ -192,10 +192,10 @@ Given Aether's security requirements, CVE severities are adjusted:
 
 | Priority | Action | Owner | Deadline |
 |----------|--------|-------|----------|
-| ✅ Complete | Create supply_chain.lock | Construct | Done |
-| ✅ Complete | Generate SPDX SBOM | Construct | Done |
-| ✅ Complete | Document vulnerability policy | Construct | Done |
-| ✅ Complete | Document license compliance | Construct | Done |
+| [DONE] Complete | Create supply_chain.lock | Construct | Done |
+| [DONE] Complete | Generate SPDX SBOM | Construct | Done |
+| [DONE] Complete | Document vulnerability policy | Construct | Done |
+| [DONE] Complete | Document license compliance | Construct | Done |
 
 ### 6.2 Short-term Actions (Next 30 Days)
 
@@ -293,10 +293,10 @@ Audit Status:              PASSED
 - Establish integration patterns
 
 **Dependencies on Phase 1.5:**
-- ✅ Dependency versions locked
-- ✅ Security posture established
-- ✅ License compliance verified
-- ✅ SBOM available for audit
+- [DONE] Dependency versions locked
+- [DONE] Security posture established
+- [DONE] License compliance verified
+- [DONE] SBOM available for audit
 
 ---
 

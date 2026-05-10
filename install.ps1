@@ -12,7 +12,7 @@ $Arch = if ([Environment]::Is64BitOperatingSystem) { "x86_64" } else { "x86" }
 
 # Get latest version
 if ($Version -eq "latest") {
-    $LatestRelease = Invoke-RestMethod -Uri "https://api.github.com/repos/aether-project/aether/releases/latest"
+    $LatestRelease = Invoke-RestMethod -Uri "https://api.github.com/repos/WyattAu/aether-core/releases/latest"
     $Version = $LatestRelease.tag_name
 }
 
@@ -23,7 +23,7 @@ Write-Host "   Install: $InstallDir"
 New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
 
 # Download
-$Url = "https://github.com/aether-project/aether/releases/download/$Version/aether-$($Arch)-pc-windows-msvc.zip"
+$Url = "https://github.com/WyattAu/aether-core/releases/download/$Version/aether-$($Arch)-pc-windows-msvc.zip"
 $ZipPath = "$env:TEMP\aether.zip"
 
 Write-Host "   Downloading..."

@@ -34,7 +34,7 @@
 ```bash
 # Good: Instant feedback
 $ aether status
-Status: Running ✓
+Status: Running [PASS]
 
 # Bad: No feedback
 $ aether apply
@@ -45,9 +45,9 @@ Applied.
 # Good: Progress indication for long operations
 $ aether apply
 Applying configuration...
-  ✓ actor-api: created
-  ✓ actor-db: created
-  ✓ network: configured
+  [PASS] actor-api: created
+  [PASS] actor-db: created
+  [PASS] network: configured
 Applied in 2.3s
 ```
 
@@ -155,10 +155,10 @@ Examples:
 
 ```
 # Simple success
-✓ Actor 'api' created
+[PASS] Actor 'api' created
 
 # With details
-✓ Actor 'api' created
+[PASS] Actor 'api' created
   Runtime: wasm
   Instances: 1
   Memory: 64MiB
@@ -174,7 +174,7 @@ worker      wasm     Running  5          320MiB
 
 ```
 # Error with explanation
-✗ Error: Capability denied
+[FAIL] Error: Capability denied
 
   Actor 'worker' attempted 'net:tcp:connect:10.0.0.1:443'
   but only has capabilities:
@@ -199,7 +199,7 @@ Simple spinner:
 
 ```
 Creating actor 'api'...
-✓ Actor 'api' created
+[PASS] Actor 'api' created
 ```
 
 #### Long Operations (>5s)
@@ -208,13 +208,13 @@ Detailed progress:
 
 ```
 Applying configuration...
-  [1/5] Validating configuration...     ✓
-  [2/5] Creating actor 'api'...         ✓
-  [3/5] Creating actor 'db'...          ✓
-  [4/5] Configuring network...          ✓
-  [5/5] Waiting for readiness...        ✓
+  [1/5] Validating configuration...     [PASS]
+  [2/5] Creating actor 'api'...         [PASS]
+  [3/5] Creating actor 'db'...          [PASS]
+  [4/5] Configuring network...          [PASS]
+  [5/5] Waiting for readiness...        [PASS]
   
-✓ Applied in 4.2s
+[PASS] Applied in 4.2s
 ```
 
 ### 2.4 Interactive Prompts
@@ -224,7 +224,7 @@ Applying configuration...
 ```
 # Destructive operation
 $ aether destroy production
-⚠️  Warning: You are about to destroy all actors in 'production'
+[WARN]  Warning: You are about to destroy all actors in 'production'
 
 This will:
   - Stop 15 running actors
@@ -232,7 +232,7 @@ This will:
   - Remove all network configuration
 
 Type 'production' to confirm: production
-✓ Namespace 'production' destroyed
+[PASS] Namespace 'production' destroyed
 ```
 
 #### Selection Prompts
@@ -240,7 +240,7 @@ Type 'production' to confirm: production
 ```
 $ aether context use
 ? Select context:
-  ❯ production (default)
+  > production (default)
     staging
     development
     local
@@ -250,9 +250,9 @@ $ aether context use
 
 | Color | Meaning | Usage |
 |-------|---------|-------|
-| Green | Success, healthy | ✓, Running |
-| Yellow | Warning, pending | ⚠️, Pending |
-| Red | Error, unhealthy | ✗, Failed |
+| Green | Success, healthy | [PASS], Running |
+| Yellow | Warning, pending | [WARN], Pending |
+| Red | Error, unhealthy | [FAIL], Failed |
 | Blue | Information | Links, commands |
 | Cyan | Highlighting | Key values |
 | Gray | Secondary | Timestamps, metadata |
@@ -433,10 +433,10 @@ Error: Capability denied
   Actor 'api' cannot perform 'fs:write:/data/output.json'
   
   Current capabilities:
-    ✓ compute:cpu:25%
-    ✓ compute:memory:256MiB
-    ✓ net:tcp:listen:0.0.0.0:8080
-    ✗ fs:write (not granted)
+    [PASS] compute:cpu:25%
+    [PASS] compute:memory:256MiB
+    [PASS] net:tcp:listen:0.0.0.0:8080
+    [FAIL] fs:write (not granted)
   
   To grant this capability, add to aether.toml:
     [actors.api]

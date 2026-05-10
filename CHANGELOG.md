@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [2.1.0] - 2026-05-10
+## [Unreleased]
 
 ### Added
 - TLA+ formal specification for work-stealing scheduler (no-task-loss, priority ordering, fair stealing, state machine integrity invariants)

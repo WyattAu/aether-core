@@ -421,4 +421,28 @@ mod tests {
         ns.active = false;
         assert!(!ns.contains_actor("prod"));
     }
+
+    #[test]
+    fn test_namespace_isolation_rejects_cross_namespace_message() {
+        use crate::mesh::{ActorAddress, MeshMessage};
+
+        let mut isolation = NamespaceIsolation::new();
+        isolation
+            .register_namespace(TenantNamespace::new("ns-a").unwrap())
+            .unwrap();
+        isolation
+            .register_namespace(TenantNamespace::new("ns-b").unwrap())
+            .unwrap();
+
+        let source = ActorAddress::new("ns-a", "sender", "inst-1");
+        let target = ActorAddress::new("ns-b", "receiver", "inst-1");
+        let _msg = MeshMessage::request(source, target, vec![1, 2, 3]);
+
+        let result = isolation.check_message("ns-a", "ns-b");
+        assert!(matches!(
+            result,
+            Err(NamespaceError::CrossNamespaceRejected { source, target })
+            if source == "ns-a" && target == "ns-b"
+        ));
+    }
 }

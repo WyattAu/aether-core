@@ -28,14 +28,14 @@ TARGET="${ARCH}-${OS}"
 
 # Get latest version if not specified
 if [ "$VERSION" = "latest" ]; then
-    VERSION=$(curl -s https://api.github.com/repos/aether-project/aether/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+    VERSION=$(curl -s https://api.github.com/repos/WyattAu/aether-core/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
 fi
 
 echo "   Version: $VERSION"
 echo "   Target:  $TARGET"
 
 # Download
-URL="https://github.com/aether-project/aether/releases/download/${VERSION}/aether-${TARGET}.tar.gz"
+URL="https://github.com/WyattAu/aether-core/releases/download/${VERSION}/aether-${TARGET}.tar.gz"
 echo "   URL: $URL"
 
 curl -LO "$URL"

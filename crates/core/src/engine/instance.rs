@@ -33,6 +33,9 @@ pub struct WasmInstance {
     /// Host context for WASI
     host: Box<dyn WasiHost + Send + Sync>,
 
+    /// Host context for deterministic time/entropy injection
+    host_context: HostContext,
+
     /// WASM store (if compiled with wasm feature)
     #[cfg(feature = "wasm")]
     store: Option<Store<InstanceHost>>,
@@ -79,6 +82,7 @@ impl WasmInstance {
             capabilities: self.capabilities,
             fuel_remaining: self.fuel_remaining,
             host: Box::new(crate::wasi::DefaultWasiHost::new(self.capabilities)),
+            host_context: self.host_context.clone(),
             #[cfg(feature = "wasm")]
             store: None,
             #[cfg(feature = "wasm")]
@@ -100,7 +104,11 @@ impl WasmInstance {
     ) -> Result<()> {
         let linker = create_linker(engine)?;
 
-        let host = InstanceHost::new(self.capabilities, self.name.clone());
+        let host = InstanceHost::new(
+            self.capabilities,
+            self.name.clone(),
+            self.host_context.clone(),
+        );
         let mut store = create_store(engine, host, self.fuel_remaining)?;
 
         let instance = linker
@@ -297,6 +305,7 @@ pub struct InstanceBuilder {
     capabilities: CapabilitySet,
     fuel: u64,
     memory_limit: usize,
+    host_context: HostContext,
 }
 
 impl InstanceBuilder {
@@ -307,6 +316,7 @@ impl InstanceBuilder {
             capabilities: CapabilitySet::default(),
             fuel: DEFAULT_FUEL,
             memory_limit: DEFAULT_MEMORY_LIMIT,
+            host_context: HostContext::default(),
         }
     }
 
@@ -328,6 +338,12 @@ impl InstanceBuilder {
         self
     }
 
+    /// Set host context for deterministic time/entropy injection
+    pub fn with_host_context(mut self, ctx: HostContext) -> Self {
+        self.host_context = ctx;
+        self
+    }
+
     /// Build the instance
     pub fn build(self) -> WasmInstance {
         WasmInstance {
@@ -335,6 +351,7 @@ impl InstanceBuilder {
             capabilities: self.capabilities,
             fuel_remaining: self.fuel,
             host: Box::new(crate::wasi::DefaultWasiHost::new(self.capabilities)),
+            host_context: self.host_context,
             #[cfg(feature = "wasm")]
             store: None,
             #[cfg(feature = "wasm")]

@@ -1,6 +1,6 @@
 # Project Aether Code Examples
 
-**Version:** 1.0.0-alpha  
+**Version:** 2.0.0
 **Last Updated:** 2026-03-14  
 **Audience:** Application Developers
 

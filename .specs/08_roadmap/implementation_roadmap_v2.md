@@ -27,18 +27,18 @@ This roadmap addresses the gaps identified in the current codebase after compreh
 
 | Component | Status | Lines | Tests | Notes |
 |-----------|--------|-------|-------|-------|
-| WASI Preview 2 | ✅ Complete | 1,320 | 27 | Full implementation |
-| Actor System | ✅ Complete | 945 | 8 | Scheduler, mailbox, registry |
-| WASM Engine | ✅ Complete | 1,382 | 10 | Instance, linker, pool |
-| VM Manager | ✅ Complete | 700 | 6 | Firecracker, jailer, snapshot |
-| Mesh Network | ✅ Complete | 715 | 8 | QUIC, connection, backpressure |
-| Security | ✅ Complete | 1,190 | 5 | mTLS, RBAC, secrets |
-| State Management | ✅ Complete | 2,103 | 12 | FDB, KV, transactions |
-| Tracing | ✅ Complete | 450 | - | OpenTelemetry |
-| Observability | ✅ Complete | 661 | 8 | Metrics, health |
-| CLI | ⚠️ Partial | 658 | 16 | dev/deploy stubs |
-| Dashboard | ✅ Complete | - | - | Axum-based |
-| Integration Tests | ❌ Broken | - | 90 errors | API drift |
+| WASI Preview 2 | [DONE] Complete | 1,320 | 27 | Full implementation |
+| Actor System | [DONE] Complete | 945 | 8 | Scheduler, mailbox, registry |
+| WASM Engine | [DONE] Complete | 1,382 | 10 | Instance, linker, pool |
+| VM Manager | [DONE] Complete | 700 | 6 | Firecracker, jailer, snapshot |
+| Mesh Network | [DONE] Complete | 715 | 8 | QUIC, connection, backpressure |
+| Security | [DONE] Complete | 1,190 | 5 | mTLS, RBAC, secrets |
+| State Management | [DONE] Complete | 2,103 | 12 | FDB, KV, transactions |
+| Tracing | [DONE] Complete | 450 | - | OpenTelemetry |
+| Observability | [DONE] Complete | 661 | 8 | Metrics, health |
+| CLI | [WARN] Partial | 658 | 16 | dev/deploy stubs |
+| Dashboard | [DONE] Complete | - | - | Axum-based |
+| Integration Tests | [FAIL] Broken | - | 90 errors | API drift |
 
 ---
 

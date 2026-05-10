@@ -46,7 +46,7 @@
 //!
 //! # Example: Creating Messages
 //!
-//! ```ignore
+//! ```rust
 //! use aether_core::mesh::{MeshMessage, ActorAddress, MessageType};
 //!
 //! let source = ActorAddress::new("production", "sender", "inst-1");
@@ -58,7 +58,7 @@
 //!     .with_ttl(60_000);
 //!
 //! // Create response
-//! let response = MeshMessage::response(request.id, target, source, vec![4, 5, 6]);
+//! let response = MeshMessage::response(request.id, target.clone(), source.clone(), vec![4, 5, 6]);
 //!
 //! // Create error
 //! let error = MeshMessage::error(request.id, target, source, "Processing failed");
@@ -66,9 +66,12 @@
 //!
 //! # Example: Framing
 //!
-//! ```ignore
+//! ```rust
 //! use aether_core::mesh::{MeshMessage, ActorAddress, frame_message, parse_frame};
 //!
+//! # let source = ActorAddress::new("production", "sender", "inst-1");
+//! # let target = ActorAddress::new("production", "receiver", "inst-2");
+//! # let payload = vec![1, 2, 3];
 //! let msg = MeshMessage::request(source, target, payload);
 //!
 //! // Frame for wire transmission
@@ -76,6 +79,7 @@
 //!
 //! // Parse from wire
 //! let (parsed, consumed) = parse_frame(&framed)?.unwrap();
+//! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 //!
 //! # Compression

@@ -12,12 +12,12 @@ Aether implements a defense-in-depth security architecture with the following ke
 
 | Domain | Implementation | Status |
 |--------|----------------|--------|
-| Authentication | mTLS with Ed25519 certificates | ✅ Implemented |
-| Authorization | RBAC + Capability-based access control | ✅ Implemented |
-| Encryption | TLS 1.3, AES-256-GCM, XChaCha20-Poly1305 | ✅ Implemented |
-| Secrets | Secure memory injection, vault integration | ✅ Implemented |
-| Audit | Tamper-evident logging with cryptographic chains | ✅ Implemented |
-| Sandboxing | WASM isolation with WASI capability mediation | ✅ Implemented |
+| Authentication | mTLS with Ed25519 certificates | [DONE] Implemented |
+| Authorization | RBAC + Capability-based access control | [DONE] Implemented |
+| Encryption | TLS 1.3, AES-256-GCM, XChaCha20-Poly1305 | [DONE] Implemented |
+| Secrets | Secure memory injection, vault integration | [DONE] Implemented |
+| Audit | Tamper-evident logging with cryptographic chains | [DONE] Implemented |
+| Sandboxing | WASM isolation with WASI capability mediation | [DONE] Implemented |
 
 ---
 
@@ -82,13 +82,13 @@ Aether implements a defense-in-depth security architecture with the following ke
 
 | Test ID | Description | Status |
 |---------|-------------|--------|
-| CAP-001 | File system access without capability | ✅ Pass |
-| CAP-002 | Network access without capability | ✅ Pass |
-| CAP-003 | Environment variable access | ✅ Pass |
-| CAP-004 | Clock/time access | ✅ Pass |
-| CAP-005 | Random number generation | ✅ Pass |
-| CAP-006 | Self-grant prevention | ✅ Pass |
-| CAP-007 | Inheritance restriction | ✅ Pass |
+| CAP-001 | File system access without capability | [DONE] Pass |
+| CAP-002 | Network access without capability | [DONE] Pass |
+| CAP-003 | Environment variable access | [DONE] Pass |
+| CAP-004 | Clock/time access | [DONE] Pass |
+| CAP-005 | Random number generation | [DONE] Pass |
+| CAP-006 | Self-grant prevention | [DONE] Pass |
+| CAP-007 | Inheritance restriction | [DONE] Pass |
 
 ---
 
@@ -134,15 +134,15 @@ Aether implements a defense-in-depth security architecture with the following ke
 
 | Event Type | Logged | Tamper-Protected |
 |------------|--------|------------------|
-| Authentication | ✅ | ✅ |
-| Authorization | ✅ | ✅ |
-| Access | ✅ | ✅ |
-| Config Changes | ✅ | ✅ |
-| Secret Access | ✅ | ✅ |
-| Certificate Operations | ✅ | ✅ |
-| Role Changes | ✅ | ✅ |
-| Policy Changes | ✅ | ✅ |
-| Security Violations | ✅ | ✅ |
+| Authentication | [DONE] | [DONE] |
+| Authorization | [DONE] | [DONE] |
+| Access | [DONE] | [DONE] |
+| Config Changes | [DONE] | [DONE] |
+| Secret Access | [DONE] | [DONE] |
+| Certificate Operations | [DONE] | [DONE] |
+| Role Changes | [DONE] | [DONE] |
+| Policy Changes | [DONE] | [DONE] |
+| Security Violations | [DONE] | [DONE] |
 
 ---
 
@@ -152,12 +152,12 @@ Aether implements a defense-in-depth security architecture with the following ke
 
 | Vector | Payload | Status |
 |--------|---------|--------|
-| Path Traversal | `../../../etc/passwd` | ✅ Blocked |
-| Command Injection | `; rm -rf /` | ✅ Blocked |
-| SQL Injection | `' OR '1'='1` | ✅ Blocked |
-| Unicode Exploits | Various | ✅ Blocked |
-| Null Byte Injection | `%00` | ✅ Blocked |
-| URL Encoding | `..%2f..%2f` | ✅ Blocked |
+| Path Traversal | `../../../etc/passwd` | [DONE] Blocked |
+| Command Injection | `; rm -rf /` | [DONE] Blocked |
+| SQL Injection | `' OR '1'='1` | [DONE] Blocked |
+| Unicode Exploits | Various | [DONE] Blocked |
+| Null Byte Injection | `%00` | [DONE] Blocked |
+| URL Encoding | `..%2f..%2f` | [DONE] Blocked |
 
 ### 5.2 WASI Boundary Fuzzing
 
@@ -319,16 +319,16 @@ assert!(warnings.is_empty(), "Security config warnings: {:?}", warnings);
 
 | Risk | Mitigation | Status |
 |------|------------|--------|
-| A01: Broken Access Control | RBAC + Capabilities | ✅ |
-| A02: Cryptographic Failures | TLS 1.3, AES-256-GCM | ✅ |
-| A03: Injection | Input validation, parameterized queries | ✅ |
-| A04: Insecure Design | Threat modeling, secure defaults | ✅ |
-| A05: Security Misconfiguration | Hardening checks | ✅ |
-| A06: Vulnerable Components | Dependency scanning | ✅ |
-| A07: Auth Failures | mTLS, certificate validation | ✅ |
-| A08: Software/Data Integrity | Signed audit logs | ✅ |
-| A09: Security Logging | Tamper-evident audit | ✅ |
-| A10: SSRF | Network capability enforcement | ✅ |
+| A01: Broken Access Control | RBAC + Capabilities | [DONE] |
+| A02: Cryptographic Failures | TLS 1.3, AES-256-GCM | [DONE] |
+| A03: Injection | Input validation, parameterized queries | [DONE] |
+| A04: Insecure Design | Threat modeling, secure defaults | [DONE] |
+| A05: Security Misconfiguration | Hardening checks | [DONE] |
+| A06: Vulnerable Components | Dependency scanning | [DONE] |
+| A07: Auth Failures | mTLS, certificate validation | [DONE] |
+| A08: Software/Data Integrity | Signed audit logs | [DONE] |
+| A09: Security Logging | Tamper-evident audit | [DONE] |
+| A10: SSRF | Network capability enforcement | [DONE] |
 
 ### 11.2 NIST SP 800-53 (Selected Controls)
 

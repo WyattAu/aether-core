@@ -34,11 +34,11 @@ This document maps Project Aether's security controls to major compliance framew
 **Aether Implementation:**
 | Control | Implementation | Status |
 |---------|----------------|--------|
-| Deny by default | All operations require explicit capability grant | ✅ Compliant |
-| Principle of least privilege | Minimal capabilities granted | ✅ Compliant |
-| Access control failure logging | All denied operations logged | ✅ Compliant |
-| Rate limiting | Token bucket per source | ✅ Compliant |
-| State-based access control | Capability tokens stateless but verified | ✅ Compliant |
+| Deny by default | All operations require explicit capability grant | [DONE] Compliant |
+| Principle of least privilege | Minimal capabilities granted | [DONE] Compliant |
+| Access control failure logging | All denied operations logged | [DONE] Compliant |
+| Rate limiting | Token bucket per source | [DONE] Compliant |
+| State-based access control | Capability tokens stateless but verified | [DONE] Compliant |
 
 **Evidence:** `.specs/03_security/capability_security_model.md`
 
@@ -51,11 +51,11 @@ This document maps Project Aether's security controls to major compliance framew
 **Aether Implementation:**
 | Control | Implementation | Status |
 |---------|----------------|--------|
-| TLS 1.3 for all traffic | mTLS on all network connections | ✅ Compliant |
-| Strong cipher suites | AES-256-GCM, ChaCha20-Poly1305 | ✅ Compliant |
-| Perfect forward secrecy | ECDHE key exchange | ✅ Compliant |
-| Key management | TPM-backed, memory-only secrets | ✅ Compliant |
-| No custom crypto | Only vetted implementations (ring, rustls) | ✅ Compliant |
+| TLS 1.3 for all traffic | mTLS on all network connections | [DONE] Compliant |
+| Strong cipher suites | AES-256-GCM, ChaCha20-Poly1305 | [DONE] Compliant |
+| Perfect forward secrecy | ECDHE key exchange | [DONE] Compliant |
+| Key management | TPM-backed, memory-only secrets | [DONE] Compliant |
+| No custom crypto | Only vetted implementations (ring, rustls) | [DONE] Compliant |
 
 **Evidence:** `.specs/03_security/secrets_management.md`
 
@@ -68,11 +68,11 @@ This document maps Project Aether's security controls to major compliance framew
 **Aether Implementation:**
 | Control | Implementation | Status |
 |---------|----------------|--------|
-| Input validation | Strict schema validation on all inputs | ✅ Compliant |
-| Parameterized APIs | No string interpolation in queries | ✅ Compliant |
-| Context-aware encoding | Proper encoding for all contexts | ✅ Compliant |
-| WASM sandboxing | Untrusted code in sandbox | ✅ Compliant |
-| SQL/NoSQL prevention | No direct database access from untrusted code | ✅ Compliant |
+| Input validation | Strict schema validation on all inputs | [DONE] Compliant |
+| Parameterized APIs | No string interpolation in queries | [DONE] Compliant |
+| Context-aware encoding | Proper encoding for all contexts | [DONE] Compliant |
+| WASM sandboxing | Untrusted code in sandbox | [DONE] Compliant |
+| SQL/NoSQL prevention | No direct database access from untrusted code | [DONE] Compliant |
 
 **Evidence:** `.specs/03_security/security_test_plan.md` - Input Validation Testing
 
@@ -85,11 +85,11 @@ This document maps Project Aether's security controls to major compliance framew
 **Aether Implementation:**
 | Control | Implementation | Status |
 |---------|----------------|--------|
-| Threat modeling | STRIDE model completed | ✅ Compliant |
-| Secure design patterns | Defense in depth, zero trust | ✅ Compliant |
-| Security architecture review | Multiple review cycles | ✅ Compliant |
-| Trust boundaries | Explicit trust boundaries defined | ✅ Compliant |
-| Reference architecture | Well-documented architecture | ✅ Compliant |
+| Threat modeling | STRIDE model completed | [DONE] Compliant |
+| Secure design patterns | Defense in depth, zero trust | [DONE] Compliant |
+| Security architecture review | Multiple review cycles | [DONE] Compliant |
+| Trust boundaries | Explicit trust boundaries defined | [DONE] Compliant |
+| Reference architecture | Well-documented architecture | [DONE] Compliant |
 
 **Evidence:** `.specs/03_security/threat_model.md`
 
@@ -102,11 +102,11 @@ This document maps Project Aether's security controls to major compliance framew
 **Aether Implementation:**
 | Control | Implementation | Status |
 |---------|----------------|--------|
-| Secure defaults | Deny-by-default, minimal features | ✅ Compliant |
-| Configuration validation | Schema validation on all config | ✅ Compliant |
-| Configuration signing | Ed25519 signatures on config files | ✅ Compliant |
-| No unnecessary features | Minimal attack surface | ✅ Compliant |
-| Automated hardening | Infrastructure as code | ✅ Compliant |
+| Secure defaults | Deny-by-default, minimal features | [DONE] Compliant |
+| Configuration validation | Schema validation on all config | [DONE] Compliant |
+| Configuration signing | Ed25519 signatures on config files | [DONE] Compliant |
+| No unnecessary features | Minimal attack surface | [DONE] Compliant |
+| Automated hardening | Infrastructure as code | [DONE] Compliant |
 
 **Evidence:** `.specs/02_architecture/` - Blue Papers
 
@@ -119,11 +119,11 @@ This document maps Project Aether's security controls to major compliance framew
 **Aether Implementation:**
 | Control | Implementation | Status |
 |---------|----------------|--------|
-| Dependency scanning | Continuous vulnerability scanning | ✅ Compliant |
-| SBOM generation | SPDX SBOM for all releases | ✅ Compliant |
-| Patch SLA | Critical patches within 24 hours | ✅ Compliant |
-| Dependency pinning | Exact version pinning | ✅ Compliant |
-| License compliance | Automated license checking | ✅ Compliant |
+| Dependency scanning | Continuous vulnerability scanning | [DONE] Compliant |
+| SBOM generation | SPDX SBOM for all releases | [DONE] Compliant |
+| Patch SLA | Critical patches within 24 hours | [DONE] Compliant |
+| Dependency pinning | Exact version pinning | [DONE] Compliant |
+| License compliance | Automated license checking | [DONE] Compliant |
 
 **Evidence:** `.specs/01_5_supply_chain/` - Supply Chain Documentation
 
@@ -136,11 +136,11 @@ This document maps Project Aether's security controls to major compliance framew
 **Aether Implementation:**
 | Control | Implementation | Status |
 |---------|----------------|--------|
-| Multi-factor authentication | Certificate + capability token | ✅ Compliant |
-| Session management | Short-lived tokens, proper invalidation | ✅ Compliant |
-| Credential storage | Memory-only, TPM-backed | ✅ Compliant |
-| Failed login handling | Rate limited, logged | ✅ Compliant |
-| Password requirements | N/A (certificate-based) | ✅ Compliant |
+| Multi-factor authentication | Certificate + capability token | [DONE] Compliant |
+| Session management | Short-lived tokens, proper invalidation | [DONE] Compliant |
+| Credential storage | Memory-only, TPM-backed | [DONE] Compliant |
+| Failed login handling | Rate limited, logged | [DONE] Compliant |
+| Password requirements | N/A (certificate-based) | [DONE] Compliant |
 
 **Evidence:** `.specs/03_security/capability_security_model.md`
 
@@ -153,11 +153,11 @@ This document maps Project Aether's security controls to major compliance framew
 **Aether Implementation:**
 | Control | Implementation | Status |
 |---------|----------------|--------|
-| Code signing | Ed25519 signatures on all code | ✅ Compliant |
-| CI/CD security | Signed commits, protected branches | ✅ Compliant |
-| SLSA compliance | Build provenance attestation | ✅ Compliant |
-| State integrity | Merkle-CRDTs, cryptographic hashing | ✅ Compliant |
-| Module verification | SHA-256 + signature verification | ✅ Compliant |
+| Code signing | Ed25519 signatures on all code | [DONE] Compliant |
+| CI/CD security | Signed commits, protected branches | [DONE] Compliant |
+| SLSA compliance | Build provenance attestation | [DONE] Compliant |
+| State integrity | Merkle-CRDTs, cryptographic hashing | [DONE] Compliant |
+| Module verification | SHA-256 + signature verification | [DONE] Compliant |
 
 **Evidence:** `.specs/01_5_supply_chain/supply_chain.lock`
 
@@ -170,11 +170,11 @@ This document maps Project Aether's security controls to major compliance framew
 **Aether Implementation:**
 | Control | Implementation | Status |
 |---------|----------------|--------|
-| Security event logging | All security events logged | ✅ Compliant |
-| Log integrity | Cryptographic chaining, append-only | ✅ Compliant |
-| Anomaly detection | ML-based anomaly detection | ✅ Compliant |
-| Incident response | Documented IR procedures | ✅ Compliant |
-| Log retention | Configurable retention with compliance | ✅ Compliant |
+| Security event logging | All security events logged | [DONE] Compliant |
+| Log integrity | Cryptographic chaining, append-only | [DONE] Compliant |
+| Anomaly detection | ML-based anomaly detection | [DONE] Compliant |
+| Incident response | Documented IR procedures | [DONE] Compliant |
+| Log retention | Configurable retention with compliance | [DONE] Compliant |
 
 **Evidence:** `.specs/03_security/threat_model.md` - Repudiation section
 
@@ -187,11 +187,11 @@ This document maps Project Aether's security controls to major compliance framew
 **Aether Implementation:**
 | Control | Implementation | Status |
 |---------|----------------|--------|
-| Input validation | URL validation, allowlist | ✅ Compliant |
-| Network segmentation | Isolated network for external calls | ✅ Compliant |
-| Capability restriction | Network capability required | ✅ Compliant |
-| Response validation | Response size and type limits | ✅ Compliant |
-| No internal metadata access | Metadata service isolated | ✅ Compliant |
+| Input validation | URL validation, allowlist | [DONE] Compliant |
+| Network segmentation | Isolated network for external calls | [DONE] Compliant |
+| Capability restriction | Network capability required | [DONE] Compliant |
+| Response validation | Response size and type limits | [DONE] Compliant |
+| No internal metadata access | Metadata service isolated | [DONE] Compliant |
 
 **Evidence:** `.specs/03_security/attack_surface.md`
 
@@ -203,24 +203,24 @@ This document maps Project Aether's security controls to major compliance framew
 
 | Control ID | Control Name | Implementation | Status |
 |------------|--------------|----------------|--------|
-| AC-1 | Access Control Policy and Procedures | Documented in security policy | ✅ |
-| AC-2 | Account Management | Capability-based, no traditional accounts | ✅ |
-| AC-3 | Access Enforcement | Capability enforcement at all boundaries | ✅ |
-| AC-4 | Information Flow Enforcement | Network segmentation, namespace isolation | ✅ |
-| AC-5 | Separation of Duties | Role-based capability grants | ✅ |
-| AC-6 | Least Privilege | Deny-by-default, minimal grants | ✅ |
-| AC-7 | Unsuccessful Login Attempts | Rate limiting, account lockout | ✅ |
-| AC-8 | System Use Notification | Login banners configured | ✅ |
-| AC-10 | Concurrent Session Control | Session limits enforced | ✅ |
-| AC-11 | Session Lock | Session timeout implemented | ✅ |
-| AC-12 | Session Termination | Automatic session termination | ✅ |
-| AC-14 | Permitted Actions Without Identification | Health check endpoints only | ✅ |
-| AC-17 | Remote Access | mTLS for all remote access | ✅ |
+| AC-1 | Access Control Policy and Procedures | Documented in security policy | [DONE] |
+| AC-2 | Account Management | Capability-based, no traditional accounts | [DONE] |
+| AC-3 | Access Enforcement | Capability enforcement at all boundaries | [DONE] |
+| AC-4 | Information Flow Enforcement | Network segmentation, namespace isolation | [DONE] |
+| AC-5 | Separation of Duties | Role-based capability grants | [DONE] |
+| AC-6 | Least Privilege | Deny-by-default, minimal grants | [DONE] |
+| AC-7 | Unsuccessful Login Attempts | Rate limiting, account lockout | [DONE] |
+| AC-8 | System Use Notification | Login banners configured | [DONE] |
+| AC-10 | Concurrent Session Control | Session limits enforced | [DONE] |
+| AC-11 | Session Lock | Session timeout implemented | [DONE] |
+| AC-12 | Session Termination | Automatic session termination | [DONE] |
+| AC-14 | Permitted Actions Without Identification | Health check endpoints only | [DONE] |
+| AC-17 | Remote Access | mTLS for all remote access | [DONE] |
 | AC-18 | Wireless Access | N/A (no wireless) | N/A |
 | AC-19 | Access Control for Mobile Devices | N/A (no mobile) | N/A |
-| AC-20 | Use of External Systems | Private registry only | ✅ |
-| AC-21 | Information Sharing | Capability-governed | ✅ |
-| AC-22 | Publicly Accessible Content | No public content | ✅ |
+| AC-20 | Use of External Systems | Private registry only | [DONE] |
+| AC-21 | Information Sharing | Capability-governed | [DONE] |
+| AC-22 | Publicly Accessible Content | No public content | [DONE] |
 
 ---
 
@@ -228,18 +228,18 @@ This document maps Project Aether's security controls to major compliance framew
 
 | Control ID | Control Name | Implementation | Status |
 |------------|--------------|----------------|--------|
-| AU-1 | Audit and Accountability Policy | Documented audit policy | ✅ |
-| AU-2 | Event Selection | All security events audited | ✅ |
-| AU-3 | Content of Audit Records | Structured JSON logs | ✅ |
-| AU-4 | Audit Storage Capacity | Configurable with rotation | ✅ |
-| AU-5 | Response to Audit Processing Failures | Alerting on audit failure | ✅ |
-| AU-6 | Audit Review, Analysis, and Reporting | Automated review tools | ✅ |
-| AU-7 | Audit Reduction and Report Generation | Log aggregation, reporting | ✅ |
-| AU-8 | Time Stamps | RFC 3161 timestamps | ✅ |
-| AU-9 | Protection of Audit Information | Cryptographic chaining | ✅ |
-| AU-10 | Non-repudiation | Digital signatures on actions | ✅ |
-| AU-11 | Audit Record Retention | Configurable retention | ✅ |
-| AU-12 | Audit Generation | Automated audit generation | ✅ |
+| AU-1 | Audit and Accountability Policy | Documented audit policy | [DONE] |
+| AU-2 | Event Selection | All security events audited | [DONE] |
+| AU-3 | Content of Audit Records | Structured JSON logs | [DONE] |
+| AU-4 | Audit Storage Capacity | Configurable with rotation | [DONE] |
+| AU-5 | Response to Audit Processing Failures | Alerting on audit failure | [DONE] |
+| AU-6 | Audit Review, Analysis, and Reporting | Automated review tools | [DONE] |
+| AU-7 | Audit Reduction and Report Generation | Log aggregation, reporting | [DONE] |
+| AU-8 | Time Stamps | RFC 3161 timestamps | [DONE] |
+| AU-9 | Protection of Audit Information | Cryptographic chaining | [DONE] |
+| AU-10 | Non-repudiation | Digital signatures on actions | [DONE] |
+| AU-11 | Audit Record Retention | Configurable retention | [DONE] |
+| AU-12 | Audit Generation | Automated audit generation | [DONE] |
 
 ---
 
@@ -247,14 +247,14 @@ This document maps Project Aether's security controls to major compliance framew
 
 | Control ID | Control Name | Implementation | Status |
 |------------|--------------|----------------|--------|
-| CA-1 | Assessment, Authorization, and Monitoring Policy | Documented policy | ✅ |
-| CA-2 | Control Assessments | Continuous security testing | ✅ |
-| CA-3 | Information Exchange | Capability-governed | ✅ |
-| CA-5 | Plan of Action and Milestones | Risk register maintained | ✅ |
-| CA-6 | Authorization | Formal authorization process | ✅ |
-| CA-7 | Continuous Monitoring | Real-time security monitoring | ✅ |
-| CA-8 | Penetration Testing | Quarterly penetration tests | ✅ |
-| CA-9 | Internal System Connections | mTLS for all connections | ✅ |
+| CA-1 | Assessment, Authorization, and Monitoring Policy | Documented policy | [DONE] |
+| CA-2 | Control Assessments | Continuous security testing | [DONE] |
+| CA-3 | Information Exchange | Capability-governed | [DONE] |
+| CA-5 | Plan of Action and Milestones | Risk register maintained | [DONE] |
+| CA-6 | Authorization | Formal authorization process | [DONE] |
+| CA-7 | Continuous Monitoring | Real-time security monitoring | [DONE] |
+| CA-8 | Penetration Testing | Quarterly penetration tests | [DONE] |
+| CA-9 | Internal System Connections | mTLS for all connections | [DONE] |
 
 ---
 
@@ -262,18 +262,18 @@ This document maps Project Aether's security controls to major compliance framew
 
 | Control ID | Control Name | Implementation | Status |
 |------------|--------------|----------------|--------|
-| CM-1 | Configuration Management Policy | Documented policy | ✅ |
-| CM-2 | Baseline Configuration | Infrastructure as code | ✅ |
-| CM-3 | Configuration Change Control | Change control process | ✅ |
-| CM-4 | Impact Analyses | Impact analysis required | ✅ |
-| CM-5 | Access Restrictions for Change | RBAC on changes | ✅ |
-| CM-6 | Configuration Settings | Secure baseline settings | ✅ |
-| CM-7 | Least Functionality | Minimal feature set | ✅ |
-| CM-8 | System Component Inventory | SBOM, asset inventory | ✅ |
-| CM-9 | Configuration Management Plan | Documented plan | ✅ |
-| CM-10 | Software Usage Restrictions | License compliance enforced | ✅ |
-| CM-11 | User-Installed Software | No user-installed software | ✅ |
-| CM-12 | Information Location | Documented data locations | ✅ |
+| CM-1 | Configuration Management Policy | Documented policy | [DONE] |
+| CM-2 | Baseline Configuration | Infrastructure as code | [DONE] |
+| CM-3 | Configuration Change Control | Change control process | [DONE] |
+| CM-4 | Impact Analyses | Impact analysis required | [DONE] |
+| CM-5 | Access Restrictions for Change | RBAC on changes | [DONE] |
+| CM-6 | Configuration Settings | Secure baseline settings | [DONE] |
+| CM-7 | Least Functionality | Minimal feature set | [DONE] |
+| CM-8 | System Component Inventory | SBOM, asset inventory | [DONE] |
+| CM-9 | Configuration Management Plan | Documented plan | [DONE] |
+| CM-10 | Software Usage Restrictions | License compliance enforced | [DONE] |
+| CM-11 | User-Installed Software | No user-installed software | [DONE] |
+| CM-12 | Information Location | Documented data locations | [DONE] |
 
 ---
 
@@ -281,15 +281,15 @@ This document maps Project Aether's security controls to major compliance framew
 
 | Control ID | Control Name | Implementation | Status |
 |------------|--------------|----------------|--------|
-| CP-1 | Contingency Planning Policy | Documented policy | ✅ |
-| CP-2 | Contingency Plan | Business continuity plan | ✅ |
-| CP-3 | Contingency Training | Annual training | ✅ |
-| CP-4 | Contingency Plan Testing | Annual testing | ✅ |
-| CP-6 | Alternate Storage Site | Replicated state storage | ✅ |
-| CP-7 | Alternate Processing Site | Multi-site deployment | ✅ |
-| CP-8 | Telecommunications Services | Redundant networking | ✅ |
-| CP-9 | System Backup | Encrypted backups | ✅ |
-| CP-10 | System Recovery and Reconstitution | Recovery procedures | ✅ |
+| CP-1 | Contingency Planning Policy | Documented policy | [DONE] |
+| CP-2 | Contingency Plan | Business continuity plan | [DONE] |
+| CP-3 | Contingency Training | Annual training | [DONE] |
+| CP-4 | Contingency Plan Testing | Annual testing | [DONE] |
+| CP-6 | Alternate Storage Site | Replicated state storage | [DONE] |
+| CP-7 | Alternate Processing Site | Multi-site deployment | [DONE] |
+| CP-8 | Telecommunications Services | Redundant networking | [DONE] |
+| CP-9 | System Backup | Encrypted backups | [DONE] |
+| CP-10 | System Recovery and Reconstitution | Recovery procedures | [DONE] |
 
 ---
 
@@ -297,14 +297,14 @@ This document maps Project Aether's security controls to major compliance framew
 
 | Control ID | Control Name | Implementation | Status |
 |------------|--------------|----------------|--------|
-| IA-1 | Identification and Authentication Policy | Documented policy | ✅ |
-| IA-2 | Identification and Authentication | mTLS + capability tokens | ✅ |
-| IA-3 | Device Identification and Authentication | Certificate-based | ✅ |
-| IA-4 | Identifier Management | Capability token management | ✅ |
-| IA-5 | Authenticator Management | Certificate rotation | ✅ |
-| IA-6 | Authenticator Feedback | Secure feedback | ✅ |
-| IA-7 | Cryptographic Module Authentication | FIPS 140-2/3 modules | ✅ |
-| IA-8 | Identification and Authentication (Non-organizational Users) | Third-party integration | ✅ |
+| IA-1 | Identification and Authentication Policy | Documented policy | [DONE] |
+| IA-2 | Identification and Authentication | mTLS + capability tokens | [DONE] |
+| IA-3 | Device Identification and Authentication | Certificate-based | [DONE] |
+| IA-4 | Identifier Management | Capability token management | [DONE] |
+| IA-5 | Authenticator Management | Certificate rotation | [DONE] |
+| IA-6 | Authenticator Feedback | Secure feedback | [DONE] |
+| IA-7 | Cryptographic Module Authentication | FIPS 140-2/3 modules | [DONE] |
+| IA-8 | Identification and Authentication (Non-organizational Users) | Third-party integration | [DONE] |
 
 ---
 
@@ -312,14 +312,14 @@ This document maps Project Aether's security controls to major compliance framew
 
 | Control ID | Control Name | Implementation | Status |
 |------------|--------------|----------------|--------|
-| IR-1 | Incident Response Policy | Documented policy | ✅ |
-| IR-2 | Incident Response Training | Annual training | ✅ |
-| IR-3 | Incident Response Testing | Quarterly testing | ✅ |
-| IR-4 | Incident Handling | Documented procedures | ✅ |
-| IR-5 | Incident Monitoring | Real-time monitoring | ✅ |
-| IR-6 | Incident Reporting | Escalation procedures | ✅ |
-| IR-7 | Incident Response Assistance | Security team available | ✅ |
-| IR-10 | Integrated Information Security Analysis | Centralized analysis | ✅ |
+| IR-1 | Incident Response Policy | Documented policy | [DONE] |
+| IR-2 | Incident Response Training | Annual training | [DONE] |
+| IR-3 | Incident Response Testing | Quarterly testing | [DONE] |
+| IR-4 | Incident Handling | Documented procedures | [DONE] |
+| IR-5 | Incident Monitoring | Real-time monitoring | [DONE] |
+| IR-6 | Incident Reporting | Escalation procedures | [DONE] |
+| IR-7 | Incident Response Assistance | Security team available | [DONE] |
+| IR-10 | Integrated Information Security Analysis | Centralized analysis | [DONE] |
 
 ---
 
@@ -327,12 +327,12 @@ This document maps Project Aether's security controls to major compliance framew
 
 | Control ID | Control Name | Implementation | Status |
 |------------|--------------|----------------|--------|
-| MA-1 | System Maintenance Policy | Documented policy | ✅ |
-| MA-2 | Controlled Maintenance | Controlled maintenance | ✅ |
-| MA-3 | Maintenance Tools | Approved tools only | ✅ |
-| MA-4 | Non-local Maintenance | Secure remote maintenance | ✅ |
-| MA-5 | Maintenance Personnel | Authorized personnel only | ✅ |
-| MA-6 | Timely Maintenance | Prompt maintenance | ✅ |
+| MA-1 | System Maintenance Policy | Documented policy | [DONE] |
+| MA-2 | Controlled Maintenance | Controlled maintenance | [DONE] |
+| MA-3 | Maintenance Tools | Approved tools only | [DONE] |
+| MA-4 | Non-local Maintenance | Secure remote maintenance | [DONE] |
+| MA-5 | Maintenance Personnel | Authorized personnel only | [DONE] |
+| MA-6 | Timely Maintenance | Prompt maintenance | [DONE] |
 
 ---
 
@@ -340,12 +340,12 @@ This document maps Project Aether's security controls to major compliance framew
 
 | Control ID | Control Name | Implementation | Status |
 |------------|--------------|----------------|--------|
-| MP-1 | Media Protection Policy | Documented policy | ✅ |
-| MP-2 | Media Access | Restricted access | ✅ |
-| MP-3 | Media Marking | Sensitive media marked | ✅ |
-| MP-4 | Media Storage | Secure storage | ✅ |
-| MP-5 | Media Transport | Encrypted transport | ✅ |
-| MP-6 | Media Sanitization | Secure deletion | ✅ |
+| MP-1 | Media Protection Policy | Documented policy | [DONE] |
+| MP-2 | Media Access | Restricted access | [DONE] |
+| MP-3 | Media Marking | Sensitive media marked | [DONE] |
+| MP-4 | Media Storage | Secure storage | [DONE] |
+| MP-5 | Media Transport | Encrypted transport | [DONE] |
+| MP-6 | Media Sanitization | Secure deletion | [DONE] |
 
 ---
 
@@ -353,21 +353,21 @@ This document maps Project Aether's security controls to major compliance framew
 
 | Control ID | Control Name | Implementation | Status |
 |------------|--------------|----------------|--------|
-| PE-1 | Physical and Environmental Protection Policy | Cloud provider managed | ✅ |
-| PE-2 | Physical Access Authorizations | Cloud provider managed | ✅ |
-| PE-3 | Physical Access Control | Cloud provider managed | ✅ |
-| PE-4 | Access Control for Transmission | Cloud provider managed | ✅ |
-| PE-5 | Access Control for Output Devices | Cloud provider managed | ✅ |
-| PE-6 | Monitoring Physical Access | Cloud provider managed | ✅ |
-| PE-8 | Visitor Access Records | Cloud provider managed | ✅ |
-| PE-9 | Power Equipment and Cabling | Cloud provider managed | ✅ |
-| PE-10 | Emergency Shutoff | Cloud provider managed | ✅ |
-| PE-11 | Emergency Power | Cloud provider managed | ✅ |
-| PE-12 | Emergency Lighting | Cloud provider managed | ✅ |
-| PE-13 | Fire Protection | Cloud provider managed | ✅ |
-| PE-14 | Temperature and Humidity Controls | Cloud provider managed | ✅ |
-| PE-15 | Water Damage Protection | Cloud provider managed | ✅ |
-| PE-16 | Delivery and Removal | Cloud provider managed | ✅ |
+| PE-1 | Physical and Environmental Protection Policy | Cloud provider managed | [DONE] |
+| PE-2 | Physical Access Authorizations | Cloud provider managed | [DONE] |
+| PE-3 | Physical Access Control | Cloud provider managed | [DONE] |
+| PE-4 | Access Control for Transmission | Cloud provider managed | [DONE] |
+| PE-5 | Access Control for Output Devices | Cloud provider managed | [DONE] |
+| PE-6 | Monitoring Physical Access | Cloud provider managed | [DONE] |
+| PE-8 | Visitor Access Records | Cloud provider managed | [DONE] |
+| PE-9 | Power Equipment and Cabling | Cloud provider managed | [DONE] |
+| PE-10 | Emergency Shutoff | Cloud provider managed | [DONE] |
+| PE-11 | Emergency Power | Cloud provider managed | [DONE] |
+| PE-12 | Emergency Lighting | Cloud provider managed | [DONE] |
+| PE-13 | Fire Protection | Cloud provider managed | [DONE] |
+| PE-14 | Temperature and Humidity Controls | Cloud provider managed | [DONE] |
+| PE-15 | Water Damage Protection | Cloud provider managed | [DONE] |
+| PE-16 | Delivery and Removal | Cloud provider managed | [DONE] |
 
 ---
 
@@ -375,10 +375,10 @@ This document maps Project Aether's security controls to major compliance framew
 
 | Control ID | Control Name | Implementation | Status |
 |------------|--------------|----------------|--------|
-| PL-1 | Security Planning Policy | Documented policy | ✅ |
-| PL-2 | System Security Plan | Documented plan | ✅ |
-| PL-4 | Rules of Behavior | Documented rules | ✅ |
-| PL-8 | Security and Privacy Architectures | Documented architecture | ✅ |
+| PL-1 | Security Planning Policy | Documented policy | [DONE] |
+| PL-2 | System Security Plan | Documented plan | [DONE] |
+| PL-4 | Rules of Behavior | Documented rules | [DONE] |
+| PL-8 | Security and Privacy Architectures | Documented architecture | [DONE] |
 
 ---
 
@@ -386,14 +386,14 @@ This document maps Project Aether's security controls to major compliance framew
 
 | Control ID | Control Name | Implementation | Status |
 |------------|--------------|----------------|--------|
-| PS-1 | Personnel Security Policy | Documented policy | ✅ |
-| PS-2 | Position Risk Designation | Role-based access | ✅ |
-| PS-3 | Personnel Screening | Background checks | ✅ |
-| PS-4 | Personnel Termination | Termination procedures | ✅ |
-| PS-5 | Personnel Transfer | Transfer procedures | ✅ |
-| PS-6 | Access Agreements | Signed agreements | ✅ |
-| PS-7 | Third-Party Personnel Security | Vendor management | ✅ |
-| PS-8 | Personnel Sanctions | Sanction procedures | ✅ |
+| PS-1 | Personnel Security Policy | Documented policy | [DONE] |
+| PS-2 | Position Risk Designation | Role-based access | [DONE] |
+| PS-3 | Personnel Screening | Background checks | [DONE] |
+| PS-4 | Personnel Termination | Termination procedures | [DONE] |
+| PS-5 | Personnel Transfer | Transfer procedures | [DONE] |
+| PS-6 | Access Agreements | Signed agreements | [DONE] |
+| PS-7 | Third-Party Personnel Security | Vendor management | [DONE] |
+| PS-8 | Personnel Sanctions | Sanction procedures | [DONE] |
 
 ---
 
@@ -401,11 +401,11 @@ This document maps Project Aether's security controls to major compliance framew
 
 | Control ID | Control Name | Implementation | Status |
 |------------|--------------|----------------|--------|
-| RA-1 | Risk Assessment Policy | Documented policy | ✅ |
-| RA-2 | Security Categorization | System categorized | ✅ |
-| RA-3 | Risk Assessment | STRIDE threat model | ✅ |
-| RA-5 | Vulnerability Monitoring and Scanning | Continuous scanning | ✅ |
-| RA-6 | Technical Surveillance Countermeasures | Where applicable | ✅ |
+| RA-1 | Risk Assessment Policy | Documented policy | [DONE] |
+| RA-2 | Security Categorization | System categorized | [DONE] |
+| RA-3 | Risk Assessment | STRIDE threat model | [DONE] |
+| RA-5 | Vulnerability Monitoring and Scanning | Continuous scanning | [DONE] |
+| RA-6 | Technical Surveillance Countermeasures | Where applicable | [DONE] |
 
 ---
 
@@ -413,17 +413,17 @@ This document maps Project Aether's security controls to major compliance framew
 
 | Control ID | Control Name | Implementation | Status |
 |------------|--------------|----------------|--------|
-| SA-1 | System and Services Acquisition Policy | Documented policy | ✅ |
-| SA-2 | Allocation of Resources | Security budgeted | ✅ |
-| SA-3 | System Development Life Cycle | SDLC followed | ✅ |
-| SA-4 | Acquisition Process | Secure acquisition | ✅ |
-| SA-5 | Information System Documentation | Comprehensive docs | ✅ |
-| SA-8 | Security Engineering Principles | Secure design | ✅ |
-| SA-9 | External System Services | Third-party assessed | ✅ |
-| SA-10 | Developer Configuration Management | Secure CM | ✅ |
-| SA-11 | Developer Security Testing and Evaluation | Security testing | ✅ |
-| SA-15 | Developer-Provided Training | Developer training | ✅ |
-| SA-22 | Unsupported System Components | No unsupported | ✅ |
+| SA-1 | System and Services Acquisition Policy | Documented policy | [DONE] |
+| SA-2 | Allocation of Resources | Security budgeted | [DONE] |
+| SA-3 | System Development Life Cycle | SDLC followed | [DONE] |
+| SA-4 | Acquisition Process | Secure acquisition | [DONE] |
+| SA-5 | Information System Documentation | Comprehensive docs | [DONE] |
+| SA-8 | Security Engineering Principles | Secure design | [DONE] |
+| SA-9 | External System Services | Third-party assessed | [DONE] |
+| SA-10 | Developer Configuration Management | Secure CM | [DONE] |
+| SA-11 | Developer Security Testing and Evaluation | Security testing | [DONE] |
+| SA-15 | Developer-Provided Training | Developer training | [DONE] |
+| SA-22 | Unsupported System Components | No unsupported | [DONE] |
 
 ---
 
@@ -431,43 +431,43 @@ This document maps Project Aether's security controls to major compliance framew
 
 | Control ID | Control Name | Implementation | Status |
 |------------|--------------|----------------|--------|
-| SC-1 | System and Communications Protection Policy | Documented policy | ✅ |
-| SC-2 | Application Partitioning | Strong isolation | ✅ |
-| SC-3 | Security Function Isolation | Isolated functions | ✅ |
-| SC-4 | Information in Shared Resources | Memory isolation | ✅ |
-| SC-5 | Denial-of-Service Protection | Rate limiting, quotas | ✅ |
-| SC-6 | Resource Availability | Resource management | ✅ |
-| SC-7 | Boundary Protection | Network segmentation | ✅ |
-| SC-8 | Transmission Confidentiality and Integrity | mTLS | ✅ |
-| SC-10 | Network Disconnect | Session termination | ✅ |
-| SC-12 | Cryptographic Key Establishment and Management | Key management | ✅ |
-| SC-13 | Cryptographic Protection | Strong crypto | ✅ |
+| SC-1 | System and Communications Protection Policy | Documented policy | [DONE] |
+| SC-2 | Application Partitioning | Strong isolation | [DONE] |
+| SC-3 | Security Function Isolation | Isolated functions | [DONE] |
+| SC-4 | Information in Shared Resources | Memory isolation | [DONE] |
+| SC-5 | Denial-of-Service Protection | Rate limiting, quotas | [DONE] |
+| SC-6 | Resource Availability | Resource management | [DONE] |
+| SC-7 | Boundary Protection | Network segmentation | [DONE] |
+| SC-8 | Transmission Confidentiality and Integrity | mTLS | [DONE] |
+| SC-10 | Network Disconnect | Session termination | [DONE] |
+| SC-12 | Cryptographic Key Establishment and Management | Key management | [DONE] |
+| SC-13 | Cryptographic Protection | Strong crypto | [DONE] |
 | SC-15 | Collaborative Computing Devices | N/A | N/A |
-| SC-17 | Trust Anchors | Certificate pinning | ✅ |
-| SC-18 | Mobile Code | WASM sandboxing | ✅ |
+| SC-17 | Trust Anchors | Certificate pinning | [DONE] |
+| SC-18 | Mobile Code | WASM sandboxing | [DONE] |
 | SC-19 | Voice Over Internet Protocol | N/A | N/A |
-| SC-20 | Secure Name/Address Resolution Service | DNSSEC | ✅ |
-| SC-21 | Secure Name/Address Resolution Service | DNS over TLS | ✅ |
-| SC-22 | Architecture and Provisioning | Secure architecture | ✅ |
-| SC-23 | Session Authenticity | Session validation | ✅ |
-| SC-24 | Fail in Known State | Graceful failure | ✅ |
+| SC-20 | Secure Name/Address Resolution Service | DNSSEC | [DONE] |
+| SC-21 | Secure Name/Address Resolution Service | DNS over TLS | [DONE] |
+| SC-22 | Architecture and Provisioning | Secure architecture | [DONE] |
+| SC-23 | Session Authenticity | Session validation | [DONE] |
+| SC-24 | Fail in Known State | Graceful failure | [DONE] |
 | SC-26 | Honeypots | N/A | N/A |
-| SC-28 | Protection of Information at Rest | Encryption at rest | ✅ |
-| SC-29 | Heterogeneity | Diverse implementations | ⚠️ Partial |
+| SC-28 | Protection of Information at Rest | Encryption at rest | [DONE] |
+| SC-29 | Heterogeneity | Diverse implementations | [WARN] Partial |
 | SC-30 | Concealment and Misdirection | N/A | N/A |
-| SC-31 | Covert Channel Analysis | Side-channel mitigations | ✅ |
-| SC-32 | Information System Partitioning | Strong isolation | ✅ |
-| SC-33 | Transmission Preparation Security | Secure preparation | ✅ |
-| SC-34 | Non-modifiable Executable Programs | Immutable code | ✅ |
-| SC-35 | External Cloud-Based Services | Secure cloud config | ✅ |
-| SC-36 | Distributed Processing and Storage | Distributed state | ✅ |
+| SC-31 | Covert Channel Analysis | Side-channel mitigations | [DONE] |
+| SC-32 | Information System Partitioning | Strong isolation | [DONE] |
+| SC-33 | Transmission Preparation Security | Secure preparation | [DONE] |
+| SC-34 | Non-modifiable Executable Programs | Immutable code | [DONE] |
+| SC-35 | External Cloud-Based Services | Secure cloud config | [DONE] |
+| SC-36 | Distributed Processing and Storage | Distributed state | [DONE] |
 | SC-37 | Out-of-band Channels | N/A | N/A |
-| SC-38 | Operations Security | Operational security | ✅ |
-| SC-39 | Process Isolation | Process isolation | ✅ |
+| SC-38 | Operations Security | Operational security | [DONE] |
+| SC-39 | Process Isolation | Process isolation | [DONE] |
 | SC-40 | Wireless Link Protection | N/A | N/A |
-| SC-41 | Mobile Code Protection | WASM sandboxing | ✅ |
-| SC-43 | Usage Restrictions | Capability restrictions | ✅ |
-| SC-44 | Detonation Chambers | Isolated execution | ✅ |
+| SC-41 | Mobile Code Protection | WASM sandboxing | [DONE] |
+| SC-43 | Usage Restrictions | Capability restrictions | [DONE] |
+| SC-44 | Detonation Chambers | Isolated execution | [DONE] |
 
 ---
 
@@ -475,22 +475,22 @@ This document maps Project Aether's security controls to major compliance framew
 
 | Control ID | Control Name | Implementation | Status |
 |------------|--------------|----------------|--------|
-| SI-1 | System and Information Integrity Policy | Documented policy | ✅ |
-| SI-2 | Flaw Remediation | Patch management | ✅ |
-| SI-3 | Malicious Code Protection | Code verification | ✅ |
-| SI-4 | System Monitoring | Real-time monitoring | ✅ |
-| SI-5 | Security Alerts, Advisories, and Directives | Alert management | ✅ |
-| SI-6 | Security and Privacy Function Verification | Function verification | ✅ |
-| SI-7 | Software, Firmware, and Information Integrity | Integrity verification | ✅ |
+| SI-1 | System and Information Integrity Policy | Documented policy | [DONE] |
+| SI-2 | Flaw Remediation | Patch management | [DONE] |
+| SI-3 | Malicious Code Protection | Code verification | [DONE] |
+| SI-4 | System Monitoring | Real-time monitoring | [DONE] |
+| SI-5 | Security Alerts, Advisories, and Directives | Alert management | [DONE] |
+| SI-6 | Security and Privacy Function Verification | Function verification | [DONE] |
+| SI-7 | Software, Firmware, and Information Integrity | Integrity verification | [DONE] |
 | SI-8 | Spam Protection | N/A | N/A |
-| SI-10 | Information Input Validation | Input validation | ✅ |
-| SI-11 | Error Handling | Secure error handling | ✅ |
-| SI-12 | Information Output Handling | Secure output | ✅ |
-| SI-13 | Predictable Failure Prevention | Failure prevention | ✅ |
-| SI-14 | Non-persistence | Stateless where possible | ✅ |
-| SI-15 | Information Output Filtering | Output filtering | ✅ |
-| SI-16 | Memory Protection | Memory protection | ✅ |
-| SI-17 | Fail-safe Procedures | Fail-safe design | ✅ |
+| SI-10 | Information Input Validation | Input validation | [DONE] |
+| SI-11 | Error Handling | Secure error handling | [DONE] |
+| SI-12 | Information Output Handling | Secure output | [DONE] |
+| SI-13 | Predictable Failure Prevention | Failure prevention | [DONE] |
+| SI-14 | Non-persistence | Stateless where possible | [DONE] |
+| SI-15 | Information Output Filtering | Output filtering | [DONE] |
+| SI-16 | Memory Protection | Memory protection | [DONE] |
+| SI-17 | Fail-safe Procedures | Fail-safe design | [DONE] |
 
 ---
 
@@ -500,13 +500,13 @@ This document maps Project Aether's security controls to major compliance framew
 
 | Control | Requirement | Implementation | Status |
 |---------|-------------|----------------|--------|
-| 5.1 | Leadership and commitment | Executive sponsorship | ✅ |
-| 5.2 | Policy | Information security policy | ✅ |
-| 5.3 | Organizational roles | Defined security roles | ✅ |
-| 5.4 | Threat intelligence | Continuous threat monitoring | ✅ |
-| 5.5 | Information security governance | Security governance | ✅ |
-| 5.6 | Contact with authorities | Incident reporting | ✅ |
-| 5.7 | Contact with special interest groups | Security community | ✅ |
+| 5.1 | Leadership and commitment | Executive sponsorship | [DONE] |
+| 5.2 | Policy | Information security policy | [DONE] |
+| 5.3 | Organizational roles | Defined security roles | [DONE] |
+| 5.4 | Threat intelligence | Continuous threat monitoring | [DONE] |
+| 5.5 | Information security governance | Security governance | [DONE] |
+| 5.6 | Contact with authorities | Incident reporting | [DONE] |
+| 5.7 | Contact with special interest groups | Security community | [DONE] |
 
 ---
 
@@ -514,9 +514,9 @@ This document maps Project Aether's security controls to major compliance framew
 
 | Control | Requirement | Implementation | Status |
 |---------|-------------|----------------|--------|
-| 6.1 | Actions to address risks and opportunities | Risk treatment plan | ✅ |
-| 6.2 | Information security objectives | Defined objectives | ✅ |
-| 6.3 | Planning of changes | Change management | ✅ |
+| 6.1 | Actions to address risks and opportunities | Risk treatment plan | [DONE] |
+| 6.2 | Information security objectives | Defined objectives | [DONE] |
+| 6.3 | Planning of changes | Change management | [DONE] |
 
 ---
 
@@ -524,11 +524,11 @@ This document maps Project Aether's security controls to major compliance framew
 
 | Control | Requirement | Implementation | Status |
 |---------|-------------|----------------|--------|
-| 7.1 | Resources | Security resources allocated | ✅ |
-| 7.2 | Competence | Security training | ✅ |
-| 7.3 | Awareness | Security awareness | ✅ |
-| 7.4 | Communication | Security communication | ✅ |
-| 7.5 | Documented information | Documentation | ✅ |
+| 7.1 | Resources | Security resources allocated | [DONE] |
+| 7.2 | Competence | Security training | [DONE] |
+| 7.3 | Awareness | Security awareness | [DONE] |
+| 7.4 | Communication | Security communication | [DONE] |
+| 7.5 | Documented information | Documentation | [DONE] |
 
 ---
 
@@ -536,9 +536,9 @@ This document maps Project Aether's security controls to major compliance framew
 
 | Control | Requirement | Implementation | Status |
 |---------|-------------|----------------|--------|
-| 8.1 | Operational planning and control | Operational procedures | ✅ |
-| 8.2 | Information security risk assessment | STRIDE threat model | ✅ |
-| 8.3 | Information security risk treatment | Risk mitigations | ✅ |
+| 8.1 | Operational planning and control | Operational procedures | [DONE] |
+| 8.2 | Information security risk assessment | STRIDE threat model | [DONE] |
+| 8.3 | Information security risk treatment | Risk mitigations | [DONE] |
 
 ---
 
@@ -548,43 +548,43 @@ This document maps Project Aether's security controls to major compliance framew
 
 | Control | Implementation | Status |
 |---------|----------------|--------|
-| A.5.1 Policies for information security | Documented policies | ✅ |
-| A.5.2 Information security roles and responsibilities | Defined roles | ✅ |
-| A.5.3 Segregation of duties | Role separation | ✅ |
-| A.5.4 Management responsibilities | Management duties | ✅ |
-| A.5.5 Contact with authorities | Contact procedures | ✅ |
-| A.5.6 Contact with special interest groups | Community engagement | ✅ |
-| A.5.7 Threat intelligence | Threat monitoring | ✅ |
-| A.5.8 Information security in project management | Secure SDLC | ✅ |
-| A.5.9 Inventory of information and assets | Asset inventory | ✅ |
-| A.5.10 Acceptable use of information | Acceptable use policy | ✅ |
-| A.5.11 Return of assets | Return procedures | ✅ |
-| A.5.12 Classification of information | Data classification | ✅ |
-| A.5.13 Labelling of information | Data labeling | ✅ |
-| A.5.14 Information transfer | Secure transfer | ✅ |
-| A.5.15 Access control | Access control | ✅ |
-| A.5.16 Identity management | Identity management | ✅ |
-| A.5.17 Authentication information | Auth management | ✅ |
-| A.5.18 Access rights | Access management | ✅ |
-| A.5.19 Information security in supplier relationships | Supplier security | ✅ |
-| A.5.20 Addressing information security in supplier agreements | Supplier agreements | ✅ |
-| A.5.21 Managing information security in ICT supply chain | Supply chain security | ✅ |
-| A.5.22 Monitoring, review and change management of supplier services | Supplier monitoring | ✅ |
-| A.5.23 Information security for use of cloud services | Cloud security | ✅ |
-| A.5.24 Information security incident management planning | Incident planning | ✅ |
-| A.5.25 Assessment and decision on information security events | Event assessment | ✅ |
-| A.5.26 Response to information security incidents | Incident response | ✅ |
-| A.5.27 Learning from information security incidents | Incident learning | ✅ |
-| A.5.28 Collection of evidence | Evidence collection | ✅ |
-| A.5.29 Information security during disruption | Business continuity | ✅ |
-| A.5.30 ICT readiness for business continuity | ICT continuity | ✅ |
-| A.5.31 Legal, statutory, regulatory and contractual requirements | Compliance | ✅ |
-| A.5.32 Intellectual property rights | IP protection | ✅ |
-| A.5.33 Protection of records | Record protection | ✅ |
-| A.5.34 Privacy and protection of PII | Privacy protection | ✅ |
-| A.5.35 Independent review of information security | Security audits | ✅ |
-| A.5.36 Compliance with policies and standards | Compliance monitoring | ✅ |
-| A.5.37 Documented operating procedures | Operating procedures | ✅ |
+| A.5.1 Policies for information security | Documented policies | [DONE] |
+| A.5.2 Information security roles and responsibilities | Defined roles | [DONE] |
+| A.5.3 Segregation of duties | Role separation | [DONE] |
+| A.5.4 Management responsibilities | Management duties | [DONE] |
+| A.5.5 Contact with authorities | Contact procedures | [DONE] |
+| A.5.6 Contact with special interest groups | Community engagement | [DONE] |
+| A.5.7 Threat intelligence | Threat monitoring | [DONE] |
+| A.5.8 Information security in project management | Secure SDLC | [DONE] |
+| A.5.9 Inventory of information and assets | Asset inventory | [DONE] |
+| A.5.10 Acceptable use of information | Acceptable use policy | [DONE] |
+| A.5.11 Return of assets | Return procedures | [DONE] |
+| A.5.12 Classification of information | Data classification | [DONE] |
+| A.5.13 Labelling of information | Data labeling | [DONE] |
+| A.5.14 Information transfer | Secure transfer | [DONE] |
+| A.5.15 Access control | Access control | [DONE] |
+| A.5.16 Identity management | Identity management | [DONE] |
+| A.5.17 Authentication information | Auth management | [DONE] |
+| A.5.18 Access rights | Access management | [DONE] |
+| A.5.19 Information security in supplier relationships | Supplier security | [DONE] |
+| A.5.20 Addressing information security in supplier agreements | Supplier agreements | [DONE] |
+| A.5.21 Managing information security in ICT supply chain | Supply chain security | [DONE] |
+| A.5.22 Monitoring, review and change management of supplier services | Supplier monitoring | [DONE] |
+| A.5.23 Information security for use of cloud services | Cloud security | [DONE] |
+| A.5.24 Information security incident management planning | Incident planning | [DONE] |
+| A.5.25 Assessment and decision on information security events | Event assessment | [DONE] |
+| A.5.26 Response to information security incidents | Incident response | [DONE] |
+| A.5.27 Learning from information security incidents | Incident learning | [DONE] |
+| A.5.28 Collection of evidence | Evidence collection | [DONE] |
+| A.5.29 Information security during disruption | Business continuity | [DONE] |
+| A.5.30 ICT readiness for business continuity | ICT continuity | [DONE] |
+| A.5.31 Legal, statutory, regulatory and contractual requirements | Compliance | [DONE] |
+| A.5.32 Intellectual property rights | IP protection | [DONE] |
+| A.5.33 Protection of records | Record protection | [DONE] |
+| A.5.34 Privacy and protection of PII | Privacy protection | [DONE] |
+| A.5.35 Independent review of information security | Security audits | [DONE] |
+| A.5.36 Compliance with policies and standards | Compliance monitoring | [DONE] |
+| A.5.37 Documented operating procedures | Operating procedures | [DONE] |
 
 ---
 
@@ -592,14 +592,14 @@ This document maps Project Aether's security controls to major compliance framew
 
 | Control | Implementation | Status |
 |---------|----------------|--------|
-| A.6.1 Screening | Background checks | ✅ |
-| A.6.2 Terms and conditions of employment | Employment terms | ✅ |
-| A.6.3 Information security awareness, education and training | Security training | ✅ |
-| A.6.4 Disciplinary process | Disciplinary procedures | ✅ |
-| A.6.5 Responsibilities after termination | Termination procedures | ✅ |
-| A.6.6 Confidentiality or non-disclosure agreements | NDAs | ✅ |
-| A.6.7 Remote working | Secure remote access | ✅ |
-| A.6.8 Information security event reporting | Event reporting | ✅ |
+| A.6.1 Screening | Background checks | [DONE] |
+| A.6.2 Terms and conditions of employment | Employment terms | [DONE] |
+| A.6.3 Information security awareness, education and training | Security training | [DONE] |
+| A.6.4 Disciplinary process | Disciplinary procedures | [DONE] |
+| A.6.5 Responsibilities after termination | Termination procedures | [DONE] |
+| A.6.6 Confidentiality or non-disclosure agreements | NDAs | [DONE] |
+| A.6.7 Remote working | Secure remote access | [DONE] |
+| A.6.8 Information security event reporting | Event reporting | [DONE] |
 
 ---
 
@@ -607,20 +607,20 @@ This document maps Project Aether's security controls to major compliance framew
 
 | Control | Implementation | Status |
 |---------|----------------|--------|
-| A.7.1 Physical security perimeters | Cloud provider | ✅ |
-| A.7.2 Physical entry | Cloud provider | ✅ |
-| A.7.3 Securing offices, rooms and facilities | Cloud provider | ✅ |
-| A.7.4 Physical security monitoring | Cloud provider | ✅ |
-| A.7.5 Protecting against physical threats | Cloud provider | ✅ |
-| A.7.6 Working in secure areas | Cloud provider | ✅ |
-| A.7.7 Clear desk and clear screen | Policy | ✅ |
-| A.7.8 Equipment siting and protection | Cloud provider | ✅ |
-| A.7.9 Security of assets off-premises | Cloud provider | ✅ |
-| A.7.10 Storage media | Encrypted storage | ✅ |
-| A.7.11 Supporting utilities | Cloud provider | ✅ |
-| A.7.12 Cabling security | Cloud provider | ✅ |
-| A.7.13 Equipment maintenance | Cloud provider | ✅ |
-| A.7.14 Secure disposal or re-use of equipment | Secure disposal | ✅ |
+| A.7.1 Physical security perimeters | Cloud provider | [DONE] |
+| A.7.2 Physical entry | Cloud provider | [DONE] |
+| A.7.3 Securing offices, rooms and facilities | Cloud provider | [DONE] |
+| A.7.4 Physical security monitoring | Cloud provider | [DONE] |
+| A.7.5 Protecting against physical threats | Cloud provider | [DONE] |
+| A.7.6 Working in secure areas | Cloud provider | [DONE] |
+| A.7.7 Clear desk and clear screen | Policy | [DONE] |
+| A.7.8 Equipment siting and protection | Cloud provider | [DONE] |
+| A.7.9 Security of assets off-premises | Cloud provider | [DONE] |
+| A.7.10 Storage media | Encrypted storage | [DONE] |
+| A.7.11 Supporting utilities | Cloud provider | [DONE] |
+| A.7.12 Cabling security | Cloud provider | [DONE] |
+| A.7.13 Equipment maintenance | Cloud provider | [DONE] |
+| A.7.14 Secure disposal or re-use of equipment | Secure disposal | [DONE] |
 
 ---
 
@@ -628,40 +628,40 @@ This document maps Project Aether's security controls to major compliance framew
 
 | Control | Implementation | Status |
 |---------|----------------|--------|
-| A.8.1 User endpoint devices | Endpoint security | ✅ |
-| A.8.2 Privileged access rights | Privileged access | ✅ |
-| A.8.3 Information access restriction | Access restriction | ✅ |
-| A.8.4 Access to source code | Source code protection | ✅ |
-| A.8.5 Secure authentication | Secure auth | ✅ |
-| A.8.6 Capacity management | Capacity management | ✅ |
-| A.8.7 Protection against malware | Malware protection | ✅ |
-| A.8.8 Management of technical vulnerabilities | Vulnerability management | ✅ |
-| A.8.9 Configuration management | Configuration management | ✅ |
-| A.8.10 Information deletion | Secure deletion | ✅ |
-| A.8.11 Data masking | Data masking | ✅ |
-| A.8.12 Data leakage prevention | DLP | ✅ |
-| A.8.13 Information backup | Encrypted backup | ✅ |
-| A.8.14 Redundancy of information processing facilities | Redundancy | ✅ |
-| A.8.15 Logging | Comprehensive logging | ✅ |
-| A.8.16 Monitoring activities | Real-time monitoring | ✅ |
-| A.8.17 Clock synchronization | NTP synchronization | ✅ |
-| A.8.18 Use of privileged utility programs | Utility restrictions | ✅ |
-| A.8.19 Installation of software on operational systems | Software control | ✅ |
-| A.8.20 Networks security | Network security | ✅ |
-| A.8.21 Security of network services | Network services | ✅ |
-| A.8.22 Segregation of networks | Network segmentation | ✅ |
+| A.8.1 User endpoint devices | Endpoint security | [DONE] |
+| A.8.2 Privileged access rights | Privileged access | [DONE] |
+| A.8.3 Information access restriction | Access restriction | [DONE] |
+| A.8.4 Access to source code | Source code protection | [DONE] |
+| A.8.5 Secure authentication | Secure auth | [DONE] |
+| A.8.6 Capacity management | Capacity management | [DONE] |
+| A.8.7 Protection against malware | Malware protection | [DONE] |
+| A.8.8 Management of technical vulnerabilities | Vulnerability management | [DONE] |
+| A.8.9 Configuration management | Configuration management | [DONE] |
+| A.8.10 Information deletion | Secure deletion | [DONE] |
+| A.8.11 Data masking | Data masking | [DONE] |
+| A.8.12 Data leakage prevention | DLP | [DONE] |
+| A.8.13 Information backup | Encrypted backup | [DONE] |
+| A.8.14 Redundancy of information processing facilities | Redundancy | [DONE] |
+| A.8.15 Logging | Comprehensive logging | [DONE] |
+| A.8.16 Monitoring activities | Real-time monitoring | [DONE] |
+| A.8.17 Clock synchronization | NTP synchronization | [DONE] |
+| A.8.18 Use of privileged utility programs | Utility restrictions | [DONE] |
+| A.8.19 Installation of software on operational systems | Software control | [DONE] |
+| A.8.20 Networks security | Network security | [DONE] |
+| A.8.21 Security of network services | Network services | [DONE] |
+| A.8.22 Segregation of networks | Network segmentation | [DONE] |
 | A.8.23 Web filtering | N/A | N/A |
-| A.8.24 Use of cryptography | Cryptography | ✅ |
-| A.8.25 Secure development life cycle | Secure SDLC | ✅ |
-| A.8.26 Application security requirements | Security requirements | ✅ |
-| A.8.27 Secure system architecture and engineering principles | Secure architecture | ✅ |
-| A.8.28 Secure coding | Secure coding | ✅ |
-| A.8.29 Security testing in development and acceptance | Security testing | ✅ |
-| A.8.30 Outsourced development | Outsourced dev | ✅ |
-| A.8.31 Separation of development, test and production environments | Environment separation | ✅ |
-| A.8.32 Change management | Change management | ✅ |
-| A.8.33 Test information | Test data | ✅ |
-| A.8.34 Protection of information systems during audit testing | Audit protection | ✅ |
+| A.8.24 Use of cryptography | Cryptography | [DONE] |
+| A.8.25 Secure development life cycle | Secure SDLC | [DONE] |
+| A.8.26 Application security requirements | Security requirements | [DONE] |
+| A.8.27 Secure system architecture and engineering principles | Secure architecture | [DONE] |
+| A.8.28 Secure coding | Secure coding | [DONE] |
+| A.8.29 Security testing in development and acceptance | Security testing | [DONE] |
+| A.8.30 Outsourced development | Outsourced dev | [DONE] |
+| A.8.31 Separation of development, test and production environments | Environment separation | [DONE] |
+| A.8.32 Change management | Change management | [DONE] |
+| A.8.33 Test information | Test data | [DONE] |
+| A.8.34 Protection of information systems during audit testing | Audit protection | [DONE] |
 
 ---
 
@@ -671,19 +671,19 @@ This document maps Project Aether's security controls to major compliance framew
 
 | Requirement | Implementation | Status |
 |-------------|----------------|--------|
-| SR 1.1 - Human user identification | mTLS + JWT | ✅ |
-| SR 1.2 - Software process identification | Certificate-based | ✅ |
-| SR 1.3 - Account management | Capability management | ✅ |
-| SR 1.4 - Identifier management | Token management | ✅ |
-| SR 1.5 - Authenticator management | Certificate rotation | ✅ |
+| SR 1.1 - Human user identification | mTLS + JWT | [DONE] |
+| SR 1.2 - Software process identification | Certificate-based | [DONE] |
+| SR 1.3 - Account management | Capability management | [DONE] |
+| SR 1.4 - Identifier management | Token management | [DONE] |
+| SR 1.5 - Authenticator management | Certificate rotation | [DONE] |
 | SR 1.6 - Wireless access | N/A | N/A |
-| SR 1.7 - Strength of password-based authentication | Certificate-based | ✅ |
-| SR 1.8 - Public key infrastructure certificates | PKI implemented | ✅ |
-| SR 1.9 - Strength of public key authentication | Ed25519, ECDSA P-256 | ✅ |
-| SR 1.10 - Authenticator feedback | Secure feedback | ✅ |
-| SR 1.11 - Unsuccessful login attempts | Rate limiting | ✅ |
-| SR 1.12 - Use of credentials | Memory-only credentials | ✅ |
-| SR 1.13 - Access via untrusted networks | mTLS required | ✅ |
+| SR 1.7 - Strength of password-based authentication | Certificate-based | [DONE] |
+| SR 1.8 - Public key infrastructure certificates | PKI implemented | [DONE] |
+| SR 1.9 - Strength of public key authentication | Ed25519, ECDSA P-256 | [DONE] |
+| SR 1.10 - Authenticator feedback | Secure feedback | [DONE] |
+| SR 1.11 - Unsuccessful login attempts | Rate limiting | [DONE] |
+| SR 1.12 - Use of credentials | Memory-only credentials | [DONE] |
+| SR 1.13 - Access via untrusted networks | mTLS required | [DONE] |
 
 ---
 
@@ -691,17 +691,17 @@ This document maps Project Aether's security controls to major compliance framew
 
 | Requirement | Implementation | Status |
 |-------------|----------------|--------|
-| SR 2.1 - Authorization enforcement | Capability enforcement | ✅ |
+| SR 2.1 - Authorization enforcement | Capability enforcement | [DONE] |
 | SR 2.2 - Wireless use control | N/A | N/A |
 | SR 2.3 - Use control for portable and mobile devices | N/A | N/A |
-| SR 2.4 - Mobile code | WASM sandboxing | ✅ |
-| SR 2.5 - Session lock | Session lock | ✅ |
-| SR 2.6 - Remote session termination | Session termination | ✅ |
-| SR 2.7 - Concurrent session control | Session limits | ✅ |
-| SR 2.8 - Auditable events | All events audited | ✅ |
-| SR 2.9 - Audit storage capacity | Configurable storage | ✅ |
-| SR 2.10 - Response to audit processing failures | Alerting | ✅ |
-| SR 2.11 - Timestamping | RFC 3161 timestamps | ✅ |
+| SR 2.4 - Mobile code | WASM sandboxing | [DONE] |
+| SR 2.5 - Session lock | Session lock | [DONE] |
+| SR 2.6 - Remote session termination | Session termination | [DONE] |
+| SR 2.7 - Concurrent session control | Session limits | [DONE] |
+| SR 2.8 - Auditable events | All events audited | [DONE] |
+| SR 2.9 - Audit storage capacity | Configurable storage | [DONE] |
+| SR 2.10 - Response to audit processing failures | Alerting | [DONE] |
+| SR 2.11 - Timestamping | RFC 3161 timestamps | [DONE] |
 
 ---
 
@@ -709,16 +709,16 @@ This document maps Project Aether's security controls to major compliance framew
 
 | Requirement | Implementation | Status |
 |-------------|----------------|--------|
-| SR 3.1 - Communication integrity | mTLS | ✅ |
-| SR 3.2 - Malicious code protection | Code verification | ✅ |
-| SR 3.3 - Security functionality verification | Function verification | ✅ |
-| SR 3.4 - Software and information integrity | Signature verification | ✅ |
-| SR 3.5 - Input validation | Input validation | ✅ |
-| SR 3.6 - Deterministic output | Deterministic execution | ✅ |
-| SR 3.7 - Error handling | Secure error handling | ✅ |
-| SR 3.8 - Protection of audit information | Audit protection | ✅ |
-| SR 3.9 - Protection of information in transit | mTLS | ✅ |
-| SR 3.10 - Protection of information at rest | Encryption | ✅ |
+| SR 3.1 - Communication integrity | mTLS | [DONE] |
+| SR 3.2 - Malicious code protection | Code verification | [DONE] |
+| SR 3.3 - Security functionality verification | Function verification | [DONE] |
+| SR 3.4 - Software and information integrity | Signature verification | [DONE] |
+| SR 3.5 - Input validation | Input validation | [DONE] |
+| SR 3.6 - Deterministic output | Deterministic execution | [DONE] |
+| SR 3.7 - Error handling | Secure error handling | [DONE] |
+| SR 3.8 - Protection of audit information | Audit protection | [DONE] |
+| SR 3.9 - Protection of information in transit | mTLS | [DONE] |
+| SR 3.10 - Protection of information at rest | Encryption | [DONE] |
 
 ---
 
@@ -726,9 +726,9 @@ This document maps Project Aether's security controls to major compliance framew
 
 | Requirement | Implementation | Status |
 |-------------|----------------|--------|
-| SR 4.1 - Information confidentiality | Encryption | ✅ |
-| SR 4.2 - Information persistence | Memory-only secrets | ✅ |
-| SR 4.3 - Use of cryptography | Strong crypto | ✅ |
+| SR 4.1 - Information confidentiality | Encryption | [DONE] |
+| SR 4.2 - Information persistence | Memory-only secrets | [DONE] |
+| SR 4.3 - Use of cryptography | Strong crypto | [DONE] |
 
 ---
 
@@ -736,10 +736,10 @@ This document maps Project Aether's security controls to major compliance framew
 
 | Requirement | Implementation | Status |
 |-------------|----------------|--------|
-| SR 5.1 - Network segmentation | Network segmentation | ✅ |
-| SR 5.2 - Zone boundary protection | Boundary protection | ✅ |
+| SR 5.1 - Network segmentation | Network segmentation | [DONE] |
+| SR 5.2 - Zone boundary protection | Boundary protection | [DONE] |
 | SR 5.3 - General-purpose person-to-person communication restrictions | N/A | N/A |
-| SR 5.4 - Application partitioning | Application isolation | ✅ |
+| SR 5.4 - Application partitioning | Application isolation | [DONE] |
 
 ---
 
@@ -747,8 +747,8 @@ This document maps Project Aether's security controls to major compliance framew
 
 | Requirement | Implementation | Status |
 |-------------|----------------|--------|
-| SR 6.1 - Audit log accessibility | Log accessibility | ✅ |
-| SR 6.2 - Continuous monitoring | Real-time monitoring | ✅ |
+| SR 6.1 - Audit log accessibility | Log accessibility | [DONE] |
+| SR 6.2 - Continuous monitoring | Real-time monitoring | [DONE] |
 
 ---
 
@@ -756,14 +756,14 @@ This document maps Project Aether's security controls to major compliance framew
 
 | Requirement | Implementation | Status |
 |-------------|----------------|--------|
-| SR 7.1 - DoS protection | Rate limiting, quotas | ✅ |
-| SR 7.2 - Resource management | Resource management | ✅ |
-| SR 7.3 - Control system backup | Encrypted backup | ✅ |
-| SR 7.4 - Control system recovery and reconstitution | Recovery procedures | ✅ |
-| SR 7.5 - Emergency power | Cloud provider | ✅ |
-| SR 7.6 - Network and security configuration settings | Secure config | ✅ |
-| SR 7.7 - Multi-party authorization | Multi-party auth | ⚠️ Partial |
-| SR 7.8 - Control system component inventory | SBOM | ✅ |
+| SR 7.1 - DoS protection | Rate limiting, quotas | [DONE] |
+| SR 7.2 - Resource management | Resource management | [DONE] |
+| SR 7.3 - Control system backup | Encrypted backup | [DONE] |
+| SR 7.4 - Control system recovery and reconstitution | Recovery procedures | [DONE] |
+| SR 7.5 - Emergency power | Cloud provider | [DONE] |
+| SR 7.6 - Network and security configuration settings | Secure config | [DONE] |
+| SR 7.7 - Multi-party authorization | Multi-party auth | [WARN] Partial |
+| SR 7.8 - Control system component inventory | SBOM | [DONE] |
 
 ---
 
@@ -773,32 +773,32 @@ This document maps Project Aether's security controls to major compliance framew
 
 | Requirement | Implementation | Status |
 |-------------|----------------|--------|
-| Cryptographic module specification | ring, rustls | ✅ |
-| Module ports and interfaces | Software module | ✅ |
-| Roles, services, and authentication | Role-based access | ✅ |
-| Software/firmware security | Memory-safe Rust | ✅ |
-| Operational environment | Linux | ✅ |
+| Cryptographic module specification | ring, rustls | [DONE] |
+| Module ports and interfaces | Software module | [DONE] |
+| Roles, services, and authentication | Role-based access | [DONE] |
+| Software/firmware security | Memory-safe Rust | [DONE] |
+| Operational environment | Linux | [DONE] |
 | Physical security | N/A (software) | N/A |
-| Operational environment | Operating system | ✅ |
-| Self-tests | Power-up, conditional tests | ✅ |
-| Design assurance | Formal design | ✅ |
-| Mitigation of other attacks | Side-channel mitigations | ✅ |
+| Operational environment | Operating system | [DONE] |
+| Self-tests | Power-up, conditional tests | [DONE] |
+| Design assurance | Formal design | [DONE] |
+| Mitigation of other attacks | Side-channel mitigations | [DONE] |
 
 ### Approved Algorithms
 
 | Algorithm | Use Case | Status |
 |-----------|----------|--------|
-| AES-256-GCM | Symmetric encryption | ✅ Approved |
-| ChaCha20-Poly1305 | Symmetric encryption | ✅ Approved |
-| SHA-256 | Hashing | ✅ Approved |
-| SHA-384 | Hashing | ✅ Approved |
-| SHA-512 | Hashing | ✅ Approved |
-| Ed25519 | Signatures | ✅ Approved |
-| ECDSA P-256 | Signatures | ✅ Approved |
-| ECDHE P-256 | Key agreement | ✅ Approved |
-| X25519 | Key agreement | ✅ Approved |
-| HKDF | Key derivation | ✅ Approved |
-| HMAC | MAC | ✅ Approved |
+| AES-256-GCM | Symmetric encryption | [DONE] Approved |
+| ChaCha20-Poly1305 | Symmetric encryption | [DONE] Approved |
+| SHA-256 | Hashing | [DONE] Approved |
+| SHA-384 | Hashing | [DONE] Approved |
+| SHA-512 | Hashing | [DONE] Approved |
+| Ed25519 | Signatures | [DONE] Approved |
+| ECDSA P-256 | Signatures | [DONE] Approved |
+| ECDHE P-256 | Key agreement | [DONE] Approved |
+| X25519 | Key agreement | [DONE] Approved |
+| HKDF | Key derivation | [DONE] Approved |
+| HMAC | MAC | [DONE] Approved |
 
 ---
 
@@ -808,42 +808,42 @@ This document maps Project Aether's security controls to major compliance framew
 
 | Principle | Implementation | Status |
 |-----------|----------------|--------|
-| Lawfulness, fairness, transparency | Privacy policy, consent | ✅ |
-| Purpose limitation | Purpose-bound processing | ✅ |
-| Data minimization | Minimal data collection | ✅ |
-| Accuracy | Data accuracy | ✅ |
-| Storage limitation | Retention policies | ✅ |
-| Integrity and confidentiality | Encryption, access control | ✅ |
-| Accountability | Audit logging | ✅ |
+| Lawfulness, fairness, transparency | Privacy policy, consent | [DONE] |
+| Purpose limitation | Purpose-bound processing | [DONE] |
+| Data minimization | Minimal data collection | [DONE] |
+| Accuracy | Data accuracy | [DONE] |
+| Storage limitation | Retention policies | [DONE] |
+| Integrity and confidentiality | Encryption, access control | [DONE] |
+| Accountability | Audit logging | [DONE] |
 
 ### Rights of Data Subjects (Articles 12-22)
 
 | Right | Implementation | Status |
 |-------|----------------|--------|
-| Transparent communication | Privacy notices | ✅ |
-| Access by data subject | Data export | ✅ |
-| Rectification | Data correction | ✅ |
-| Erasure (right to be forgotten) | Data deletion | ✅ |
-| Restriction of processing | Processing controls | ✅ |
-| Notification | Notification capability | ✅ |
-| Data portability | Standard formats | ✅ |
-| Objection | Processing controls | ✅ |
+| Transparent communication | Privacy notices | [DONE] |
+| Access by data subject | Data export | [DONE] |
+| Rectification | Data correction | [DONE] |
+| Erasure (right to be forgotten) | Data deletion | [DONE] |
+| Restriction of processing | Processing controls | [DONE] |
+| Notification | Notification capability | [DONE] |
+| Data portability | Standard formats | [DONE] |
+| Objection | Processing controls | [DONE] |
 
 ### Security of Processing (Article 32)
 
 | Requirement | Implementation | Status |
 |-------------|----------------|--------|
-| Pseudonymization and encryption | Encryption at rest/transit | ✅ |
-| Confidentiality, integrity, availability | Security controls | ✅ |
-| Ability to restore availability | Backup/recovery | ✅ |
-| Regular testing | Security testing | ✅ |
+| Pseudonymization and encryption | Encryption at rest/transit | [DONE] |
+| Confidentiality, integrity, availability | Security controls | [DONE] |
+| Ability to restore availability | Backup/recovery | [DONE] |
+| Regular testing | Security testing | [DONE] |
 
 ### Data Protection by Design (Article 25)
 
 | Requirement | Implementation | Status |
 |-------------|----------------|--------|
-| Privacy by design | Built-in privacy | ✅ |
-| Privacy by default | Minimal data collection | ✅ |
+| Privacy by design | Built-in privacy | [DONE] |
+| Privacy by default | Minimal data collection | [DONE] |
 
 ---
 
@@ -853,20 +853,20 @@ This document maps Project Aether's security controls to major compliance framew
 
 | Right | Implementation | Status |
 |-------|----------------|--------|
-| Right to know | Data access API | ✅ |
-| Right to delete | Data deletion API | ✅ |
-| Right to opt-out | Opt-out mechanism | ✅ |
-| Right to non-discrimination | Equal service | ✅ |
+| Right to know | Data access API | [DONE] |
+| Right to delete | Data deletion API | [DONE] |
+| Right to opt-out | Opt-out mechanism | [DONE] |
+| Right to non-discrimination | Equal service | [DONE] |
 
 ### Business Obligations
 
 | Obligation | Implementation | Status |
 |------------|----------------|--------|
-| Notice at collection | Privacy notice | ✅ |
-| Notice of financial incentive | If applicable | ✅ |
-| Disclosure | Privacy policy | ✅ |
-| Verification | Identity verification | ✅ |
-| Records | Request logging | ✅ |
+| Notice at collection | Privacy notice | [DONE] |
+| Notice of financial incentive | If applicable | [DONE] |
+| Disclosure | Privacy policy | [DONE] |
+| Verification | Identity verification | [DONE] |
+| Records | Request logging | [DONE] |
 
 ---
 

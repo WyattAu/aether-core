@@ -5,7 +5,7 @@
 
 use crate::capability::CapabilitySet;
 use crate::error::{Error, Result};
-use crate::wasi::LogLevel;
+use crate::wasi::{HostContext, LogLevel};
 #[cfg(feature = "wasm")]
 use wasmtime::{Linker, Store};
 #[cfg(feature = "wasm")]
@@ -25,6 +25,9 @@ pub struct InstanceHost {
     /// Instance name for logging
     pub name: String,
 
+    /// Host context for deterministic time/entropy injection
+    pub host_context: HostContext,
+
     /// Resource limiter
     limiter: RuntimeLimiter,
 }
@@ -32,7 +35,7 @@ pub struct InstanceHost {
 #[cfg(feature = "wasm")]
 impl InstanceHost {
     /// Create a new host state
-    pub fn new(capabilities: CapabilitySet, name: String) -> Self {
+    pub fn new(capabilities: CapabilitySet, name: String, host_context: HostContext) -> Self {
         let wasi = WasiCtxBuilder::new().inherit_stdio().build_p1();
 
         let limiter = RuntimeLimiter::new(capabilities);
@@ -41,6 +44,7 @@ impl InstanceHost {
             wasi,
             capabilities,
             name,
+            host_context,
             limiter,
         }
     }
@@ -165,9 +169,8 @@ fn add_aether_host_functions(linker: &mut Linker<InstanceHost>) -> Result<()> {
             "aether",
             "get_entropy",
             |mut caller: wasmtime::Caller<'_, InstanceHost>, ptr: i32, len: i32| {
-                let host = caller.data();
-
-                if !host.capabilities.contains(CapabilitySet::RANDOM) {
+                let has_random = caller.data().capabilities.contains(CapabilitySet::RANDOM);
+                if !has_random {
                     return Err(wasmtime::Error::msg("Capability RANDOM not granted"));
                 }
 
@@ -177,9 +180,7 @@ fn add_aether_host_functions(linker: &mut Linker<InstanceHost>) -> Result<()> {
                     .ok_or_else(|| wasmtime::Error::msg("Memory not found"))?;
 
                 let mut entropy = vec![0u8; len as usize];
-                getrandom::fill(&mut entropy).map_err(|e| {
-                    wasmtime::Error::msg(format!("Random generation failed: {}", e))
-                })?;
+                caller.data().host_context.next_entropy_bytes(&mut entropy);
 
                 memory
                     .write(&mut caller, ptr as usize, &entropy)
@@ -201,10 +202,7 @@ fn add_aether_host_functions(linker: &mut Linker<InstanceHost>) -> Result<()> {
                     return Err(wasmtime::Error::msg("Capability TIME not granted"));
                 }
 
-                let timestamp_ns = std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .map(|d| d.as_nanos() as i64)
-                    .unwrap_or(0);
+                let timestamp_ns = host.host_context.wall_time_ns as i64;
 
                 Ok(timestamp_ns)
             },
@@ -295,7 +293,11 @@ mod tests {
     #[test]
     #[cfg(feature = "wasm")]
     fn test_host_capability_check() {
-        let host = InstanceHost::new(CapabilitySet::LOG, "test".to_string());
+        let host = InstanceHost::new(
+            CapabilitySet::LOG,
+            "test".to_string(),
+            HostContext::default(),
+        );
 
         assert!(host.check_capability(CapabilitySet::LOG).is_ok());
         assert!(
@@ -308,7 +310,11 @@ mod tests {
     #[cfg(feature = "wasm")]
     fn test_store_creation_with_fuel() {
         let engine = crate::engine::module::create_engine().unwrap();
-        let host = InstanceHost::new(CapabilitySet::empty(), "test".to_string());
+        let host = InstanceHost::new(
+            CapabilitySet::empty(),
+            "test".to_string(),
+            HostContext::default(),
+        );
         let store = create_store(&engine, host, 1_000_000);
 
         assert!(store.is_ok());

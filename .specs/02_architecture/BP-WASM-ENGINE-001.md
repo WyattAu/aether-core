@@ -1068,53 +1068,53 @@ trait WasiHal {
 | WASI Module | Function | Status | Notes |
 |-------------|----------|--------|-------|
 | **wasi:io** | | | |
-| `poll` | `poll` | ✓ Compliant | Event polling |
-| `streams` | `read`, `write` | ✓ Compliant | Stream operations |
+| `poll` | `poll` | [PASS] Compliant | Event polling |
+| `streams` | `read`, `write` | [PASS] Compliant | Stream operations |
 | **wasi:cli** | | | |
-| `stdin` | `get_stdin` | ✓ Compliant | Standard input |
-| `stdout` | `get_stdout` | ✓ Compliant | Standard output |
-| `stderr` | `get_stderr` | ✓ Compliant | Standard error |
-| `exit` | `exit` | ✓ Compliant | Process exit |
+| `stdin` | `get_stdin` | [PASS] Compliant | Standard input |
+| `stdout` | `get_stdout` | [PASS] Compliant | Standard output |
+| `stderr` | `get_stderr` | [PASS] Compliant | Standard error |
+| `exit` | `exit` | [PASS] Compliant | Process exit |
 | **wasi:filesystem** | | | |
-| `types` | `Descriptor`, `DirEntry` | ✓ Compliant | Filesystem types |
-| `preopens` | `get_directories` | ✓ Compliant | Pre-opened directories |
+| `types` | `Descriptor`, `DirEntry` | [PASS] Compliant | Filesystem types |
+| `preopens` | `get_directories` | [PASS] Compliant | Pre-opened directories |
 | **wasi:sockets** | | | |
-| `tcp` | `create_tcp_socket` | ✓ Compliant | TCP sockets |
-| `udp` | `create_udp_socket` | ✓ Compliant | UDP sockets |
-| `ip-name-lookup` | `resolve_addresses` | ✓ Compliant | DNS resolution |
+| `tcp` | `create_tcp_socket` | [PASS] Compliant | TCP sockets |
+| `udp` | `create_udp_socket` | [PASS] Compliant | UDP sockets |
+| `ip-name-lookup` | `resolve_addresses` | [PASS] Compliant | DNS resolution |
 | **wasi:random** | | | |
-| `random` | `get_random_bytes` | ✓ Compliant | Random bytes |
-| `insecure` | `get_insecure_random` | ✓ Compliant | Insecure random |
+| `random` | `get_random_bytes` | [PASS] Compliant | Random bytes |
+| `insecure` | `get_insecure_random` | [PASS] Compliant | Insecure random |
 | **wasi:clocks** | | | |
-| `wall-clock` | `now`, `resolution` | ✓ Compliant | Wall clock |
-| `monotonic-clock` | `now`, `resolution` | ✓ Compliant | Monotonic clock |
+| `wall-clock` | `now`, `resolution` | [PASS] Compliant | Wall clock |
+| `monotonic-clock` | `now`, `resolution` | [PASS] Compliant | Monotonic clock |
 
 ### 11.2 WebAssembly Core Compliance
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| **MVP** | ✓ Compliant | All MVP features |
-| **Mutable Globals** | ✓ Compliant | `global.set` supported |
-| **Sign Extension** | ✓ Compliant | i32.extend8_s, etc. |
-| **Bulk Memory** | ✓ Compliant | memory.copy, memory.fill |
-| **Reference Types** | ✓ Compliant | externref, funcref |
-| **Multi-Value** | ✓ Compliant | Multi-value returns |
-| **SIMD** | ✓ Compliant | 128-bit SIMD |
-| **Tail Call** | ✓ Compliant | tail-call optimization |
+| **MVP** | [PASS] Compliant | All MVP features |
+| **Mutable Globals** | [PASS] Compliant | `global.set` supported |
+| **Sign Extension** | [PASS] Compliant | i32.extend8_s, etc. |
+| **Bulk Memory** | [PASS] Compliant | memory.copy, memory.fill |
+| **Reference Types** | [PASS] Compliant | externref, funcref |
+| **Multi-Value** | [PASS] Compliant | Multi-value returns |
+| **SIMD** | [PASS] Compliant | 128-bit SIMD |
+| **Tail Call** | [PASS] Compliant | tail-call optimization |
 | **Component Model** | Partial | Preview 2 support |
-| **Threads** | ⚠ Not Supported | Shared memory disabled |
+| **Threads** | [WARN] Not Supported | Shared memory disabled |
 
 ### 11.3 Security Compliance
 
 | Standard | Requirement | Status | Implementation |
 |----------|-------------|--------|----------------|
-| CWE-119 | Buffer Overflow | ✓ Mitigated | Bounds checking |
-| CWE-125 | Out-of-bounds Read | ✓ Mitigated | Memory isolation |
-| CWE-787 | Out-of-bounds Write | ✓ Mitigated | Memory isolation |
-| CWE-400 | Uncontrolled Resource | ✓ Mitigated | Fuel limiting |
-| CWE-862 | Missing Authorization | ✓ Mitigated | Capability enforcement |
-| Spectre V1 | Bounds Check Bypass | ⚠ Mitigated | Spectre guards |
-| Spectre V4 | Speculative Store Bypass | ⚠ Mitigated | Memory fences |
+| CWE-119 | Buffer Overflow | [PASS] Mitigated | Bounds checking |
+| CWE-125 | Out-of-bounds Read | [PASS] Mitigated | Memory isolation |
+| CWE-787 | Out-of-bounds Write | [PASS] Mitigated | Memory isolation |
+| CWE-400 | Uncontrolled Resource | [PASS] Mitigated | Fuel limiting |
+| CWE-862 | Missing Authorization | [PASS] Mitigated | Capability enforcement |
+| Spectre V1 | Bounds Check Bypass | [WARN] Mitigated | Spectre guards |
+| Spectre V4 | Speculative Store Bypass | [WARN] Mitigated | Memory fences |
 
 ---
 
@@ -1124,31 +1124,31 @@ trait WasiHal {
 
 | Section | Status | Notes |
 |---------|--------|-------|
-| BP-1: Design Overview | ✓ Complete | Purpose, context, goals |
-| BP-2: Design Decomposition | ✓ Complete | 6 components specified |
-| BP-3: Design Rationale | ✓ Complete | Key decisions justified |
-| BP-4: Traceability | ✓ Complete | Mapped to YP theorems |
-| BP-5: Interface Design | ✓ Complete | 5 interfaces specified |
-| BP-6: Data Design | ✓ Complete | Structures defined |
-| BP-7: Component Design | ✓ Complete | Sequences documented |
-| BP-8: Deployment Design | ✓ Complete | Requirements specified |
-| BP-9: Formal Verification | ✓ Complete | 3 properties specified |
-| BP-10: HAL Specification | ✓ Complete | 3 HAL interfaces |
-| BP-11: Compliance Matrix | ✓ Complete | WASI/WASM compliance |
-| BP-12: Quality Checklist | ✓ Complete | This section |
+| BP-1: Design Overview | [PASS] Complete | Purpose, context, goals |
+| BP-2: Design Decomposition | [PASS] Complete | 6 components specified |
+| BP-3: Design Rationale | [PASS] Complete | Key decisions justified |
+| BP-4: Traceability | [PASS] Complete | Mapped to YP theorems |
+| BP-5: Interface Design | [PASS] Complete | 5 interfaces specified |
+| BP-6: Data Design | [PASS] Complete | Structures defined |
+| BP-7: Component Design | [PASS] Complete | Sequences documented |
+| BP-8: Deployment Design | [PASS] Complete | Requirements specified |
+| BP-9: Formal Verification | [PASS] Complete | 3 properties specified |
+| BP-10: HAL Specification | [PASS] Complete | 3 HAL interfaces |
+| BP-11: Compliance Matrix | [PASS] Complete | WASI/WASM compliance |
+| BP-12: Quality Checklist | [PASS] Complete | This section |
 
 ### 12.2 IEEE 1016-2009 Compliance
 
 | IEEE 1016 Section | BP Section | Status |
 |-------------------|------------|--------|
-| Design Overview | BP-1 | ✓ |
-| Design Decomposition | BP-2 | ✓ |
-| Design Rationale | BP-3 | ✓ |
-| Traceability | BP-4 | ✓ |
-| Interface Design | BP-5 | ✓ |
-| Data Design | BP-6 | ✓ |
-| Component Design | BP-7 | ✓ |
-| Deployment Design | BP-8 | ✓ |
+| Design Overview | BP-1 | [PASS] |
+| Design Decomposition | BP-2 | [PASS] |
+| Design Rationale | BP-3 | [PASS] |
+| Traceability | BP-4 | [PASS] |
+| Interface Design | BP-5 | [PASS] |
+| Data Design | BP-6 | [PASS] |
+| Component Design | BP-7 | [PASS] |
+| Deployment Design | BP-8 | [PASS] |
 
 ### 12.3 Review Status
 

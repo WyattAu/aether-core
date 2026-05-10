@@ -16,7 +16,7 @@ Project Aether targets specific CPU architectures with varying levels of support
 
 ## Primary Architecture: x86_64 (AMD64)
 
-### Status: ✅ Full Support
+### Status: [DONE] Full Support
 
 x86_64 is the primary development and production architecture.
 
@@ -188,7 +188,7 @@ impl CpuFeatures {
 
 ## Secondary Architecture: ARM64 (AArch64)
 
-### Status: 🔍 Planned Support
+### Status:  Planned Support
 
 ARM64 support is planned for cloud deployments (AWS Graviton, Ampere Altra).
 
@@ -308,7 +308,7 @@ impl CpuFeatures {
 
 ## Future Architecture: RISC-V
 
-### Status: 🔮 Future Consideration
+### Status:  Future Consideration
 
 RISC-V support is a long-term goal for open-source hardware ecosystems.
 
@@ -371,11 +371,11 @@ Endianness affects data serialization and network protocols.
 
 | Architecture | Endianness | Status |
 |--------------|------------|--------|
-| x86_64 | Little-endian | ✅ Supported |
-| ARM64 | Little-endian (bi-endian) | ✅ Supported |
-| RISC-V | Little-endian | ✅ Supported |
-| PowerPC64 | Big-endian | ❌ Not supported |
-| s390x | Big-endian | ❌ Not supported |
+| x86_64 | Little-endian | [DONE] Supported |
+| ARM64 | Little-endian (bi-endian) | [DONE] Supported |
+| RISC-V | Little-endian | [DONE] Supported |
+| PowerPC64 | Big-endian | [FAIL] Not supported |
+| s390x | Big-endian | [FAIL] Not supported |
 
 ### Endianness Strategy
 
@@ -760,7 +760,7 @@ pub fn memeq(a: &[u8], b: &[u8]) -> bool {
 
 | Feature | x86_64 | ARM64 | RISC-V |
 |---------|--------|-------|--------|
-| **Status** | ✅ Full | 🔍 Planned | 🔮 Future |
+| **Status** | [DONE] Full |  Planned |  Future |
 | **Performance** | Baseline | 0.8-0.9x | TBD |
 | **Power** | 1.0x | 1.5x better | TBD |
 | **Virtualization** | KVM | KVM | H-extension |
@@ -768,7 +768,7 @@ pub fn memeq(a: &[u8], b: &[u8]) -> bool {
 | **Ecosystem** | Mature | Growing | Emerging |
 | **Hardware** | Widely available | Cloud ARM | Limited |
 | **Rust Support** | Complete | Good | Basic |
-| **Production Ready** | ✅ Yes | 🔜 Q3 2026 | ❓ 2027+ |
+| **Production Ready** | [DONE] Yes |  Q3 2026 | [TBD] 2027+ |
 
 ---
 

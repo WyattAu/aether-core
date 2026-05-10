@@ -411,7 +411,7 @@ func (a *WindowedStreamActor[K, V, R]) OnWatermark(ctx context.Context, watermar
 	results := a.trigger.TriggerAll(watermark)
 	for _, result := range results {
 		var key K
-		if err := a.Emit(ctx, key, result.Result); err != nil {
+		if err := a.Emit(ctx, key, any(result.Result).(V)); err != nil {
 			return err
 		}
 	}

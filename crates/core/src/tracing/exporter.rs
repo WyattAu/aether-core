@@ -14,7 +14,7 @@
 //!
 //! # Example: OTLP Configuration
 //!
-//! ```ignore
+//! ```rust
 //! use aether_core::tracing::exporter::{TracingConfig, TracingExporter};
 //!
 //! let config = TracingConfig::default()
@@ -25,7 +25,7 @@
 //!
 //! # Example: Jaeger Configuration
 //!
-//! ```ignore
+//! ```rust
 //! use aether_core::tracing::exporter::{TracingConfig, TracingExporter};
 //!
 //! let config = TracingConfig::default()
@@ -85,7 +85,9 @@ pub enum TracingExporter {
 ///
 /// # Example
 ///
-/// ```ignore
+/// ```rust
+/// use aether_core::tracing::exporter::TracingConfig;
+///
 /// let config = TracingConfig::default()
 ///     .with_service_name("aether-node-1")
 ///     .with_otlp_exporter("http://otel-collector:4317")

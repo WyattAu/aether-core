@@ -26,10 +26,10 @@ This document specifies the Hardware Abstraction Layer (HAL) interfaces for the 
 
 | Platform | KVM | io_uring | Network | Status |
 |----------|-----|----------|---------|--------|
-| Linux x86_64 | ✓ | ✓ | ✓ | Production |
-| Linux ARM64 | ✓ | ✓ | ✓ | Production |
-| macOS | ✗ | ✗ | ✓ | Development |
-| Windows | ✗ | ✗ | ✓ | Development |
+| Linux x86_64 | [PASS] | [PASS] | [PASS] | Production |
+| Linux ARM64 | [PASS] | [PASS] | [PASS] | Production |
+| macOS | [FAIL] | [FAIL] | [PASS] | Development |
+| Windows | [FAIL] | [FAIL] | [PASS] | Development |
 
 ---
 

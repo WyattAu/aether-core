@@ -1,6 +1,6 @@
 # Project Aether Architecture Overview
 
-**Version:** 1.0.0-alpha  
+**Version:** 2.0.0
 **Last Updated:** 2026-03-12  
 **Audience:** System Architects, Platform Engineers
 
@@ -604,8 +604,8 @@ Aether is designed as a **Post-Container Application OS** that replaces traditio
 
 | Model | Purpose | Recommendation |
 |-------|---------|----------------|
-| **Native** | Primary production | ✅ Recommended for all production |
-| **Kubernetes** | Transitional/adoption | ⚠️ Evaluation only |
+| **Native** | Primary production | [DONE] Recommended for all production |
+| **Kubernetes** | Transitional/adoption | [WARN] Evaluation only |
 
 ### 7.2 Native Deployment Architecture
 
