@@ -1,0 +1,28 @@
+[package]
+name = "aether-server"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Aether Server - REST/gRPC API server for the Aether platform"
+
+[[bin]]
+name = "aether-server"
+path = "src/main.rs"
+
+[dependencies]
+aether-core = { workspace = true }
+axum = { version = "0.8", features = ["json", "macros"] }
+tokio = { workspace = true, features = ["signal"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tower-http = { version = "0.6", features = ["cors", "trace", "compression-gzip"] }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+uuid = { workspace = true }
+chrono = { version = "0.4", features = ["serde"] }
+clap = { workspace = true }
+
+[lints]
+workspace = true

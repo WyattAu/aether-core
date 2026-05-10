@@ -1,0 +1,261 @@
+name: Docker Integration Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 3 * * 0'
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  FDB_VERSION: "7.3.23"
+  FDB_IMAGE: foundationdb/foundationdb:7.3.23
+
+jobs:
+  docker-integration:
+    name: FDB Integration Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: nightly-2026-03-01
+          targets: wasm32-wasip1
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-fdb-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-fdb-
+            ${{ runner.os }}-cargo-
+
+      - name: Start FDB container
+        run: |
+          docker network create aether-net
+          docker run -d \
+            --name fdb \
+            --network aether-net \
+            -p 4500:4500 \
+            -e FDB_NETWORKING_MODE=host \
+            ${{ env.FDB_IMAGE }}
+
+      - name: Wait for FDB healthy
+        run: |
+          echo "Waiting for FoundationDB to become healthy..."
+          for i in $(seq 1 60); do
+            if docker exec fdb fdbcli --exec "status" 2>/dev/null | grep -q "The database is available"; then
+              echo "FoundationDB is healthy after ${i} attempts"
+              exit 0
+            fi
+            echo "Attempt ${i}/60 - FDB not ready yet..."
+            sleep 2
+          done
+          echo "FoundationDB failed to become healthy"
+          docker logs fdb
+          exit 1
+
+      - name: Extract FDB cluster file
+        run: |
+          docker cp fdb:/etc/foundationdb/fdb.cluster /tmp/fdb.cluster
+          cat /tmp/fdb.cluster
+          echo "FDB_CLUSTER_FILE=/tmp/fdb.cluster" >> "$GITHUB_ENV"
+
+      - name: Build with fdb feature
+        run: cargo build --features fdb
+
+      - name: Run integration tests (fdb)
+        run: cargo test --test integration --features fdb -- --nocapture
+
+      - name: Run actor migration tests (fdb)
+        run: cargo test --features fdb migration -- --nocapture
+
+      - name: Run state manager FDB tests
+        run: cargo test --features fdb state -- --nocapture
+
+      - name: Stop FDB container
+        if: always()
+        run: |
+          docker stop fdb || true
+          docker rm fdb || true
+          docker network rm aether-net || true
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fdb-integration-results
+          path: target/test-results/
+
+  docker-cluster:
+    name: 3-Node Cluster Tests
+    runs-on: ubuntu-latest
+    needs: docker-integration
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: nightly-2026-03-01
+
+      - name: Build release binary
+        run: cargo build --release --features fdb
+
+      - name: Start docker-compose cluster
+        working-directory: tests/integration/docker
+        run: docker compose -f docker-compose.test.yml up -d --build
+
+      - name: Wait for all nodes healthy
+        run: |
+          echo "Waiting for all 3 aether nodes to become healthy..."
+          for i in $(seq 1 120); do
+            NODE1=$(curl -sf http://localhost:8001/health 2>/dev/null && echo "ok" || echo "fail")
+            NODE2=$(curl -sf http://localhost:8002/health 2>/dev/null && echo "ok" || echo "fail")
+            NODE3=$(curl -sf http://localhost:8003/health 2>/dev/null && echo "ok" || echo "fail")
+            if [ "$NODE1" = "ok" ] && [ "$NODE2" = "ok" ] && [ "$NODE3" = "ok" ]; then
+              echo "All nodes healthy after ${i} attempts"
+              exit 0
+            fi
+            echo "Attempt ${i}/120 - node-1:${NODE1} node-2:${NODE2} node-3:${NODE3}"
+            sleep 2
+          done
+          echo "Timed out waiting for nodes"
+          exit 1
+
+      - name: Cluster health check
+        run: |
+          echo "## Cluster Health Check" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Node | Health Endpoint | Status |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|------|----------------|--------|" >> "$GITHUB_STEP_SUMMARY"
+
+          for port in 8001 8002 8003; do
+            STATUS=$(curl -sf "http://localhost:${port}/health" 2>/dev/null && echo "Healthy" || echo "Unhealthy")
+            echo "| node on :${port} | /health | ${STATUS} |" >> "$GITHUB_STEP_SUMMARY"
+          done
+
+          curl -sf http://localhost:8001/health || exit 1
+          curl -sf http://localhost:8002/health || exit 1
+          curl -sf http://localhost:8003/health || exit 1
+
+      - name: Mesh connectivity test
+        run: |
+          echo "## Mesh Connectivity" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          MESH_OK=true
+          for src in 8001 8002 8003; do
+            for dst in 8001 8002 8003; do
+              if [ "$src" != "$dst" ]; then
+                RESULT=$(curl -sf "http://localhost:${src}/mesh/peers" 2>/dev/null | grep -c "node" || echo "0")
+                if [ "$RESULT" -ge 2 ]; then
+                  echo "Node :${src} -> :${dst}: connected" >> "$GITHUB_STEP_SUMMARY"
+                else
+                  echo "Node :${src} -> :${dst}: disconnected (peer count: ${RESULT})" >> "$GITHUB_STEP_SUMMARY"
+                  MESH_OK=false
+                fi
+              fi
+            done
+          done
+
+          if [ "$MESH_OK" = "false" ]; then
+            echo "Mesh connectivity check failed"
+            exit 1
+          fi
+          echo "Mesh connectivity verified"
+
+      - name: Actor migration across nodes test
+        run: |
+          echo "## Actor Migration Test" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          CREATE_RESP=$(curl -sf -X POST http://localhost:8001/actors \
+            -H "Content-Type: application/json" \
+            -d '{"type": "test", "id": "migration-test-actor"}')
+
+          echo "Created actor: ${CREATE_RESP}" >> "$GITHUB_STEP_SUMMARY"
+
+          sleep 2
+
+          LOOKUP_1=$(curl -sf http://localhost:8001/actors/migration-test-actor 2>/dev/null | grep -c "migration-test-actor" || echo "0")
+          LOOKUP_2=$(curl -sf http://localhost:8002/actors/migration-test-actor 2>/dev/null | grep -c "migration-test-actor" || echo "0")
+          LOOKUP_3=$(curl -sf http://localhost:8003/actors/migration-test-actor 2>/dev/null | grep -c "migration-test-actor" || echo "0")
+
+          FOUND=$((LOOKUP_1 + LOOKUP_2 + LOOKUP_3))
+
+          echo "Actor found on nodes: node-1:${LOOKUP_1} node-2:${LOOKUP_2} node-3:${LOOKUP_3}" >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$FOUND" -eq 0 ]; then
+            echo "Actor not found on any node after creation"
+            exit 1
+          fi
+
+          echo "Actor migration test passed" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Collect logs on failure
+        if: failure()
+        run: |
+          docker compose -f tests/integration/docker/docker-compose.test.yml logs --no-color > docker-cluster-logs.txt 2>&1 || true
+          echo "## Cluster Logs (failure)" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          tail -200 docker-cluster-logs.txt >> "$GITHUB_STEP_SUMMARY" 2>&1 || true
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Teardown
+        if: always()
+        working-directory: tests/integration/docker
+        run: docker compose -f docker-compose.test.yml down -v --remove-orphans
+
+      - name: Upload cluster logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-cluster-logs
+          path: docker-cluster-logs.txt
+
+  summary:
+    name: Docker Integration Summary
+    runs-on: ubuntu-latest
+    needs: [docker-integration, docker-cluster]
+    if: always()
+    steps:
+      - name: Create summary table
+        run: |
+          echo "## Docker Integration Test Results" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Test Suite | Status |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|-------------|--------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| FDB Integration Tests | ${{ needs.docker-integration.result == 'success' && '✅ Passed' || needs.docker-integration.result == 'skipped' && '⚠️ Skipped' || '❌ Failed' }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| 3-Node Cluster Tests | ${{ needs.docker-cluster.result == 'success' && '✅ Passed' || needs.docker-cluster.result == 'skipped' && '⚠️ Skipped' || '❌ Failed' }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          if [[ "${{ needs.docker-integration.result }}" == "failure" || "${{ needs.docker-cluster.result }}" == "failure" ]]; then
+            echo "### ❌ One or more test suites failed" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+      - name: Download all test artifacts
+        if: always()
+        uses: actions/download-artifact@v4
+        with:
+          path: all-test-results
+
+      - name: Upload combined test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-integration-combined-results
+          path: all-test-results/
