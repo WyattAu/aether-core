@@ -82,10 +82,10 @@ Aether-Core v2.0.0 is a WASM-based actor runtime with QUIC mesh networking, mTLS
 
 | Metric | Target | Current |
 |--------|--------|---------|
-| Clippy Warnings | 0 | ✅ 0 |
-| Test Pass Rate | 100% | ✅ 100% (1,225/1,225) |
-| Stubs (todo!/unimplemented!) | 0 | ✅ 0 |
-| Security Vulnerabilities | 0 critical | ✅ 0 known |
+| Clippy Warnings | 0 | [PASS] 0 |
+| Test Pass Rate | 100% | [PASS] 100% (1,225/1,225) |
+| Stubs (todo!/unimplemented!) | 0 | [PASS] 0 |
+| Security Vulnerabilities | 0 critical | [PASS] 0 known |
 
 ---
 

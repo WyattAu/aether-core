@@ -11,5 +11,5 @@ pub mod models;
 /// HTTP route handlers.
 pub mod routes;
 
-/// Re-export of [`ServerConfig`](config::ServerConfig).
+/// Re-export of [`ServerConfig`].
 pub use config::ServerConfig;

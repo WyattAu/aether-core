@@ -28,8 +28,8 @@ Please read and follow our [Code of Conduct](CODE_OF_CONDUCT.md). Be respectful,
 | Tool | Version | Purpose |
 |------|---------|---------|
 | Nix | 2.18+ | Reproducible build environment |
-| Rust | 1.75+ | Primary language |
-| FoundationDB | 7.1+ | State backend |
+| Rust | 1.85+ | Primary language (MSRV) |
+| FoundationDB | 7.3+ | State backend (optional) |
 
 ### Quick Start with Nix (Recommended)
 
@@ -42,8 +42,8 @@ mkdir -p ~/.config/nix
 echo "experimental-features = nix-command flakes" >> ~/.config/nix/nix.conf
 
 # 3. Clone the repository
-git clone https://github.com/aether-project/aether.git
-cd aether
+git clone https://github.com/WyattAu/aether-core.git
+cd aether-core
 
 # 4. Enter development environment
 nix develop
@@ -90,13 +90,13 @@ Install the Rust plugin and enable:
 **Always use `Result<T>` - never panic!**
 
 ```rust
-// ✅ Correct
+// [PASS] Correct
 fn parse_config(input: &str) -> Result<Config> {
     toml::from_str(input)
         .map_err(|e| Error::internal(format!("Invalid config: {}", e)))
 }
 
-// ❌ Wrong - will fail CI
+// [FAIL] Wrong - will fail CI
 fn parse_config(input: &str) -> Config {
     toml::from_str(input).expect("Invalid config")  // Fails clippy!
 }
@@ -114,11 +114,11 @@ Use the appropriate error constructor:
 | `Error::mesh_connection()` | Network/mesh failures |
 
 ```rust
-// ✅ Correct
+// [PASS] Correct
 std::fs::read(path)
     .map_err(|e| Error::storage_read(format!("Failed to read {}: {}", path, e)))?;
 
-// ❌ Wrong
+// [FAIL] Wrong
 std::fs::read(path)
     .map_err(|e| Error::io(e))?;  // No Error::io() method exists!
 ```
@@ -128,12 +128,12 @@ std::fs::read(path)
 Always check capabilities before operations:
 
 ```rust
-// ✅ Correct
+// [PASS] Correct
 if !ctx.has_fs_read() {
     return Err(Error::internal("Missing fs_read capability"));
 }
 
-// ❌ Wrong - will fail at runtime
+// [FAIL] Wrong - will fail at runtime
 std::fs::read_to_string(path)?;  // No capability check!
 ```
 
@@ -142,11 +142,11 @@ std::fs::read_to_string(path)?;  // No capability check!
 Session metadata is wrapped in `RwLock`:
 
 ```rust
-// ✅ Correct
+// [PASS] Correct
 let metadata = session.metadata.read();
 let actor_id = metadata.actor_id.clone();
 
-// ❌ Wrong - compile error
+// [FAIL] Wrong - compile error
 let actor_id = session.metadata.actor_id;  // Can't access directly!
 ```
 
@@ -155,12 +155,12 @@ let actor_id = session.metadata.actor_id;  // Can't access directly!
 Use `Vec::push()` for tags (no `with_tag()` method):
 
 ```rust
-// ✅ Correct
+// [PASS] Correct
 let mut entry = MemoryEntry::new(data);
 entry.tags.push("cache".to_string());
 entry.tags.push("session".to_string());
 
-// ❌ Wrong - method doesn't exist
+// [FAIL] Wrong - method doesn't exist
 let entry = MemoryEntry::new(data).with_tag("cache");  // No such method!
 ```
 
@@ -169,7 +169,7 @@ let entry = MemoryEntry::new(data).with_tag("cache");  // No such method!
 Use match statement (no Display implementation):
 
 ```rust
-// ✅ Correct
+// [PASS] Correct
 let role_str = match message.role {
     MessageRole::System => "system",
     MessageRole::User => "user",
@@ -177,7 +177,7 @@ let role_str = match message.role {
     MessageRole::Tool => "tool",
 };
 
-// ❌ Wrong - compile error
+// [FAIL] Wrong - compile error
 let role_str = message.role.to_string();  // No Display impl!
 ```
 
@@ -186,7 +186,7 @@ let role_str = message.role.to_string();  // No Display impl!
 Use helper methods:
 
 ```rust
-// ✅ Correct
+// [PASS] Correct
 impl McpTool for MyTool {
     async fn execute(&self, args: Value) -> Result<ToolResult> {
         let data = do_something()?;
@@ -194,7 +194,7 @@ impl McpTool for MyTool {
     }
 }
 
-// ❌ Wrong
+// [FAIL] Wrong
 impl McpTool for MyTool {
     async fn execute(&self, args: Value) -> Result<ToolResult> {
         Ok(ToolResult {  // Manual construction error-prone

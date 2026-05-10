@@ -1,9 +1,9 @@
 #![deny(unsafe_code)]
 
 use axum::{
+    Json, Router,
     extract::{Path, State},
     routing::{get, post},
-    Json, Router,
 };
 
 use crate::error::ApiError;
@@ -16,7 +16,10 @@ pub struct ClusterState;
 pub fn routes() -> Router {
     Router::new()
         .route("/api/v1/cluster/nodes", get(list_nodes))
-        .route("/api/v1/cluster/nodes/{node_id}", get(get_node).delete(remove_node))
+        .route(
+            "/api/v1/cluster/nodes/{node_id}",
+            get(get_node).delete(remove_node),
+        )
         .route("/api/v1/cluster/join", post(join_cluster))
         .route("/api/v1/cluster/leave", post(leave_cluster))
         .route("/api/v1/cluster/status", get(cluster_status))

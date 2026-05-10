@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+# Aether Core pre-commit hook
+# Runs full quality gate before allowing a commit.
+set -euo pipefail
+
+readonly RED='\033[0;31m'
+readonly GREEN='\033[0;32m'
+readonly YELLOW='\033[1;33m'
+readonly NC='\033[0m'
+
+log_step() {
+    echo -e "${GREEN}[pre-commit]${NC} $1"
+}
+
+log_fail() {
+    echo -e "${RED}[pre-commit]${NC} $1"
+}
+
+log_warn() {
+    echo -e "${YELLOW}[pre-commit]${NC} $1"
+}
+
+# Only run if Rust files changed (staged or unstaged)
+RUST_CHANGED=$(git diff --cached --name-only --diff-filter=ACMR '*.rs' 'Cargo.toml' 'Cargo.lock' 'rust-toolchain.toml' 2>/dev/null | head -1)
+if [ -z "$RUST_CHANGED" ]; then
+    log_step "No Rust changes detected. Running format check only."
+    cargo fmt --all -- --check
+    log_step "Format check passed."
+    exit 0
+fi
+
+log_step "Rust changes detected. Running full quality gate..."
+
+# Step 1: Check formatting
+log_step "1/5: Checking code formatting..."
+if ! cargo fmt --all -- --check; then
+    log_fail "Formatting errors detected. Run 'cargo fmt --all' to fix."
+    exit 1
+fi
+
+# Step 2: Clippy lint
+log_step "2/5: Running clippy lints..."
+if ! cargo clippy --workspace --all-features -- -D warnings 2>&1; then
+    log_fail "Clippy errors detected. Fix warnings before committing."
+    exit 1
+fi
+
+# Step 3: Compile check
+log_step "3/5: Checking compilation..."
+if ! cargo check --workspace --all-features 2>&1; then
+    log_fail "Compilation errors detected."
+    exit 1
+fi
+
+# Step 4: Run tests
+log_step "4/5: Running test suite..."
+if ! cargo test --workspace --all-features 2>&1; then
+    log_fail "Test failures detected. All tests must pass before committing."
+    exit 1
+fi
+
+# Step 5: Documentation check
+log_step "5/5: Checking documentation..."
+if ! cargo doc --workspace --no-deps 2>&1; then
+    log_fail "Documentation errors detected."
+    exit 1
+fi
+
+log_step "All quality gates passed. Commit allowed."
+exit 0

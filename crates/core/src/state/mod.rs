@@ -109,8 +109,8 @@
 //!
 //! When the `fdb` feature is enabled:
 //!
-//! - [`FdbClient`] for direct FDB access
-//! - [`FdbStore`] implements `KeyValueStore`
+//! - [`FdbConfig`] for FDB connection configuration
+//! - `FdbStore` (behind `fdb` feature) implements [`KeyValueStore`]
 //! - Distributed transactions across nodes
 //! - Watch support via FDB watch
 

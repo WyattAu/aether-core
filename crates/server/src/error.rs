@@ -1,9 +1,9 @@
 #![deny(unsafe_code)]
 
 use axum::{
+    Json,
     http::StatusCode,
     response::{IntoResponse, Response},
-    Json,
 };
 use serde::Serialize;
 
@@ -44,14 +44,15 @@ impl IntoResponse for ApiError {
             ApiError::InternalError(msg) => {
                 (StatusCode::INTERNAL_SERVER_ERROR, "internal_error", msg)
             }
-            ApiError:: NotImplemented(msg) => {
-                (StatusCode::NOT_IMPLEMENTED, "not_implemented", msg)
-            }
+            ApiError::NotImplemented(msg) => (StatusCode::NOT_IMPLEMENTED, "not_implemented", msg),
         };
-        (status, Json(ErrorResponse {
-            error: error.to_owned(),
-            message,
-        }))
+        (
+            status,
+            Json(ErrorResponse {
+                error: error.to_owned(),
+                message,
+            }),
+        )
             .into_response()
     }
 }
