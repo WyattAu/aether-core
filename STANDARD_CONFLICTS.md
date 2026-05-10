@@ -11,7 +11,7 @@ This document provides a high-level summary of identified standard conflicts. Fo
 | C-002 | Memory Safety vs Zero-Copy | ✅ Resolved | Validated zero-copy with capabilities |
 | C-003 | Isolation vs Performance | ✅ Resolved | Hybrid isolation (WASM + MicroVM) |
 | C-004 | Audit Logging vs Performance | ✅ Resolved | Async offload to dedicated cores |
-| C-005 | FIPS vs Performance | ⏳ Partial | Mode switching, validation pending |
+| C-005 | FIPS vs Performance | [IN PROGRESS] | Mode switching, validation pending |
 | C-006 | WASI Stability vs Production | ✅ Mitigated | Abstraction layer, version lock |
 | C-007 | Data Sovereignty vs Distribution | ✅ Resolved | Topology-aware placement |
 
@@ -30,4 +30,4 @@ This document provides a high-level summary of identified standard conflicts. Fo
 - Traceability: `TRACEABILITY_MATRIX.md`
 
 ---
-Last Updated: 2026-03-05
+Last Updated: 2026-05-10

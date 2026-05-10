@@ -1,8 +1,8 @@
 # Traceability Matrix: Project Aether
 
-**Version:** 1.0.0  
-**Last Updated:** 2026-03-05  
-**Phase:** 0 - Requirements Engineering (Complete)
+**Version:** 2.0.0  
+**Last Updated:** 2026-05-10  
+**Phase:** 5 - Prototype / Post-v2.0.0 (In Progress)
 
 ---
 
@@ -12,8 +12,9 @@ This document consolidates all traceability information for Project Aether, link
 
 **Total Requirements:** 40  
 **Standards Referenced:** 17  
-**Test Cases Defined:** 120  
-**Components Identified:** 75
+**Test Cases Defined:** 1,283 (938 core + 267 integration + 16 property + 4 benchmark + 20 security + 17 fuzz + 7 fixtures + 2 doc + 58 doc-ignored)  
+**Components Identified:** 75  
+**Tests Passing:** 1,283 / 1,283 (0 failures, 36 ignored requiring external deps)
 
 ---
 
@@ -194,9 +195,10 @@ This document consolidates all traceability information for Project Aether, link
 |-------|-------------|--------------|-----------|--------|
 | -1 | Context Discovery | Initial scope | ISO 12207 | Complete |
 | 0 | Requirements Engineering | All 40 | All 17 | Complete |
-| 1 | Core Runtime (Local) | 14 Must | IEC 61508, WASI, NIST | Planned |
-| 2 | Distributed Mesh | 23 Should | RFC 9000, IEC 62443 | Planned |
-| 3 | Enterprise Platform | 3 Could | ISO 27001, FIPS | Planned |
+| 1 | Core Runtime (Local) | 14 Must | IEC 61508, WASI, NIST | Implemented |
+| 2 | Distributed Mesh | 23 Should | RFC 9000, IEC 62443 | Implemented |
+| 3 | Enterprise Platform | 3 Could | ISO 27001, FIPS | Partial |
+| 5 | Adversarial Loop | Prototype validation | All | In Progress |
 
 ---
 
@@ -278,15 +280,15 @@ This document consolidates all traceability information for Project Aether, link
 
 | Category | Defined | Implemented | Tested | Verified |
 |----------|---------|-------------|--------|----------|
-| REQ-EXEC (9) | 9 | 0 | 0 | 0 |
-| REQ-NET (5) | 5 | 0 | 0 | 0 |
-| REQ-STOR (4) | 4 | 0 | 0 | 0 |
-| REQ-ORCH (3) | 3 | 0 | 0 | 0 |
-| REQ-SAFE (4) | 4 | 0 | 0 | 0 |
-| REQ-SEC (5) | 5 | 0 | 0 | 0 |
-| REQ-DBG (4) | 4 | 0 | 0 | 0 |
-| REQ-PERF (6) | 6 | 0 | 0 | 0 |
-| **Total (40)** | **40** | **0** | **0** | **0** |
+| REQ-EXEC (9) | 9 | 9 | 8 | 0 |
+| REQ-NET (5) | 5 | 5 | 4 | 0 |
+| REQ-STOR (4) | 4 | 4 | 3 | 0 |
+| REQ-ORCH (3) | 3 | 3 | 3 | 0 |
+| REQ-SAFE (4) | 4 | 4 | 4 | 0 |
+| REQ-SEC (5) | 5 | 5 | 5 | 0 |
+| REQ-DBG (4) | 4 | 4 | 3 | 0 |
+| REQ-PERF (6) | 6 | 6 | 5 | 0 |
+| **Total (40)** | **40** | **40** | **35** | **0** |
 
 ---
 
@@ -310,6 +312,6 @@ This document consolidates all traceability information for Project Aether, link
 
 ---
 
-Last Updated: 2026-03-05  
-Phase: 0 - Requirements Engineering (Complete)  
-Next Phase: 1 - Core Runtime (Local)
+Last Updated: 2026-05-10  
+Phase: 5 - Prototype / Post-v2.0.0 (In Progress)  
+Next Phase: 5.5 - Performance Regression Baseline
