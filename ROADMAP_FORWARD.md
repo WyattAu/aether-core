@@ -46,19 +46,16 @@
 | Firecracker VM | 7 | Requires KVM (unavailable in CI) |
 | Cluster E2E | 21 | Requires running 3-node cluster |
 | Doc-tests | 41 | Code samples referencing external state |
-| **Total** | **78** | All have documented external dependencies |
+| **Total** | **88** | All have documented external dependencies |
 
 ### 1.4 Stub Inventory (Non-Test Code Only)
 
-| Location | Type | Description |
-|----------|------|-------------|
-| `crates/actor-sdk/src/context.rs:188` | Placeholder | `self_address()` returns `"local-test-actor"` on native |
-| `sdks/javascript/src/actor.ts:168` | Empty method | `send()` has no implementation |
-| `sdks/javascript/src/actor.ts:182` | Throws | `call()` throws `Error('RPC not implemented')` |
-| `sdks/go/aether/actor.go:216` | No-op | `processItem("send")` returns nil |
-| `sdks/go/aether/resilience/tracing.go:37` | Placeholder | `Start()` returns without OpenTelemetry |
+| Location | Type | Description | Status |
+|----------|------|-------------|--------|
+| `crates/actor-sdk/src/context.rs:188` | Placeholder | `self_address()` returns `"local-test-actor"` on native | Active |
+| `sdks/go/aether/resilience/tracing.go:37` | Placeholder | `Start()` returns without OpenTelemetry | Active |
 
-No `todo!()`, `unimplemented!()`, `FIXME`, `HACK`, or `XXX` markers exist anywhere in the repository.
+No `todo!()`, `unimplemented!()`, `FIXME`, `HACK`, `XXX` markers, or SDK messaging stubs exist anywhere in the repository. The JavaScript SDK `call()` and Go SDK `send()` stubs were replaced with real implementations in this audit cycle.
 
 ---
 
@@ -79,7 +76,7 @@ The project exhibits a maturity gradient: the runtime engine is production-grade
 | Gap | Impact | Root Cause |
 |-----|--------|------------|
 | CLI partially connected (3/16 commands) | Limited operability | Most commands are local-only, do not talk to running server |
-| JS/Go SDK stubs | SDK users cannot run inter-actor messaging | `send()` and `call()` not implemented |
+| JS/Go SDK stubs | SDK users cannot run inter-actor messaging | `call()` and `send()` stubs now replaced; Go tracing placeholder remains |
 | Two divergent server implementations | Confusion | Python server (9,848 LOC) has clustering/Redis/PG; Rust server has none |
 | 41 ignored doc-tests | Documentation reliability | Code samples reference state not available in doc-test context |
 
@@ -406,11 +403,11 @@ v3.0.0 Critical Path:
 
 | Metric | v2.0.0 (Current) | v2.1.0 Target | v2.2.0 Target | v3.0.0 Target |
 |--------|------------------|----------------|----------------|----------------|
-| Total tests | 1,257 | 1,300+ | 1,500+ | 2,000+ |
-| Ignored tests | 86 | 77 (FDB enabled) | 41 (doc-tests fixed) | 15 (Firecracker only) |
+| Total tests | 1,275 | 1,300+ | 1,500+ | 2,000+ |
+| Ignored tests | 88 | 77 (FDB enabled) | 47 (doc-tests fixed) | 15 (Firecracker only) |
 | Clippy warnings | 0 | 0 | 0 | 0 |
-| Stubs (production) | 5 | 3 | 1 | 0 |
-| SDK messaging | Stub | JS/Go partial | Full parity | Full parity |
+| Stubs (production) | 2 | 1 | 0 | 0 |
+| SDK messaging | Go tracing stub | Full parity | Full parity | Full parity |
 | Server persistence | None | SQLite | FDB | FDB + migration |
 | Performance baseline | None | Recorded | Regressed | Regressed |
 | Lean4 proofs | Sketches | 1 verified | 2 verified | 3 verified |
