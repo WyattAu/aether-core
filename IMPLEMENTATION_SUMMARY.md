@@ -91,12 +91,16 @@ Aether is a distributed actor runtime built in Rust that provides WASM execution
 
 | Category | Count | Status |
 |----------|-------|--------|
-| Core library tests | 938 | All passing |
-| Integration tests | 267 | 267 passing, 21 ignored (require FDB/Firecracker/KVM) |
+| Core library tests | 908 | All passing, 9 ignored |
+| Server tests | 18 | All passing |
+| Integration tests | 267 | All passing, 21 ignored (require FDB/Firecracker/KVM) |
+| Security tests | 20 | All passing |
+| Fuzz targets | 17 | All passing |
 | Property-based tests | 16 | All passing |
-| Benchmarks | 4 | All passing |
-| Doc tests | 58 | 2 passing, 56 ignored (require external deps) |
-| **Total** | **1,283** | **0 failures** |
+| Memory benchmarks | 4 | All passing |
+| Test fixtures | 7 | All passing |
+| Doc tests | 18 | All passing, 43 ignored (require external deps) |
+| **Total** | **1,275** | **0 failures, 88 ignored** |
 
 ---
 

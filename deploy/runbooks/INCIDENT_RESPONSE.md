@@ -220,7 +220,7 @@ helm diff upgrade aether ./deploy/helm/aether  # if using helm diff
 ### Slack Incident Notification
 
 ```
-:rotating_light: **[P{{SEVERITY}}] Aether Incident — {{INCIDENT_TITLE}}**
+[SEV{{SEVERITY}}] Aether Incident -- {{INCIDENT_TITLE}}
 
 **Status**: {{INVESTIGATING|IDENTIFIED|MONITORING|RESOLVED}}
 **Started**: {{TIMESTAMP_UTC}}

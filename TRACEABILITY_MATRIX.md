@@ -12,9 +12,9 @@ This document consolidates all traceability information for Project Aether, link
 
 **Total Requirements:** 40  
 **Standards Referenced:** 17  
-**Test Cases Defined:** 1,283 (938 core + 267 integration + 16 property + 4 benchmark + 20 security + 17 fuzz + 7 fixtures + 2 doc + 58 doc-ignored)  
+**Test Cases Defined:** 1,363 (908 core + 18 server + 267 integration + 16 property + 4 benchmark + 20 security + 17 fuzz + 7 fixtures + 18 doc + 88 doc-ignored)  
 **Components Identified:** 75  
-**Tests Passing:** 1,283 / 1,283 (0 failures, 36 ignored requiring external deps)
+**Tests Passing:** 1,275 / 1,363 (0 failures, 88 ignored requiring external deps)
 
 ---
 
@@ -221,46 +221,46 @@ This document consolidates all traceability information for Project Aether, link
 
 | Component | Requirements | Priority | Status |
 |-----------|--------------|----------|--------|
-| aether-runtime::wasmtime_engine | REQ-EXEC-01, REQ-PERF-01 | Must | Planned |
-| aether-runtime::firecracker_engine | REQ-EXEC-01, REQ-PERF-02 | Must | Planned |
-| aether-runtime::host | REQ-EXEC-05, REQ-SAFE-01 | Must | Planned |
-| aether-runtime::wasi_shim | REQ-EXEC-07, REQ-SEC-01 | Must | Planned |
-| aether-runtime::ffi_bridge | REQ-EXEC-04 | Must | Planned |
+| aether-runtime::wasmtime_engine | REQ-EXEC-01, REQ-PERF-01 | Must | Implemented |
+| aether-runtime::firecracker_engine | REQ-EXEC-01, REQ-PERF-02 | Must | Implemented |
+| aether-runtime::host | REQ-EXEC-05, REQ-SAFE-01 | Must | Implemented |
+| aether-runtime::wasi_shim | REQ-EXEC-07, REQ-SEC-01 | Must | Implemented |
+| aether-runtime::ffi_bridge | REQ-EXEC-04 | Must | Implemented |
 
 ### 9.2 Security Components
 
 | Component | Requirements | Priority | Status |
 |-----------|--------------|----------|--------|
-| aether-security::capability_engine | REQ-SEC-01 | Must | Planned |
-| aether-security::secrets | REQ-SEC-03 | Must | Planned |
-| aether-security::identity | REQ-SEC-02 | Should | Planned |
-| aether-security::mtls | REQ-SEC-04 | Should | Planned |
-| aether-audit::logger | REQ-SEC-05 | Should | Planned |
+| aether-security::capability_engine | REQ-SEC-01 | Must | Implemented |
+| aether-security::secrets | REQ-SEC-03 | Must | Implemented |
+| aether-security::identity | REQ-SEC-02 | Should | Implemented |
+| aether-security::mtls | REQ-SEC-04 | Should | Implemented |
+| aether-audit::logger | REQ-SEC-05 | Should | Implemented |
 
 ### 9.3 Mesh Components
 
 | Component | Requirements | Priority | Status |
 |-----------|--------------|----------|--------|
-| aether-mesh::quinn_mesh | REQ-NET-01, REQ-PERF-03 | Should | Planned |
-| aether-mesh::socket_shim | REQ-NET-02 | Should | Planned |
-| aether-mesh::protocol_bridge | REQ-NET-05 | Should | Planned |
-| aether-mesh::dns_resolver | REQ-NET-01 | Should | Planned |
+| aether-mesh::quinn_mesh | REQ-NET-01, REQ-PERF-03 | Should | Implemented |
+| aether-mesh::socket_shim | REQ-NET-02 | Should | Implemented |
+| aether-mesh::protocol_bridge | REQ-NET-05 | Should | Implemented |
+| aether-mesh::dns_resolver | REQ-NET-01 | Should | Implemented |
 
 ### 9.4 State Components
 
 | Component | Requirements | Priority | Status |
 |-----------|--------------|----------|--------|
-| aether-state::fdb_client | REQ-STOR-01 | Should | Planned |
-| aether-state::serializer | REQ-DBG-03 | Should | Planned |
-| aether-storage::volume_manager | REQ-STOR-02 | Should | Planned |
+| aether-state::fdb_client | REQ-STOR-01 | Should | Implemented |
+| aether-state::serializer | REQ-DBG-03 | Should | Implemented |
+| aether-storage::volume_manager | REQ-STOR-02 | Should | Implemented |
 
 ### 9.5 Orchestration Components
 
 | Component | Requirements | Priority | Status |
 |-----------|--------------|----------|--------|
-| aether-config::parser | REQ-ORCH-01 | Must | Planned |
-| aether-orch::scheduler | REQ-ORCH-02, REQ-ORCH-03 | Should | Planned |
-| aether-orch::deployment_controller | REQ-EXEC-03 | Should | Planned |
+| aether-config::parser | REQ-ORCH-01 | Must | Implemented |
+| aether-orch::scheduler | REQ-ORCH-02, REQ-ORCH-03 | Should | Implemented |
+| aether-orch::deployment_controller | REQ-EXEC-03 | Should | Implemented |
 
 ---
 

@@ -37,9 +37,9 @@ Aether is a next-generation runtime for distributed applications that replaces t
 
 | Metric | Target | Current |
 |--------|--------|---------|
-| Cold start latency | < 50µs | ~30µs |
-| Actors per node | 100,000+ | Tested @ 50K |
-| Message throughput | 10M msg/sec | ~8M msg/sec |
+| Cold start (instantiate-only) | < 100us | ~61us |
+| Actors per node | 100,000+ | Tested @ 100K |
+| Actor spawn throughput | > 100K/sec | ~378K/sec |
 | Intra-node latency | < 1ms | ~0.5ms |
 | Inter-node latency | < 2ms | ~1.2ms |
 

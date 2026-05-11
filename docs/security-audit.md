@@ -1,6 +1,6 @@
 # Security Audit Report
 
-**Date**: 2026-05-07
+**Date**: 2026-05-07 (pre-v2.0.0; 3 of 22 fixed in v2.0.0)
 **Scope**: `aether-core` workspace (crates/core, crates/cli, crates/actor-sdk)
 **Tool**: `cargo audit` v0.21+
 
@@ -34,7 +34,7 @@
 
 - **quinn-proto DoS**: Affects mesh networking layer. An attacker could cause denial of service by sending malformed QUIC packets. **Recommendation**: Upgrade quinn to >=0.11.14.
 - **aws-lc-sys CRL bypass**: Affects TLS certificate revocation checking. CRL distribution point scope checks may not work correctly, potentially allowing use of revoked certificates. **Recommendation**: Upgrade aws-lc-sys to >=0.39.0.
-- **serde_yml unsound**: Used for YAML config parsing. May have undefined behavior. **Recommendation**: Replace with `serde_yaml` or remove YAML support.
+- **serde_yml unsound**: Used for YAML config parsing. May have undefined behavior. **Recommendation**: Use yaml_serde (already applied in v2.0.0).
 
 ---
 

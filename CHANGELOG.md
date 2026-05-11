@@ -80,8 +80,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Upgraded aws-lc-sys 0.38→0.40 (fixes RUSTSEC-2026-0044/0048)
 - Upgraded quinn-proto 0.11.13→0.11.14 (fixes RUSTSEC-2026-0037)
-- Replaced serde_yml with yaml_serde (fixes RUSTSEC-2025-0068)
-- Replaced serde_yaml with serde_yml then yaml_serde
+- Replaced serde_yaml with yaml_serde via serde_yml (fixes RUSTSEC-2025-0068)
 - Upgraded tokio-tungstenite 0.24→0.26, thiserror 1.x→2.x
 - 12 Mutex→RwLock conversions in observability
 - Session clone reduction via Arc<Vec<T>> + Arc::make_mut

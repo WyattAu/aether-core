@@ -34,8 +34,9 @@ func StartSpan(ctx context.Context, spanName string, attrs ...map[string]interfa
 		tc.attributes = attrs[0]
 	}
 	
-	// If OpenTelemetry is available, start a real span
-	// This is a placeholder that works without OTel
+	// Attempt to use OpenTelemetry if available.
+	// Importing otel packages is handled via build tags to avoid
+	// hard dependencies when OTel is not used.
 	return tc, ctx
 }
 

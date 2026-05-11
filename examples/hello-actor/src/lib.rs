@@ -1,38 +1,55 @@
 //! Hello World Actor Example
 //!
-//! Demonstrates basic actor functionality.
+//! Demonstrates basic actor functionality using the Aether SDK.
+//! Compile with: cargo build --target wasm32-wasip1
 
 #![no_std]
 
-use aether_actor::*;
+extern crate alloc;
 
-#[aether_actor]
+use alloc::string::String;
+use alloc::vec::Vec;
+use aether_actor::{Handler, ActorResult, serialize, deserialize};
+
+/// Request message for the hello actor.
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct HelloRequest {
+    pub name: String,
+}
+
+/// Response message from the hello actor.
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct HelloResponse {
+    pub greeting: String,
+    pub count: u32,
+}
+
+/// Hello world actor.
 pub struct HelloActor {
     count: u32,
 }
 
 impl HelloActor {
-    pub fn new() -> Self {
+    /// Create a new hello actor.
+    pub const fn new() -> Self {
         Self { count: 0 }
     }
 }
 
-#[actor_handler]
 impl Handler for HelloActor {
-    async fn handle(&mut self, msg: Vec<u8>) -> Result<Vec<u8>, String> {
+    fn handle(&mut self, message: Vec<u8>) -> ActorResult<Vec<u8>> {
+        let req: HelloRequest = deserialize(&message)?;
+
         self.count += 1;
-        
-        let response = format!(
-            "Hello! Message #{}: {}",
-            self.count,
-            String::from_utf8_lossy(&msg)
-        );
-        
-        Ok(response.into_bytes())
+
+        let resp = HelloResponse {
+            greeting: alloc::format!("Hello, {}!", req.name),
+            count: self.count,
+        };
+
+        serialize(&resp)
     }
 }
 
-#[actor_init]
-fn init() -> HelloActor {
-    HelloActor::new()
-}
+// Export the actor entry point using the SDK macro.
+export_actor!(HelloActor::new());

@@ -277,9 +277,9 @@ $\square$
 
 #### THM-WASM-002: Fuel Exhaustion Termination Guarantee
 
-**Statement**: Any WASM execution with finite fuel $\phi < \infty$ will terminate within $\phi / \min(\delta)$ instructions.
+**Statement**: Any WASM execution with finite fuel $\phi < \infty$ will terminate within $\lfloor \phi / \min(\delta) \rfloor$ instructions.
 
-$$\forall \mathcal{I}, \phi < \infty.\ \exists n \leq \frac{\phi}{\min_{op \in \mathcal{O}} \delta(op)}.\ \text{exec}(\mathcal{I}, \phi) \downarrow_n \lor \text{exec}(\mathcal{I}, \phi) \uparrow_{\text{fuel}}$$
+$$\forall \mathcal{I}, \phi < \infty.\ \exists n \leq \left\lfloor \frac{\phi}{\min_{op \in \mathcal{O}} \delta(op)} \right\rfloor.\ \text{exec}(\mathcal{I}, \phi) \downarrow_n \lor \text{exec}(\mathcal{I}, \phi) \uparrow_{\text{fuel}}$$
 
 Where $\downarrow_n$ denotes normal termination after $n$ instructions and $\uparrow_{\text{fuel}}$ denotes fuel exhaustion trap.
 

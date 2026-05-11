@@ -297,6 +297,68 @@ impl WasmInstance {
     pub fn store_mut(&mut self) -> Option<&mut Store<InstanceHost>> {
         self.store.as_mut()
     }
+
+    /// Write bytes into the instance's exported "memory" at the given offset.
+    ///
+    /// Grows memory automatically if the data does not fit.
+    /// Returns the offset where the data was written (same as `offset`).
+    #[cfg(feature = "wasm")]
+    pub fn write_memory(&mut self, offset: usize, data: &[u8]) -> Result<usize> {
+        let store = self
+            .store
+            .as_mut()
+            .ok_or_else(|| Error::actor("Instance not initialized"))?;
+        let instance = self
+            .instance
+            .as_ref()
+            .ok_or_else(|| Error::actor("Instance not initialized"))?;
+
+        let memory = instance
+            .get_memory(&mut *store, "memory")
+            .ok_or_else(|| Error::actor("WASM module does not export 'memory'"))?;
+
+        let needed = offset + data.len();
+        let current = memory.data_size(&mut *store);
+        if needed > current {
+            let additional = (needed - current).div_ceil(65536) as u64;
+            memory
+                .grow(&mut *store, additional)
+                .map_err(|e| Error::wasm(format!("Failed to grow memory: {}", e)))?;
+        }
+
+        memory.data_mut(&mut *store)[offset..offset + data.len()].copy_from_slice(data);
+
+        Ok(offset)
+    }
+
+    /// Read bytes from the instance's exported "memory" at the given offset.
+    #[cfg(feature = "wasm")]
+    pub fn read_memory(&mut self, offset: usize, len: usize) -> Result<Vec<u8>> {
+        let store = self
+            .store
+            .as_mut()
+            .ok_or_else(|| Error::actor("Instance not initialized"))?;
+        let instance = self
+            .instance
+            .as_ref()
+            .ok_or_else(|| Error::actor("Instance not initialized"))?;
+
+        let memory = instance
+            .get_memory(&mut *store, "memory")
+            .ok_or_else(|| Error::actor("WASM module does not export 'memory'"))?;
+
+        let data = memory.data(&*store);
+        if offset + len > data.len() {
+            return Err(Error::wasm(format!(
+                "Memory read out of bounds: offset={}, len={}, size={}",
+                offset,
+                len,
+                data.len()
+            )));
+        }
+
+        Ok(data[offset..offset + len].to_vec())
+    }
 }
 
 /// Builder for WASM instances

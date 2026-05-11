@@ -28,7 +28,7 @@ Please read and follow our [Code of Conduct](CODE_OF_CONDUCT.md). Be respectful,
 | Tool | Version | Purpose |
 |------|---------|---------|
 | Nix | 2.18+ | Reproducible build environment |
-| Rust | 1.85+ | Primary language (MSRV) |
+| Rust | nightly-2026-03-01 | Primary language (see rust-toolchain.toml) |
 | FoundationDB | 7.3+ | State backend (optional) |
 
 ### Quick Start with Nix (Recommended)
@@ -59,7 +59,7 @@ cargo test --workspace
 
 ```bash
 # Build development container
-docker build -t aether-dev -f Dockerfile.dev .
+docker build -t aether-dev -f Dockerfile .
 
 # Run with mounted source
 docker run -it -v $(pwd):/workspace aether-dev

@@ -80,7 +80,7 @@ fi
 if [ -n "$DOC_CHANGED" ]; then
     STEPS=$((STEPS + 1))
     log_step "${STEPS}/${TOTAL}: Scanning documentation for emoji characters..."
-    EMOJI_FILES=$(git diff --cached --name-only --diff-filter=ACMR '*.md' | xargs grep -lP '[\x{1F300}-\x{1F9FF}\x{2600}-\x{26FF}\x{2700}-\x{27BF}\x{FE00}-\x{FE0F}\x{1F000}-\x{1FFFF}\x{2702}-\x{27B0}\x{24C2}-\x{1F251}\x{1F600}-\x{1F64F}\x{1F680}-\x{1F6FF}\x{1F900}-\x{1F9FF}\x{2705}\x{2714}\x{2716}\x{274C}\x{274E}\x{2753}-\x{2755}\x{2795}-\x{2797}\x{2B50}\x{23F0}\x{23F3}\x{26A0}\x{1F534}\x{1F7E0}\x{1F7E1}\x{267E}\x{1F4DD}\x{1F527}\x{1F310}\x{1F9EA}\x{1F4D6}\x{1F4AC}\x{1F4C4}\x{1F512}\x{1F4BE}\x{1F517}\x{1F51D}\x{1F680}]' 2>/dev/null || true)
+    EMOJI_FILES=$(git diff --cached --name-only --diff-filter=ACMR '*.md' | xargs grep -lP '[\x{1F300}-\x{1F9FF}\x{1F600}-\x{1F64F}\x{1F680}-\x{1F6FF}\x{1F900}-\x{1F9FF}\x{2600}-\x{26FF}\x{2705}\x{2714}\x{2716}\x{274C}\x{274E}\x{2753}-\x{2755}\x{2795}-\x{2797}\x{2B50}\x{23F0}\x{23F3}\x{26A0}\x{1F534}-\x{1F7E1}\x{1F4DD}\x{1F527}\x{1F310}\x{1F9EA}\x{1F4D6}\x{1F4AC}\x{1F4C4}\x{1F512}\x{1F4BE}\x{1F517}\x{1F51D}]' 2>/dev/null || true)
     if [ -n "$EMOJI_FILES" ]; then
         log_fail "Emoji characters detected in documentation files:"
         echo "$EMOJI_FILES"

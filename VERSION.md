@@ -4,8 +4,8 @@
 current_phase: post-v2.0.0-hardening
 current_version: 2.0.0
 status: Active Development
-  - Workspace: 4 crates (core, cli, actor-sdk, tests) — Rust 2024 edition, MSRV 1.85
-  - Tests: 1,225 passing, 0 failed, 101 ignored (require FDB/Firecracker/KVM/cluster)
+  - Workspace: 5 crates (core, cli, actor-sdk, server, tests) — Rust 2024 edition, MSRV 1.85
+  - Tests: 1,275 passing, 0 failed, 88 ignored (require FDB/Firecracker/KVM/cluster)
   - Quality: Zero clippy warnings, zero todo!/unimplemented! stubs, deny-all safety lints (unwrap, expect, panic)
   - Build: LTO + strip + codegen-units=1, panic=abort
   - Features: WASM (wasmtime 25), QUIC mesh, mTLS, RBAC, secrets (Vault/AWS/GCP), multi-tenancy,

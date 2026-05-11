@@ -166,7 +166,7 @@ export abstract class Actor extends EventEmitter {
      * @returns A promise that resolves when the message has been dispatched.
      */
     async send(target: string, message: Message): Promise<void> {
-        // Implementation placeholder for inter-actor messaging
+        this.emit('message', { target, message });
     }
 
     /**
@@ -180,8 +180,29 @@ export abstract class Actor extends EventEmitter {
      * @throws Error If RPC is not implemented or the call times out.
      */
     async call<T>(target: string, request: any, timeout?: number): Promise<T> {
-        // RPC implementation placeholder
-        throw new Error('RPC not implemented');
+        const correlationId = crypto.randomUUID().toString();
+        const rpcMessage = Message.rpc({
+            target,
+            payload: request,
+            correlationId,
+        });
+
+        return new Promise((resolve, reject) => {
+            const timer = timeout
+                ? setTimeout(() => reject(new Error(`RPC timeout: ${target}`)), timeout)
+                : null;
+
+            this.once(`rpc-response-${correlationId}`, (response: Message) => {
+                if (timer) clearTimeout(timer);
+                if (response.type === MessageType.ERROR) {
+                    reject(new Error(response.payload as string));
+                    return;
+                }
+                resolve(response.payload as T);
+            });
+
+            this.emit('message', rpcMessage);
+        });
     }
 }
 

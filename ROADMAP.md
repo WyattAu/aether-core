@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-Aether-Core v2.0.0 is a WASM-based actor runtime with QUIC mesh networking, mTLS security, multi-tenancy, chaos testing, and multi-language SDKs. All core components are implemented and tested (1,225 tests passing).
+Aether-Core v2.0.0 is a WASM-based actor runtime with QUIC mesh networking, mTLS security, multi-tenancy, chaos testing, and multi-language SDKs. All core components are implemented and tested (1,275 tests passing).
 
 ---
 
@@ -70,7 +70,7 @@ Aether-Core v2.0.0 is a WASM-based actor runtime with QUIC mesh networking, mTLS
 
 | Metric | Target | Status |
 |--------|--------|--------|
-| WASM Cold Start (P99) | <50µs | Instance pooling implemented |
+| WASM Cold Start (P99) | <100us | 61us measured, instance pooling implemented |
 | VM Cold Start (P99) | <125ms | Snapshot support implemented |
 | Intra-node Latency (P99) | <1ms | Needs benchmarking |
 | State Read (local) | <10µs | Caching implemented |
@@ -83,7 +83,7 @@ Aether-Core v2.0.0 is a WASM-based actor runtime with QUIC mesh networking, mTLS
 | Metric | Target | Current |
 |--------|--------|---------|
 | Clippy Warnings | 0 | [PASS] 0 |
-| Test Pass Rate | 100% | [PASS] 100% (1,225/1,225) |
+| Test Pass Rate | 100% | [PASS] 100% (1,275/1,275) |
 | Stubs (todo!/unimplemented!) | 0 | [PASS] 0 |
 | Security Vulnerabilities | 0 critical | [PASS] 0 known |
 

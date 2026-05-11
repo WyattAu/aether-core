@@ -15,12 +15,14 @@ use alloc::string::String;
 #[cfg(feature = "std")]
 use std::string::String;
 
+pub mod capability;
 pub mod context;
 pub mod handler;
 pub mod logging;
 pub mod message;
 pub mod state;
 
+pub use capability::{Capability, CapabilityManifest, CapabilitySet};
 pub use context::ActorContext;
 pub use handler::{ActorHandler, Handler};
 pub use logging::{LogLevel, log};

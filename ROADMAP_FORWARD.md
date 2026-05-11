@@ -1,335 +1,344 @@
 # Aether-Core: Path Forward and Roadmap
 
-**Date:** May 10, 2026
+**Date:** May 11, 2026
 **Current Version:** 2.0.0
-**Commit:** 0d55507
-**Auditor:** Full monorepo audit -- 902 tests, 0 failures, 0 warnings
+**Commit:** 303aa6e
+**Auditor:** Full monorepo audit -- 1,275 tests, 0 failures, 0 warnings
 
 ---
 
-## 1. Current State Assessment
+## 1. Audit Summary
 
-### 1.1 Repository Composition
+### 1.1 Test Matrix (Verified 2026-05-11)
 
-| Component | LOC | Files | Status | Assessment |
-|-----------|-----|-------|--------|------------|
-| `crates/core/` | ~66,500 | ~95 .rs | Partial | Substantial WASI, QUIC mesh, secrets, MCP, Firecracker client |
-| `crates/cli/` | ~5,477 | ~16 cmds | Partial | 3/16 commands actually call server (logs, top, observability) |
-| `crates/actor-sdk/` | 311 | 4 modules | Scaffold | `export_actor!` returns null; no serialization, messaging, HTTP APIs |
-| `crates/server/` | ~1,190 | 5 routes | Prototype | All state in-memory HashMap; no persistence, no WASM execution |
-| `server/` (Python) | ~9,848 | 19 modules | Substantial | Most complete server: real clustering, Redis/PG backends, GraphQL |
-| `sdks/go/` | ~18,679 | 6 packages | Substantial | Client-side; resilience/streaming fully implemented |
-| `sdks/java/` | ~11,792 | 9 packages | Substantial | Client-side; good test coverage |
-| `sdks/javascript/` | ~14,004 | 13 modules | Substantial | Largest SDK; unique event/workflow modules |
-| `sdks/python/` | ~16,508 | 13 packages | Substantial | Most tested SDK; gRPC stubs included |
-| Specs/Reports | ~80+ .md | Formal lifecycle | Complete | Yellow papers, blue papers, TLA+, Lean4 sketches |
-| CI/CD | 12 workflows | Full pipeline | Complete | Build, test, lint, SDK, benchmarks, security, release, deploy |
+| Suite | Passed | Failed | Ignored | Total |
+|-------|--------|--------|---------|-------|
+| Unit tests (lib) | 908 | 0 | 9 | 917 |
+| Integration tests | 267 | 0 | 21 | 288 |
+| Property tests (proptest) | 16 | 0 | 0 | 16 |
+| Fuzz targets | 17 | 0 | 0 | 17 |
+| Security tests | 20 | 0 | 0 | 20 |
+| Memory benchmarks | 4 | 0 | 0 | 4 |
+| E2E tests | 0 | 0 | 15 | 15 |
+| Test fixtures | 7 | 0 | 0 | 7 |
+| Doc-tests | 18 | 0 | 43 | 61 |
+| **Total** | **1,275** | **0** | **88** | **1,363** |
 
-### 1.2 Quality Metrics (Verified 2026-05-10)
+### 1.2 Quality Gates (All Passing)
 
-| Metric | Value |
-|--------|-------|
-| Rust tests passing | 902 unit + 267 integration + 16 property + 17 fuzz + 20 security + 7 fixtures + 17 doctest |
-| Test failures | 0 |
-| Tests ignored (external deps) | 36 (FDB: 9, Firecracker: 7, Cluster: 15, E2E: 15) |
-| Clippy warnings | 0 (workspace-level deny-all) |
-| `unwrap()`/`expect()` in production | 0 (denied by lints) |
-| `todo!`/`unimplemented!` stubs | 0 |
-| Doc warnings | 0 |
-| Format violations | 0 |
-| Emoji characters in docs | 0 (purged across 80+ files) |
-| Broken GitHub links | 0 (28 links fixed) |
-| Version consistency | Canonical 2.0.0 across all docs |
+| Gate | Status | Detail |
+|------|--------|--------|
+| `cargo fmt --check` | PASS | Zero violations |
+| `cargo clippy -D warnings` | PASS | Zero warnings across workspace |
+| `cargo check --workspace` | PASS | Clean compilation |
+| `cargo doc --no-deps` | PASS | Zero doc warnings |
+| `deny unwrap/expect/panic` | PASS | Enforced at workspace level |
+| `todo!/unimplemented!` count | 0 | No Rust panicking stubs in any code |
+| Emoji in documentation | 0 | Only directional arrows in ASCII diagrams |
+| Pre-commit hook | ACTIVE | 6-gate: fmt, clippy, compile, test, docs, emoji scan |
+| Pre-push hook | ACTIVE | 4-gate: fmt, clippy, full test suite, docs |
 
-### 1.3 Pre-commit / Pre-push Hooks
+### 1.3 Ignored Test Breakdown
 
-| Hook | Gates | Scope |
-|------|-------|-------|
-| `pre-commit` | fmt, clippy, compile, test, doc build, emoji scan | Rust changes: full gate; Doc changes: emoji gate only |
-| `pre-push` | fmt, clippy, full test suite, doc build | Always runs on push |
+| Category | Count | Reason |
+|----------|-------|--------|
+| FoundationDB integration | 9 | Requires running FDB instance |
+| Firecracker VM | 7 | Requires KVM (unavailable in CI) |
+| Cluster E2E | 21 | Requires running 3-node cluster |
+| Doc-tests | 41 | Code samples referencing external state |
+| **Total** | **78** | All have documented external dependencies |
 
-### 1.4 Critical Gap Analysis
+### 1.4 Stub Inventory (Non-Test Code Only)
 
-The project has a **strategic asymmetry**: the runtime engine (66K LOC) is substantial, but the components that make it usable end-to-end are incomplete:
+| Location | Type | Description |
+|----------|------|-------------|
+| `crates/actor-sdk/src/context.rs:188` | Placeholder | `self_address()` returns `"local-test-actor"` on native |
+| `sdks/javascript/src/actor.ts:168` | Empty method | `send()` has no implementation |
+| `sdks/javascript/src/actor.ts:182` | Throws | `call()` throws `Error('RPC not implemented')` |
+| `sdks/go/aether/actor.go:216` | No-op | `processItem("send")` returns nil |
+| `sdks/go/aether/resilience/tracing.go:37` | Placeholder | `Start()` returns without OpenTelemetry |
 
-1. **Actor SDK is a scaffold (311 LOC)** -- developers cannot write real actors. The `export_actor!` macro returns null. No serialization, no HTTP client, no messaging API, no capability declarations.
-2. **Rust server is a prototype (1,190 LOC)** -- all state is in-memory HashMap. No persistence, no WASM execution, no real message delivery. The Python server (9,848 LOC) is the only production-viable server.
-3. **CLI is partially connected (5,477 LOC)** -- only 3 of 16 commands actually talk to a running server.
-4. **No end-to-end WASM execution in CI** -- despite having a full WASI implementation, no CI test compiles and runs a real WASM actor through the full pipeline.
-5. **Two server implementations diverge** -- Python server has clustering, Redis/PG, GraphQL; Rust server has none of these. No clear migration path documented.
+No `todo!()`, `unimplemented!()`, `FIXME`, `HACK`, or `XXX` markers exist anywhere in the repository.
 
 ---
 
-## 2. Immediate Priorities (v2.1.0 -- Next 2 Weeks)
+## 2. Strategic Gap Analysis
 
-### 2.1 Actor SDK Completion (CRITICAL)
+The project exhibits a maturity gradient: the runtime engine is production-grade, but the user-facing surfaces that connect it to developers are incomplete.
 
-The actor-sdk is the primary user-facing API. Without it, nobody can write actors.
+### 2.1 Critical Gaps (Blocker)
+
+| Gap | Impact | Root Cause |
+|-----|--------|------------|
+| Actor SDK is a scaffold (311 LOC) | Developers cannot write actors | `export_actor!` returns null; no serialization, messaging, or HTTP APIs |
+| Rust server is a prototype (1,190 LOC) | No self-contained deployment | All state in-memory HashMap; no persistence, no WASM execution |
+| No E2E WASM pipeline in CI | Cannot verify actor execution end-to-end | WASI implementation exists but no CI test exercises the full path |
+
+### 2.2 High Gaps
+
+| Gap | Impact | Root Cause |
+|-----|--------|------------|
+| CLI partially connected (3/16 commands) | Limited operability | Most commands are local-only, do not talk to running server |
+| JS/Go SDK stubs | SDK users cannot run inter-actor messaging | `send()` and `call()` not implemented |
+| Two divergent server implementations | Confusion | Python server (9,848 LOC) has clustering/Redis/PG; Rust server has none |
+| 41 ignored doc-tests | Documentation reliability | Code samples reference state not available in doc-test context |
+
+### 2.3 Medium Gaps
+
+| Gap | Impact | Root Cause |
+|-----|--------|------------|
+| No performance regression detection | Performance regressions undetected | No baseline metrics file or CI benchmark gating |
+| Plugin system is re-exports only (12 LOC) | No extensibility | `plugin/mod.rs` re-exports manifest types only |
+| Lean4 proofs contain `sorry` | Unverified safety claims | 5 theorems with proof sketch placeholders |
+| Go tracing lacks OpenTelemetry | Incomplete observability | Stub `Start()` function |
+
+---
+
+## 3. Immediate Priorities (v2.1.0 -- 2 Weeks)
+
+### 3.1 Actor SDK Completion
+
+The actor-sdk is the primary developer API. Without it, the runtime is unusable.
 
 **A1: Fix `export_actor!` macro**
+- File: `crates/actor-sdk/src/handler.rs`
 - Current: returns `core::ptr::null()` (broken output path)
-- Target: serialize response via rkyv/cbor, return valid pointer + length
-- Files: `crates/actor-sdk/src/handler.rs`
+- Target: serialize response via rkyv, return valid pointer + length to WASM host
+- Proof: E2E test sends message, receives response
+- Estimated: 8 hours
 
-**A2: Add serialization layer**
-- Implement `aether-serde` using serde + postcard (no_std compatible, CBOR)
-- Provide `#[derive(ActorMessage)]` proc macro for auto-serialization
-- Target: `#[derive(ActorMessage)] struct Greet { name: String }` just works
-- Files: new `crates/actor-sdk/src/serde.rs`, `crates/actor-macros/`
+**A2: Serialization layer**
+- Files: `crates/actor-sdk/src/serde.rs` (new)
+- Implement `#[derive(ActorMessage)]` using serde + postcard (no_std CBOR)
+- Wire into host-side deserialization in `crates/core/src/engine/`
+- Estimated: 12 hours
 
-**A3: Add messaging API**
-- `ctx.send(to: Address, msg: impl ActorMessage)` -- send message to another actor
-- `ctx.request(to: Address, msg: impl ActorMessage) -> Response` -- request-response
-- `ctx.emit(event: impl ActorMessage)` -- publish event
-- `ctx.self_address() -> Address`
-- Files: `crates/actor-sdk/src/messaging.rs`
+**A3: Messaging API**
+- Files: `crates/actor-sdk/src/messaging.rs` (new)
+- `ctx.send(to, msg)`, `ctx.request(to, msg) -> Response`, `ctx.emit(event)`
+- `ctx.self_address() -> Address` (fix placeholder)
+- Maps to WASI host functions already implemented in `crates/core/src/wasi/`
+- Estimated: 16 hours
 
-**A4: Add capability declaration API**
-- `#[aether_capability(network)]` attribute macro
-- `#[aether_capability(state)]` attribute macro
-- Compile-time capability verification
-- Files: `crates/actor-macros/src/lib.rs`
+**A4: Capability declaration macros**
+- Files: `crates/actor-sdk/src/capability.rs` (new)
+- `#[aether_capability(network)]`, `#[aether_capability(state)]` attribute macros
+- Compile-time capability verification against `aether.toml`
+- Estimated: 10 hours
 
 **A5: End-to-end WASM test in CI**
-- Compile a test actor to `wasm32-wasip1`
-- Load it in `aether-core` engine
-- Send a message, assert response
-- This validates the entire pipeline: SDK -> WASM -> linker -> engine -> response
-- Files: `tests/wasm_e2e_test.rs`, `examples/hello-actor/`
+- Files: `tests/wasm_e2e_test.rs` (new), `examples/hello-actor/`
+- Add `wasm32-wasip1` target to CI matrix
+- Compile test actor, load in engine, send message, assert response
+- This validates: SDK compile -> WASM binary -> linker -> engine -> host function -> response
+- Estimated: 6 hours
 
-### 2.2 Rust Server Completion
-
-The Rust server must replace the Python server for the project to be self-contained.
+### 3.2 Rust Server Hardening
 
 **S1: Wire server to aether-core engine**
-- Replace `Arc<RwLock<HashMap>>` with real `ActorSystem` from `aether-core`
+- File: `crates/server/src/routes/actors.rs`, `crates/server/src/state.rs`
+- Replace `Arc<RwLock<HashMap>>` with real `ActorSystem`
 - Route handlers call `engine.spawn()`, `engine.send()`, `engine.request()`
-- Files: `crates/server/src/routes/actors.rs`, `crates/server/src/state.rs`
+- Estimated: 16 hours
 
-**S2: Add persistent state backend**
-- Implement `StateBackend` trait with FDB and SQLite backends
-- SQLite for development/testing (no external dependency)
-- FDB for production
-- Files: new `crates/server/src/storage/`
+**S2: Persistent state backend**
+- Files: `crates/server/src/storage/` (new)
+- `StateBackend` trait with SQLite (dev) and FDB (prod) implementations
+- Estimated: 12 hours
 
-**S3: Add WebSocket transport for real-time**
-- WebSocket endpoint at `/ws` for bidirectional actor communication
-- Client SDKs can connect via WebSocket instead of HTTP polling
-- Files: `crates/server/src/routes/ws.rs`
+**S3: Authentication middleware**
+- Files: `crates/server/src/auth.rs` (new)
+- JWT-based auth (reuse `security::identity`)
+- API key auth (reuse `tenant::resolver`)
+- Estimated: 8 hours
 
-**S4: Add authentication middleware**
-- JWT-based authentication (reuse `security::identity` module)
-- API key authentication (reuse `tenant::resolver`)
-- Files: `crates/server/src/auth.rs`
-
-### 2.3 CI Hardening
+### 3.3 CI Hardening
 
 **C1: FDB Docker service in CI**
 - Add `foundationdb/foundationdb:7.3` to `docker-compose.ci.yml`
-- Enable 9 FDB integration tests in CI
-- Estimated time: 4 hours
+- Enable 9 FDB integration tests
+- Estimated: 4 hours
 
-**C2: WASM end-to-end test in CI**
-- Add `wasm32-wasip1` target to CI
-- Build `examples/hello-actor`, run through engine
-- Estimated time: 2 hours
+**C2: Performance regression baseline**
+- Files: `specs/06_5_regression/baseline_metrics.toml` (new)
+- Record Criterion benchmark results as CI artifact
+- Gate: fail if P99 regresses >10% from baseline
+- Estimated: 6 hours
 
-**C3: Mutation testing**
-- Add `cargo-mutants` to CI for `crates/core/src/actor/` module
-- Target: >90% mutation score
-- Estimated time: 8 hours (initial setup + triage)
+### 3.4 Version Criteria
+
+v2.1.0 ships when all of the following are true:
+- [ ] `export_actor!` returns valid serialized response
+- [ ] A test actor compiles to `wasm32-wasip1` and executes in CI
+- [ ] Rust server routes at least one request through the real engine
+- [ ] 9 FDB integration tests run in CI
+- [ ] Performance baseline recorded
 
 ---
 
-## 3. Medium-Term Goals (v2.2.0 -- 1-3 Months)
+## 4. Medium-Term Goals (v2.2.0 -- 1-3 Months)
 
-### 3.1 CLI Server Integration
+### 4.1 CLI Server Integration
 
 **L1: Wire remaining CLI commands to server**
-- `deploy`: POST to `/api/v1/actors` with WASM module
-- `status`: GET `/api/v1/cluster/status`
-- `scale`: POST `/api/v1/actors/{id}/scale`
-- `exec`: POST `/api/v1/actors/{id}/exec`
-- Files: `crates/cli/src/commands/`
+- 13 commands currently local-only: deploy, scale, exec, status, rollback, run, etc.
+- Each command makes HTTP/gRPC call to running `aether-server`
+- Estimated: 20 hours
 
-**L2: Add `aether run` command**
-- Start local engine, load WASM module, serve API
-- Single-command development experience
+**L2: `aether run` single-command development**
+- Start local engine, load WASM module from `aether.toml`, serve API
 - Files: `crates/cli/src/commands/run.rs`
+- Estimated: 8 hours
 
-### 3.2 Python Server Migration
+### 4.2 SDK Parity
 
-**P1: Document migration path from Python to Rust server**
-- Feature parity matrix: Python server vs Rust server
-- Migration guide for existing Python server users
+**D1: Complete JavaScript SDK messaging**
+- Files: `sdks/javascript/src/actor.ts`
+- Implement `send()` and `call()` using gRPC transport
+- Add E2E test: JS actor sends message to Rust actor via mesh
+- Estimated: 12 hours
+
+**D2: Complete Go SDK messaging**
+- Files: `sdks/go/aether/actor.go`
+- Implement `processItem("send")` routing logic
+- Estimated: 8 hours
+
+**D3: Go SDK OpenTelemetry tracing**
+- Files: `sdks/go/aether/resilience/tracing.go`
+- Replace stub with real OTel span creation
+- Estimated: 4 hours
+
+### 4.3 Python Server Deprecation
+
+**P1: Feature parity matrix**
+- Document: Python server features vs Rust server features
+- Identify gaps in Rust server
 - Files: `.docs/guides/migration_python_to_rust_server.md`
+- Estimated: 4 hours
 
-**P2: Deprecate Python server**
-- Mark `server/` as deprecated in README
+**P2: Deprecation**
+- Mark `server/` as deprecated in README and CONTRIBUTING
 - Stop adding features to Python server
-- Remove Python server from default Docker image
+- Remove from default Docker image
+- Estimated: 2 hours
 
-### 3.3 Performance Optimization
+### 4.4 Performance Optimization
 
 **O1: io_uring integration**
-- `monoio` is already in Cargo.toml as optional dep
+- `monoio` already in Cargo.toml as optional dependency
 - Implement `io_uring` feature flag for state operations
 - Benchmark against tokio baseline
 - Target: 2x throughput for state-heavy workloads
-- Files: `crates/core/src/state/`, `crates/core/src/engine/`
+- Estimated: 40 hours
 
 **O2: Zero-copy message path**
-- Use `rkyv` for zero-deserialization message passing
-- Current: serde_json serialization on every message
-- Target: <10us per message round-trip (actor to actor, same node)
-- Files: `crates/core/src/mesh/message.rs`, `crates/core/src/actor/`
+- Use `rkyv` for zero-deserialization message passing between actors
+- Current: serde_json on every message
+- Target: <10us per actor-to-actor round-trip (same node)
+- Estimated: 20 hours
 
 **O3: WASM instance pooling**
-- Pool pre-compiled WASM instances to avoid cold-start latency
+- Pool pre-compiled WASM instances
 - Current: ~2ms cold start per actor spawn
 - Target: <100us warm spawn from pool
-- Files: `crates/core/src/engine/instance.rs`
+- Estimated: 16 hours
 
-### 3.4 Multi-Tenancy Production
+### 4.5 Multi-Tenancy Production
 
 **T1: Per-tenant resource isolation**
-- CPU quotas via cgroups (when running in Firecracker)
-- Memory quotas via WASM fuel metering
-- Network quotas via token bucket
+- CPU quotas via WASM fuel metering
+- Memory quotas via WASM memory limits
+- Network quotas via token bucket in mesh layer
 - Files: `crates/core/src/tenant/`
+- Estimated: 20 hours
 
 **T2: Tenant-scoped secrets**
-- Each tenant gets isolated secret provider
-- No cross-tenant secret access
+- Isolated secret provider per tenant
+- Cross-tenant secret access prohibition
 - Audit log for all secret access
-- Files: `crates/core/src/security/secrets/`
+- Estimated: 12 hours
 
 ---
 
-## 4. Long-Term Goals (v3.0.0 -- 3-6 Months)
+## 5. Long-Term Goals (v3.0.0 -- 3-6 Months)
 
-### 4.1 Production Infrastructure
+### 5.1 Production Infrastructure
 
 **I1: Blue-green deployment**
 - Rolling update with zero-downtime actor migration
 - Canary deployment with automatic rollback on error spike
-- Files: `crates/server/src/deployment/`
+- Files: `crates/server/src/deployment/` (new)
+- Estimated: 40 hours
 
-**I2: Observability stack**
-- OTLP export to VictoriaMetrics/VictoriaLogs (already scaffolded)
+**I2: Full observability stack**
+- OTLP export to VictoriaMetrics/VictoriaLogs (scaffolding exists)
 - Distributed trace correlation across mesh nodes
-- Custom dashboards for actor lifecycle, mesh topology, state operations
-- Files: `crates/core/src/observability/`, `crates/core/src/tracing/`
+- Custom Grafana dashboards for actor lifecycle, mesh topology
+- Estimated: 30 hours
 
 **I3: GitOps deployment**
-- `aether deploy` reads from git repo
+- `aether deploy` reads actor topology from git repo
 - ArgoCD/Flux integration via Helm chart
-- Files: `deploy/helm/`, `.github/workflows/gitops.yml`
+- Estimated: 20 hours
 
-### 4.2 Actor Marketplace
+### 5.2 Actor Marketplace
 
 **M1: OCI-compliant actor registry**
 - Push/pull `.wasm` modules to OCI registry
 - Versioning, dependency resolution, signature verification
-- `aether push` and `aether pull` CLI commands
-- Files: new `crates/registry/`
+- `aether push` / `aether pull` CLI commands
+- Estimated: 40 hours
 
 **M2: Actor composition**
-- Declarative actor graph in YAML/TOML
-- `aether.toml` specifies actor topology, routing, scaling
-- Files: `crates/cli/src/config/`
+- Declarative actor graph in `aether.toml`
+- Topology, routing, scaling, and capability declarations
+- Estimated: 20 hours
 
-### 4.3 Ecosystem
+### 5.3 Ecosystem
 
 **E1: Web dashboard**
 - React/Vue frontend consuming REST API
 - Actor topology graph, metrics charts, deployment management
-- Files: new `web/` directory
+- Estimated: 60 hours
 
 **E2: TUI dashboard**
-- Ratatui-based terminal dashboard (ratatui in Cargo.toml)
+- Ratatui-based terminal UI (already in Cargo.toml)
 - Real-time actor status, mesh topology, metrics
 - `aether dashboard` command
-- Files: `crates/cli/src/commands/dashboard.rs`
+- Estimated: 30 hours
 
 **E3: Plugin system**
-- Current: `plugin/mod.rs` is 12 LOC (re-exports only)
+- Current: 12 LOC re-exports
 - Target: dynamic plugin loading via WASM
-- Plugins can provide custom schedulers, state backends, auth providers
-- Files: `crates/core/src/plugin/`
+- Plugins provide custom schedulers, state backends, auth providers
+- Estimated: 40 hours
 
-### 4.4 Formal Verification
+### 5.4 Formal Verification
 
 **F1: Complete Lean4 proofs**
 - Current: 5 theorems with `sorry` placeholders
-- Target: at least 3 fully verified theorems
-- Priority: capability safety, audit chain integrity, scheduler safety
-- Files: `.specs/02_architecture/proofs/`
+- Target: 3 fully verified theorems (capability safety, audit chain, scheduler)
+- Estimated: 80 hours
 
 **F2: TLA+ model checking**
-- Current: 2 specs with safety properties (scheduler, gossip)
-- Target: run TLC model checker on all specs
-- Add actor migration protocol spec
-- Files: `.specs/02_architecture/proofs/`
+- Current: 2 specs with safety properties
+- Target: run TLC model checker, add migration protocol spec
+- Estimated: 30 hours
 
 ---
 
-## 5. Technical Risk Register
+## 6. Technical Risk Register
 
 | Risk | Probability | Impact | Mitigation |
 |------|------------|--------|------------|
-| Actor SDK design lock-in | High | High | Design API with stability guarantees; version from day 1 |
-| WASM execution performance | Medium | High | Instance pooling; benchmark early; rkyv zero-copy |
-| Python/Rust server divergence | High | Medium | Document migration path; deprecate Python server in v2.2 |
-| io_uring kernel compatibility | Medium | High | Feature-gate behind `io_uring` feature; fallback to tokio |
-| Firecracker requires KVM (no CI) | High | Medium | Mock-based testing; defer to bare-metal CI |
-| FDB cluster setup complexity | Medium | High | SQLite for dev; InMemoryFdb for unit tests; Docker CI for integration |
-| Lean4 proof investment vs value | Medium | Low | Proof sketches only; full proofs only for safety-critical paths |
-| SDK API drift across languages | Medium | Medium | Shared protobuf schema; CI builds all SDKs; API compatibility tests |
-| Two server implementations confuse users | High | High | Deprecate Python server clearly; migration guide |
-
----
-
-## 6. Version Success Criteria
-
-### v2.1.0 (Next 2 Weeks)
-
-- [ ] Actor SDK: `export_actor!` returns valid response (not null)
-- [ ] Actor SDK: serialization layer (postcard/CBOR)
-- [ ] Actor SDK: messaging API (send, request, emit)
-- [ ] Actor SDK: capability declaration macros
-- [ ] End-to-end WASM test in CI (compile -> load -> message -> response)
-- [ ] Rust server: wired to aether-core engine
-- [ ] Rust server: persistent state backend (SQLite)
-- [ ] CLI: `aether run` command for local development
-- [ ] CI: FDB Docker service enabling 9 integration tests
-- [ ] CI: mutation testing for core/actor module
-
-### v2.2.0 (1-3 Months)
-
-- [ ] CLI: all 16 commands connected to server
-- [ ] Python server: deprecated, migration guide published
-- [ ] Rust server: WebSocket transport, JWT auth
-- [ ] Performance: io_uring feature flag, benchmarked
-- [ ] Performance: zero-copy message path (rkyv)
-- [ ] Performance: WASM instance pooling (<100us warm spawn)
-- [ ] Multi-tenancy: per-tenant resource isolation
-- [ ] Multi-tenancy: tenant-scoped secrets
-- [ ] Doc-tests: ignored count reduced from 41 to <20
-
-### v3.0.0 (3-6 Months)
-
-- [ ] Blue-green deployment with zero-downtime migration
-- [ ] Observability: OTLP export, distributed traces, dashboards
-- [ ] Actor marketplace: OCI registry, push/pull
-- [ ] Actor composition: declarative topology in aether.toml
-- [ ] Web dashboard
-- [ ] TUI dashboard
-- [ ] Plugin system: dynamic WASM plugin loading
-- [ ] Lean4: 3 fully verified theorems
-- [ ] TLA+: TLC model checking on all specs
-- [ ] External security audit completed
-- [ ] No-allocation hot path verified (<100 allocs per message)
+| Actor SDK API design lock-in | High | High | Stability guarantees from v2.1.0; semver from day 1 |
+| WASM FFI pointer semantics | Medium | High | Prototype in v2.1.0; rkyv for deterministic layout |
+| Python/Rust server divergence | High | Medium | Migration guide; deprecate Python in v2.2.0 |
+| io_uring kernel compatibility | Medium | High | Feature-gated; tokio fallback |
+| Firecracker requires KVM | High | Medium | Mock-based testing; defer to bare-metal CI |
+| FDB cluster setup complexity | Medium | High | SQLite for dev; InMemoryFdb for unit tests |
+| Lean4 proof effort vs value | Medium | Low | Proof sketches only; full proofs for safety-critical paths only |
+| SDK API drift across languages | Medium | Medium | Shared protobuf schema; CI builds all SDKs |
 
 ---
 
@@ -337,21 +346,41 @@ The Rust server must replace the Python server for the project to be self-contai
 
 ```
 v2.1.0 Critical Path:
+
   A1 (export_actor! fix)
     -> A2 (serialization)
       -> A3 (messaging API)
-        -> A5 (E2E WASM test)
+        -> A5 (E2E WASM test in CI)
+
   S1 (server -> engine wiring)
     -> S2 (persistent state)
-    -> S3 (WebSocket)
-    -> S4 (auth)
+    -> S3 (auth middleware)
+
+  Parallel:
+  C1 (FDB in CI)
+  C2 (performance baseline)
 
 v2.2.0 Critical Path:
+
   L1 (CLI wiring) -> L2 (aether run)
+  D1 (JS SDK send/call) [parallel with D2, D3]
+  D2 (Go SDK messaging) [parallel with D1, D3]
+  D3 (Go OTel tracing) [parallel with D1, D2]
   O1 (io_uring) [parallel with O2, O3]
   O2 (zero-copy) [parallel with O1, O3]
   O3 (instance pooling) [parallel with O1, O2]
   P1 (migration docs) -> P2 (deprecate Python)
+
+v3.0.0 Critical Path:
+
+  I1 (blue-green deploy) -> I3 (GitOps)
+  I2 (observability) [parallel with I1]
+  M1 (OCI registry) -> M2 (composition)
+  E1 (web dashboard) [parallel with E2, E3]
+  E2 (TUI dashboard) [parallel with E1, E3]
+  E3 (plugin system) [parallel with E1, E2]
+  F1 (Lean4 proofs) [parallel with F2]
+  F2 (TLA+ model checking) [parallel with F1]
 ```
 
 ---
@@ -360,15 +389,33 @@ v2.2.0 Critical Path:
 
 | Phase | Effort | Risk | Blockers |
 |-------|--------|------|----------|
-| v2.1.0 Actor SDK | 40-60 hours | Medium | WASM FFI pointer semantics |
-| v2.1.0 Rust Server | 20-30 hours | Low | Engine API stability |
-| v2.1.0 CI | 10-15 hours | Low | Docker image sizes |
-| v2.2.0 Performance | 60-80 hours | High | io_uring kernel version |
-| v2.2.0 Multi-tenancy | 30-40 hours | Medium | Quota enforcement edge cases |
-| v3.0.0 Infrastructure | 80-120 hours | High | Deployment complexity |
-| v3.0.0 Marketplace | 40-60 hours | Medium | OCI registry design |
-| v3.0.0 Formal Verification | 60-100 hours | High | Lean4 proof complexity |
+| v2.1.0 Actor SDK | 52 hours | Medium | WASM FFI pointer semantics |
+| v2.1.0 Rust Server | 36 hours | Low | Engine API stability |
+| v2.1.0 CI | 10 hours | Low | Docker image sizes |
+| v2.2.0 CLI + SDK | 52 hours | Low | Server API completeness |
+| v2.2.0 Performance | 76 hours | High | io_uring kernel version |
+| v2.2.0 Multi-tenancy | 32 hours | Medium | Quota enforcement edge cases |
+| v3.0.0 Infrastructure | 90 hours | High | Deployment complexity |
+| v3.0.0 Marketplace | 60 hours | Medium | OCI registry design |
+| v3.0.0 Ecosystem | 130 hours | Medium | Frontend framework choice |
+| v3.0.0 Formal Verification | 110 hours | High | Proof complexity |
 
 ---
 
-*Generated: 2026-05-10. Next review: 2026-05-24.*
+## 9. Quality Trajectory
+
+| Metric | v2.0.0 (Current) | v2.1.0 Target | v2.2.0 Target | v3.0.0 Target |
+|--------|------------------|----------------|----------------|----------------|
+| Total tests | 1,257 | 1,300+ | 1,500+ | 2,000+ |
+| Ignored tests | 86 | 77 (FDB enabled) | 41 (doc-tests fixed) | 15 (Firecracker only) |
+| Clippy warnings | 0 | 0 | 0 | 0 |
+| Stubs (production) | 5 | 3 | 1 | 0 |
+| SDK messaging | Stub | JS/Go partial | Full parity | Full parity |
+| Server persistence | None | SQLite | FDB | FDB + migration |
+| Performance baseline | None | Recorded | Regressed | Regressed |
+| Lean4 proofs | Sketches | 1 verified | 2 verified | 3 verified |
+| Mutation score | N/A | N/A | >80% core/actor | >90% critical paths |
+
+---
+
+*Generated: 2026-05-11. Next review: 2026-05-25.*
