@@ -88,6 +88,12 @@ jobs:
       - name: Run security tests
         run: cargo test --test security_tests --all-features
 
+      - name: Install wasm32-wasip1 target
+        run: rustup target add wasm32-wasip1
+
+      - name: Run WASM E2E tests
+        run: cargo test -p aether-core --features wasm -- e2e_test
+
   coverage:
     name: Code Coverage
     runs-on: ubuntu-latest
@@ -237,6 +243,15 @@ jobs:
     name: FDB Integration Tests
     runs-on: ubuntu-latest
     needs: check
+    services:
+      foundationdb:
+        image: foundationdb/foundationdb:7.3
+        ports:
+          - 4500:4500
+          - 4501:4501
+        env:
+          FDB_NETWORK_OPTION_TRACE_LOG_LEVEL: "5"
+          FDB_NETWORK_OPTION_TRACE_ENABLE: "1"
     steps:
       - uses: actions/checkout@v4
 
@@ -245,14 +260,18 @@ jobs:
         with:
           toolchain: nightly-2026-03-01
 
-      - name: Start FoundationDB
+      - name: Wait for FoundationDB to be ready
         run: |
-          docker run -d --name fdb-ci \
-            -p 4500:4500 -p 4501:4501 \
-            foundationdb/foundationdb:7.3
-          sleep 10
-          docker exec fdb-ci fdbcli --exec "configure single memory localhost:4500"
-          docker exec fdb-ci fdbcli --exec "status minimal"
+          for i in $(seq 1 30); do
+            if fdbcli --exec "status minimal" 2>/dev/null; then
+              echo "FDB is ready"
+              exit 0
+            fi
+            echo "Waiting for FDB... ($i/30)"
+            sleep 2
+          done
+          echo "FDB did not become ready in time"
+          exit 1
 
       - name: Cache cargo registry
         uses: actions/cache@v4
@@ -266,9 +285,9 @@ jobs:
       - name: Run FDB integration tests
         env:
           FDB_ADDRESS: localhost:4500
-        run: cargo test --workspace --features fdb -- --test-threads=1 -- --nocapture
-        continue-on-error: true
+        run: cargo test --workspace --all-features -- fdb
 
-      - name: Cleanup FDB
-        if: always()
-        run: docker rm -f fdb-ci
+      - name: Run state replication tests
+        env:
+          FDB_ADDRESS: localhost:4500
+        run: cargo test --workspace --all-features -- state_replication_test

@@ -1,5 +1,8 @@
 #![deny(unsafe_code)]
 
+/// WebSocket transport routes.
+pub mod ws;
+
 /// Actor registration and messaging routes.
 pub mod actors;
 /// Cluster management routes.

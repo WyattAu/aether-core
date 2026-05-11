@@ -135,3 +135,7 @@ pub use pool::InstancePool;
 pub use wit::{
     WitFunction, WitInterface, WitParam, WitRegistry, WitType, WitTypeKind, WitValidator,
 };
+
+#[cfg(test)]
+#[cfg(feature = "wasm")]
+mod e2e_test;

@@ -13,7 +13,7 @@ path = "src/main.rs"
 
 [dependencies]
 aether-core = { workspace = true }
-axum = { version = "0.8", features = ["json", "macros"] }
+axum = { version = "0.8", features = ["json", "macros", "ws"] }
 tokio = { workspace = true, features = ["signal"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -23,6 +23,12 @@ tracing-subscriber = { workspace = true }
 uuid = { workspace = true }
 chrono = { version = "0.4", features = ["serde"] }
 clap = { workspace = true }
+async-trait = "0.1"
+thiserror = { workspace = true }
+
+[features]
+default = ["wasm"]
+wasm = ["aether-core/wasm"]
 
 [lints]
 workspace = true

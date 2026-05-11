@@ -43,6 +43,14 @@ async fn main() {
     tracing::info!("http port: {port}");
 
     let state = Arc::new(AppState::new());
+    tracing::info!(
+        "wasm execution: {}",
+        if state.wasm_engine.is_available() {
+            "available"
+        } else {
+            "disabled"
+        }
+    );
 
     let app = routes::actors::routes()
         .merge(routes::state::routes())

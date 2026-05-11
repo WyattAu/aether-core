@@ -21,6 +21,7 @@ pub mod logs;
 pub mod mesh;
 pub mod observability;
 pub mod rollback;
+pub mod run;
 pub mod scale;
 pub mod status;
 pub mod top;
@@ -75,6 +76,9 @@ pub enum Command {
 
     /// Manage observability backends (metrics, logs, status)
     Observability(observability::ObservabilityArgs),
+
+    /// Start a local Aether server
+    Run(run::RunCommand),
 }
 
 /// Command execution errors
@@ -143,6 +147,10 @@ pub enum CommandError {
     /// Observability command error
     #[error("{0}")]
     Observability(#[from] observability::Error),
+
+    /// Run command error
+    #[error("{0}")]
+    Run(#[from] run::Error),
 }
 
 /// Execute a CLI command
@@ -164,6 +172,7 @@ pub async fn execute(command: Command) -> Result<(), CommandError> {
         Command::Rollback(args) => rollback::execute(args).await?,
         Command::Completion(args) => completion::execute(args)?,
         Command::Observability(args) => observability::execute(args).await?,
+        Command::Run(args) => args.execute().await?,
     }
     Ok(())
 }

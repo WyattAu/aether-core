@@ -2,6 +2,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
+use crate::engine;
+
 /// Actor record stored in memory.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ActorRecord {
@@ -113,6 +115,8 @@ pub struct AppState {
     pub subscriptions: Arc<RwLock<HashMap<String, Vec<TopicSubscription>>>>,
     /// Server start time for uptime calculation.
     pub started_at: std::time::Instant,
+    /// WASM execution engine.
+    pub wasm_engine: engine::WasmEngine,
 }
 
 impl AppState {
@@ -127,6 +131,7 @@ impl AppState {
             topics: Arc::new(RwLock::new(HashMap::new())),
             subscriptions: Arc::new(RwLock::new(HashMap::new())),
             started_at: std::time::Instant::now(),
+            wasm_engine: engine::WasmEngine::new(),
         }
     }
 }
