@@ -128,7 +128,7 @@ async fn test_cross_node_scaling() {
         .unwrap();
 
     let node = cluster.leader();
-    let actor_id = node.deploy_actor(multi_instance_actor()).await.unwrap();
+    let _actor_id = node.deploy_actor(multi_instance_actor()).await.unwrap();
 
     // Wait for instances to spread across nodes
     tokio::time::sleep(Duration::from_secs(2)).await;

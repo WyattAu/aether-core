@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Aether pre-push hook
-# Fast quality gate: clippy + unit tests only (no integration, no doc build).
-# For full validation, use the pre-commit hook or `make lint && make test`.
+# Full quality gate: formatting, clippy, full test suite.
+# Blocks push if any test fails.
 set -euo pipefail
 
 readonly RED='\033[0;31m'
@@ -12,23 +12,30 @@ log_step() { echo -e "${GREEN}[pre-push]${NC} $1"; }
 log_fail() { echo -e "${RED}[pre-push]${NC} $1"; }
 
 # Step 1: Check formatting
-log_step "1/3: Checking code formatting..."
+log_step "1/4: Checking code formatting..."
 if ! cargo fmt --all -- --check; then
     log_fail "Formatting errors detected. Run 'cargo fmt --all' to fix."
     exit 1
 fi
 
 # Step 2: Clippy lint
-log_step "2/3: Running clippy lints..."
+log_step "2/4: Running clippy lints..."
 if ! cargo clippy --workspace --all-features -- -D warnings 2>&1; then
     log_fail "Clippy errors detected. Fix warnings before pushing."
     exit 1
 fi
 
-# Step 3: Unit tests only (skip integration, benchmarks, property tests)
-log_step "3/3: Running unit tests..."
-if ! cargo test --workspace --all-features --lib 2>&1; then
-    log_fail "Unit test failures detected. Fix before pushing."
+# Step 3: Full test suite (unit + integration + property + fuzz)
+log_step "3/4: Running full test suite..."
+if ! cargo test --workspace --all-features 2>&1; then
+    log_fail "Test failures detected. Fix before pushing."
+    exit 1
+fi
+
+# Step 4: Documentation build
+log_step "4/4: Building documentation..."
+if ! cargo doc --workspace --no-deps 2>&1; then
+    log_fail "Documentation build failed."
     exit 1
 fi
 
