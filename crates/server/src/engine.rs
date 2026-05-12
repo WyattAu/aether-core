@@ -276,7 +276,11 @@ mod tests {
         ];
         let result = engine.load_module(wasm, "valid-header".to_string());
         assert!(result.is_ok());
-        assert_eq!(result.unwrap().name, "valid-header");
+        let module = result.ok();
+        assert_eq!(
+            module.as_ref().map(|m| m.name.as_str()),
+            Some("valid-header")
+        );
     }
 
     #[test]
@@ -285,5 +289,154 @@ mod tests {
         let module = ActorModule::new(vec![], "test".to_string());
         let result = engine.execute(&module, b"hello");
         assert!(!result.success);
+    }
+
+    #[cfg(feature = "wasm")]
+    mod wasm_tests {
+        use super::*;
+
+        #[test]
+        fn test_e2e_actor_abi_echo() {
+            let wasm_bytes = wat::parse_str(
+                r#"
+                (module
+                    (memory (export "memory") 2)
+                    (global $resp_len (mut i32) (i32.const 0))
+
+                    (func (export "handle_request") (param $ptr i32) (param $len i32) (result i32)
+                        (i32.store8 (i32.const 0) (i32.const 0x65))
+                        (i32.store8 (i32.const 1) (i32.const 0x63))
+                        (i32.store8 (i32.const 2) (i32.const 0x68))
+                        (i32.store8 (i32.const 3) (i32.const 0x6F))
+                        (i32.store8 (i32.const 4) (i32.const 0x3A))
+                        (local.set $len
+                            (call $memcpy
+                                (i32.const 5)
+                                (local.get $ptr)
+                                (local.get $len)))
+                        (global.set $resp_len
+                            (i32.add (i32.const 5) (local.get $len)))
+                        (i32.const 0))
+
+                    (func (export "response_len") (result i32)
+                        (global.get $resp_len))
+
+                    (func (export "response_ptr") (result i32)
+                        (i32.const 0))
+
+                    (func $memcpy (param $dst i32) (param $src i32) (param $len i32) (result i32)
+                        (local $i i32)
+                        (local.set $i (i32.const 0))
+                        (block $break
+                            (loop $loop
+                                (br_if $break (i32.ge_u (local.get $i) (local.get $len)))
+                                (i32.store8
+                                    (i32.add (local.get $dst) (local.get $i))
+                                    (i32.load8_u (i32.add (local.get $src) (local.get $i))))
+                                (local.set $i (i32.add (local.get $i) (i32.const 1)))
+                                (br $loop)))
+                        (local.get $len))
+                )
+                "#,
+            )
+            .expect("WAT parse failed");
+
+            let engine = WasmEngine::new();
+            assert!(engine.is_available());
+
+            let module = engine
+                .load_module(wasm_bytes, "echo-actor".to_string())
+                .expect("module load failed");
+
+            let message = b"hello world";
+            let result = engine.execute(&module, message);
+
+            assert!(
+                result.success,
+                "execution should succeed: {:?}",
+                result.error
+            );
+            assert!(
+                result.execution_time_us.is_some(),
+                "should measure execution time"
+            );
+            assert_eq!(result.response.len(), 16);
+            assert_eq!(&result.response[0..5], b"echo:");
+            assert_eq!(&result.response[5..], b"hello world");
+        }
+
+        #[test]
+        fn test_e2e_actor_abi_empty_message() {
+            let wasm_bytes = wat::parse_str(
+                r#"
+                (module
+                    (memory (export "memory") 2)
+                    (global $resp_len (mut i32) (i32.const 0))
+
+                    (func (export "handle_request") (param $ptr i32) (param $len i32) (result i32)
+                        (i32.store8 (i32.const 0) (i32.const 0x6F))
+                        (i32.store8 (i32.const 1) (i32.const 0x6B))
+                        (global.set $resp_len (i32.const 2))
+                        (i32.const 0))
+
+                    (func (export "response_len") (result i32)
+                        (global.get $resp_len))
+
+                    (func (export "response_ptr") (result i32)
+                        (i32.const 0))
+                )
+                "#,
+            )
+            .expect("WAT parse failed");
+
+            let engine = WasmEngine::new();
+            let module = engine
+                .load_module(wasm_bytes, "ok-actor".to_string())
+                .expect("module load failed");
+
+            let result = engine.execute(&module, b"");
+            assert!(
+                result.success,
+                "execution should succeed: {:?}",
+                result.error
+            );
+            assert_eq!(result.response, b"ok");
+        }
+
+        #[test]
+        fn test_e2e_actor_abi_zero_length_response() {
+            let wasm_bytes = wat::parse_str(
+                r#"
+                (module
+                    (memory (export "memory") 1)
+                    (global $resp_len (mut i32) (i32.const 0))
+
+                    (func (export "handle_request") (param $ptr i32) (param $len i32) (result i32)
+                        (global.set $resp_len (i32.const 0))
+                        (i32.const 0))
+
+                    (func (export "response_len") (result i32)
+                        (global.get $resp_len))
+
+                    (func (export "response_ptr") (result i32)
+                        (i32.const 0))
+                )
+                "#,
+            )
+            .expect("WAT parse failed");
+
+            let engine = WasmEngine::new();
+            let module = engine
+                .load_module(wasm_bytes, "noop-actor".to_string())
+                .expect("module load failed");
+
+            let result = engine.execute(&module, b"anything");
+            assert!(
+                result.success,
+                "execution should succeed: {:?}",
+                result.error
+            );
+            assert!(result.response.is_empty());
+        }
     }
 }

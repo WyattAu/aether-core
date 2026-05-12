@@ -14,7 +14,8 @@ path = "src/main.rs"
 [dependencies]
 aether-core = { workspace = true }
 axum = { version = "0.8", features = ["json", "macros", "ws"] }
-tokio = { workspace = true, features = ["signal"] }
+tokio = { workspace = true, features = ["signal", "rt"] }
+rusqlite = { version = "0.32", features = ["bundled"], optional = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tower-http = { version = "0.6", features = ["cors", "trace", "compression-gzip"] }
@@ -26,9 +27,13 @@ clap = { workspace = true }
 async-trait = "0.1"
 thiserror = { workspace = true }
 
+[dev-dependencies]
+wat = "1.220"
+
 [features]
 default = ["wasm"]
 wasm = ["aether-core/wasm"]
+sqlite = ["dep:rusqlite"]
 
 [lints]
 workspace = true

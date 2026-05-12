@@ -3,6 +3,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use crate::engine;
+use crate::storage::StateBackend;
 
 /// Actor record stored in memory.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -101,6 +102,8 @@ pub struct TopicSubscription {
 pub struct AppState {
     /// Registered actors keyed by actor ID.
     pub actors: Arc<RwLock<HashMap<String, ActorRecord>>>,
+    /// Compiled WASM actor modules keyed by actor ID.
+    pub modules: Arc<RwLock<HashMap<String, engine::ActorModule>>>,
     /// Per-actor state store keyed by (actor_id, key).
     pub state: Arc<RwLock<HashMap<String, HashMap<String, StateValue>>>>,
     /// Cluster nodes keyed by node ID.
@@ -117,6 +120,8 @@ pub struct AppState {
     pub started_at: std::time::Instant,
     /// WASM execution engine.
     pub wasm_engine: engine::WasmEngine,
+    /// Persistent state backend.
+    pub state_backend: Arc<dyn StateBackend>,
 }
 
 impl AppState {
@@ -124,6 +129,7 @@ impl AppState {
     pub fn new() -> Self {
         Self {
             actors: Arc::new(RwLock::new(HashMap::new())),
+            modules: Arc::new(RwLock::new(HashMap::new())),
             state: Arc::new(RwLock::new(HashMap::new())),
             nodes: Arc::new(RwLock::new(HashMap::new())),
             events: Arc::new(RwLock::new(Vec::new())),
@@ -132,6 +138,15 @@ impl AppState {
             subscriptions: Arc::new(RwLock::new(HashMap::new())),
             started_at: std::time::Instant::now(),
             wasm_engine: engine::WasmEngine::new(),
+            state_backend: Arc::new(crate::storage::MemoryStateBackend::new()),
+        }
+    }
+
+    /// Creates application state with a custom state backend.
+    pub fn with_state_backend(backend: Arc<dyn StateBackend>) -> Self {
+        Self {
+            state_backend: backend,
+            ..Self::new()
         }
     }
 }

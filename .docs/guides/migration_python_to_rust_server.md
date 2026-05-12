@@ -11,9 +11,10 @@ The Rust server (`crates/server/`) is the recommended replacement.
 |---------|--------------|-------------|
 | REST API | Complete | Functional |
 | Actor CRUD | Yes | Yes |
-| State management | Redis, PostgreSQL | In-memory, MemoryStateBackend |
+| State management | Redis, PostgreSQL | In-memory, MemoryStateBackend, SQLite |
 | Clustering | SWIM gossip, hash-ring | Planned |
 | Authentication | JWT, API key | API key middleware |
+| WASM message execution | No | Yes (real engine via handle_request ABI) |
 | WebSocket | Yes | Yes |
 | GraphQL | Yes | No |
 | gRPC | Yes | No |

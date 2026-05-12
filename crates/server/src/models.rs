@@ -19,6 +19,8 @@ pub struct ActorRegistration {
     pub metadata: Option<serde_json::Value>,
     /// Heartbeat interval in milliseconds.
     pub heartbeat_interval_ms: Option<u64>,
+    /// WASM module bytes for the actor (base64-encoded or raw binary).
+    pub wasm_bytes: Option<Vec<u8>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

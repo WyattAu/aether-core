@@ -51,6 +51,7 @@ async fn main() {
             "disabled"
         }
     );
+    tracing::info!("state backend: memory");
 
     let app = routes::actors::routes()
         .merge(routes::state::routes())

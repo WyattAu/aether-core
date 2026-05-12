@@ -145,6 +145,170 @@ impl StateBackend for MemoryStateBackend {
     }
 }
 
+/// SQLite-backed state backend for development and single-node deployments.
+///
+/// Uses `rusqlite` with WAL mode for concurrent reads. All state is persisted
+/// to a single SQLite database file.
+#[cfg(feature = "sqlite")]
+pub struct SqliteStateBackend {
+    conn: tokio::sync::Mutex<rusqlite::Connection>,
+}
+
+#[cfg(feature = "sqlite")]
+impl SqliteStateBackend {
+    /// Open a SQLite database at the given path, creating it if it does not exist.
+    pub fn open(path: &std::path::Path) -> StorageResult<Self> {
+        let conn = rusqlite::Connection::open(path)
+            .map_err(|e| StorageError::Internal(format!("failed to open database: {e}")))?;
+
+        conn.execute_batch(
+            "PRAGMA journal_mode = WAL;
+             PRAGMA synchronous = NORMAL;
+             PRAGMA busy_timeout = 5000;
+
+             CREATE TABLE IF NOT EXISTS actor_state (
+                 actor_id TEXT NOT NULL,
+                 key       TEXT NOT NULL,
+                 value     TEXT NOT NULL,
+                 version   INTEGER NOT NULL,
+                 updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+                 PRIMARY KEY (actor_id, key)
+             );
+
+             CREATE INDEX IF NOT EXISTS idx_actor_state_actor_id
+                 ON actor_state(actor_id);",
+        )
+        .map_err(|e| StorageError::Internal(format!("failed to initialize database: {e}")))?;
+
+        Ok(Self {
+            conn: tokio::sync::Mutex::new(conn),
+        })
+    }
+
+    /// Open an in-memory SQLite database (useful for testing).
+    pub fn in_memory() -> StorageResult<Self> {
+        Self::open(std::path::Path::new(":memory:"))
+    }
+}
+
+#[cfg(feature = "sqlite")]
+#[async_trait]
+impl StateBackend for SqliteStateBackend {
+    async fn get(&self, actor_id: &str, key: &str) -> StorageResult<Option<KeyValue>> {
+        let conn = self.conn.lock().await;
+        let mut stmt = conn
+            .prepare("SELECT key, value, version FROM actor_state WHERE actor_id = ?1 AND key = ?2")
+            .map_err(|e| StorageError::Internal(format!("query prepare failed: {e}")))?;
+
+        let mut rows = stmt
+            .query(rusqlite::params![actor_id, key])
+            .map_err(|e| StorageError::Internal(format!("query failed: {e}")))?;
+
+        match rows.next() {
+            Ok(Some(row)) => {
+                let kv = KeyValue {
+                    key: row
+                        .get(0)
+                        .map_err(|e| StorageError::Internal(e.to_string()))?,
+                    value: serde_json::from_str(
+                        &row.get::<_, String>(1)
+                            .map_err(|e| StorageError::Internal(e.to_string()))?,
+                    )
+                    .map_err(|e| StorageError::Internal(format!("JSON parse failed: {e}")))?,
+                    version: row
+                        .get(2)
+                        .map_err(|e| StorageError::Internal(e.to_string()))?,
+                };
+                Ok(Some(kv))
+            }
+            Ok(None) => Ok(None),
+            Err(e) => Err(StorageError::Internal(format!("row iteration failed: {e}"))),
+        }
+    }
+
+    async fn set(&self, actor_id: &str, key: &str, value: serde_json::Value) -> StorageResult<u64> {
+        let conn = self.conn.lock().await;
+
+        conn.execute(
+            "INSERT INTO actor_state (actor_id, key, value, version, updated_at)
+             VALUES (?1, ?2, ?3, 1, datetime('now'))
+             ON CONFLICT (actor_id, key) DO UPDATE SET
+                 value = excluded.value,
+                 version = actor_state.version + 1,
+                 updated_at = datetime('now')",
+            rusqlite::params![
+                actor_id,
+                key,
+                serde_json::to_string(&value)
+                    .map_err(|e| StorageError::Internal(format!("JSON serialize failed: {e}")))?,
+            ],
+        )
+        .map_err(|e| StorageError::Internal(format!("insert failed: {e}")))?;
+
+        let version: u64 = conn
+            .query_row(
+                "SELECT version FROM actor_state WHERE actor_id = ?1 AND key = ?2",
+                rusqlite::params![actor_id, key],
+                |row| row.get(0),
+            )
+            .map_err(|e| StorageError::Internal(format!("version read failed: {e}")))?;
+
+        Ok(version)
+    }
+
+    async fn delete(&self, actor_id: &str, key: &str) -> StorageResult<bool> {
+        let conn = self.conn.lock().await;
+        let count = conn
+            .execute(
+                "DELETE FROM actor_state WHERE actor_id = ?1 AND key = ?2",
+                rusqlite::params![actor_id, key],
+            )
+            .map_err(|e| StorageError::Internal(format!("delete failed: {e}")))?;
+        Ok(count > 0)
+    }
+
+    async fn list(&self, actor_id: &str) -> StorageResult<Vec<String>> {
+        let conn = self.conn.lock().await;
+        let mut stmt = conn
+            .prepare("SELECT key FROM actor_state WHERE actor_id = ?1 ORDER BY key")
+            .map_err(|e| StorageError::Internal(format!("query prepare failed: {e}")))?;
+
+        let rows = stmt
+            .query_map(rusqlite::params![actor_id], |row| row.get(0))
+            .map_err(|e| StorageError::Internal(format!("query failed: {e}")))?;
+
+        let mut keys = Vec::new();
+        for row in rows {
+            keys.push(row.map_err(|e| StorageError::Internal(e.to_string()))?);
+        }
+        Ok(keys)
+    }
+
+    async fn list_all(&self) -> StorageResult<Vec<(String, String)>> {
+        let conn = self.conn.lock().await;
+        let mut stmt = conn
+            .prepare("SELECT actor_id, key FROM actor_state ORDER BY actor_id, key")
+            .map_err(|e| StorageError::Internal(format!("query prepare failed: {e}")))?;
+
+        let rows = stmt
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
+            .map_err(|e| StorageError::Internal(format!("query failed: {e}")))?;
+
+        let mut result = Vec::new();
+        for row in rows {
+            result.push(row.map_err(|e| StorageError::Internal(e.to_string()))?);
+        }
+        Ok(result)
+    }
+
+    async fn health_check(&self) -> StorageResult<()> {
+        let conn = self.conn.lock().await;
+        conn.execute_batch("SELECT 1")
+            .map_err(|e| StorageError::Internal(format!("health check failed: {e}")))?;
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -221,5 +385,112 @@ mod tests {
     async fn test_memory_backend_health_check() {
         let backend = MemoryStateBackend::new();
         assert!(backend.health_check().await.is_ok());
+    }
+
+    #[cfg(feature = "sqlite")]
+    mod sqlite_tests {
+        use super::*;
+
+        #[tokio::test]
+        async fn test_sqlite_backend_set_get() {
+            let backend = SqliteStateBackend::in_memory().expect("open failed");
+            let version = backend
+                .set("actor-1", "counter", serde_json::json!(42))
+                .await
+                .expect("set failed");
+            assert_eq!(version, 1);
+
+            let kv = backend
+                .get("actor-1", "counter")
+                .await
+                .expect("get failed")
+                .expect("key not found");
+            assert_eq!(kv.value, serde_json::json!(42));
+        }
+
+        #[tokio::test]
+        async fn test_sqlite_backend_version_increment() {
+            let backend = SqliteStateBackend::in_memory().expect("open failed");
+
+            let v1 = backend
+                .set("actor-1", "key", serde_json::json!("v1"))
+                .await
+                .expect("set failed");
+            let v2 = backend
+                .set("actor-1", "key", serde_json::json!("v2"))
+                .await
+                .expect("set failed");
+
+            assert_eq!(v1, 1);
+            assert_eq!(v2, 2);
+
+            let kv = backend
+                .get("actor-1", "key")
+                .await
+                .expect("get failed")
+                .expect("key not found");
+            assert_eq!(kv.version, 2);
+            assert_eq!(kv.value, serde_json::json!("v2"));
+        }
+
+        #[tokio::test]
+        async fn test_sqlite_backend_delete() {
+            let backend = SqliteStateBackend::in_memory().expect("open failed");
+            backend
+                .set("actor-1", "key", serde_json::json!("value"))
+                .await
+                .expect("set failed");
+
+            let deleted = backend
+                .delete("actor-1", "key")
+                .await
+                .expect("delete failed");
+            assert!(deleted);
+
+            let deleted = backend
+                .delete("actor-1", "key")
+                .await
+                .expect("delete failed");
+            assert!(!deleted);
+
+            let result = backend.get("actor-1", "key").await.expect("get failed");
+            assert!(result.is_none());
+        }
+
+        #[tokio::test]
+        async fn test_sqlite_backend_list() {
+            let backend = SqliteStateBackend::in_memory().expect("open failed");
+            backend
+                .set("actor-1", "a", serde_json::json!(1))
+                .await
+                .expect("set failed");
+            backend
+                .set("actor-1", "b", serde_json::json!(2))
+                .await
+                .expect("set failed");
+            backend
+                .set("actor-2", "c", serde_json::json!(3))
+                .await
+                .expect("set failed");
+
+            let keys = backend.list("actor-1").await.expect("list failed");
+            assert_eq!(keys.len(), 2);
+
+            let all = backend.list_all().await.expect("list_all failed");
+            assert_eq!(all.len(), 3);
+        }
+
+        #[tokio::test]
+        async fn test_sqlite_backend_not_found() {
+            let backend = SqliteStateBackend::in_memory().expect("open failed");
+            let result = backend.get("nonexistent", "key").await.expect("get failed");
+            assert!(result.is_none());
+        }
+
+        #[tokio::test]
+        async fn test_sqlite_backend_health_check() {
+            let backend = SqliteStateBackend::in_memory().expect("open failed");
+            assert!(backend.health_check().await.is_ok());
+        }
     }
 }
