@@ -1,7 +1,7 @@
 # Project Aether Architecture Overview
 
 **Version:** 2.0.0
-**Last Updated:** 2026-03-12  
+**Last Updated:** 2026-05-12
 **Audience:** System Architects, Platform Engineers
 
 ---
@@ -78,12 +78,14 @@ Aether is a distributed computing platform designed for high-performance, secure
 │                                                                          │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                          Async Runtimes                                  │
-│  ┌──────────────────────────────┐  ┌──────────────────────────────────┐ │
-│  │    Data Plane (Monoio)       │  │    Control Plane (Tokio)         │ │
-│  │    - io_uring native         │  │    - Standard ecosystem          │ │
-│  │    - Zero-copy I/O           │  │    - Service discovery           │ │
-│  │    - Thread-per-core         │  │    - Configuration               │ │
-│  └──────────────────────────────┘  └──────────────────────────────────┘ │
+│  ┌──────────────────────────────────────────────────────────────────┐ │
+│  │                    Async Runtime (Tokio)                         │ │
+│  │    - Standard async ecosystem                                    │ │
+│  │    - Service discovery, configuration, I/O                      │ │
+│  │                                                                  │ │
+│  │    Note: Monoio (io_uring) is experimental/aspirational.         │ │
+│  │    Data/control plane separation is a future goal.               │ │
+│  └──────────────────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -113,7 +115,7 @@ High-performance WebAssembly runtime using Wasmtime.
 
 | Feature | Specification |
 |---------|---------------|
-| Cold Start | <50µs (P99) |
+| Cold Start | <100µs (P99) |
 | Memory Isolation | Linear memory sandboxing |
 | Execution Model | Fuel-based deterministic execution |
 | WASI Compliance | Preview 2 Component Model |
@@ -714,7 +716,7 @@ Aether is designed as a **Post-Container Application OS** that replaces traditio
 | State Read (local) | <10 | µs |
 | State Write (replicated) | <100 | µs |
 | Actors per Node | 100,000 | - |
-| Throughput per Node | 10M | msg/s |
+| Throughput per Node | TBD (not yet benchmarked at scale) | - |
 
 ---
 

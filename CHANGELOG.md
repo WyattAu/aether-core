@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+> Items below are in active development for v2.1.0.
+
 ### Added
 - TLA+ formal specification for work-stealing scheduler (no-task-loss, priority ordering, fair stealing, state machine integrity invariants)
 - TLA+ formal specification for actor migration two-phase protocol (state machine, at-most-one-active, source ownership, checkpoint consistency, no-orphan invariants)
@@ -88,7 +90,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - 132 lines dead code (duplicate constants, unused structs, unreachable methods)
 - 4 critical stubs replaced with real implementations
-- sdks/js/ removed (focus on compiled languages)
+- Legacy JS SDK removed (sdks/javascript/ contains active compiled-actor SDK)
 
 ### Security
 - 22→19 vulnerabilities (3 fixed, remaining are low-severity dev dependencies)

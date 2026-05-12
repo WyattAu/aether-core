@@ -76,7 +76,7 @@ Aether is a next-generation runtime for distributed applications that replaces t
 ### Layer 1: Host & Configuration
 
 ```
-src/
+crates/core/src/
 ├── host.rs           # Main entry point, orchestrates all subsystems
 ├── config/
 │   ├── mod.rs        # Configuration structures
@@ -92,7 +92,7 @@ src/
 ### Layer 2: Actor System
 
 ```
-src/actor/
+crates/core/src/actor/
 ├── mod.rs            # ActorId, ActorHandle, ActorBuilder
 ├── executor.rs       # WASM execution engine
 ├── handle.rs         # Actor handle for message passing
@@ -121,7 +121,7 @@ Sender → Mailbox → Scheduler → Executor → Handler
 ### Layer 3: Execution Engine
 
 ```
-src/engine/
+crates/core/src/engine/
 ├── mod.rs            # Engine trait and implementations
 ├── module.rs         # WASM module loading and compilation
 ├── instance.rs       # WASM instance management
@@ -144,7 +144,7 @@ src/engine/
 ### Layer 4: Mesh Networking
 
 ```
-src/mesh/
+crates/core/src/mesh/
 ├── mod.rs            # MeshNode, MeshConfig
 ├── node.rs           # Node identity and discovery
 ├── connection.rs     # QUIC connection management
@@ -169,7 +169,7 @@ Remote Actor → MeshNode → QUIC → Remote MeshNode → Local delivery
 ### Layer 5: State Management
 
 ```
-src/state/
+crates/core/src/state/
 ├── mod.rs            # StateBackend trait
 ├── kv.rs             # Key-value store interface
 ├── cache.rs          # In-memory caching layer
@@ -191,7 +191,7 @@ src/state/
 ### Layer 6: WASI Implementation
 
 ```
-src/wasi/
+crates/core/src/wasi/
 ├── mod.rs            # WasiHost trait
 ├── clocks.rs         # Deterministic time injection
 ├── random.rs         # Deterministic randomness
@@ -212,7 +212,7 @@ src/wasi/
 ### Layer 7: Security
 
 ```
-src/security/
+crates/core/src/security/
 ├── mod.rs            # Security subsystem
 ├── capability.rs     # Capability validation (in root)
 ├── tls.rs            # mTLS configuration
@@ -242,14 +242,14 @@ src/security/
 ### Layer 8: Observability
 
 ```
-src/observability/
+crates/core/src/observability/
 ├── mod.rs            # Observability facade
 ├── metrics.rs        # Prometheus metrics
 └── health.rs         # Health checking
 ```
 
 ```
-src/tracing/
+crates/core/src/tracing/
 ├── mod.rs            # Distributed tracing
 ├── span.rs           # Span management
 ├── exporter.rs       # OTLP export
@@ -265,7 +265,7 @@ src/tracing/
 ### Layer 9: Dashboard & API
 
 ```
-src/dashboard/
+crates/core/src/dashboard/
 ├── mod.rs            # Dashboard configuration
 ├── server.rs         # HTTP/WebSocket server
 ├── handlers.rs       # Request handlers
@@ -276,7 +276,7 @@ src/dashboard/
 ### Layer 10: Enterprise Features
 
 ```
-src/enterprise/
+crates/core/src/enterprise/
 ├── mod.rs            # Enterprise subsystem
 ├── tenant.rs         # Multi-tenancy
 └── quotas.rs         # Resource quotas
@@ -290,7 +290,7 @@ src/enterprise/
 ### Layer 11: Chaos Engineering
 
 ```
-src/chaos/
+crates/core/src/chaos/
 ├── mod.rs            # Chaos engineering
 ├── fault_injector.rs # Fault injection
 └── scenarios.rs      # Chaos scenarios
@@ -299,7 +299,7 @@ src/chaos/
 ### Layer 12: MicroVM Support
 
 ```
-src/vm/
+crates/core/src/vm/
 ├── mod.rs            # VM management
 ├── config.rs         # VM configuration
 ├── manager.rs        # VM lifecycle
@@ -488,15 +488,15 @@ Per Actor:
 
 ### Adding a New Capability
 
-1. Add to `CapabilitySet` in `capability.rs`
+1. Add to `CapabilitySet` in `crates/core/src/capability.rs`
 2. Add validation helper method
 3. Document in capability module
 4. Add tests
 
 ### Adding a New WASI Function
 
-1. Implement in `wasi/` module
-2. Add to linker in `engine/linker.rs`
+1. Implement in `crates/core/src/wasi/` module
+2. Add to linker in `crates/core/src/engine/linker.rs`
 3. Consider determinism implications
 4. Add capability check if privileged
 
@@ -504,12 +504,12 @@ Per Actor:
 
 1. Implement `StateBackend` trait
 2. Add to feature flags
-3. Add configuration in `config/`
+3. Add configuration in `crates/core/src/config/`
 4. Add metrics for observability
 
 ### Adding a New Secret Provider
 
-1. Implement `SecretProvider` trait in `security/secrets/`
+1. Implement `SecretProvider` trait in `crates/core/src/security/secrets/`
 2. Add provider-specific configuration
 3. Add to provider registry
 4. Document required permissions
@@ -557,7 +557,7 @@ backend = "memory"  # or "fdb"
 
 ### Full Configuration
 
-See `config/mod.rs` for all options.
+See `crates/core/src/config/mod.rs` for all options.
 
 ---
 

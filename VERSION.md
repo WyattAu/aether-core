@@ -641,7 +641,7 @@ All structured development process artifacts have been committed:
 |----------|-------|-------------|
 | Phase Reports | 21 | Full development lifecycle documentation |
 | Specifications | 21 dirs | Requirements, architecture, security, performance |
-| ADRs | 5 | Architecture Decision Records |
+| ADRs | 7 | Architecture Decision Records |
 | Yellow Papers | 5 | Theoretical foundations |
 | Blue Papers | 5 | Component specifications |
 | Test Vectors | 5 | Domain-specific test data |

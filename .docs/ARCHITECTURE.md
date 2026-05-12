@@ -1,5 +1,7 @@
 # Aether Architecture Overview
 
+> **DEPRECATION NOTICE**: This document describes the v1.x SDK/Python-server architecture and is superseded by the root [ARCHITECTURE.md](../ARCHITECTURE.md) for the v2.0.0 Rust runtime.
+
 ## System Overview
 
 Aether is an actor-based distributed systems framework providing SDKs for Python, JavaScript, Go, and Java, with a reference server implementation. The framework provides message-driven actors, event sourcing, pub/sub messaging, stream processing with windowing, workflow orchestration (saga, state machine, human tasks), and resilience patterns (circuit breaker, retry, bulkhead, rate limiter).

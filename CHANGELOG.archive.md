@@ -89,7 +89,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - 132 lines dead code (duplicate constants, unused structs, unreachable methods)
 - 4 critical stubs replaced with real implementations
-- sdks/js/ removed (focus on compiled languages)
+- Legacy JS SDK removed (sdks/javascript/ retained)
 
 ### Security
 - 22→19 vulnerabilities (3 fixed, remaining are low-severity dev dependencies)
@@ -1377,42 +1377,6 @@ Each SDK includes 5 comprehensive examples:
 
 ---
 
-## Future Releases
-
-### [1.0.0-beta] - Target: Week 8
-
-**Milestone: M1 - Local WASM Execution**
-
-Planned features:
-- Complete Phase 1 implementation (Core Runtime Foundation)
-- Complete Phase 2 implementation (WASM Engine)
-- Single-node WASM actor execution
-- Cold start < 50ms P99
-- All CLI commands working locally
-
-### [1.0.0-rc1] - Target: Week 12
-
-**Milestone: M2 - Local OCI Execution**
-
-Planned features:
-- Complete Phase 3 implementation (Firecracker Integration)
-- Dual-runtime support
-- VM start < 125ms P99
-- OCI container execution
-
-### [1.0.0] - Target: Week 16
-
-**Milestone: M4 - Production Ready**
-
-Planned features:
-- Complete all phases (1-8)
-- Multi-node mesh networking
-- Distributed state management
-- Production observability
-- Security audit passed
-
----
-
 ## Notes
 
 - All versions prior to 1.0.0 are considered pre-release
@@ -1423,5 +1387,5 @@ Planned features:
 
 ---
 
-**Last Updated:** 2026-03-29
+**Last Updated:** 2026-05-12
 **Next Release:** TBD

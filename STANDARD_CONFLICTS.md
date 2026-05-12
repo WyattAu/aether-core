@@ -26,7 +26,7 @@ This document provides a high-level summary of identified standard conflicts. Fo
 ## Related Documents
 
 - Detailed Analysis: `.specs/00_requirements/standard_conflicts.md`
-- Architecture Decisions: `.adrs/` (to be created)
+- Architecture Decisions: `.adrs/` (7 ADRs documented)
 - Traceability: `TRACEABILITY_MATRIX.md`
 
 ---
