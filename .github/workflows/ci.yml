@@ -260,6 +260,14 @@ jobs:
         with:
           toolchain: nightly-2026-03-01
 
+      - name: Install FoundationDB client
+        run: |
+          curl -sSL https://github.com/apple/foundationdb/releases/download/7.3.0/foundationdb-clients_7.3.0-1_amd64.deb -o /tmp/fdb.deb
+          sudo dpkg -i /tmp/fdb.deb
+          sudo mkdir -p /etc/foundationdb
+          echo "aether-ci:127.0.0.1:4500" | sudo tee /etc/foundationdb/fdb.cluster
+          echo -e "trace_enable = 1\ntrace_log_group = aether-ci" | sudo tee /etc/foundationdb/fdb.options
+
       - name: Wait for FoundationDB to be ready
         run: |
           for i in $(seq 1 30); do
@@ -284,10 +292,10 @@ jobs:
 
       - name: Run FDB integration tests
         env:
-          FDB_ADDRESS: localhost:4500
-        run: cargo test --workspace --all-features -- fdb
+          FDB_NETWORK_OPTION_FILE: /etc/foundationdb/fdb.options
+        run: cargo test --package aether-core --features fdb -- --ignored fdb_integration_tests
 
       - name: Run state replication tests
         env:
-          FDB_ADDRESS: localhost:4500
+          FDB_NETWORK_OPTION_FILE: /etc/foundationdb/fdb.options
         run: cargo test --workspace --all-features -- state_replication_test

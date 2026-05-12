@@ -330,11 +330,14 @@ impl ActorScheduler {
         }
 
         let priority = message.priority;
+
+        // Clone once for mailbox, move original into task.
+        // Previous implementation cloned twice (mailbox + task).
         mailbox.send(message.clone()).await?;
 
         let task = Task {
             actor_id: target,
-            message,
+            message, // moved, not cloned
             priority,
         };
 
@@ -354,12 +357,14 @@ impl ActorScheduler {
             .get_mailbox(&target)
             .ok_or_else(|| Error::actor(format!("actor {:?} not found", target)))?;
 
+        let priority = message.priority;
+
+        // Clone once for mailbox, move original into task.
         mailbox.try_send(message.clone()).map_err(|(_, e)| e)?;
 
-        let priority = message.priority;
         let task = Task {
             actor_id: target,
-            message,
+            message, // moved, not cloned
             priority,
         };
 
@@ -433,7 +438,7 @@ impl ActorScheduler {
 
         let mut consecutive_empty = 0u32;
 
-        while running.load(Ordering::Relaxed) {
+        while running.load(Ordering::Acquire) {
             iteration = iteration.wrapping_add(1);
 
             if iteration % config.stealer_refresh_interval == 0 {

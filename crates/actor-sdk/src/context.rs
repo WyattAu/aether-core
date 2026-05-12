@@ -81,6 +81,10 @@ impl ActorContext {
     pub async fn send(&self, target: &str, message: &[u8]) -> ActorResult<()> {
         #[cfg(target_arch = "wasm32")]
         {
+            // SAFETY: `target` and `message` are borrowed slices with valid pointers and lengths.
+            // WASM linear memory guarantees these pointers remain valid for the duration
+            // of this unsafe block. The host runtime reads exactly `target_len` and
+            // `msg_len` bytes from the respective pointers (WASM ABI contract).
             let rc = unsafe {
                 host::aether_send(
                     target.as_ptr(),
@@ -113,6 +117,11 @@ impl ActorContext {
         {
             let mut out_len: u32 = 0;
             let mut buf = vec![0u8; 65536];
+            // SAFETY: `target` and `message` are borrowed slices with valid pointers and lengths.
+            // `buf` is a mutable Vec with capacity 65536, providing a valid write target.
+            // `out_len` is a mutable stack variable providing a valid write target for the
+            // response length. The host runtime writes at most `buf.len()` bytes to `out_ptr`
+            // and writes the actual length to `out_len_ptr` (WASM ABI contract).
             let rc = unsafe {
                 host::aether_request(
                     target.as_ptr(),
@@ -146,6 +155,9 @@ impl ActorContext {
     pub async fn emit(&self, topic: &str, message: &[u8]) -> ActorResult<()> {
         #[cfg(target_arch = "wasm32")]
         {
+            // SAFETY: `topic` and `message` are borrowed slices with valid pointers and lengths.
+            // WASM linear memory guarantees these pointers remain valid for the duration
+            // of this unsafe block (WASM ABI contract).
             let rc = unsafe {
                 host::aether_emit(
                     topic.as_ptr(),
@@ -178,6 +190,10 @@ impl ActorContext {
         {
             let mut out_len: u32 = 0;
             let mut buf = [0u8; 256];
+            // SAFETY: `buf` is a stack-allocated array providing a valid mutable write target.
+            // `out_len` is a mutable stack variable providing a valid write target for the
+            // address length. The host runtime writes at most `buf.len()` bytes to `out_ptr`
+            // and writes the actual length to `out_len_ptr` (WASM ABI contract).
             unsafe {
                 host::aether_self_address(buf.as_mut_ptr(), &mut out_len);
             }

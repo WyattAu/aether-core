@@ -200,6 +200,7 @@ pub mod enterprise;
 pub mod error;
 pub mod host;
 pub mod mcp;
+#[cfg(feature = "mesh")]
 pub mod mesh;
 pub mod observability;
 pub mod plugin;

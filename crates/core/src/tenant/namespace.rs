@@ -422,6 +422,7 @@ mod tests {
         assert!(!ns.contains_actor("prod"));
     }
 
+    #[cfg(feature = "mesh")]
     #[test]
     fn test_namespace_isolation_rejects_cross_namespace_message() {
         use crate::mesh::{ActorAddress, MeshMessage};

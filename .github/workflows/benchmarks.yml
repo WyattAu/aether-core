@@ -102,6 +102,86 @@ jobs:
           name: benchmark-baseline
           path: target/criterion
 
+  regression-check:
+    name: Regression Baseline Comparison
+    runs-on: ubuntu-latest
+    needs: benchmark
+    if: always() && needs.benchmark.result == 'success'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: nightly-2026-03-01
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-regression-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Run aether-core benchmarks
+        run: |
+          cargo bench --package aether-core --bench roadmap_targets --features "wasm,mesh" 2>&1 | tee regression-results.txt || true
+
+      - name: Download previous baseline
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: benchmark-baseline
+          path: target/criterion
+
+      - name: Compare against regression baseline
+        run: |
+          echo "## Regression Baseline Comparison" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          REGRESSION_THRESHOLD=10
+
+          if [ -d "target/criterion" ]; then
+            cargo bench --package aether-core --bench roadmap_targets --features "wasm,mesh" \
+              --baseline previous --output-format bencher 2>&1 | tee regression-comparison.txt || true
+
+            if grep -q "Performance has regressed" regression-comparison.txt; then
+              echo "### Performance Regression Detected" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              grep -B 2 -A 5 "Performance has regressed" regression-comparison.txt >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "Compare against baseline: \`.specs/06_5_regression/baseline_metrics.toml\`" >> $GITHUB_STEP_SUMMARY
+
+              REGRESSION_COUNT=$(grep -c "Performance has regressed" regression-comparison.txt || true)
+              if [ "$REGRESSION_COUNT" -gt 0 ]; then
+                echo "::warning::$REGRESSION_COUNT benchmark(s) regressed beyond threshold"
+              fi
+            else
+              echo "No performance regressions detected against stored baseline." >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "No previous baseline found. This run will be stored as the new baseline." >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat regression-results.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload regression results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: regression-results
+          path: |
+            regression-results.txt
+            regression-comparison.txt
+
   memory-benchmark:
     name: Memory Usage Benchmark
     runs-on: ubuntu-latest
@@ -248,7 +328,7 @@ jobs:
 
   benchmark-summary:
     name: Benchmark Summary
-    needs: [benchmark, memory-benchmark, startup-benchmark, python-sdk-benchmark, javascript-sdk-benchmark]
+    needs: [benchmark, regression-check, memory-benchmark, startup-benchmark, python-sdk-benchmark, javascript-sdk-benchmark]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -263,3 +343,4 @@ jobs:
           echo "| Startup | ${{ needs.startup-benchmark.result == 'success' && '[PASS]' || '[FAIL]' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Python SDK | ${{ needs.python-sdk-benchmark.result == 'success' && '[PASS]' || '[FAIL]' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| JavaScript SDK | ${{ needs.javascript-sdk-benchmark.result == 'success' && '[PASS]' || '[FAIL]' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Regression Check | ${{ needs.regression-check.result == 'success' && '[PASS]' || '[FAIL]' }} |" >> $GITHUB_STEP_SUMMARY

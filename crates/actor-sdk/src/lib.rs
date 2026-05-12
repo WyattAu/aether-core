@@ -26,7 +26,7 @@ pub use capability::{Capability, CapabilityManifest, CapabilitySet};
 pub use context::ActorContext;
 pub use handler::{ActorHandler, Handler};
 pub use logging::{LogLevel, log};
-pub use message::{deserialize, serialize};
+pub use message::{MessageCodec, deserialize, deserialize_request, serialize, serialize_response};
 pub use state::StateHandle;
 
 /// Actor result type

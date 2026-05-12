@@ -5,6 +5,7 @@
 
 use std::collections::HashMap;
 
+#[cfg(feature = "mesh")]
 use crate::mesh::ActorAddress;
 
 use super::namespace::NamespaceError;

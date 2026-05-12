@@ -777,6 +777,7 @@ impl Error {
     }
 
     /// Alias for [`Error::serialization`].
+    #[deprecated(since = "2.0.1", note = "Use serialization() instead")]
     pub fn serialization_legacy(message: impl Into<Cow<'static, str>>) -> Self {
         Self::serialization(message)
     }

@@ -64,14 +64,18 @@ pub trait ActorExecutor: Send + Sync {
 /// Executes actor messages using WebAssembly modules.
 /// Note: This implementation creates instances on-demand rather than caching them,
 /// to avoid thread-safety issues with wasmtime types.
+///
+/// Module and fuel lookups use DashMap for O(1) concurrent access,
+/// eliminating the O(n) linear scan and write-lock contention present
+/// in the previous Vec-based implementation.
 #[cfg(feature = "wasm")]
 pub struct WasmActorExecutor {
     /// Engine for WASM execution
     engine: wasmtime::Engine,
-    /// Module registry (actor_id -> module)
-    modules: parking_lot::RwLock<Vec<(ActorId, Arc<WasmModule>)>>,
-    /// Fuel tracking per actor
-    fuel_tracker: parking_lot::RwLock<Vec<(ActorId, u64)>>,
+    /// Module registry (actor_id -> module) -- O(1) lookup via DashMap
+    modules: dashmap::DashMap<ActorId, Arc<WasmModule>>,
+    /// Fuel tracking per actor -- O(1) lookup via DashMap with AtomicU64
+    fuel_tracker: dashmap::DashMap<ActorId, std::sync::atomic::AtomicU64>,
     /// Default fuel limit
     default_fuel: u64,
 }
@@ -83,8 +87,8 @@ impl WasmActorExecutor {
         let engine = crate::engine::module::create_engine()?;
         Ok(Self {
             engine,
-            modules: parking_lot::RwLock::new(Vec::new()),
-            fuel_tracker: parking_lot::RwLock::new(Vec::new()),
+            modules: dashmap::DashMap::new(),
+            fuel_tracker: dashmap::DashMap::new(),
             default_fuel: 1_000_000,
         })
     }
@@ -94,26 +98,20 @@ impl WasmActorExecutor {
         let engine = crate::engine::module::create_engine()?;
         Ok(Self {
             engine,
-            modules: parking_lot::RwLock::new(Vec::new()),
-            fuel_tracker: parking_lot::RwLock::new(Vec::new()),
+            modules: dashmap::DashMap::new(),
+            fuel_tracker: dashmap::DashMap::new(),
             default_fuel,
         })
     }
 
     /// Register a WASM module for an actor.
     pub fn register_module(&self, actor_id: ActorId, module: Arc<WasmModule>) -> Result<()> {
-        let mut modules = self.modules.write();
+        self.modules.insert(actor_id, module);
 
-        if let Some(pos) = modules.iter().position(|(id, _)| *id == actor_id) {
-            modules[pos].1 = module;
-        } else {
-            modules.push((actor_id, module));
-        }
-
-        let mut fuel = self.fuel_tracker.write();
-        if !fuel.iter().any(|(id, _)| *id == actor_id) {
-            fuel.push((actor_id, self.default_fuel));
-        }
+        // Initialize fuel for this actor if not already present.
+        self.fuel_tracker
+            .entry(actor_id)
+            .or_insert_with(|| std::sync::atomic::AtomicU64::new(self.default_fuel));
 
         Ok(())
     }
@@ -130,29 +128,24 @@ impl WasmActorExecutor {
         Ok(module)
     }
 
-    /// Get remaining fuel for an actor.
+    /// Get remaining fuel for an actor. O(1) via DashMap.
     fn get_remaining_fuel(&self, actor_id: &ActorId) -> u64 {
-        let fuel = self.fuel_tracker.read();
-        fuel.iter()
-            .find(|(id, _)| id == actor_id)
-            .map(|(_, f)| *f)
+        self.fuel_tracker
+            .get(actor_id)
+            .map(|f| f.load(std::sync::atomic::Ordering::Relaxed))
             .unwrap_or(self.default_fuel)
     }
 
-    /// Update fuel for an actor.
+    /// Update fuel for an actor. O(1) via DashMap (no write-lock on entire collection).
     fn update_fuel(&self, actor_id: &ActorId, remaining: u64) {
-        let mut fuel = self.fuel_tracker.write();
-        if let Some(entry) = fuel.iter_mut().find(|(id, _)| id == actor_id) {
-            entry.1 = remaining;
+        if let Some(entry) = self.fuel_tracker.get(actor_id) {
+            entry.store(remaining, std::sync::atomic::Ordering::Relaxed);
         }
     }
 
     /// Create and execute with a fresh instance.
     fn execute_with_instance(&self, actor_id: &ActorId, message: &Message) -> ExecutionResult {
-        let modules = self.modules.read();
-        let module_entry = modules.iter().find(|(id, _)| id == actor_id);
-
-        let Some((_, module)) = module_entry else {
+        let Some(module) = self.modules.get(actor_id).map(|m| m.clone()) else {
             return ExecutionResult::NotReady;
         };
 
@@ -162,7 +155,7 @@ impl WasmActorExecutor {
             .with_fuel(fuel_remaining)
             .build();
 
-        if let Err(e) = instance.instantiate(module, &self.engine) {
+        if let Err(e) = instance.instantiate(&module, &self.engine) {
             return ExecutionResult::Failed {
                 error: e.to_string(),
             };
@@ -258,19 +251,18 @@ impl ActorExecutor for WasmActorExecutor {
     }
 
     fn is_ready(&self, actor_id: &ActorId) -> bool {
-        let modules = self.modules.read();
-        modules.iter().any(|(id, _)| id == actor_id)
+        self.modules.contains_key(actor_id)
     }
 
     fn get_fuel(&self, actor_id: &ActorId) -> Option<u64> {
-        let fuel = self.fuel_tracker.read();
-        fuel.iter().find(|(id, _)| id == actor_id).map(|(_, f)| *f)
+        self.fuel_tracker
+            .get(actor_id)
+            .map(|f| f.load(std::sync::atomic::Ordering::Relaxed))
     }
 
     fn reset(&self, actor_id: &ActorId) -> Result<()> {
-        let mut fuel = self.fuel_tracker.write();
-        if let Some(entry) = fuel.iter_mut().find(|(id, _)| id == actor_id) {
-            entry.1 = self.default_fuel;
+        if let Some(entry) = self.fuel_tracker.get(actor_id) {
+            entry.store(self.default_fuel, std::sync::atomic::Ordering::Relaxed);
         }
         Ok(())
     }
@@ -285,8 +277,8 @@ impl Default for WasmActorExecutor {
             crate::engine::module::create_engine().unwrap_or_else(|_| wasmtime::Engine::default());
         Self {
             engine,
-            modules: parking_lot::RwLock::new(Vec::new()),
-            fuel_tracker: parking_lot::RwLock::new(Vec::new()),
+            modules: dashmap::DashMap::new(),
+            fuel_tracker: dashmap::DashMap::new(),
             default_fuel: 1_000_000,
         }
     }

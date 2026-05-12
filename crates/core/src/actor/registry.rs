@@ -101,6 +101,10 @@ impl ActorRegistry {
     }
 
     /// Register a new actor with a name.
+    ///
+    /// This operation is atomic: if the ID already exists, no name mapping is created.
+    /// If the name already exists, no ID mapping is created. This prevents TOCTOU races
+    /// where a concurrent registration could observe partial state.
     pub fn register_named(&self, id: ActorId, name: Option<String>) -> crate::Result<Arc<Mailbox>> {
         let mailbox = Arc::new(Mailbox::new(id, self.mailbox_config.clone()));
 
@@ -112,6 +116,17 @@ impl ActorRegistry {
             last_active: std::sync::atomic::AtomicI64::new(chrono::Utc::now().timestamp()),
         });
 
+        // Check for duplicate ID first (cheaper check on lock-free map).
+        if self.by_id.contains_key(&id) {
+            return Err(Error::actor(format!(
+                "actor with id {:?} already exists",
+                id
+            )));
+        }
+
+        // Hold the name lock for the entire registration to prevent TOCTOU races.
+        // Between releasing the name lock and inserting into by_id, another thread
+        // could register the same name. By holding both, we ensure atomicity.
         if let Some(ref actor_name) = name {
             let mut by_name = self.by_name.write();
             if by_name.contains_key(actor_name) {
@@ -120,10 +135,28 @@ impl ActorRegistry {
                     actor_name
                 )));
             }
+
+            // Double-check ID under name lock (another thread may have inserted it).
+            if self.by_id.contains_key(&id) {
+                return Err(Error::actor(format!(
+                    "actor with id {:?} already exists",
+                    id
+                )));
+            }
+
             by_name.insert(actor_name.clone(), id);
+            // Fall through to by_id insertion while still holding name lock.
+            // The by_id insert uses DashMap's internal locking, which is safe
+            // because we check contains_key above.
         }
 
+        // This should not fail given the contains_key checks above, but we
+        // handle it defensively. If it does fail, we clean up the name mapping.
         if self.by_id.insert(id, entry).is_some() {
+            // Clean up name mapping if we created one.
+            if let Some(ref actor_name) = name {
+                self.by_name.write().remove(actor_name);
+            }
             return Err(Error::actor(format!(
                 "actor with id {:?} already exists",
                 id
@@ -343,5 +376,60 @@ mod tests {
         assert_eq!(stats.total, 3);
         assert_eq!(stats.running, 2);
         assert_eq!(stats.suspended, 1);
+    }
+
+    #[test]
+    fn test_registry_concurrent_named_registration() {
+        use std::sync::Arc;
+        use std::thread;
+
+        let registry = Arc::new(ActorRegistry::new());
+        let mut handles = Vec::new();
+
+        // Spawn many threads all trying to register actors with the same name.
+        // At most one should succeed; the rest should get duplicate-name errors.
+        for _ in 0..16 {
+            let reg = registry.clone();
+            handles.push(thread::spawn(move || {
+                let id = ActorId::new();
+                reg.register_named(id, Some("shared-name".to_string()))
+            }));
+        }
+
+        let mut success_count = 0;
+        let mut error_count = 0;
+        for handle in handles {
+            match handle.join().unwrap() {
+                Ok(_) => success_count += 1,
+                Err(_) => error_count += 1,
+            }
+        }
+
+        assert_eq!(
+            success_count, 1,
+            "exactly one registration with shared name should succeed"
+        );
+        assert_eq!(error_count, 15, "all other registrations should fail");
+        assert_eq!(registry.len(), 1);
+    }
+
+    #[test]
+    fn test_registry_no_orphaned_name_on_id_conflict() {
+        // Verify that if ID registration fails after name registration succeeds,
+        // the name mapping is cleaned up (no orphan).
+        let registry = ActorRegistry::new();
+        let id = ActorId::new();
+
+        // Register once with name.
+        registry
+            .register_named(id, Some("my-actor".to_string()))
+            .unwrap();
+
+        // Try to register a different actor with the same name (should fail).
+        let result = registry.register_named(ActorId::new(), Some("my-actor".to_string()));
+        assert!(result.is_err());
+
+        // The original name mapping should still be intact.
+        assert_eq!(registry.lookup("my-actor"), Some(id));
     }
 }

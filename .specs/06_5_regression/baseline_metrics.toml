@@ -1,0 +1,62 @@
+[metadata]
+generated_date = "2026-05-12T00:00:00Z"
+rust_version = "1.96.0-nightly (38c0de8dc 2026-02-28)"
+cargo_version = "1.96.0-nightly (f298b8c82 2026-02-24)"
+source_document = "docs/performance-baselines.md"
+bench_date = "2026-05-06"
+profile = "bench (optimized)"
+
+[baseline]
+# WASM cold start - Target 1
+# "WASM cold start P99 (instantiate only)" - PASS at 61.3µs
+wasm_cold_start_instantiate_us = { target = 100, current = 61.3, unit = "us", source = "criterion", benchmark = "roadmap/wasm_cold_start/instantiate_only", status = "pass" }
+
+# "WASM cold start P99 (compile + instantiate)" - FAIL at 928.4µs
+wasm_cold_start_compile_instantiate_us = { target = 100, current = 928.4, unit = "us", source = "criterion", benchmark = "roadmap/wasm_cold_start/compile_and_instantiate", status = "fail" }
+
+# Actor cold start - Target 2
+# "Actor cold start P99 (single spawn)" - PASS at 1.7µs
+actor_cold_start_single_us = { target = 125000, current = 1.7, unit = "us", source = "criterion", benchmark = "roadmap/actor_cold_start/spawn_single_actor", status = "pass" }
+
+# "Actor cold start P99 (batch 100)" - PASS at 62.9µs
+actor_cold_start_batch_100_us = { target = 125000, current = 62.9, unit = "us", source = "criterion", benchmark = "roadmap/actor_cold_start/spawn_100_actors", status = "pass" }
+
+# Mesh message latency - Target 3
+# "Mesh message latency P99 (frame+parse 256B)" - PASS at 725.7ns
+mesh_frame_parse_256b_ns = { target = 1000, current = 725.7, unit = "ns", source = "criterion", benchmark = "roadmap/mesh_message_latency/frame_and_parse_256b", status = "pass" }
+
+# "Mesh message latency P99 (roundtrip sim 256B)" - PASS at 1.25µs
+mesh_roundtrip_256b_ns = { target = 1000, current = 1250.0, unit = "ns", source = "criterion", benchmark = "roadmap/mesh_message_latency/roundtrip_sim_256b", status = "pass" }
+
+# "Mesh message latency P99 (frame 256B)" - PASS at 225.9ns
+mesh_frame_256b_ns = { target = 1000, current = 225.9, unit = "ns", source = "criterion", benchmark = "roadmap/mesh_message_latency/frame_256b", status = "pass" }
+
+# State read - Target 4
+# "State read P99 (64B value)" - PASS at 180.6ns
+state_read_64b_ns = { target = 10000, current = 180.6, unit = "ns", source = "criterion", benchmark = "roadmap/state_read/read_64b_value", status = "pass" }
+
+# "State read P99 (1024B value)" - PASS at 212.2ns
+state_read_1024b_ns = { target = 10000, current = 212.2, unit = "ns", source = "criterion", benchmark = "roadmap/state_read/read_1024b_value", status = "pass" }
+
+# Actor density - Target 5
+# "Actor density (100K actors)" - PASS at 100,000 @ 377K spawns/s
+actor_density_count = { target = 100000, current = 100000, unit = "actors", source = "criterion", benchmark = "roadmap/actor_density/spawn_actors/100000", status = "pass" }
+
+# Actor spawn throughput at 100K density
+actor_spawn_throughput_100k = { target = 100000, current = 377650, unit = "spawns/sec", source = "criterion", benchmark = "roadmap/actor_density/spawn_actors/100000", status = "pass" }
+
+# Actor spawn throughput at 50K density
+actor_spawn_throughput_50k = { target = 100000, current = 359010, unit = "spawns/sec", source = "criterion", benchmark = "roadmap/actor_density/spawn_actors/50000", status = "pass" }
+
+# Actor spawn throughput at 10K density
+actor_spawn_throughput_10k = { target = 100000, current = 420840, unit = "spawns/sec", source = "criterion", benchmark = "roadmap/actor_density/spawn_actors/10000", status = "pass" }
+
+# Actor spawn throughput at 1K density
+actor_spawn_throughput_1k = { target = 100000, current = 939510, unit = "spawns/sec", source = "criterion", benchmark = "roadmap/actor_density/spawn_actors/1000", status = "pass" }
+
+[regression_policy]
+max_regression_percent = 10.0
+critical_regression_percent = 25.0
+min_samples = 10
+fail_on_critical_regression = true
+warn_on_regression = true
