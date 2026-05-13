@@ -28,7 +28,12 @@
 pub mod namespace;
 pub mod quota;
 pub mod resolver;
+pub mod secrets;
 
 pub use namespace::{NamespaceError, NamespaceIsolation, TenantNamespace};
-pub use quota::{QuotaEnforcer, QuotaLimits, QuotaUsage, ResourceQuota};
+pub use quota::{
+    QuotaEnforcer, QuotaError, QuotaLimits, QuotaUsage, ResourceQuota, TenantQuota,
+    TenantQuotaTracker,
+};
 pub use resolver::{TenantConfig, TenantResolver};
+pub use secrets::{SecretStoreError, SecretString, TenantSecretStore};

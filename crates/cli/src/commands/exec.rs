@@ -1,10 +1,14 @@
 //! Exec Command
 //!
-//! Execute commands inside a running actor.
+//! Send messages to running actors via the Aether HTTP API.
+//! Interactive mode requires WebSocket transport (not yet available).
 
 use clap::Args;
-use std::io::{self, BufRead};
+use std::io;
+use std::time::Duration;
 use thiserror::Error;
+
+use super::DEFAULT_DASHBOARD_ADDR;
 
 #[derive(Args, Debug)]
 pub struct ExecArgs {
@@ -20,6 +24,9 @@ pub struct ExecArgs {
     #[arg(short, long, default_value = "/bin/sh")]
     pub shell: String,
 
+    #[arg(short, long, default_value = DEFAULT_DASHBOARD_ADDR)]
+    pub api_addr: String,
+
     #[arg(trailing_var_arg = true)]
     pub command: Vec<String>,
 }
@@ -27,23 +34,25 @@ pub struct ExecArgs {
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("Actor not found: {0}")]
-    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
+    #[allow(dead_code)]
     ActorNotFound(String),
 
     #[error("Actor not running: {0}")]
-    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
+    #[allow(dead_code)]
     ActorNotRunning(String),
 
     #[error("Failed to execute command: {0}")]
-    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
     ExecutionFailed(String),
 
     #[error("TTY not available: {0}")]
     TtyNotAvailable(String),
 
     #[error("Connection failed: {0}")]
-    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
+    #[allow(dead_code)]
     ConnectionFailed(String),
+
+    #[error("API request failed: {0}")]
+    Api(#[from] reqwest::Error),
 
     #[error("IO error: {0}")]
     Io(#[from] io::Error),
@@ -60,19 +69,52 @@ pub async fn execute(args: ExecArgs) -> Result<(), Error> {
 }
 
 async fn execute_non_interactive(args: &ExecArgs) -> Result<(), Error> {
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(30))
+        .build()?;
+
+    let base_url = args.api_addr.trim_end_matches('/').to_string();
+    let cmd_str = args.command.join(" ");
+
     println!("Executing command in actor '{}'...", args.actor);
     println!();
+    println!("$ {}", cmd_str);
+    println!("----------------------------------------------------------------");
 
-    let cmd = args.command.join(" ");
+    let body = serde_json::json!({
+        "payload": cmd_str,
+        "source": "cli-exec",
+    });
 
-    println!("$ {}", cmd);
-    println!("────────────────────────────────────────────────────────────");
+    let resp = client
+        .post(format!(
+            "{}/api/v1/actors/{}/messages",
+            base_url, args.actor
+        ))
+        .json(&body)
+        .send()
+        .await;
 
-    println!("[stdout] Command output would appear here");
-    println!("[stdout] Exit code: 0");
-
-    println!();
-    println!("✓ Command completed successfully");
+    match resp {
+        Ok(response) if response.status().is_success() => {
+            let result: serde_json::Value = response.json().await.unwrap_or_default();
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&result).unwrap_or_else(|_| "OK".to_string())
+            );
+            println!();
+            println!("Command completed successfully");
+        }
+        Ok(response) => {
+            let status = response.status();
+            let body_text = response.text().await.ok();
+            let detail = body_text.as_deref().unwrap_or("unknown error");
+            return Err(Error::ExecutionFailed(format!("HTTP {status}: {detail}")));
+        }
+        Err(e) => {
+            return Err(Error::ExecutionFailed(format!("Request failed: {e}")));
+        }
+    }
 
     Ok(())
 }
@@ -84,32 +126,16 @@ async fn execute_interactive(args: &ExecArgs) -> Result<(), Error> {
         ));
     }
 
-    println!("Starting interactive session in actor '{}'...", args.actor);
-    println!("Type 'exit' or press Ctrl+D to end session.");
+    println!("Interactive exec requires WebSocket transport.");
     println!();
-
-    let _shell = &args.shell;
-
-    println!("aether:{}# ", args.actor);
-
-    let stdin = io::stdin();
-    for line in stdin.lock().lines() {
-        let line = line?;
-        if line.trim() == "exit" || line.trim() == "quit" {
-            break;
-        }
-
-        if !line.trim().is_empty() {
-            return Err(Error::ConnectionFailed(
-                "Not connected to Aether runtime".to_string(),
-            ));
-        } else {
-            println!("aether:{}# ", args.actor);
-        }
-    }
-
+    println!("The Aether CLI does not yet support interactive exec sessions.");
+    println!("Use non-interactive mode instead:");
+    println!(
+        "  aether exec --actor {} -- <command> [args...]",
+        args.actor
+    );
     println!();
-    println!("Session ended.");
+    println!("WebSocket-based interactive sessions are planned for a future release.");
 
     Ok(())
 }
@@ -120,9 +146,15 @@ async fn execute_default_shell(args: &ExecArgs) -> Result<(), Error> {
         args.shell, args.actor
     );
     println!("Use --interactive for interactive mode.");
+    println!(
+        "Use: aether exec --actor {} -- <command> [args...]",
+        args.actor
+    );
     println!();
+    println!(
+        "NOTE: Shell sessions inside actors require WebSocket transport. \
+         Use non-interactive command mode with -- to send a single command."
+    );
 
-    Err(Error::ConnectionFailed(
-        "Not connected to Aether runtime".to_string(),
-    ))
+    Ok(())
 }

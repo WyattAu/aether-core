@@ -26,14 +26,19 @@ chrono = { version = "0.4", features = ["serde"] }
 clap = { workspace = true }
 async-trait = "0.1"
 thiserror = { workspace = true }
+jsonwebtoken = { version = "9", optional = true }
+monoio = { workspace = true, optional = true, features = ["mkdirat", "renameat", "unlinkat"] }
 
 [dev-dependencies]
 wat = "1.220"
+tempfile = "3"
 
 [features]
 default = ["wasm"]
 wasm = ["aether-core/wasm"]
 sqlite = ["dep:rusqlite"]
+jwt = ["dep:jsonwebtoken"]
+io_uring = ["dep:monoio"]
 
 [lints]
 workspace = true

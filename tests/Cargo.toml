@@ -8,7 +8,8 @@ name = "aether_tests"
 path = "lib.rs"
 
 [dependencies]
-aether-core = { path = "../crates/core", features = ["mesh", "wasm", "chaos"] }
+aether-core = { path = "../crates/core", features = ["mesh", "wasm", "chaos", "instance-pool", "rkyv"] }
+aether-server = { path = "../crates/server" }
 tokio = { workspace = true }
 wat = "1.220"
 blake3 = "1.5"
@@ -21,6 +22,7 @@ reqwest = { version = "0.12", features = ["json"] }
 tempfile = "3.10"
 thiserror = "2.0"
 uuid = { workspace = true }
+postcard = { version = "1.0", features = ["alloc"] }
 
 [dev-dependencies]
 proptest = { workspace = true }
@@ -51,3 +53,7 @@ path = "benchmarks/memory_benchmarks.rs"
 [[test]]
 name = "property_tests"
 path = "property_tests.rs"
+
+[[test]]
+name = "wasm_e2e_test"
+path = "wasm_e2e_test.rs"

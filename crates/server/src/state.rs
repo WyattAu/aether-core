@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
+use crate::backend::{ActorBackend, InMemoryActorBackend};
 use crate::engine;
 use crate::storage::StateBackend;
 
@@ -100,7 +101,10 @@ pub struct TopicSubscription {
 /// Application state shared across all routes.
 #[derive(Clone)]
 pub struct AppState {
-    /// Registered actors keyed by actor ID.
+    /// Actor lifecycle and message dispatch backend.
+    pub backend: Arc<dyn ActorBackend>,
+    /// Registered actors keyed by actor ID (in-memory storage shared with
+    /// the default [`InMemoryActorBackend`]; kept for backward compatibility).
     pub actors: Arc<RwLock<HashMap<String, ActorRecord>>>,
     /// Compiled WASM actor modules keyed by actor ID.
     pub modules: Arc<RwLock<HashMap<String, engine::ActorModule>>>,
@@ -125,10 +129,48 @@ pub struct AppState {
 }
 
 impl AppState {
-    /// Creates a new empty application state.
+    /// Creates a new empty application state using the in-memory backend.
+    ///
+    /// The `actors` field and the in-memory backend share the same
+    /// underlying `HashMap` so direct access and backend operations
+    /// remain consistent.
     pub fn new() -> Self {
+        let actors: Arc<RwLock<HashMap<String, ActorRecord>>> =
+            Arc::new(RwLock::new(HashMap::new()));
+
         Self {
-            actors: Arc::new(RwLock::new(HashMap::new())),
+            backend: Arc::new(InMemoryActorBackend::from_shared(actors.clone())),
+            actors,
+            modules: Arc::new(RwLock::new(HashMap::new())),
+            state: Arc::new(RwLock::new(HashMap::new())),
+            nodes: Arc::new(RwLock::new(HashMap::new())),
+            events: Arc::new(RwLock::new(Vec::new())),
+            event_sequence: Arc::new(RwLock::new(0)),
+            topics: Arc::new(RwLock::new(HashMap::new())),
+            subscriptions: Arc::new(RwLock::new(HashMap::new())),
+            started_at: std::time::Instant::now(),
+            wasm_engine: engine::WasmEngine::new(),
+            state_backend: Arc::new(crate::storage::MemoryStateBackend::new()),
+        }
+    }
+
+    /// Creates application state using the production `aether_core` actor
+    /// scheduler as the actor backend.
+    ///
+    /// Available only when the `wasm` feature is enabled. When the feature
+    /// is disabled, the caller should use [`AppState::new`] instead.
+    #[cfg(feature = "wasm")]
+    pub fn with_core_backend(
+        scheduler: std::sync::Arc<aether_core::actor::ActorScheduler>,
+    ) -> Self {
+        use crate::backend::CoreActorBackend;
+
+        let actors: Arc<RwLock<HashMap<String, ActorRecord>>> =
+            Arc::new(RwLock::new(HashMap::new()));
+
+        Self {
+            backend: Arc::new(CoreActorBackend::new(scheduler)),
+            actors,
             modules: Arc::new(RwLock::new(HashMap::new())),
             state: Arc::new(RwLock::new(HashMap::new())),
             nodes: Arc::new(RwLock::new(HashMap::new())),
@@ -147,6 +189,25 @@ impl AppState {
         Self {
             state_backend: backend,
             ..Self::new()
+        }
+    }
+
+    /// Creates application state with a custom actor backend (for testing).
+    #[doc(hidden)]
+    pub fn with_actor_backend(actor_backend: Arc<dyn ActorBackend>) -> Self {
+        Self {
+            backend: actor_backend,
+            actors: Arc::new(RwLock::new(HashMap::new())),
+            modules: Arc::new(RwLock::new(HashMap::new())),
+            state: Arc::new(RwLock::new(HashMap::new())),
+            nodes: Arc::new(RwLock::new(HashMap::new())),
+            events: Arc::new(RwLock::new(Vec::new())),
+            event_sequence: Arc::new(RwLock::new(0)),
+            topics: Arc::new(RwLock::new(HashMap::new())),
+            subscriptions: Arc::new(RwLock::new(HashMap::new())),
+            started_at: std::time::Instant::now(),
+            wasm_engine: engine::WasmEngine::new(),
+            state_backend: Arc::new(crate::storage::MemoryStateBackend::new()),
         }
     }
 }

@@ -15,6 +15,9 @@ std = []
 serde = { version = "1.0", features = ["derive"], default-features = false }
 postcard = { version = "1.0", default-features = false, features = ["alloc"] }
 
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt"] }
+
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasi = "0.13"
 

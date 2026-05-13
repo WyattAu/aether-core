@@ -1,16 +1,22 @@
 //! Mesh Command
 //!
-//! Manage and inspect the actor mesh network.
+//! Manage and inspect the actor mesh network via the Aether HTTP API.
 
 use clap::Args;
 use clap::Subcommand;
-use serde_json::json;
+use std::time::Duration;
 use thiserror::Error;
+
+use super::DEFAULT_DASHBOARD_ADDR;
 
 #[derive(Args, Debug)]
 pub struct MeshArgs {
     #[command(subcommand)]
     pub command: MeshCommand,
+
+    /// Dashboard API address
+    #[arg(long, default_value = DEFAULT_DASHBOARD_ADDR)]
+    pub api_addr: String,
 }
 
 #[derive(Subcommand, Debug)]
@@ -74,108 +80,182 @@ pub struct TopologyArgs {
 #[allow(clippy::enum_variant_names)]
 pub enum Error {
     #[error("Mesh not initialized")]
-    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
+    #[allow(dead_code)]
     MeshNotInitialized,
 
     #[error("Peer not found: {0}")]
-    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
+    #[allow(dead_code)]
     PeerNotFound(String),
 
     #[error("Connection failed: {0}")]
-    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
     ConnectionFailed(String),
 
     #[error("Disconnection failed: {0}")]
-    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
+    #[allow(dead_code)]
     DisconnectionFailed(String),
 
     #[error("Invalid peer address: {0}")]
-    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
+    #[allow(dead_code)]
     InvalidPeerAddress(String),
 
     #[error("Timeout connecting to peer: {0}")]
-    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
+    #[allow(dead_code)]
     ConnectionTimeout(String),
 
     #[error("Topology error: {0}")]
-    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
+    #[allow(dead_code)]
     TopologyError(String),
+
+    #[error("API request failed: {0}")]
+    Api(#[from] reqwest::Error),
 }
 
-pub async fn execute(args: MeshArgs) -> Result<(), Error> {
-    match args.command {
-        MeshCommand::Status(s) => mesh_status(&s).await,
-        MeshCommand::Peers(p) => mesh_peers(&p).await,
-        MeshCommand::Connect(c) => mesh_connect(&c).await,
-        MeshCommand::Disconnect(d) => mesh_disconnect(&d).await,
-        MeshCommand::Topology(t) => mesh_topology(&t).await,
+struct ApiClient {
+    client: reqwest::Client,
+    base_url: String,
+}
+
+impl ApiClient {
+    fn new(api_addr: &str) -> Self {
+        Self {
+            client: reqwest::Client::builder()
+                .timeout(Duration::from_secs(5))
+                .build()
+                .unwrap_or_else(|_| reqwest::Client::new()),
+            base_url: api_addr.trim_end_matches('/').to_string(),
+        }
+    }
+
+    async fn fetch_cluster_status(&self) -> Result<serde_json::Value, Error> {
+        let resp = self
+            .client
+            .get(format!("{}/api/v1/cluster/status", self.base_url))
+            .send()
+            .await?;
+
+        if !resp.status().is_success() {
+            return Err(Error::ConnectionFailed(format!(
+                "Server returned {}",
+                resp.status()
+            )));
+        }
+
+        resp.json()
+            .await
+            .map_err(|e| Error::ConnectionFailed(format!("Failed to parse cluster status: {e}")))
+    }
+
+    async fn fetch_nodes(&self) -> Result<Vec<serde_json::Value>, Error> {
+        let resp = self
+            .client
+            .get(format!("{}/api/v1/cluster/nodes", self.base_url))
+            .send()
+            .await?;
+
+        if !resp.status().is_success() {
+            return Err(Error::ConnectionFailed(format!(
+                "Server returned {}",
+                resp.status()
+            )));
+        }
+
+        resp.json()
+            .await
+            .map_err(|e| Error::ConnectionFailed(format!("Failed to parse nodes response: {e}")))
+    }
+
+    async fn join_cluster(&self, peer: &str) -> Result<serde_json::Value, Error> {
+        let body = serde_json::json!({ "peer": peer });
+        let resp = self
+            .client
+            .post(format!("{}/api/v1/cluster/join", self.base_url))
+            .json(&body)
+            .send()
+            .await?;
+
+        if !resp.status().is_success() {
+            let status = resp.status();
+            let text = resp.text().await.ok();
+            return Err(Error::ConnectionFailed(format!(
+                "Join failed ({status}): {}",
+                text.as_deref().unwrap_or("unknown error")
+            )));
+        }
+
+        resp.json()
+            .await
+            .ok()
+            .ok_or_else(|| Error::ConnectionFailed("Empty response from join".to_string()))
+    }
+
+    async fn leave_cluster(&self, peer: &str) -> Result<(), Error> {
+        let body = serde_json::json!({ "peer": peer });
+        let resp = self
+            .client
+            .post(format!("{}/api/v1/cluster/leave", self.base_url))
+            .json(&body)
+            .send()
+            .await?;
+
+        if !resp.status().is_success() {
+            let status = resp.status();
+            let text = resp.text().await.ok();
+            return Err(Error::DisconnectionFailed(format!(
+                "Leave failed ({status}): {}",
+                text.as_deref().unwrap_or("unknown error")
+            )));
+        }
+
+        Ok(())
     }
 }
 
-async fn mesh_status(args: &StatusArgs) -> Result<(), Error> {
+pub async fn execute(args: MeshArgs) -> Result<(), Error> {
+    let api = ApiClient::new(&args.api_addr);
+    match args.command {
+        MeshCommand::Status(s) => mesh_status(&api, &s).await,
+        MeshCommand::Peers(p) => mesh_peers(&api, &p).await,
+        MeshCommand::Connect(c) => mesh_connect(&api, &c).await,
+        MeshCommand::Disconnect(d) => mesh_disconnect(&api, &d).await,
+        MeshCommand::Topology(t) => mesh_topology(&api, &t).await,
+    }
+}
+
+async fn mesh_status(api: &ApiClient, args: &StatusArgs) -> Result<(), Error> {
     let format = args.format.as_deref().unwrap_or("table");
+    let status = api.fetch_cluster_status().await?;
 
     if format == "json" {
-        let status = json!({
-            "status": "healthy",
-            "node_id": "node-abc123",
-            "uptime_seconds": 86400,
-            "peers": {
-                "connected": 5,
-                "pending": 1,
-                "failed": 0
-            },
-            "connections": {
-                "total": 12,
-                "active": 10,
-                "idle": 2
-            },
-            "health": {
-                "latency_p50_ms": 0.5,
-                "latency_p99_ms": 2.1,
-                "packet_loss_percent": 0.01
-            },
-            "traffic": {
-                "bytes_in": 1073741824,
-                "bytes_out": 2147483648_u32,
-                "messages_per_sec": 10000
-            }
-        });
         println!(
             "{}",
             serde_json::to_string_pretty(&status).unwrap_or_else(|_| "{}".to_string())
         );
     } else {
-        println!("╔═══════════════════════════════════════════════════════════════╗");
-        println!("║                     MESH NETWORK STATUS                       ║");
-        println!("╠═══════════════════════════════════════════════════════════════╣");
+        println!("+=============================================================+");
+        println!("|                     MESH NETWORK STATUS                       |");
+        println!("+=============================================================+");
         println!();
-        println!("Node Information");
-        println!("├── Node ID:    node-abc123");
-        println!("├── Status:     healthy ✓");
-        println!("└── Uptime:     24h 0m");
+
+        if let Some(obj) = status.as_object() {
+            for (key, value) in obj {
+                let val_str = match value {
+                    serde_json::Value::String(s) => s.clone(),
+                    serde_json::Value::Number(n) => n.to_string(),
+                    other => {
+                        serde_json::to_string_pretty(other).unwrap_or_else(|_| other.to_string())
+                    }
+                };
+                println!("|-- {}: {}", key, val_str);
+            }
+        } else {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&status).unwrap_or_default()
+            );
+        }
+
         println!();
-        println!("Peers");
-        println!("├── Connected:  5");
-        println!("├── Pending:    1");
-        println!("└── Failed:     0");
-        println!();
-        println!("Connections");
-        println!("├── Total:      12");
-        println!("├── Active:     10");
-        println!("└── Idle:       2");
-        println!();
-        println!("Network Health");
-        println!("├── Latency P50: 0.5 ms");
-        println!("├── Latency P99: 2.1 ms");
-        println!("└── Packet Loss: 0.01%");
-        println!();
-        println!("Traffic");
-        println!("├── In:         1.0 GB");
-        println!("├── Out:        2.0 GB");
-        println!("└── Rate:       10,000 msg/s");
-        println!();
-        println!("╚═══════════════════════════════════════════════════════════════╝");
+        println!("+=============================================================+");
 
         if args.watch {
             println!("Watching for changes... (Press Ctrl+C to stop)");
@@ -185,168 +265,133 @@ async fn mesh_status(args: &StatusArgs) -> Result<(), Error> {
     Ok(())
 }
 
-async fn mesh_peers(args: &PeersArgs) -> Result<(), Error> {
+async fn mesh_peers(api: &ApiClient, args: &PeersArgs) -> Result<(), Error> {
     let format = args.format.as_deref().unwrap_or("table");
-
-    let peers = vec![
-        (
-            "node-def456",
-            "192.168.1.10:7000",
-            "connected",
-            "2ms",
-            "5000 msg/s",
-        ),
-        (
-            "node-ghi789",
-            "192.168.1.11:7000",
-            "connected",
-            "3ms",
-            "4500 msg/s",
-        ),
-        (
-            "node-jkl012",
-            "192.168.1.12:7000",
-            "connected",
-            "1ms",
-            "5200 msg/s",
-        ),
-        ("node-mno345", "192.168.1.13:7000", "pending", "-", "-"),
-        (
-            "node-pqr678",
-            "192.168.1.14:7000",
-            "connected",
-            "5ms",
-            "4800 msg/s",
-        ),
-    ];
+    let nodes = api.fetch_nodes().await?;
 
     if format == "json" {
-        let peers_json: Vec<_> = peers.iter().map(|(id, addr, status, lat, rate)| {
-            json!({
-                "node_id": id,
-                "address": addr,
-                "status": status,
-                "latency_ms": if *lat == "-" { None } else { Some(lat.trim_end_matches("ms").parse::<f64>().ok()) },
-                "message_rate": rate
-            })
-        }).collect();
         println!(
             "{}",
-            serde_json::to_string_pretty(&peers_json).unwrap_or_else(|_| "{}".to_string())
+            serde_json::to_string_pretty(&nodes).unwrap_or_else(|_| "{}".to_string())
         );
     } else if args.detailed {
         println!("Peer Details");
-        println!("═════════════════════════════════════════════════════════════════════");
+        println!("================================================================");
         println!();
 
-        for (id, addr, status, lat, rate) in &peers {
+        for node in &nodes {
+            let id = node.get("id").and_then(|v| v.as_str()).unwrap_or("unknown");
+            let addr = node
+                .get("address")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown");
+            let state = node
+                .get("state")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown");
+
             println!("Node: {}", id);
-            println!("├── Address:    {}", addr);
-            println!("├── Status:     {}", status);
-            println!("├── Latency:    {}", lat);
-            println!("├── Msg Rate:   {}", rate);
-            println!("├── Uptime:     12h 30m");
-            println!("└── Version:    {}", env!("CARGO_PKG_VERSION"));
+            println!("|-- Address:    {}", addr);
+            println!("|-- State:      {}", state);
+            println!("|-- Version:    {}", env!("CARGO_PKG_VERSION"));
             println!();
         }
     } else {
-        println!("Connected Peers: {}", peers.len());
-        println!("───────────────────────────────────────────────────────────────────────");
-        println!(
-            "{:<16} {:<22} {:<12} {:<10} {:<12}",
-            "NODE ID", "ADDRESS", "STATUS", "LATENCY", "MSG RATE"
-        );
-        println!("───────────────────────────────────────────────────────────────────────");
+        println!("Cluster Nodes: {}", nodes.len());
+        println!("-----------------------------------------------------------------------");
+        println!("{:<40} {:<24} {:<12}", "NODE ID", "ADDRESS", "STATE");
+        println!("-----------------------------------------------------------------------");
 
-        for (id, addr, status, lat, rate) in &peers {
-            println!(
-                "{:<16} {:<22} {:<12} {:<10} {:<12}",
-                id, addr, status, lat, rate
-            );
+        for node in &nodes {
+            let id = node.get("id").and_then(|v| v.as_str()).unwrap_or("unknown");
+            let addr = node
+                .get("address")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown");
+            let state = node
+                .get("state")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown");
+            println!("{:<40} {:<24} {:<12}", id, addr, state);
         }
 
-        println!("───────────────────────────────────────────────────────────────────────");
-        println!("Total: {} peers", peers.len());
+        println!("-----------------------------------------------------------------------");
+        println!("Total: {} nodes", nodes.len());
     }
 
     Ok(())
 }
 
-async fn mesh_connect(args: &ConnectArgs) -> Result<(), Error> {
+async fn mesh_connect(api: &ApiClient, args: &ConnectArgs) -> Result<(), Error> {
     println!("Connecting to peer: {}", args.peer);
     println!();
 
-    let port = args.port.unwrap_or(7000);
-    println!("Address: {}:{}", args.peer, port);
+    let addr = match args.port {
+        Some(p) => format!("{}:{}", args.peer, p),
+        None => args.peer.clone(),
+    };
+    println!("Address: {}", addr);
     println!("Timeout: {} seconds", args.timeout);
     println!();
 
-    println!("Establishing connection...");
-    println!("├── Resolving address...      ✓");
-    println!("├── Opening socket...         ✓");
-    println!("├── Performing handshake...   ✓");
-    println!("└── Authenticating...         ✓");
-    println!();
+    println!("Sending join request...");
 
-    println!("✓ Successfully connected to peer");
-    println!();
-    println!("Connection Details:");
-    println!("├── Peer ID:    peer-{}", &args.peer.replace(".", ""));
-    println!("├── Latency:    2.5 ms");
-    println!("└── Protocol:   aether-mesh/1.0");
+    match api.join_cluster(&addr).await {
+        Ok(result) => {
+            println!("Successfully connected to peer");
+            println!();
+            println!("Connection Details:");
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&result).unwrap_or_else(|_| "OK".to_string())
+            );
+        }
+        Err(e) => {
+            println!("Connection failed: {}", e);
+            return Err(e);
+        }
+    }
 
     Ok(())
 }
 
-async fn mesh_disconnect(args: &DisconnectArgs) -> Result<(), Error> {
+async fn mesh_disconnect(api: &ApiClient, args: &DisconnectArgs) -> Result<(), Error> {
     println!("Disconnecting from peer: {}", args.peer);
     println!();
 
     if args.force {
         println!("Force disconnect requested");
-        println!("├── Terminating connection... ✓");
-        println!("└── Cleaning up resources...  ✓");
     } else {
         println!("Graceful disconnect initiated");
-        println!("├── Draining pending messages... ✓");
-        println!("├── Sending goodbye...           ✓");
-        println!("└── Closing connection...        ✓");
     }
 
-    println!();
-    println!("✓ Successfully disconnected from peer");
+    match api.leave_cluster(&args.peer).await {
+        Ok(()) => {
+            println!("Successfully disconnected from peer");
+        }
+        Err(e) => {
+            println!("Disconnect failed: {}", e);
+            return Err(e);
+        }
+    }
 
     Ok(())
 }
 
-async fn mesh_topology(args: &TopologyArgs) -> Result<(), Error> {
+async fn mesh_topology(api: &ApiClient, args: &TopologyArgs) -> Result<(), Error> {
     let format = args.format.as_deref().unwrap_or("tree");
 
     if let Some(output) = &args.output {
         println!("Writing topology to: {}", output);
     }
 
+    let nodes = api.fetch_nodes().await?;
+
     match format {
         "json" => {
-            let topo = json!({
-                "nodes": [
-                    {"id": "node-abc123", "type": "local", "peers": ["node-def456", "node-ghi789"]},
-                    {"id": "node-def456", "type": "remote", "peers": ["node-abc123", "node-jkl012"]},
-                    {"id": "node-ghi789", "type": "remote", "peers": ["node-abc123", "node-jkl012"]},
-                    {"id": "node-jkl012", "type": "remote", "peers": ["node-def456", "node-ghi789"]}
-                ],
-                "edges": [
-                    {"from": "node-abc123", "to": "node-def456", "latency_ms": 2.0},
-                    {"from": "node-abc123", "to": "node-ghi789", "latency_ms": 3.0},
-                    {"from": "node-def456", "to": "node-jkl012", "latency_ms": 1.5},
-                    {"from": "node-ghi789", "to": "node-jkl012", "latency_ms": 1.0}
-                ],
-                "clusters": 1,
-                "diameter": 3
-            });
             println!(
                 "{}",
-                serde_json::to_string_pretty(&topo).unwrap_or_else(|_| "{}".to_string())
+                serde_json::to_string_pretty(&nodes).unwrap_or_else(|_| "{}".to_string())
             );
         }
         "dot" => {
@@ -354,47 +399,67 @@ async fn mesh_topology(args: &TopologyArgs) -> Result<(), Error> {
             println!("  rankdir=LR;");
             println!("  node [shape=circle];");
             println!();
-            println!(
-                "  \"node-abc123\" [label=\"local\\nabc123\" style=filled fillcolor=lightblue];"
-            );
-            println!("  \"node-def456\" [label=\"def456\"];");
-            println!("  \"node-ghi789\" [label=\"ghi789\"];");
-            println!("  \"node-jkl012\" [label=\"jkl012\"];");
+
+            for (i, node) in nodes.iter().enumerate() {
+                let id = node.get("id").and_then(|v| v.as_str()).unwrap_or("unknown");
+                let label = if i == 0 {
+                    format!("local\\n{}", id)
+                } else {
+                    id.to_string()
+                };
+                let style = if i == 0 {
+                    " style=filled fillcolor=lightblue;"
+                } else {
+                    ""
+                };
+                println!("  \"{}\" [label=\"{}\"{}];", id, label, style);
+            }
+
             println!();
-            println!("  \"node-abc123\" -> \"node-def456\" [label=\"2ms\"];");
-            println!("  \"node-abc123\" -> \"node-ghi789\" [label=\"3ms\"];");
-            println!("  \"node-def456\" -> \"node-jkl012\" [label=\"1.5ms\"];");
-            println!("  \"node-ghi789\" -> \"node-jkl012\" [label=\"1ms\"];");
+
+            if nodes.len() > 1 {
+                for i in 1..nodes.len() {
+                    let first = nodes[0]
+                        .get("id")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("unknown");
+                    let current = nodes[i]
+                        .get("id")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("unknown");
+                    println!("  \"{}\" -> \"{}\";", first, current);
+                }
+            }
+
             println!("}}");
         }
         _ => {
             println!("Mesh Topology");
-            println!("═══════════════════════════════════════════════════════════════");
+            println!("===============================================================");
             println!();
-            println!("        ┌─────────────┐");
-            println!("        │  node-ghi   │");
-            println!("        │    (3ms)    │");
-            println!("        └──────┬──────┘");
-            println!("               │");
-            println!("┌──────────────┼──────────────┐");
-            println!("│              │              │");
-            println!("│    ┌─────────┴─────────┐    │");
-            println!("│    │   node-abc123     │    │");
-            println!("│    │     (local)       │    │");
-            println!("│    └─────────┬─────────┘    │");
-            println!("│              │              │");
-            println!("│    ┌─────────┴─────────┐    │");
-            println!("│    │    node-def       │    │");
-            println!("│    │      (2ms)        │    │");
-            println!("│    └─────────┬─────────┘    │");
-            println!("│              │              │");
-            println!("│    ┌─────────┴─────────┐    │");
-            println!("│    │    node-jkl       │    │");
-            println!("│    │     (1.5ms)       │    │");
-            println!("│    └───────────────────┘    │");
-            println!("└─────────────────────────────┘");
-            println!();
-            println!("Cluster: 1 | Diameter: 3 hops | Nodes: 4");
+
+            if nodes.is_empty() {
+                println!("No nodes found in cluster.");
+            } else {
+                println!("  [Local Node]");
+                let local_id = nodes[0]
+                    .get("id")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("unknown");
+                println!("    {}", local_id);
+                println!();
+
+                if nodes.len() > 1 {
+                    for node in &nodes[1..] {
+                        let id = node.get("id").and_then(|v| v.as_str()).unwrap_or("unknown");
+                        let addr = node.get("address").and_then(|v| v.as_str()).unwrap_or("-");
+                        println!("    |-- {} ({})", id, addr);
+                    }
+                }
+
+                println!();
+                println!("Nodes: {} | Local: {}", nodes.len(), local_id);
+            }
         }
     }
 

@@ -1,3 +1,5 @@
+//go:build !otel
+
 // Package resilience provides tracing integration with OpenTelemetry.
 package resilience
 

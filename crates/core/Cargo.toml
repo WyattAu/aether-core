@@ -8,13 +8,15 @@ license.workspace = true
 description = "Aether Core Runtime - The Post-Container Application OS"
 
 [features]
-default = ["wasm", "mesh"]
+default = ["wasm", "mesh", "rkyv"]
 wasm = ["wasmtime", "wasmtime-wasi"]
 mesh = ["quinn", "rustls"]
 enterprise = []
 fdb = ["foundationdb"]
 firecracker = []
 chaos = ["num_cpus"]
+instance-pool = []
+rkyv = []
 
 [dependencies]
 tokio = { workspace = true, features = ["fs", "sync", "time", "macros", "rt", "rt-multi-thread", "io-util", "net", "process", "signal"] }

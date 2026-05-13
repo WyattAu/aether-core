@@ -4,6 +4,8 @@
 
 /// Authentication middleware.
 pub mod auth;
+/// Actor backend abstraction (in-memory and production).
+pub mod backend;
 /// Server configuration types.
 pub mod config;
 /// WASM engine integration.

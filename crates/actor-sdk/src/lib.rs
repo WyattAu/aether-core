@@ -22,7 +22,7 @@ pub mod logging;
 pub mod message;
 pub mod state;
 
-pub use capability::{Capability, CapabilityManifest, CapabilitySet};
+pub use capability::{Capability, CapabilityManifest, CapabilitySet, capabilities_from_names};
 pub use context::ActorContext;
 pub use handler::{ActorHandler, Handler};
 pub use logging::{LogLevel, log};

@@ -1,12 +1,15 @@
 //! Rollback Command
 //!
 //! Rollback a deployment to a previous version.
+//! If the Aether server is reachable, fetches current actor state before rollback.
 
 use clap::Args;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use thiserror::Error;
+
+use super::DEFAULT_DASHBOARD_ADDR;
 
 #[derive(Args, Debug)]
 pub struct RollbackArgs {
@@ -33,6 +36,10 @@ pub struct RollbackArgs {
     /// Timeout in seconds
     #[arg(long, default_value = "60")]
     pub timeout: u64,
+
+    /// Dashboard API address (optional, for server sync)
+    #[arg(long, default_value = DEFAULT_DASHBOARD_ADDR)]
+    pub api_addr: String,
 }
 
 #[derive(Error, Debug)]
@@ -59,6 +66,9 @@ pub enum Error {
 
     #[error("JSON error: {0}")]
     JsonError(String),
+
+    #[error("API request failed: {0}")]
+    Api(#[from] reqwest::Error),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -170,6 +180,27 @@ impl DeploymentHistory {
     }
 }
 
+async fn fetch_server_state(api_addr: &str, actor: &str) -> Option<serde_json::Value> {
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(2))
+        .build()
+        .ok()?;
+
+    let base_url = api_addr.trim_end_matches('/');
+
+    let resp = client
+        .get(format!("{}/api/v1/actors/{}", base_url, actor))
+        .send()
+        .await
+        .ok()?;
+
+    if resp.status().is_success() {
+        resp.json().await.ok()
+    } else {
+        None
+    }
+}
+
 pub async fn execute(args: RollbackArgs) -> Result<(), Error> {
     let history_path = PathBuf::from(&args.history);
     let mut history = DeploymentHistory::load(&history_path)?;
@@ -189,8 +220,8 @@ pub async fn execute(args: RollbackArgs) -> Result<(), Error> {
             .ok_or(Error::NoPreviousRevision)?
     };
 
-    println!("🔄 Aether Rollback");
-    println!("──────────────────");
+    println!("Aether Rollback");
+    println!("------------------");
     println!("   Actor: {}", args.actor);
     println!(
         "   Current revision: {}",
@@ -203,23 +234,44 @@ pub async fn execute(args: RollbackArgs) -> Result<(), Error> {
     println!("   Config hash: {}", &target_record.config_hash[..8]);
     println!();
 
+    if let Some(server_state) = fetch_server_state(&args.api_addr, &args.actor).await {
+        println!("Server state (synced from {}):", args.api_addr);
+        let state = server_state
+            .get("state")
+            .and_then(|v| v.as_str())
+            .unwrap_or("unknown");
+        let messages = server_state
+            .get("messages")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0);
+        println!("   -- Actor state:  {}", state);
+        println!("   -- Messages:     {}", messages);
+        println!();
+    } else {
+        println!(
+            "Server not reachable at {} (continuing with local history)",
+            args.api_addr
+        );
+        println!();
+    }
+
     if args.dry_run {
-        println!("🔍 Dry run mode - showing rollback plan:");
+        println!("Dry run mode - showing rollback plan:");
         println!();
         println!("   Would perform the following:");
-        println!("   • Mark current deployment as rolled back");
-        println!("   • Activate revision {}", target_record.revision);
+        println!("   - Mark current deployment as rolled back");
+        println!("   - Activate revision {}", target_record.revision);
         println!(
-            "   • Deploy version {} of actor '{}'",
+            "   - Deploy version {} of actor '{}'",
             target_record.version, args.actor
         );
-        println!("   • Run health checks (timeout: {}s)", args.timeout);
+        println!("   - Run health checks (timeout: {}s)", args.timeout);
         println!();
-        println!("✅ Dry run complete - no changes made");
+        println!("Dry run complete - no changes made");
         return Ok(());
     }
 
-    println!("⏳ Rolling back to revision {}...", target_record.revision);
+    println!("Rolling back to revision {}...", target_record.revision);
     println!();
 
     history.rollback_to(&args.actor, target_record.revision)?;
@@ -237,22 +289,22 @@ pub async fn execute(args: RollbackArgs) -> Result<(), Error> {
 
     match health_result {
         Ok(Ok(true)) => {
-            println!("✅ Health check passed");
+            println!("Health check passed");
         }
         Ok(Ok(false)) | Ok(Err(_)) => {
             if args.force {
-                println!("⚠️  Health check failed (forced rollback)");
+                println!("Health check failed (forced rollback)");
             } else {
-                println!("❌ Health check failed");
+                println!("Health check failed");
                 println!("   Use --force to rollback anyway");
                 return Err(Error::HealthCheckFailed);
             }
         }
         Err(_) => {
             if args.force {
-                println!("⚠️  Health check timed out (forced rollback)");
+                println!("Health check timed out (forced rollback)");
             } else {
-                println!("❌ Health check timed out after {}s", args.timeout);
+                println!("Health check timed out after {}s", args.timeout);
                 println!("   Use --force to rollback anyway");
                 return Err(Error::HealthCheckFailed);
             }
@@ -267,12 +319,12 @@ pub async fn execute(args: RollbackArgs) -> Result<(), Error> {
         .as_secs();
 
     println!();
-    println!("✅ Rollback complete!");
+    println!("Rollback complete!");
     println!();
-    println!("📋 Summary:");
+    println!("Summary:");
     println!("   Actor: {}", args.actor);
     println!(
-        "   Revision: {} → {}",
+        "   Revision: {} -> {}",
         current_rev
             .map(|r| r.to_string())
             .unwrap_or_else(|| "none".to_string()),

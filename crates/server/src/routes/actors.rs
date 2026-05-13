@@ -67,7 +67,11 @@ async fn register_actor(
         actor_id: actor_id.clone(),
     };
 
-    state.actors.write().await.insert(actor_id.clone(), record);
+    state
+        .backend
+        .register(record)
+        .await
+        .map_err(|e| ApiError::InternalError(format!("failed to register actor: {e}")))?;
 
     Ok(Json(serde_json::json!({
         "actor_id": actor_id,
@@ -79,8 +83,11 @@ async fn register_actor(
 async fn list_actors(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<serde_json::Value>, ApiError> {
-    let actors = state.actors.read().await;
-    let list: Vec<&crate::state::ActorRecord> = actors.values().collect();
+    let list = state
+        .backend
+        .list()
+        .await
+        .map_err(|e| ApiError::InternalError(format!("failed to list actors: {e}")))?;
     Ok(Json(serde_json::json!(list)))
 }
 
@@ -88,9 +95,11 @@ async fn get_actor(
     State(state): State<Arc<AppState>>,
     Path(actor_id): Path<String>,
 ) -> Result<Json<serde_json::Value>, ApiError> {
-    let actors = state.actors.read().await;
-    let record = actors
+    let record = state
+        .backend
         .get(&actor_id)
+        .await
+        .map_err(|e| ApiError::InternalError(format!("backend lookup failed: {e}")))?
         .ok_or_else(|| ApiError::NotFound(format!("actor {actor_id} not found")))?;
     Ok(Json(serde_json::json!(record)))
 }
@@ -99,10 +108,11 @@ async fn deregister_actor(
     State(state): State<Arc<AppState>>,
     Path(actor_id): Path<String>,
 ) -> Result<Json<serde_json::Value>, ApiError> {
-    let removed = state.actors.write().await.remove(&actor_id).is_some();
-    if !removed {
-        return Err(ApiError::NotFound(format!("actor {actor_id} not found")));
-    }
+    state
+        .backend
+        .deregister(&actor_id)
+        .await
+        .map_err(|e| ApiError::NotFound(format!("actor {actor_id} not found: {e}")))?;
     // Also remove compiled module.
     state.modules.write().await.remove(&actor_id);
     Ok(Json(serde_json::json!({
@@ -116,11 +126,13 @@ async fn send_message(
     Path(actor_id): Path<String>,
     Json(req): Json<SendMessageRequest>,
 ) -> Result<Json<serde_json::Value>, ApiError> {
-    let actors = state.actors.read().await;
-    if !actors.contains_key(&actor_id) {
-        return Err(ApiError::NotFound(format!("actor {actor_id} not found")));
-    }
-    drop(actors);
+    // Validate actor exists via backend.
+    state
+        .backend
+        .get(&actor_id)
+        .await
+        .map_err(|e| ApiError::InternalError(format!("backend lookup failed: {e}")))?
+        .ok_or_else(|| ApiError::NotFound(format!("actor {actor_id} not found")))?;
 
     let message_id = uuid::Uuid::new_v4().to_string();
     let now = chrono::Utc::now().to_rfc3339();
@@ -194,11 +206,13 @@ async fn get_inbox(
     State(state): State<Arc<AppState>>,
     Path(actor_id): Path<String>,
 ) -> Result<Json<serde_json::Value>, ApiError> {
-    let actors = state.actors.read().await;
-    if !actors.contains_key(&actor_id) {
-        return Err(ApiError::NotFound(format!("actor {actor_id} not found")));
-    }
-    drop(actors);
+    // Validate actor exists via backend.
+    state
+        .backend
+        .get(&actor_id)
+        .await
+        .map_err(|e| ApiError::InternalError(format!("backend lookup failed: {e}")))?
+        .ok_or_else(|| ApiError::NotFound(format!("actor {actor_id} not found")))?;
 
     let events = state.events.read().await;
     let inbox: Vec<&crate::state::EventRecord> = events
@@ -215,12 +229,11 @@ async fn heartbeat(
     Path(actor_id): Path<String>,
 ) -> Result<Json<serde_json::Value>, ApiError> {
     let now = chrono::Utc::now().to_rfc3339();
-    let mut actors = state.actors.write().await;
-    let record = actors
-        .get_mut(&actor_id)
-        .ok_or_else(|| ApiError::NotFound(format!("actor {actor_id} not found")))?;
-    record.status = "running".to_string();
-    record.last_heartbeat = now.clone();
+    state
+        .backend
+        .heartbeat(&actor_id)
+        .await
+        .map_err(|e| ApiError::NotFound(format!("actor {actor_id} not found: {e}")))?;
     Ok(Json(serde_json::json!({
         "actor_id": actor_id,
         "status": "running",

@@ -1,16 +1,22 @@
 //! Inspect Command
 //!
-//! Inspect actor memory, state, and metadata.
+//! Inspect actor memory, state, and metadata via the Aether HTTP API.
 
 use clap::Args;
 use clap::Subcommand;
-use serde_json::json;
+use std::time::Duration;
 use thiserror::Error;
+
+use super::DEFAULT_DASHBOARD_ADDR;
 
 #[derive(Args, Debug)]
 pub struct InspectArgs {
     #[command(subcommand)]
     pub command: InspectCommand,
+
+    /// Dashboard API address
+    #[arg(long, default_value = DEFAULT_DASHBOARD_ADDR)]
+    pub api_addr: String,
 }
 
 #[derive(Subcommand, Debug)]
@@ -79,322 +85,375 @@ pub struct AllArgs {
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("Actor not found: {0}")]
-    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
     ActorNotFound(String),
 
     #[error("Actor not running: {0}")]
-    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
+    #[allow(dead_code)]
     ActorNotRunning(String),
 
     #[error("Failed to inspect actor: {0}")]
-    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
     InspectFailed(String),
 
     #[error("Invalid memory range: {0}")]
-    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
+    #[allow(dead_code)]
     InvalidMemoryRange(String),
 
     #[error("State key not found: {0}")]
-    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
+    #[allow(dead_code)]
     StateKeyNotFound(String),
 
-    #[error("Connection failed: {0}")]
-    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
-    ConnectionFailed(String),
+    #[error("API request failed: {0}")]
+    Api(#[from] reqwest::Error),
 }
 
-pub async fn execute(args: InspectArgs) -> Result<(), Error> {
-    match args.command {
-        InspectCommand::Memory(m) => inspect_memory(&m).await,
-        InspectCommand::State(s) => inspect_state(&s).await,
-        InspectCommand::Stack(s) => inspect_stack(&s).await,
-        InspectCommand::Metadata(m) => inspect_metadata(&m).await,
-        InspectCommand::All(a) => inspect_all(&a).await,
+struct ApiClient {
+    client: reqwest::Client,
+    base_url: String,
+}
+
+impl ApiClient {
+    fn new(api_addr: &str) -> Self {
+        Self {
+            client: reqwest::Client::builder()
+                .timeout(Duration::from_secs(5))
+                .build()
+                .unwrap_or_else(|_| reqwest::Client::new()),
+            base_url: api_addr.trim_end_matches('/').to_string(),
+        }
+    }
+
+    async fn fetch_actor(&self, actor: &str) -> Result<serde_json::Value, Error> {
+        let resp = self
+            .client
+            .get(format!("{}/api/v1/actors/{}", self.base_url, actor))
+            .send()
+            .await?;
+
+        if resp.status() == reqwest::StatusCode::NOT_FOUND {
+            return Err(Error::ActorNotFound(actor.to_string()));
+        }
+        if !resp.status().is_success() {
+            return Err(Error::InspectFailed(format!(
+                "Server returned {}",
+                resp.status()
+            )));
+        }
+
+        resp.json()
+            .await
+            .map_err(|e| Error::InspectFailed(format!("Failed to parse actor response: {e}")))
+    }
+
+    async fn fetch_state(
+        &self,
+        actor: &str,
+        key: Option<&str>,
+    ) -> Result<serde_json::Value, Error> {
+        let url = match key {
+            Some(k) => format!("{}/api/v1/state/{}/{}", self.base_url, actor, k),
+            None => format!("{}/api/v1/state/{}", self.base_url, actor),
+        };
+
+        let resp = self.client.get(&url).send().await?;
+
+        if !resp.status().is_success() {
+            return Err(Error::InspectFailed(format!(
+                "Server returned {} for state query",
+                resp.status()
+            )));
+        }
+
+        resp.json()
+            .await
+            .map_err(|e| Error::InspectFailed(format!("Failed to parse state response: {e}")))
     }
 }
 
-async fn inspect_memory(args: &MemoryArgs) -> Result<(), Error> {
+pub async fn execute(args: InspectArgs) -> Result<(), Error> {
+    let api = ApiClient::new(&args.api_addr);
+    match args.command {
+        InspectCommand::Memory(m) => inspect_memory(&api, &m).await,
+        InspectCommand::State(s) => inspect_state(&api, &s).await,
+        InspectCommand::Stack(s) => inspect_stack(&s).await,
+        InspectCommand::Metadata(m) => inspect_metadata(&api, &m).await,
+        InspectCommand::All(a) => inspect_all(&api, &a).await,
+    }
+}
+
+async fn inspect_memory(api: &ApiClient, args: &MemoryArgs) -> Result<(), Error> {
+    let actor = api.fetch_actor(&args.actor).await?;
     let format = args.format.as_deref().unwrap_or("hex");
 
-    println!("Memory dump for actor: {}", args.actor);
-    println!("────────────────────────────────────────────────────────────");
+    println!("Memory info for actor: {}", args.actor);
+    println!("----------------------------------------------------------------");
     println!();
 
     if format == "json" {
-        let mem = json!({
+        let mut mem = serde_json::json!({
             "actor": args.actor,
-            "offset": args.offset.unwrap_or(0),
-            "bytes": 64,
-            "data": "0x00000000: 48 65 6C 6C 6F 20 57 6F 72 6C 64 00 00 00 00 00"
+            "state": actor.get("state").and_then(|v| v.as_str()).unwrap_or("unknown"),
+            "messages_processed": actor.get("messages").and_then(|v| v.as_u64()).unwrap_or(0),
+            "cold_starts": actor.get("cold_starts").and_then(|v| v.as_u64()).unwrap_or(0),
         });
+        if let Some(last_start) = actor.get("last_cold_start_us") {
+            mem["last_cold_start_us"] = last_start.clone();
+        }
         println!(
             "{}",
             serde_json::to_string_pretty(&mem).unwrap_or_else(|_| "{}".to_string())
         );
     } else {
-        println!("Address         Bytes                                            ASCII");
-        println!("─────────────────────────────────────────────────────────────────────");
-
-        let offset = args.offset.unwrap_or(0);
-        for i in (0..args.bytes.min(256)).step_by(16) {
-            let addr = offset + i;
-            print!("0x{:012X}  ", addr);
-
-            for j in 0..16 {
-                if i + j < args.bytes {
-                    print!("{:02X} ", (addr + j) % 256);
-                } else {
-                    print!("   ");
-                }
-            }
-
-            print!(" |");
-            for j in 0..16.min(args.bytes - i) {
-                let byte = ((addr + j) % 95 + 32) as u8;
-                if byte.is_ascii_graphic() || byte == b' ' {
-                    print!("{}", byte as char);
-                } else {
-                    print!(".");
-                }
-            }
-            println!("|");
-        }
+        println!("Actor Metadata (memory-related)");
+        println!(
+            "|-- State:              {}",
+            actor
+                .get("state")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown")
+        );
+        println!(
+            "|-- Messages processed: {}",
+            actor.get("messages").and_then(|v| v.as_u64()).unwrap_or(0)
+        );
+        println!(
+            "|-- Cold starts:        {}",
+            actor
+                .get("cold_starts")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0)
+        );
+        println!(
+            "|-- Last cold start:    {} us",
+            actor
+                .get("last_cold_start_us")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0)
+        );
+        println!();
+        println!("NOTE: Detailed WASM linear memory dumps require the debugging");
+        println!("      extensions to be enabled on the server.");
     }
 
     println!();
-    println!(
-        "Showing {} bytes starting at offset {}",
-        args.bytes.min(256),
-        args.offset.unwrap_or(0)
-    );
-
     Ok(())
 }
 
-async fn inspect_state(args: &StateArgs) -> Result<(), Error> {
+async fn inspect_state(api: &ApiClient, args: &StateArgs) -> Result<(), Error> {
     let format = args.format.as_deref().unwrap_or("table");
 
     println!("Actor state for: {}", args.actor);
-    println!("────────────────────────────────────────────────────────────");
+    println!("----------------------------------------------------------------");
     println!();
 
-    if let Some(key) = &args.key {
-        if format == "json" {
-            let state = json!({
-                "actor": args.actor,
-                "key": key,
-                "value": {
-                    "counter": 42,
-                    "status": "active",
-                    "last_update": "2024-03-06T12:00:00Z"
-                }
-            });
-            println!(
-                "{}",
-                serde_json::to_string_pretty(&state).unwrap_or_else(|_| "{}".to_string())
-            );
-        } else {
-            println!("Key: {}", key);
-            println!("├── Type:     Object");
-            println!("├── Size:     128 bytes");
-            println!("└── Value:");
-            println!("    ├── counter: 42");
-            println!("    ├── status: \"active\"");
-            println!("    └── last_update: \"2024-03-06T12:00:00Z\"");
-        }
+    let state = api.fetch_state(&args.actor, args.key.as_deref()).await?;
+
+    if format == "json" {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&state).unwrap_or_else(|_| "{}".to_string())
+        );
     } else {
-        if format == "json" {
-            let state = json!({
-                "actor": args.actor,
-                "state": {
-                    "counter": 42,
-                    "status": "active",
-                    "connections": ["node1", "node2", "node3"],
-                    "config": {
-                        "max_retries": 3,
-                        "timeout_ms": 5000
-                    }
-                },
-                "size_bytes": 512,
-                "version": 15
-            });
+        if args.key.is_some() {
+            println!("Key value:");
             println!(
                 "{}",
-                serde_json::to_string_pretty(&state).unwrap_or_else(|_| "{}".to_string())
+                serde_json::to_string_pretty(&state).unwrap_or_else(|_| state.to_string())
             );
         } else {
-            println!("State Summary");
-            println!("├── Version:  15");
-            println!("├── Size:     512 bytes");
-            println!("└── Contents:");
-            println!("    ├── counter: 42 (i32)");
-            println!("    ├── status: \"active\" (String)");
-            println!("    ├── connections: [\"node1\", \"node2\", \"node3\"] (Array)");
-            println!("    └── config: {{max_retries: 3, timeout_ms: 5000}} (Object)");
+            match state.as_object() {
+                Some(map) if !map.is_empty() => {
+                    println!("State keys: {}", map.len());
+                    println!();
+                    for (key, value) in map {
+                        let val_str = match value {
+                            serde_json::Value::String(s) => format!("\"{}\"", s),
+                            other => other.to_string(),
+                        };
+                        println!("|-- {}: {}", key, val_str);
+                    }
+                }
+                _ => {
+                    println!("State:");
+                    println!(
+                        "{}",
+                        serde_json::to_string_pretty(&state).unwrap_or_else(|_| state.to_string())
+                    );
+                }
+            }
         }
     }
 
+    println!();
     Ok(())
 }
 
 async fn inspect_stack(args: &StackArgs) -> Result<(), Error> {
     println!("Call stack for actor: {}", args.actor);
-    println!("────────────────────────────────────────────────────────────");
+    println!("----------------------------------------------------------------");
     println!();
 
-    let frames = [
-        ("handle_request", "src/handler.rs:42", "async fn"),
-        ("process_message", "src/processor.rs:128", "async fn"),
-        ("validate_input", "src/validation.rs:15", "fn"),
-        ("decode_payload", "src/codec.rs:89", "fn"),
-        ("main_loop", "src/actor.rs:200", "async fn"),
-    ];
-
-    println!("Stack depth: {} frames", frames.len().min(args.depth));
+    println!("Stack traces require WASM debugging extensions to be enabled on the server.");
+    println!("This feature is not yet available via the HTTP API.");
     println!();
-
-    for (i, (name, location, kind)) in frames.iter().take(args.depth).enumerate() {
-        if i == 0 {
-            println!("#{}  {} at {} [{}]", i, name, location, kind);
-        } else {
-            println!("    #{}  {} at {} [{}]", i, name, location, kind);
-        }
-    }
-
+    println!("To obtain stack traces:");
+    println!("  1. Enable the `debug` feature on the aether-server");
+    println!("  2. Use the WASM debugging port (usually 9229)");
+    println!("  3. Connect with a DWARF-compatible debugger");
     println!();
-    println!("Tip: Use --depth to show more frames");
+    println!("Requested depth: {} frames", args.depth);
 
     Ok(())
 }
 
-async fn inspect_metadata(args: &MetadataArgs) -> Result<(), Error> {
+async fn inspect_metadata(api: &ApiClient, args: &MetadataArgs) -> Result<(), Error> {
     let format = args.format.as_deref().unwrap_or("table");
 
     println!("Metadata for actor: {}", args.actor);
-    println!("────────────────────────────────────────────────────────────");
+    println!("----------------------------------------------------------------");
     println!();
 
+    let meta = api.fetch_actor(&args.actor).await?;
+
     if format == "json" {
-        let meta = json!({
-            "actor": args.actor,
-            "id": "actor-12345-abcde",
-            "version": "1.2.3",
-            "runtime": {
-                "name": "aether",
-                "version": env!("CARGO_PKG_VERSION")
-            },
-            "created": "2024-03-06T10:00:00Z",
-            "updated": "2024-03-06T12:30:00Z",
-            "status": "running",
-            "instances": 3,
-            "capabilities": ["networking", "fs:read:/data"],
-            "labels": {
-                "app": "api-server",
-                "environment": "production"
-            },
-            "resources": {
-                "memory_mb": 64,
-                "cpu_limit": "0.5"
-            }
-        });
         println!(
             "{}",
             serde_json::to_string_pretty(&meta).unwrap_or_else(|_| "{}".to_string())
         );
     } else {
         println!("Identity");
-        println!("├── ID:       actor-12345-abcde");
-        println!("├── Name:     {}", args.actor);
-        println!("└── Version:  1.2.3");
+        println!(
+            "|-- ID:       {}",
+            meta.get("id").and_then(|v| v.as_str()).unwrap_or("unknown")
+        );
+        println!(
+            "|-- Name:     {}",
+            meta.get("name")
+                .and_then(|v| v.as_str())
+                .unwrap_or(&args.actor)
+        );
+        println!(
+            "|-- State:    {}",
+            meta.get("state")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown")
+        );
         println!();
         println!("Runtime");
-        println!("├── Name:     aether");
-        println!("├── Version:  {}", env!("CARGO_PKG_VERSION"));
-        println!("└── Status:   running");
-        println!();
-        println!("Deployment");
-        println!("├── Instances: 3");
-        println!("├── Created:   2024-03-06T10:00:00Z");
-        println!("└── Updated:   2024-03-06T12:30:00Z");
-        println!();
-        println!("Capabilities");
-        println!("├── networking");
-        println!("└── fs:read:/data");
-        println!();
-        println!("Labels");
-        println!("├── app: api-server");
-        println!("└── environment: production");
-        println!();
-        println!("Resources");
-        println!("├── Memory:  64 MB");
-        println!("└── CPU:     0.5 cores");
+        println!("|-- Version:  {}", env!("CARGO_PKG_VERSION"));
+        println!(
+            "|-- Messages: {}",
+            meta.get("messages").and_then(|v| v.as_u64()).unwrap_or(0)
+        );
+        println!(
+            "|-- Errors:   {}",
+            meta.get("errors").and_then(|v| v.as_u64()).unwrap_or(0)
+        );
+        println!(
+            "|-- Cold starts: {}",
+            meta.get("cold_starts")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0)
+        );
     }
 
+    println!();
     Ok(())
 }
 
-async fn inspect_all(args: &AllArgs) -> Result<(), Error> {
+async fn inspect_all(api: &ApiClient, args: &AllArgs) -> Result<(), Error> {
     let format = args.format.as_deref().unwrap_or("table");
 
-    if format == "json" {
-        let full = json!({
-            "actor": args.actor,
-            "metadata": {
-                "id": "actor-12345-abcde",
-                "version": "1.2.3",
-                "status": "running"
-            },
-            "memory": {
-                "used_bytes": 67108864,
-                "total_bytes": 134217728,
-                "usage_percent": 50.0
-            },
-            "state": {
-                "version": 15,
-                "size_bytes": 512
-            },
-            "stack": {
-                "depth": 5,
-                "top_frame": "handle_request"
+    println!("+=============================================================+");
+    println!("|              FULL ACTOR INSPECTION: {:<22}|", args.actor);
+    println!("+=============================================================+");
+    println!();
+
+    let actor = api.fetch_actor(&args.actor).await;
+
+    match actor {
+        Ok(meta) => {
+            if format == "json" {
+                let mut full = serde_json::json!({
+                    "actor": args.actor,
+                    "metadata": meta,
+                });
+
+                if let Ok(state) = api.fetch_state(&args.actor, None).await {
+                    full["state"] = state;
+                }
+
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&full).unwrap_or_else(|_| "{}".to_string())
+                );
+            } else {
+                println!("Metadata");
+                println!(
+                    "|-- ID:          {}",
+                    meta.get("id").and_then(|v| v.as_str()).unwrap_or("unknown")
+                );
+                println!(
+                    "|-- Name:        {}",
+                    meta.get("name")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or(&args.actor)
+                );
+                println!(
+                    "|-- State:       {}",
+                    meta.get("state")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("unknown")
+                );
+                println!(
+                    "|-- Messages:    {}",
+                    meta.get("messages").and_then(|v| v.as_u64()).unwrap_or(0)
+                );
+                println!(
+                    "|-- Cold starts: {}",
+                    meta.get("cold_starts")
+                        .and_then(|v| v.as_u64())
+                        .unwrap_or(0)
+                );
+                println!(
+                    "|-- Errors:      {}",
+                    meta.get("errors").and_then(|v| v.as_u64()).unwrap_or(0)
+                );
+                println!();
+
+                match api.fetch_state(&args.actor, None).await {
+                    Ok(state) => {
+                        println!("State");
+                        if let Some(map) = state.as_object() {
+                            for (key, value) in map {
+                                let val_str = match value {
+                                    serde_json::Value::String(s) => format!("\"{}\"", s),
+                                    other => other.to_string(),
+                                };
+                                println!("|-- {}: {}", key, val_str);
+                            }
+                        } else {
+                            println!("|-- {}", state);
+                        }
+                        println!();
+                    }
+                    Err(e) => {
+                        println!("State");
+                        println!("|-- (unavailable: {})", e);
+                        println!();
+                    }
+                }
+
+                println!("Call Stack");
+                println!("|-- (requires WASM debugging extensions)");
+                println!();
             }
-        });
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&full).unwrap_or_else(|_| "{}".to_string())
-        );
-    } else {
-        println!("╔═══════════════════════════════════════════════════════════════╗");
-        println!(
-            "║              FULL ACTOR INSPECTION: {:<22}                ",
-            args.actor
-        );
-        println!("╠═══════════════════════════════════════════════════════════════╣");
-        println!();
-
-        println!("Metadata");
-        println!("├── ID:       actor-12345-abcde");
-        println!("├── Version:  1.2.3");
-        println!("└── Status:   running");
-        println!();
-
-        println!("Memory");
-        println!("├── Used:     64 MB");
-        println!("├── Total:    128 MB");
-        println!("└── Usage:    50%");
-        println!();
-
-        println!("State");
-        println!("├── Version:  15");
-        println!("└── Size:     512 bytes");
-        println!();
-
-        println!("Call Stack");
-        println!("├── Depth:    5 frames");
-        println!("└── Top:      handle_request");
-        println!();
-
-        println!("╚═══════════════════════════════════════════════════════════════╝");
+        }
+        Err(e) => {
+            println!("Failed to fetch actor data: {}", e);
+            println!();
+        }
     }
 
+    println!("+=============================================================+");
     Ok(())
 }

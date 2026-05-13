@@ -91,8 +91,11 @@ jobs:
       - name: Install wasm32-wasip1 target
         run: rustup target add wasm32-wasip1
 
+      - name: Check aether-actor compiles to wasm32-wasip1
+        run: cargo check --target wasm32-wasip1 -p aether-actor
+
       - name: Run WASM E2E tests
-        run: cargo test -p aether-core --features wasm -- e2e_test
+        run: cargo test -p aether-tests --features wasm --test wasm_e2e_test
 
   coverage:
     name: Code Coverage

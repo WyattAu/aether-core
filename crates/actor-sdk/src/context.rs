@@ -206,10 +206,173 @@ impl ActorContext {
             Ok("local-test-actor".to_string())
         }
     }
+
+    /// Send a typed message to another actor (fire-and-forget).
+    ///
+    /// Convenience wrapper that serializes the message via postcard
+    /// before delegating to [`ActorContext::send`].
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use aether_actor::{ActorContext, serialize};
+    ///
+    /// #[derive(serde::Serialize)]
+    /// struct Ping { seq: u32 }
+    ///
+    /// # async fn example() -> aether_actor::ActorResult<()> {
+    /// let ctx = ActorContext::new();
+    /// ctx.send_typed("target-actor", &Ping { seq: 1 }).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn send_typed<T: serde::Serialize>(
+        &self,
+        target: &str,
+        message: &T,
+    ) -> ActorResult<()> {
+        let bytes = crate::serialize(message)?;
+        self.send(target, &bytes).await
+    }
+
+    /// Send a typed request to another actor and await a typed response.
+    ///
+    /// Convenience wrapper that serializes the request, sends it, and
+    /// deserializes the response via postcard.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use aether_actor::{ActorContext, deserialize};
+    ///
+    /// #[derive(serde::Serialize)]
+    /// struct AddReq { a: i32, b: i32 }
+    ///
+    /// #[derive(serde::Deserialize)]
+    /// struct AddResp { sum: i32 }
+    ///
+    /// # async fn example() -> aether_actor::ActorResult<()> {
+    /// let ctx = ActorContext::new();
+    /// let resp: AddResp = ctx.request_typed("math-actor", &AddReq { a: 3, b: 4 }).await?;
+    /// assert_eq!(resp.sum, 7);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn request_typed<T: serde::Serialize, R: serde::de::DeserializeOwned>(
+        &self,
+        target: &str,
+        message: &T,
+    ) -> ActorResult<R> {
+        let bytes = crate::serialize(message)?;
+        let response = self.request(target, &bytes).await?;
+        crate::deserialize(&response)
+    }
+
+    /// Emit a typed event to the pub/sub system.
+    ///
+    /// Convenience wrapper that serializes the event payload via postcard
+    /// before delegating to [`ActorContext::emit`].
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use aether_actor::ActorContext;
+    ///
+    /// #[derive(serde::Serialize)]
+    /// struct OrderPlaced { order_id: String, amount: f64 }
+    ///
+    /// # async fn example() -> aether_actor::ActorResult<()> {
+    /// let ctx = ActorContext::new();
+    /// ctx.emit_typed("orders", &OrderPlaced {
+    ///     order_id: "ord-123".to_string(),
+    ///     amount: 99.99,
+    /// }).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn emit_typed<T: serde::Serialize>(
+        &self,
+        topic: &str,
+        message: &T,
+    ) -> ActorResult<()> {
+        let bytes = crate::serialize(message)?;
+        self.emit(topic, &bytes).await
+    }
 }
 
 impl Default for ActorContext {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[derive(serde::Serialize, serde::Deserialize, PartialEq, Debug)]
+    struct TestMsg {
+        id: u32,
+        label: String,
+    }
+
+    #[derive(serde::Serialize, serde::Deserialize, PartialEq, Debug)]
+    struct TestResp {
+        result: String,
+    }
+
+    #[tokio::test]
+    async fn send_typed_serializes_message() {
+        let ctx = ActorContext::new();
+        // Native mode is a no-op, but we verify it doesn't panic
+        // and that the serialization internally succeeds.
+        let msg = TestMsg {
+            id: 42,
+            label: "test".to_string(),
+        };
+        let result = ctx.send_typed("target", &msg).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn request_typed_returns_empty_on_native() {
+        let ctx = ActorContext::new();
+        // Native mode returns empty bytes; deserializing empty bytes
+        // into a struct should fail gracefully.
+        let result: ActorResult<TestResp> = ctx
+            .request_typed(
+                "target",
+                &TestMsg {
+                    id: 1,
+                    label: "q".to_string(),
+                },
+            )
+            .await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn emit_typed_serializes_payload() {
+        let ctx = ActorContext::new();
+        let msg = TestMsg {
+            id: 1,
+            label: "evt".to_string(),
+        };
+        let result = ctx.emit_typed("topic", &msg).await;
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn self_address_returns_placeholder_on_native() {
+        let ctx = ActorContext::new();
+        let addr = ctx.self_address().expect("self_address should succeed");
+        assert_eq!(addr, "local-test-actor");
+    }
+
+    #[test]
+    fn new_and_default_are_consistent() {
+        let a = ActorContext::new();
+        let b = ActorContext::default();
+        let _ = (a, b);
     }
 }

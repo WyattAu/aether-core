@@ -103,6 +103,8 @@ mod registry;
 pub mod rpc;
 mod scheduler;
 pub mod supervisor;
+#[cfg(feature = "rkyv")]
+pub mod zero_copy;
 
 pub use ai_integration::{
     ActorAiBridge, ActorAiTool, AiActorTool, AiRequest, AiResponse, AiToActorMcpTool,

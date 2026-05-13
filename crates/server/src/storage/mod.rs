@@ -309,6 +309,39 @@ impl StateBackend for SqliteStateBackend {
     }
 }
 
+/// io_uring-backed state backend (feature-gated).
+#[cfg(feature = "io_uring")]
+pub mod io_uring;
+
+/// Placeholder module when `io_uring` feature is not enabled.
+///
+/// Provides a type alias so code referencing `io_uring::IoUringBackend`
+/// compiles, but attempting to use it will panic at runtime with a
+/// message directing the user to enable the feature.
+#[cfg(not(feature = "io_uring"))]
+/// io_uring backend stub -- enable the `io_uring` feature to use this module.
+pub mod io_uring {
+
+    /// Stub struct for the io_uring backend.
+    ///
+    /// This type is not constructible when the `io_uring` feature is disabled.
+    /// Enable `io_uring` in `Cargo.toml` to use the real implementation.
+    pub struct IoUringBackend {
+        _priv: (),
+    }
+
+    impl IoUringBackend {
+        /// This constructor always fails when the `io_uring` feature is not enabled.
+        #[allow(clippy::new_ret_no_self)]
+        pub fn new(_root_dir: impl AsRef<std::path::Path>) -> crate::storage::StorageResult<Self> {
+            Err(crate::storage::StorageError::Internal(
+                "IoUringBackend requires the `io_uring` feature to be enabled in Cargo.toml"
+                    .to_string(),
+            ))
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
