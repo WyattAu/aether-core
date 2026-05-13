@@ -293,14 +293,14 @@ This document consolidates all traceability information for Project Aether, link
 | Category | Status |
 |----------|--------|
 | Requirements | 40/40 defined, 40/40 implemented |
-| Tests | 1,275 passing (88 ignored: FDB/Firecracker/cluster) |
+| Tests | 1,531 passing (92 ignored: FDB/Firecracker/cluster/doc-tests) |
 | Standards | 17 mapped, compliance matrix active |
 | ADRs | 7 documented (ADR-001 through ADR-007) |
 | Quality | Zero clippy warnings, deny-all safety lints |
-| Security | 20 security tests, 17 fuzz tests, 22 vuln scans |
+| Security | 20 security tests, 17 fuzz tests, vulnerability scanning via cargo-deny |
 
 ---
 
-Last Updated: 2026-05-12
+Last Updated: 2026-05-13
 Phase: Post-v2.0.0 Hardening
 Next Phase: v2.1.0 Development

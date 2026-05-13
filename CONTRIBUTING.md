@@ -440,8 +440,7 @@ What other options did we consider?
 
 | Platform | Purpose |
 |----------|---------|
-| [Discord](https://discord.gg/aether) | Real-time chat, questions |
-| [GitHub Discussions](https://github.com/WyattAu/aether-core/discussions) | Long-form discussions |
+| [GitHub Discussions](https://github.com/WyattAu/aether-core/discussions) | Questions and discussions |
 | [GitHub Issues](https://github.com/WyattAu/aether-core/issues) | Bug reports, features |
 
 ### Good First Issues

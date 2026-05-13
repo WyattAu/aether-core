@@ -174,7 +174,7 @@ Maintain a `CHANGELOG.md` file with the following format:
 ### Security
 - Security fixes
 
-## [0.1.0] - 2024-01-15
+## [0.1.0] - 2026-05-08
 
 ### Added
 - Initial release
@@ -220,7 +220,7 @@ After a release:
 3. **Announcements:**
    - GitHub Discussions
    - Social media
-   - Discord/Slack
+   - Discord
 
 4. **Monitor:**
    - Watch for issue reports
@@ -335,4 +335,4 @@ For release-related issues:
 
 - GitHub Issues: https://github.com/WyattAu/aether-core/issues
 - Discussions: https://github.com/WyattAu/aether-core/discussions
-- Security: security@aether-project.io
+- Security: Report via GitHub Security Advisories

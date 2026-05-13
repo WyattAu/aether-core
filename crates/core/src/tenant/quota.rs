@@ -12,7 +12,7 @@
 //!
 //! # Network Token Bucket
 //!
-//! [`check_network_quota`] implements a token bucket algorithm that replenishes
+//! `TenantQuotaTracker::check_network_quota` implements a token bucket algorithm that replenishes
 //! tokens at `network_bytes_per_sec` rate, capped at `network_bytes_per_sec * 2`
 //! burst capacity.
 

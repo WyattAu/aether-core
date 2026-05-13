@@ -9,13 +9,13 @@
 //!
 //! # API Key Authentication
 //!
-//! API keys are validated against an in-memory [`ApiKeyStore`]. In production,
+//! API keys are validated against an in-memory `ApiKeyStore`. In production,
 //! this should be backed by a database or secret manager.
 //!
 //! # JWT Authentication
 //!
 //! When the `jwt` feature is enabled, JWT tokens are validated using the
-//! HS256 algorithm. The signing secret is configured via [`JwtConfig`].
+//! HS256 algorithm. The signing secret is configured via `JwtConfig`.
 //!
 //! # Usage
 //!

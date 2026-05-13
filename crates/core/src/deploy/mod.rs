@@ -314,7 +314,7 @@ impl BlueGreenManager {
     /// Deploys a new actor revision to the target environment.
     ///
     /// For `BlueGreen` strategy the revision is placed in the standby
-    /// environment and must be activated via [`switch_traffic`].
+    /// environment and must be activated via `switch_traffic`.
     /// For `Rolling` strategy the revision is placed directly in the active
     /// environment, replacing the current one.
     /// For `Canary` strategy the revision is placed in standby with partial

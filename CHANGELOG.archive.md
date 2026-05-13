@@ -1,86 +1,11 @@
-# Changelog
+# Changelog (Archived)
 
 All notable changes to Project Aether will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
----
-
-## [2.0.1] - 2026-05-09
-
-### Added
-- Chaos fault injector wired into mesh message routing (`MeshNode::send()` and `request()`)
-- Automatic pagination for AWS Secrets Manager (`next_token`) and GCP Secret Manager (`nextPageToken`) — fixes silent data loss when >50 secrets exist
-- 16 property-based tests using proptest for ActorState, CapabilitySet, PolicyEngine, and CircuitBreaker
-- 3 new Criterion benchmark suites: policy evaluation, actor registry, and circuit breaker
-- `StateHandle::name()` getter for WASI debugging
-- `MeshNode::set_fault_injector()` for runtime chaos testing integration
-- `#[serde(deny_unknown_fields)]` on `VaultErrorResponse` for strict error parsing
-
-### Changed
-- Upgraded `unsafe_op_in_unsafe_fn` lint from `warn` to `deny`
-- Made `ActorState::to_u8()` and `from_u8()` public for property testing
-- Wired `GcpSecretsProvider::build_secret_path()` into production `list()` method
-- Removed `#[allow(dead_code)]` from `SupervisorStrategy::max_restarts()` (used in tests)
-
-### Removed
-- Dead `cluster_file_str()` method from `FdbConfig`
-- Dead `isolation_level` field from `TransactionMeta`
-- Dead `id` field from `ActorEntry` (redundant with DashMap key)
-- Dead `MailboxBuilder` struct and impl block (47 lines, unused API)
-- Dead `BoxedTransport` type alias
-- Dead `total_faults()`, `get_latency()`, `pressure_target()` methods from chaos module
-- Dead `jitter` field from `NetworkLatencyConfig`
-- Dead `CpuFaultInjector::is_starvation_active()` method
-- Dead `ProcessFaultInjector::is_hung()` method
-- Dead `DefaultWasiHost::start_instant` field
-- Deprecated `HostContext::timestamp_ns` field (migrated to `wall_time_ns`)
-- 6 `// TODO: Migrate to non-deprecated WASI API` comments (resolved)
-
-### Fixed
-- `test_cascading_failure_basic` timeout (300s → 300ms by adding `max_duration`)
-- `test_rbac_concurrent_evaluation` slowdown (3200 → 160 evaluations)
-- Gated `fdb.rs` imports behind `#[cfg(feature = "fdb")]` (eliminated release warnings)
-- Removed unused `workspace.edition` key from root `Cargo.toml`
-- Zero warnings across dev, release, clippy, and doc builds
-
-## [2.0.0] - 2026-05-08
-
-### Added
-- Multi-tenancy system with namespace isolation, resource quotas, tenant resolver
-- Geographically distributed mesh with region-aware actor placement (4 strategies)
-- WASM Component Model support alongside core WASM modules
-- Plugin marketplace with manifest validation, signature verification, registry
-- OPA policy engine with deny-by-default, priority-ordered rule evaluation
-- VictoriaMetrics, VictoriaLogs, Loki observability exporters
-- 4 Grafana dashboards (overview, resilience, logs, mesh)
-- FoundationDB transaction wrapper with automatic retry
-- CLI observability commands (push-metrics, push-logs, status)
-- Cluster deployment guide with docker-compose examples
-- 130+ new tests (~1000+ total)
-
-### Changed
-- Upgraded aws-lc-sys 0.38→0.40 (fixes RUSTSEC-2026-0044/0048)
-- Upgraded quinn-proto 0.11.13→0.11.14 (fixes RUSTSEC-2026-0037)
-- Replaced serde_yaml with yaml_serde (fixes RUSTSEC-2025-0068)
-- Upgraded tokio-tungstenite 0.24→0.26, thiserror 1.x→2.x
-- 12 Mutex→RwLock conversions in observability
-- Session clone reduction via Arc<Vec<T>> + Arc::make_mut
-
-### Removed
-- 132 lines dead code (duplicate constants, unused structs, unreachable methods)
-- 4 critical stubs replaced with real implementations
-- Legacy JS SDK removed (sdks/javascript/ retained)
-
-### Security
-- 22→19 vulnerabilities (3 fixed, remaining are low-severity dev dependencies)
-- 17 fuzz tests for WASM/capability/message/config/address parsing
-- 20 security tests (mTLS, capability bypass, audit tampering, privilege escalation)
-- cargo-deny license compliance added
-
-### Performance
-- All 5 roadmap targets PASS: WASM 61µs, actor 1.7µs, mesh 726ns, state 180ns, density 100K@378K/s
+Versions 2.0.0 and later are documented in [CHANGELOG.md](./CHANGELOG.md).
 
 ---
 

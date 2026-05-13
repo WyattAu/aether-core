@@ -3,10 +3,10 @@
 //! Provides a pluggable backend for actor lifecycle management and message
 //! dispatch. Two implementations are provided:
 //!
-//! - [`InMemoryActorBackend`]: Lightweight in-memory storage backed by
+//! - `InMemoryActorBackend`: Lightweight in-memory storage backed by
 //!   `tokio::sync::RwLock<HashMap>`. Used by default and when the core
 //!   backend is unavailable.
-//! - [`CoreActorBackend`]: Production-grade backend wrapping
+//! - `CoreActorBackend`: Production-grade backend wrapping
 //!   `aether_core::actor::ActorScheduler` with work-stealing dispatch,
 //!   DashMap-backed registry, and bounded mailboxes. Available when the
 //!   `wasm` feature is enabled.
