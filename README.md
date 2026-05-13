@@ -41,7 +41,7 @@ Aether is a distributed runtime that deprecates the Kubernetes/Docker stack by t
 ### Prerequisites
 
 - Rust stable 1.85+ (MSRV); nightly-2026-03-01 for development
-- Linux kernel 5.15+ (for io_uring and KVM)
+- Linux kernel 5.19+ (for io_uring and KVM)
 
 ### Install
 

@@ -22,7 +22,7 @@ This allows organizations to "Lift and Shift" existing Docker workloads (Keycloa
 
 ### 2.1 Host Plane (The Node Kernel)
 *   **Language:** Rust (2024 Edition).
-*   **Async Runtime (Data Plane):** **Monoio** (io_uring). Thread-per-core architecture with pinned memory to eliminate context switching.
+*   **Async Runtime (Data Plane):** **Tokio** (current primary runtime). **Monoio** (io_uring) is planned for v2.2.0 as an experimental thread-per-core data plane with pinned memory to eliminate context switching.
 *   **Async Runtime (Control Plane):** **Tokio**.
 *   **Execution Engines:**
     *   **Wasmtime:** For Tier 1 (Native) and Tier 2 (Interpreted) actors.
@@ -70,7 +70,7 @@ This allows organizations to "Lift and Shift" existing Docker workloads (Keycloa
 
 ### 4.1 Stability & Safety
 *   **[SOP-SAFE-01] Zero Panic:** The Host Runtime must compile with `#![deny(clippy::unwrap_used)]`. No thread panics allowed.
-*   **[SOP-SAFE-02] Memory Safety:** The Data Plane (Hot Path) must not perform dynamic heap allocations (`malloc`) during request processing. Use `mimalloc` and pooling.
+*   **[SOP-SAFE-02] Memory Safety:** The Data Plane (Hot Path) should minimize dynamic heap allocations during request processing. Use typed arena allocation and object pooling.
 
 ### 4.2 Security
 *   **[SOP-SEC-01] Capability-Based Access:** By default, actors have **Zero Trust**. They cannot access network or disk unless explicitly granted in `aether.toml`.
@@ -147,7 +147,7 @@ instances = 1
 
 ### Phase 3: The Enterprise Platform (Months 12-18)
 *   **Goal:** Production Readiness.
-*   **Tech:** Build the Web Dashboard (Leptos), OTLP Tracing integration, and the "Legacy Import" tools.
+*   **Tech:** Build the Web Dashboard, OTLP Tracing integration, and the "Legacy Import" tools.
 *   **Milestone:** Public Beta Launch.
 
 ---

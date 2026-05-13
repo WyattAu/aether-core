@@ -165,15 +165,6 @@ try (AetherClient client = AetherClient.builder("http://localhost:8080").build()
 | Redis backend | Tests skipped when redis package not installed | Low |
 | Server | OpenTelemetry export warning on test cleanup | Cosmetic |
 
-## What's Next (v1.7.1)
-
-- gRPC transport layer alongside REST/WebSocket
-- PostgreSQL event store backend
-- Multi-node clustering
-- GraphQL subscriptions
-- Dead letter queues
-- CLI management tool
-
 ## Contributors
 
 - Aether Core Team

@@ -2,7 +2,7 @@
 
 **Version:** 2.0.0  
 **Last Updated:** 2026-05-10  
-**Phase:** 5 - Prototype / Post-v2.0.0 (In Progress)
+**Phase:** Post-v2.0.0 Hardening / v2.1.0 Development
 
 ---
 
@@ -12,9 +12,9 @@ This document consolidates all traceability information for Project Aether, link
 
 **Total Requirements:** 40  
 **Standards Referenced:** 17  
-**Test Cases Defined:** 1,363 (908 core + 18 server + 267 integration + 16 property + 4 benchmark + 20 security + 17 fuzz + 7 fixtures + 18 doc + 88 doc-ignored)  
+**Test Cases Defined:** 1,623 (1,072 core + 23 cli + 10 cli-lib + 59 server + 267 integration + 16 property + 4 benchmark + 20 security + 17 fuzz + 7 fixtures + 10 wasm-e2e + 27 doc + 92 doc-ignored)  
 **Components Identified:** 75  
-**Tests Passing:** 1,275 / 1,363 (0 failures, 88 ignored requiring external deps)
+**Tests Passing:** 1,531 / 1,623 (0 failures, 92 ignored requiring external deps)
 
 ---
 

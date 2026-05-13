@@ -4,7 +4,7 @@
 
 | Capability | Required | Available | Version | Status | Notes |
 |------------|----------|-----------|---------|--------|-------|
-| Rust nightly | nightly-2026-03-01 | [DONE] | 1.96.0-nightly (38c0de8dc 2026-02-28) | [DONE] Available | Close to target nightly |
+| Rust nightly | nightly-2026-03-01 | [DONE] | 1.96.0-nightly (38c0de8dc 2026-02-28) | [DONE] Available | Exact match pinned in rust-toolchain.toml |
 | Cargo | 1.85+ | [DONE] | 1.96.0-nightly (f298b8c82 2026-02-24) | [DONE] Available | |
 | wasm-tools | 1.220+ | [PENDING] | - | [PENDING] Missing | `cargo install wasm-tools` |
 | wit-bindgen | 0.33+ | [PENDING] | - | [PENDING] Missing | `cargo install wit-bindgen-cli` |

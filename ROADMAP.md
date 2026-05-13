@@ -1,14 +1,14 @@
 # Aether-Core Implementation Roadmap
 
 **Version:** 2.0.0
-**Date:** 2026-05-09
+**Date:** 2026-05-13
 **Status:** Core Complete
 
 ---
 
 ## Executive Summary
 
-Aether-Core v2.0.0 is a WASM-based actor runtime with QUIC mesh networking, mTLS security, multi-tenancy, chaos testing, and multi-language SDKs. All core components are implemented and tested (1,275 tests passing).
+Aether-Core v2.0.0 is a WASM-based actor runtime with QUIC mesh networking, mTLS security, multi-tenancy, chaos testing, and multi-language SDKs. All core components are implemented and tested (1,531 tests passing).
 
 ---
 
