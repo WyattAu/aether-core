@@ -1,28 +1,31 @@
 # Aether-Core: Path Forward and Roadmap
 
-**Date:** 2026-05-12
+**Date:** 2026-05-13
 **Current Version:** 2.0.0
-**Commit:** b9edce3
-**Auditor:** Full monorepo audit -- 1,275 tests, 0 failures, 0 warnings
+**Commit:** 05688d0
+**Auditor:** Full monorepo audit -- 1,531 tests, 0 failures, 0 warnings
 
 ---
 
 ## 1. Audit Summary
 
-### 1.1 Test Matrix (Verified 2026-05-12)
+### 1.1 Test Matrix (Verified 2026-05-13)
 
 | Suite | Passed | Failed | Ignored | Total |
 |-------|--------|--------|---------|-------|
-| Unit tests (lib) | 908 | 0 | 9 | 917 |
-| Integration tests | 267 | 0 | 21 | 288 |
+| Unit tests (core) | 1,072 | 0 | 9 | 1,081 |
+| Unit tests (cli) | 33 | 0 | 0 | 33 |
+| Unit tests (server) | 59 | 0 | 0 | 59 |
+| Test fixtures | 7 | 0 | 0 | 7 |
+| Integration tests | 266 | 0 | 21 | 287 |
 | Property tests (proptest) | 16 | 0 | 0 | 16 |
 | Fuzz targets | 17 | 0 | 0 | 17 |
 | Security tests | 20 | 0 | 0 | 20 |
 | Memory benchmarks | 4 | 0 | 0 | 4 |
 | E2E tests | 0 | 0 | 15 | 15 |
-| Test fixtures | 7 | 0 | 0 | 7 |
-| Doc-tests | 18 | 0 | 43 | 61 |
-| **Total** | **1,275** | **0** | **88** | **1,363** |
+| WASM E2E tests | 10 | 0 | 0 | 10 |
+| Doc-tests | 27 | 0 | 47 | 74 |
+| **Total** | **1,531** | **0** | **92** | **1,623** |
 
 ### 1.2 Quality Gates (All Passing)
 
@@ -36,7 +39,7 @@
 | `todo!/unimplemented!` count | 0 | No Rust panicking stubs in any code |
 | `unsafe` blocks | 28 | All in WASI/security modules; production blocks have `// SAFETY:` comments |
 | Emoji in documentation | 0 | Pre-commit hook enforces zero tolerance |
-| Pre-commit hook | ACTIVE | 6-gate: fmt, clippy, compile, test, docs, emoji scan |
+| Pre-commit hook | ACTIVE | Git hook: 6-gate: fmt, clippy, compile, test, docs, emoji scan |
 | Pre-push hook | ACTIVE | 4-gate: fmt, clippy, full test suite, docs |
 
 ### 1.3 Ignored Test Breakdown
@@ -46,8 +49,8 @@
 | FoundationDB integration | 9 | Requires running FDB instance |
 | Firecracker VM | 7 | Requires KVM (unavailable in CI) |
 | Cluster E2E | 21 | Requires running 3-node cluster |
-| Doc-tests | 41 | Code samples referencing external state |
-| **Total** | **88** | All have documented external dependencies |
+| Doc-tests | 47 | Code samples referencing external state |
+| **Total** | **92** | All have documented external dependencies |
 
 ### 1.4 Source Code Issues Found
 
@@ -447,8 +450,8 @@ v3.0.0 Critical Path:
 
 | Metric | v2.0.0 (Current) | v2.1.0 Target | v2.2.0 Target | v3.0.0 Target |
 |--------|------------------|----------------|----------------|----------------|
-| Total tests | 1,275 | 1,350+ | 1,500+ | 2,000+ |
-| Ignored tests | 88 | 77 (FDB enabled) | 47 (doc-tests fixed) | 15 (Firecracker only) |
+| Total tests | 1,531 | 1,600+ | 1,750+ | 2,200+ |
+| Ignored tests | 92 | 81 (FDB enabled) | 51 (doc-tests fixed) | 15 (Firecracker only) |
 | Clippy warnings | 0 | 0 | 0 | 0 |
 | Stubs (production) | 2 | 1 | 0 | 0 |
 | Critical code issues | 1 (TOCTOU) | 0 | 0 | 0 |
@@ -467,7 +470,7 @@ Items completed in this audit session (commit b9edce3):
 
 | # | Action | Status |
 |---|--------|--------|
-| 1 | Run full test suite (1,275 pass) | DONE |
+| 1 | Run full test suite (1,531 pass) | DONE |
 | 2 | Clippy lint (zero warnings) | DONE |
 | 3 | Format check (zero violations) | DONE |
 | 4 | Documentation build (zero warnings) | DONE |
@@ -486,8 +489,209 @@ Items completed in this audit session (commit b9edce3):
 | 17 | Fix .docs/SECURITY_AUDIT.md statuses | DONE |
 | 18 | Verify pre-commit hook (emoji scan) | DONE |
 | 19 | Verify pre-push hook (full quality gate) | DONE |
-| 20 | Commit and push | DONE |
+| 20 | Fix 15 documentation inaccuracies (test counts, stale refs, phantom deps) | DONE |
+| 21 | Update ROADMAP_FORWARD.md with verified test counts | DONE |
 
 ---
 
-*Generated: 2026-05-12. Next review: 2026-05-26.*
+## 11. Path to Production
+
+This section defines the concrete steps from the current state (v2.0.0) to a production-ready system. Production readiness requires not just feature completion, but operational maturity: observability, fault tolerance, security hardening, and documentation sufficient for external operators.
+
+### 11.1 Production Readiness Criteria
+
+A release is production-ready when ALL of the following hold:
+
+| Criterion | Requirement | Current State |
+|-----------|-------------|---------------|
+| Test coverage (critical paths) | >95% branch | ~85% estimated |
+| Zero critical code issues | No known data races, TOCTOU, UB | 1 TOCTOU (G4) |
+| Actor SDK functional | Developer can write, compile, deploy an actor | Scaffold only (G1) |
+| Server self-contained | Single-binary deployment with persistence | Prototype (G2) |
+| CI exercises full WASM path | WASM compile, load, execute, verify response | Not in CI (G3) |
+| Performance baseline | Recorded; regression gate active | Not recorded (G9) |
+| Security audit | External audit passed | Self-audit only |
+| Documentation | Install guide, operations runbook, API reference | Partial |
+| Multi-tenancy | Resource isolation enforced | Framework exists, not enforced |
+| Disaster recovery | Backup, restore, failover tested | Not tested |
+
+### 11.2 Production Milestone Map
+
+```
+v2.1.0 (Stability)          v2.2.0 (Performance)     v2.3.0 (Hardening)     v3.0.0 (Production)
+=========================    ======================   ====================   =====================
+- Fix TOCTOU race             - io_uring data plane     - External security     - Blue-green deploy
+- Actor SDK functional        - Zero-copy messaging     - Load testing          - GitOps deployment
+- Server persistence          - Instance pooling        - Chaos testing at      - Observability stack
+- WASM E2E in CI              - O(1) executor lookup    - scale (1K nodes)      - Web dashboard
+- Performance baseline        - CLI server wiring      - Multi-tenancy         - Actor marketplace
+- FDB in CI                   - SDK parity              - enforcement           - Plugin system
+                               - Dependency cleanup     - SLA documentation     - Formal verification
+```
+
+### 11.3 Phase Detail: v2.1.0 -- Stability Foundation
+
+**Goal:** Eliminate all known correctness issues. Make the Actor SDK usable.
+
+**Critical path (sequential):**
+1. G4: Fix TOCTOU race in `ActorRegistry::register_named` (4h)
+2. A1: Fix `export_actor!` macro (8h)
+3. A2: Serialization layer via postcard (12h)
+4. A3: Messaging API (16h)
+5. A6: E2E WASM test in CI (6h)
+
+**Parallel workstreams:**
+- P1-P3: Performance fixes (11h)
+- S1-S2: Server hardening (16h)
+- C1-C2: CI improvements (10h)
+
+**Exit criteria:**
+- All v2.1.0 version criteria (Section 3.6) met
+- No known data races
+- A developer can write a "hello world" actor, compile to WASM, deploy, and receive a response
+
+### 11.4 Phase Detail: v2.2.0 -- Performance and Parity
+
+**Goal:** Sub-millisecond actor-to-actor messaging. Full SDK parity across languages.
+
+**Critical path:**
+1. O2: Zero-copy message path (20h) -- enables sub-100us round-trip
+2. O3: WASM instance pooling (16h) -- eliminates cold-start overhead
+3. L1-L2: CLI server integration (28h) -- operational usability
+
+**Parallel:**
+- O1: io_uring experimental (40h)
+- D1-D3: SDK messaging completion (24h)
+- T1-T2: Multi-tenancy enforcement (32h)
+
+**Exit criteria:**
+- P99 actor-to-actor latency <1ms (same node)
+- WASM warm spawn <50us
+- CLI can deploy and manage actors on a running server
+- All SDKs can send/receive messages via the mesh
+
+### 11.5 Phase Detail: v2.3.0 -- Production Hardening
+
+**Goal:** Survive external security audit. Handle 1K-node clusters under chaos.
+
+**Workstreams:**
+- External security audit (coordinate with auditor)
+- Load testing: 1K concurrent actors, 100K messages/s sustained
+- Chaos testing: network partitions, node failures, state corruption
+- Multi-tenancy enforcement: CPU/memory/network quotas per tenant
+- SLA documentation: uptime SLO, latency SLO, error budget policy
+- Operations runbook: deployment, scaling, incident response
+
+**Exit criteria:**
+- External security audit passed with zero critical findings
+- Sustained 100K messages/s with P99 <5ms
+- Cluster survives random node failure without data loss
+- Tenant A cannot affect tenant B's resources or latency
+
+### 11.6 Phase Detail: v3.0.0 -- Production Release
+
+**Goal:** Public production release with full ecosystem.
+
+**Workstreams:**
+- Blue-green deployment with automatic rollback
+- GitOps: `aether deploy` from git, ArgoCD/Flux integration
+- Observability: OTLP, custom Grafana dashboards, alerting rules
+- Web dashboard: actor topology, metrics, deployment management
+- Actor marketplace: OCI registry for sharing actors
+- Plugin system: dynamic loading via WASM
+
+**Exit criteria:**
+- Zero-downtime rolling deployment
+- Complete observability (traces, metrics, logs)
+- Public documentation sufficient for external operators
+- At least 3 non-trivial example applications deployed
+
+### 11.7 Risk Mitigation for Production
+
+| Risk | Probability | Mitigation | Fallback |
+|------|------------|------------|----------|
+| WASM Component Model instability | Medium | Pin wasmtime 25.x; abstract behind trait | Fall back to core WASM modules |
+| io_uring kernel regression | Medium | Feature-gated; tokio fallback always available | Ship v2.2.0 without io_uring |
+| External audit finds critical issue | Low | Pre-audit self-review; fix known issues first | Delay v2.3.0 until resolved |
+| Performance targets not met | Medium | Profile early (v2.1.0); adjust targets based on data | Revise SLA if hardware constraints |
+| SDK API instability | High | Semantic versioning from v2.1.0; deprecation period | Maintain v2.1.x LTS branch |
+
+---
+
+## 12. Future Plans (v3.1.0 and Beyond)
+
+### 12.1 v3.1.0 -- Edge and IoT
+
+- **Edge deployment**: Lightweight single-binary for resource-constrained devices (<64MB RAM)
+- **OTA updates**: Remote actor code update without downtime
+- **Local-first state**: Conflict-free replicated data types (CRDTs) for offline operation
+- **Hardware abstraction**: Direct GPIO/I2C/SPI access from WASM actors (embedded use case)
+
+### 12.2 v3.2.0 -- AI-Native Runtime
+
+- **Native AI actor type**: First-class support for LLM inference actors
+- **GPU passthrough**: Expose GPU to WASM via WGPU backend
+- **Model serving**: Hot-loaded ML models as WASM actors with automatic batching
+- **Prompt engineering SDK**: Composable prompt templates as actor graphs
+
+### 12.3 v3.3.0 -- Multi-Cloud and Federation
+
+- **Cross-cloud mesh**: QUIC mesh spanning AWS, GCP, Azure simultaneously
+- **Federated identity**: Cross-cluster mTLS with shared CA
+- **Global state sync**: Eventually consistent state replication across regions
+- **Cost optimization**: Automatic actor placement based on spot/preemptible pricing
+
+### 12.4 v4.0.0 -- The Universal Runtime Vision
+
+This is the long-term vision described in the PRD: a single platform that replaces the entire Kubernetes/Docker/CI/CD stack.
+
+- **Built-in CI/CD**: `aether push` compiles, tests, deploys in one command
+- **Built-in service mesh**: No Istio/linkerd needed; mesh is intrinsic
+- **Built-in observability**: No Prometheus/Grafana needed; metrics are intrinsic
+- **Built-in secrets**: No Vault needed; secrets management is intrinsic
+- **Universal compatibility**: WASM for new code, Firecracker VMs for legacy containers
+
+### 12.5 Research Track
+
+These items have no timeline but represent ongoing investigation:
+
+| Topic | Description | Dependency |
+|-------|-------------|------------|
+| WASM GC | Garbage-collected languages (Java, Kotlin) compiled to WASM | WasmGC spec stabilization |
+| WASM Threads | Multi-threaded WASM actors with shared memory | Thread proposal phase 2 |
+| Capability-based hardware | CHERI/RISC-V integration for hardware-enforced sandboxing | CHERI hardware availability |
+| Formal verification of scheduler | Full Lean4 proof of work-stealing scheduler correctness | Proof engineering effort |
+| Deterministic replay | Record and replay actor execution for debugging | Event log architecture |
+| Distributed consensus | Replace gossip with Raft for strong consistency | Use-case requirements |
+
+---
+
+## 13. Success Metrics
+
+### 13.1 Technical Metrics (Per Release)
+
+| Metric | v2.0.0 | v2.1.0 | v2.2.0 | v3.0.0 | v4.0.0 |
+|--------|--------|--------|--------|--------|--------|
+| Test count | 1,531 | 1,600+ | 1,750+ | 2,200+ | 3,000+ |
+| P99 latency (same node) | N/A | N/A | <1ms | <1ms | <1ms |
+| Cold start time | ~61us | <50us | <20us | <10us | <10us |
+| Throughput (msg/s) | N/A | 10K | 100K | 500K | 1M |
+| Max cluster size | 3 nodes | 3 nodes | 10 nodes | 100 nodes | 1K nodes |
+| Ignored tests | 92 | 81 | 51 | 15 | 0 |
+| Critical code issues | 1 | 0 | 0 | 0 | 0 |
+| External audit | No | No | Yes | Yes | Yes |
+
+### 13.2 Ecosystem Metrics
+
+| Metric | v2.0.0 | v3.0.0 | v4.0.0 |
+|--------|--------|--------|--------|
+| Published crates | 4 | 5 | 5 |
+| SDK languages | 1 (Rust) | 4 (Rust, Go, Python, JS) | 5+ (add Java) |
+| Example applications | 2 | 10 | 20+ |
+| Documentation pages | ~50 | ~200 | ~500 |
+| GitHub stars | Current | 500+ | 5K+ |
+| External contributors | 1 | 10+ | 50+ |
+
+---
+
+*Generated: 2026-05-13. Next review: 2026-05-27.*
