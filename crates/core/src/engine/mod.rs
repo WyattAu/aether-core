@@ -114,7 +114,7 @@
 //! - Memory isolation between instances
 //! - Fuel limits prevent infinite loops
 //! - Resource limits via `RuntimeLimiter`
-//! - No unsafe code in hot path
+//! - Unsafe code in the hot path is limited to WASM memory operations with SAFETY audits (see engine/executor.rs, engine/pool.rs).
 
 pub mod component;
 pub mod instance;

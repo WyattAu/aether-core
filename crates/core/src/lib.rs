@@ -115,7 +115,7 @@
 //!
 //! ### Memory Safety
 //! - All actor code runs in WebAssembly sandbox (memory isolation)
-//! - No unsafe code in the hot path
+//! - Unsafe code in the hot path is limited to WASM memory operations with SAFETY audits (see engine/executor.rs, engine/pool.rs).
 //! - Automatic bounds checking on all array accesses
 //!
 //! ### Capability-Based Security

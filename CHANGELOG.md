@@ -15,11 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - TLA+ formal specification for work-stealing scheduler (no-task-loss, priority ordering, fair stealing, state machine integrity invariants)
 - TLA+ formal specification for actor migration two-phase protocol (state machine, at-most-one-active, source ownership, checkpoint consistency, no-orphan invariants)
 - Lean 4 proof sketch for capability safety (deny-by-default, grant monotonicity, revoke safety, idempotent operations, subset preservation, permission lattice)
-- Native Rust server crate scaffold (`aether-server`) with axum 0.8 — replaces Python reference server (19k LOC)
-  - 25 REST endpoint stubs across actors, state, events, cluster, health routes
-  - Implemented health/readiness/info endpoints
-  - Proper error handling via `ApiError` enum with JSON responses
-  - CLI via clap, tracing integration, graceful shutdown
+- Continued `aether-server` development: expanding REST endpoint implementations and integration with core engine APIs
 - Docker CI workflow (`docker-integration.yml`) for FDB and 3-node mesh cluster integration tests
 - Deterministic replay architecture design document (event log, scheduler recording, non-deterministic source mediation, divergence detection)
 

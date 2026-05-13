@@ -3,7 +3,7 @@
 **A distributed actor framework for building scalable, resilient applications.**
 
 [![GitHub](https://img.shields.io/github/stars/WyattAu/aether-core?style=social)](https://github.com/WyattAu/aether-core)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Go Reference](https://pkg.go.dev/badge/github.com/WyattAu/aether-core/sdks/go/aether.svg)](https://pkg.go.dev/github.com/WyattAu/aether-core/sdks/go/aether)
 
 ## What is Aether?
@@ -171,4 +171,4 @@ Ready to build with Aether? Check out the documentation:
 
 ## License
 
-Aether is licensed under the [MIT License](https://opensource.org/licenses/MIT).
+Aether is licensed under the [Apache 2.0 License](https://opensource.org/licenses/Apache-2.0).

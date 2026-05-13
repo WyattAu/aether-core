@@ -10,7 +10,7 @@ use axum::{
 use rust_embed::RustEmbed;
 use std::sync::Arc;
 
-/// Embedded dashboard UI assets compiled into the binary.
+/// Embedded dashboard frontend assets.
 #[derive(RustEmbed)]
 #[folder = "ui/dist"]
 pub struct DashboardAssets;

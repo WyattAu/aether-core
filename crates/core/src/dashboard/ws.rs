@@ -16,7 +16,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::broadcast;
 
-/// WebSocket message types for real-time dashboard updates.
+/// WebSocket message type for dashboard communication.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum WebSocketMessage {
@@ -67,7 +67,7 @@ pub enum WebSocketMessage {
     },
 }
 
-/// Actor lifecycle event types.
+/// Actor lifecycle event types for dashboard subscriptions.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ActorEventType {
@@ -81,7 +81,7 @@ pub enum ActorEventType {
     ColdStart,
 }
 
-/// Mesh topology event types.
+/// Mesh network event types for dashboard subscriptions.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum MeshEventType {

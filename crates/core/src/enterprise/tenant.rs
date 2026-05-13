@@ -74,7 +74,7 @@ impl AsRef<str> for TenantId {
     }
 }
 
-/// Supported actor kinds within a tenant.
+/// Actor execution backend type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 #[derive(Default)]
@@ -92,7 +92,7 @@ pub enum ActorKind {
     Stream,
 }
 
-/// Isolation level for tenant environments.
+/// Network isolation level for a tenant.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 #[derive(Default)]

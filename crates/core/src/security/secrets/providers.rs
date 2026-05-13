@@ -136,6 +136,8 @@ impl Drop for ExternalSecretValue {
 fn zero_memory(data: &mut [u8]) {
     use std::ptr;
     for byte in data.iter_mut() {
+        // SAFETY: `byte` is a valid mutable reference obtained from a mutable slice iterator,
+        // so the pointer is properly aligned and dereferenceable for the lifetime of the borrow.
         unsafe {
             ptr::write_volatile(byte, 0);
         }

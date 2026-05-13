@@ -57,7 +57,7 @@ impl Message {
     }
 }
 
-/// Message role in conversation
+/// Role of a participant in a conversation session.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum MessageRole {

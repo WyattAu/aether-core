@@ -376,11 +376,11 @@ Current version: `v0.1.0`
 
 ## Contributing
 
-We welcome contributions! Please see the [Contributing Guide](../../../CONTRIBUTING.md) for details.
+We welcome contributions! Please see the [Contributing Guide](../../CONTRIBUTING.md) for details.
 
 ## License
 
-Licensed under the [MIT License](../../../LICENSE).
+Licensed under the [Apache 2.0 License](../../LICENSE).
 
 ## Links
 

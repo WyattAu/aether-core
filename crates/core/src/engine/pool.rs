@@ -112,6 +112,7 @@ impl std::ops::DerefMut for PooledInstance {
 
 impl Drop for PooledInstance {
     fn drop(&mut self) {
+        // SAFETY: `ManuallyDrop::take` is safe as long as we don't access `self.instance` after this call, which is guaranteed since this is in `drop()`.
         let instance = unsafe { std::mem::ManuallyDrop::take(&mut self.instance) };
         self.pool.release_inner(&self.module_name, instance);
     }

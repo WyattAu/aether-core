@@ -120,7 +120,7 @@ impl std::fmt::Display for QuotaExceeded {
 
 impl std::error::Error for QuotaExceeded {}
 
-/// The type of resource a quota applies to.
+/// Resource type subject to quota enforcement.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum QuotaResource {
@@ -350,7 +350,7 @@ impl ResourceUsage {
     }
 }
 
-/// Resource utilization expressed as percentages.
+/// Current resource usage metrics for a tenant.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ResourceUtilization {
     /// Actor utilization percentage.

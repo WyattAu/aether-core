@@ -1012,6 +1012,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_environment_secret_store() {
+        // SAFETY: `set_var` is safe but marked unsafe in Rust 2024 edition due to potential races
+        // with other threads accessing the same env var. Acceptable here since this is test code
+        // and the variable name is unique to this test.
         unsafe {
             std::env::set_var("TEST_SECRET_KEY", "test-value");
         }
@@ -1024,6 +1027,7 @@ mod tests {
         let value = store.get(&reference).await.unwrap();
         assert_eq!(value.as_str().unwrap(), "test-value");
 
+        // SAFETY: `remove_var` has the same unsafety rationale as `set_var` above.
         unsafe {
             std::env::remove_var("TEST_SECRET_KEY");
         }
