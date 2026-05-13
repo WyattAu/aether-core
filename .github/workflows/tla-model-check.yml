@@ -1,0 +1,53 @@
+name: TLA+ Model Checking
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - '.specs/02_architecture/proofs/**'
+  pull_request:
+    paths:
+      - '.specs/02_architecture/proofs/**'
+
+jobs:
+  model-check:
+    name: TLC ${{ matrix.spec.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        spec:
+          - name: scheduler
+            tla: scheduler.tla
+            cfg: SchedulerCfg.cfg
+          - name: gossip
+            tla: gossip.tla
+            cfg: GossipCfg.cfg
+          - name: migration_two_phase
+            tla: migration_two_phase.tla
+            cfg: MigrationCfg.cfg
+          - name: scheduler_work_stealing
+            tla: scheduler_work_stealing.tla
+            cfg: WorkStealingCfg.cfg
+    container:
+      image: ghcr.io/tlaplus/tlaplus:latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run TLC — ${{ matrix.spec.name }}
+        working-directory: .specs/02_architecture/proofs
+        run: |
+          tlc2.TLC \
+            -workers auto \
+            -cleanup \
+            -depth 100 \
+            "${{ matrix.spec.tla }}" \
+            -config "${{ matrix.spec.cfg }}"
+
+      - name: Upload TLC output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tlc-${{ matrix.spec.name }}
+          path: .specs/02_architecture/proofs/${{ matrix.spec.tla }}.*
+          retention-days: 30

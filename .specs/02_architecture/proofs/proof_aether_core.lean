@@ -76,6 +76,10 @@ theorem capability_set_intersection_subset_left
   The intersection of two capability sets is by definition a subset
   of each operand. This follows directly from Finset intersection
   semantics in Mathlib.
+
+  VERIFICATION NOTE: Requires Mathlib (Finset.inter_subset_left).
+  Proof: exact Finset.inter_subset_left a b
+  Cannot compile without Mathlib dependency (lake setup required).
   -/
   sorry
 

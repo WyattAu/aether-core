@@ -1,0 +1,40 @@
+replicaCount: 1
+
+podAnnotations:
+  environment: staging
+  restartAt: "{{ now | date \"2006-01-02T15:04:05Z07:00\" }}"
+
+podLabels:
+  environment: staging
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+image:
+  pullPolicy: Always
+
+config:
+  logLevel: debug
+  authEnabled: false
+  stateBackend: memory
+  eventBackend: memory
+
+cluster:
+  enabled: false
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+  hosts:
+    - host: staging.aether.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []

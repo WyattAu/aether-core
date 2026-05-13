@@ -1,0 +1,50 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: aether
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: aether
+spec:
+  description: Aether Core - Actor-based distributed systems framework
+  sourceRepos:
+    - "https://github.com/aether/aether-core.git"
+    - "https://github.com/aether/aether-core-*.git"
+  destinations:
+    - namespace: aether-staging
+      server: https://kubernetes.default.svc
+    - namespace: aether-production
+      server: https://kubernetes.default.svc
+    - namespace: argocd
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+    - group: "cert-manager.io"
+      kind: Certificate
+    - group: "cert-manager.io"
+      kind: Issuer
+    - group: "policy"
+      kind: PodDisruptionBudget
+  namespaceResourceBlacklist:
+    - group: ""
+      kind: ResourceQuota
+    - group: ""
+      kind: LimitRange
+  roles:
+    - name: staging-deployer
+      description: Deploy to staging
+      policies:
+        - p, proj:aether:staging-deployer, applications, get, aether-staging/*, allow
+        - p, proj:aether:staging-deployer, applications, sync, aether-staging/*, allow
+      groups:
+        - aether-staging-team
+    - name: production-deployer
+      description: Deploy to production
+      policies:
+        - p, proj:aether:production-deployer, applications, get, aether-production/*, allow
+        - p, proj:aether:production-deployer, applications, sync, aether-production/*, allow
+      groups:
+        - aether-production-team
+  orphanedResources:
+    warn: true

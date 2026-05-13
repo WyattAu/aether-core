@@ -140,6 +140,63 @@ use parking_lot::Mutex;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::broadcast;
+use tokio::sync::mpsc;
+
+/// Thread-safe ring buffer for collecting log entries before shipping.
+///
+/// Log entries are appended via [`record_log`](LogBuffer::record_log) and drained
+/// via [`ship_logs`](LogBuffer::ship_logs). When the buffer is full, oldest
+/// entries are dropped.
+pub struct LogBuffer {
+    sender: mpsc::Sender<serde_json::Value>,
+    receiver: Mutex<Option<mpsc::Receiver<serde_json::Value>>>,
+    capacity: usize,
+}
+
+impl LogBuffer {
+    /// Create a new log buffer with the given capacity.
+    pub fn new(capacity: usize) -> Self {
+        let (sender, receiver) = mpsc::channel(capacity);
+        Self {
+            sender,
+            receiver: Mutex::new(Some(receiver)),
+            capacity,
+        }
+    }
+
+    /// Append a log entry to the buffer.
+    ///
+    /// If the buffer is full, the entry is dropped and a warning is emitted.
+    pub fn record_log(&self, entry: serde_json::Value) {
+        if self.sender.try_send(entry).is_err() {
+            tracing::warn!(
+                capacity = self.capacity,
+                "Log buffer full, dropping log entry"
+            );
+        }
+    }
+
+    /// Drain all buffered log entries.
+    ///
+    /// Returns up to `limit` entries from the buffer. Call this from the
+    /// shipping task to batch-ship to VictoriaLogs or Loki.
+    pub fn ship_logs(&self, limit: usize) -> Vec<serde_json::Value> {
+        let mut guard = self.receiver.lock();
+        if let Some(rx) = guard.as_mut() {
+            let mut entries = Vec::with_capacity(limit.min(self.capacity));
+            while entries.len() < limit {
+                match rx.try_recv() {
+                    Ok(entry) => entries.push(entry),
+                    Err(mpsc::error::TryRecvError::Empty) => break,
+                    Err(mpsc::error::TryRecvError::Disconnected) => break,
+                }
+            }
+            entries
+        } else {
+            Vec::new()
+        }
+    }
+}
 
 /// Central observability hub for the Aether runtime
 ///
@@ -149,6 +206,7 @@ pub struct Observability {
     metrics: Arc<MetricsCollector>,
     health: Arc<HealthChecker>,
     tracing: Option<Arc<Mutex<Tracing>>>,
+    log_buffer: Option<Arc<LogBuffer>>,
     start_time: Instant,
     shutdown_tx: Option<broadcast::Sender<()>>,
 }
@@ -165,6 +223,7 @@ impl Observability {
             metrics: Arc::new(MetricsCollector::new()),
             health: Arc::new(HealthChecker::new()),
             tracing: None,
+            log_buffer: None,
             start_time: Instant::now(),
             shutdown_tx: None,
         }
@@ -226,6 +285,9 @@ impl Observability {
             let has_loki = config.loki_url.is_some();
             if has_vl || has_loki {
                 let batch_size = config.log_shipping_batch_size.unwrap_or(1000);
+                let buffer_capacity = batch_size * 10;
+                let log_buffer = Arc::new(LogBuffer::new(buffer_capacity));
+                self.log_buffer = Some(Arc::clone(&log_buffer));
                 let vl_url = config.victorialogs_url.clone();
                 let loki_url = config.loki_url.clone();
                 let loki_tenant_id = config.loki_tenant_id.clone().unwrap_or_default();
@@ -236,52 +298,54 @@ impl Observability {
                     loop {
                         tokio::select! {
                             _ = interval.tick() => {
-                                let entries: Vec<serde_json::Value> = Vec::new();
-                                if !entries.is_empty() {
-                                    if let Some(ref url) = vl_url {
-                                        let shipper = match VictoriaLogsShipper::new(VictoriaLogsConfig {
-                                            endpoint: url.clone(),
-                                            extra_labels: vec![],
-                                            batch_size,
-                                        }) {
-                                            Ok(s) => s,
-                                            Err(e) => {
-                                                tracing::warn!(error = %e, "Failed to create VictoriaLogs shipper");
-                                                continue;
-                                            }
-                                        };
-                                        let batch: Vec<serde_json::Value> = entries.iter().take(batch_size).cloned().collect();
-                                        if let Err(e) = shipper.ship(&batch).await {
-                                            tracing::warn!(error = %e, "Failed to ship logs to VictoriaLogs");
+                                let entries = log_buffer.ship_logs(batch_size);
+                                if entries.is_empty() {
+                                    continue;
+                                }
+                                if let Some(ref url) = vl_url {
+                                    let shipper = match VictoriaLogsShipper::new(VictoriaLogsConfig {
+                                        endpoint: url.clone(),
+                                        extra_labels: vec![],
+                                        batch_size,
+                                    }) {
+                                        Ok(s) => s,
+                                        Err(e) => {
+                                            tracing::warn!(error = %e, "Failed to create VictoriaLogs shipper");
+                                            continue;
                                         }
+                                    };
+                                    if let Err(e) = shipper.ship(&entries).await {
+                                        tracing::warn!(error = %e, "Failed to ship logs to VictoriaLogs");
                                     }
-                                    if let Some(ref url) = loki_url {
-                                        let pusher = match LokiPusher::new(LokiConfig {
-                                            endpoint: url.clone(),
-                                            tenant_id: loki_tenant_id.clone(),
-                                            extra_labels: vec![("job".to_string(), "aether".to_string())],
-                                        }) {
-                                            Ok(p) => p,
-                                            Err(e) => {
-                                                tracing::warn!(error = %e, "Failed to create Loki pusher");
-                                                continue;
-                                            }
-                                        };
-                                        let stream_labels = std::collections::HashMap::new();
-                                        let values: Vec<serde_json::Value> = entries
-                                            .iter()
-                                            .take(batch_size)
-                                            .map(|v| serde_json::json!([chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0), v]))
-                                            .collect();
-                                        let streams = vec![LogStream {
-                                            streams: vec![LogEntryStream {
-                                                stream: stream_labels,
-                                                values,
-                                            }],
-                                        }];
-                                        if let Err(e) = pusher.push(&streams).await {
-                                            tracing::warn!(error = %e, "Failed to push logs to Loki");
+                                }
+                                if let Some(ref url) = loki_url {
+                                    let pusher = match LokiPusher::new(LokiConfig {
+                                        endpoint: url.clone(),
+                                        tenant_id: loki_tenant_id.clone(),
+                                        extra_labels: vec![("job".to_string(), "aether".to_string())],
+                                    }) {
+                                        Ok(p) => p,
+                                        Err(e) => {
+                                            tracing::warn!(error = %e, "Failed to create Loki pusher");
+                                            continue;
                                         }
+                                    };
+                                    let stream_labels = std::collections::HashMap::new();
+                                    let values: Vec<serde_json::Value> = entries
+                                        .iter()
+                                        .map(|v| {
+                                            let ts = chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0);
+                                            serde_json::json!([ts, v])
+                                        })
+                                        .collect();
+                                    let streams = vec![LogStream {
+                                        streams: vec![LogEntryStream {
+                                            stream: stream_labels,
+                                            values,
+                                        }],
+                                    }];
+                                    if let Err(e) = pusher.push(&streams).await {
+                                        tracing::warn!(error = %e, "Failed to push logs to Loki");
                                     }
                                 }
                             }
@@ -350,6 +414,24 @@ impl Observability {
     /// Returns the distributed tracer if enabled, or `None` if tracing is disabled.
     pub fn tracing(&self) -> Option<Arc<Mutex<Tracing>>> {
         self.tracing.clone()
+    }
+
+    /// Get the log buffer
+    ///
+    /// Returns a handle to the log buffer if log shipping is enabled, or `None`
+    /// otherwise. Use [`LogBuffer::record_log`] to append entries.
+    pub fn log_buffer(&self) -> Option<Arc<LogBuffer>> {
+        self.log_buffer.clone()
+    }
+
+    /// Record a structured log entry for later shipping.
+    ///
+    /// Convenience method that appends to the log buffer. No-op if log
+    /// shipping is not enabled.
+    pub fn record_log(&self, entry: serde_json::Value) {
+        if let Some(buf) = &self.log_buffer {
+            buf.record_log(entry);
+        }
     }
 
     /// Get runtime uptime in seconds

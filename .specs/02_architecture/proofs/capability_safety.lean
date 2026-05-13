@@ -66,24 +66,28 @@ theorem deny_by_default : capEmpty = 0 := by rfl
    Source: capability.rs:125-127  (grant uses bitflags::insert = bitwise OR)
    ============================================================================ -/
 
+-- VERIFIED: Bit-level case analysis on all 4 combinations of a[i] and b[i].
+-- For each bit, (a[i] && (a[i] || b[i])) = a[i] by Bool absorption.
 theorem grant_monotonic (a b : CapabilitySet) :
     (a &&& grant a b) = a := by
-  simp [grant]
-  sorry
-  -- Proof sketch: a &&& (a ||| b) = a by absorption law of boolean algebra
-  -- Every bit set in a remains set; OR with b cannot clear any bit of a
+  simp only [grant]
+  ext i hi
+  simp only [BitVec.getElem_and, BitVec.getElem_or]
+  cases a[i] <;> cases b[i] <;> rfl
 
 /- ============================================================================
    PROP-CAP-003: Revoke Safety
    Source: capability.rs:130-133  (revoke uses bitflags::remove = bitwise AND NOT)
    ============================================================================ -/
 
+-- VERIFIED: Bit-level case analysis on all 4 combinations of a[i] and b[i].
+-- For each bit, ((a[i] && !b[i]) && a[i]) = (a[i] && !b[i]) by Bool absorption.
 theorem revoke_subset (a b : CapabilitySet) :
     (revoke a b &&& a) = revoke a b := by
-  simp [revoke]
-  sorry
-  -- Proof sketch: (a &&& ~~~b) &&& a = a &&& ~~~b by commutativity + absorption
-  -- revoking can only remove bits, never add them
+  simp only [revoke]
+  ext i hi
+  simp only [BitVec.getElem_and, BitVec.getElem_not]
+  cases a[i] <;> cases b[i] <;> rfl
 
 /- ============================================================================
    PROP-CAP-004: Idempotent Grant
@@ -101,13 +105,14 @@ theorem grant_idempotent (a c : CapabilitySet) :
    Source: capability.rs:130-133  (remove is idempotent)
    ============================================================================ -/
 
+-- VERIFIED: Bit-level case analysis on all 4 combinations of a[i] and c[i].
+-- For each bit, (a[i] && (!c[i] && !c[i])) = (a[i] && !c[i]) by Bool idempotence.
 theorem revoke_idempotent (a c : CapabilitySet) :
     revoke (revoke a c) c = revoke a c := by
-  simp [revoke]
-  sorry
-  -- Proof sketch: revoke(a,c) = a &&& ~~~c
-  -- revoke(revoke(a,c),c) = (a &&& ~~~c) &&& ~~~c = a &&& ~~~c
-  -- [idempotence of AND: x &&& x = x, applied to ~~~c]
+  simp only [revoke]
+  ext i hi
+  simp only [BitVec.getElem_and, BitVec.getElem_not]
+  cases a[i] <;> cases c[i] <;> rfl
 
 /- ============================================================================
    PROP-CAP-006: Grant-Revoke Inverse
@@ -115,6 +120,11 @@ theorem revoke_idempotent (a c : CapabilitySet) :
    ============================================================================ -/
 
 -- For single-flag c where a already lacks c: grant then revoke = identity
+-- VERIFICATION NOTE: Requires Nat bitwise arithmetic reasoning beyond simple tactics.
+-- The proof sketch is correct: (a ||| c) &&& ~~~c = a when a &&& c = 0.
+-- Needs either (1) Mathlib's BitVec bitblast/grind tactics, or
+-- (2) a custom lemma proving (a ||| c) &&& ~~~c = a from a &&& c = 0
+-- using Nat.testBit reasoning. Core Lean 4 lacks this automation.
 theorem grant_revoke_inverse (a c : CapabilitySet) (hc : a &&& c = 0) :
     revoke (grant a c) c = a := by
   simp [grant, revoke]
@@ -145,6 +155,9 @@ theorem empty_check_false (c : CapabilitySet) (hc : c ≠ 0) :
 theorem full_check_true (c : CapabilitySet) (hc : c &&& ~~~capFull = 0) :
     check capFull c = true := by
   simp [check]
+  -- VERIFICATION NOTE: Requires reasoning that c has no bits above 17,
+  -- which means capFull &&& c = c. Needs BitVec complement arithmetic
+  -- or Mathlib automation.
   sorry
   -- Proof sketch: hc means c has no bits above 17 (all bits within capFull range)
   -- capFull has all bits 0-17 set
@@ -158,6 +171,9 @@ theorem full_check_true (c : CapabilitySet) (hc : c &&& ~~~capFull = 0) :
 theorem grant_preserves_check (a b c : CapabilitySet) :
     check a c = true → check (grant a b) c = true := by
   simp [check, grant]
+  -- VERIFICATION NOTE: Requires extracting a &&& c = c from decide (a &&& c = c) = true
+  -- (needs of_decide_eq_true or similar) then using bitwise distributivity.
+  -- Core Lean 4's decide/simp interaction makes this non-trivial without Mathlib.
   sorry
   -- Proof sketch: check(a,c)=true means a &&& c = c (c ⊆ a)
   -- (a ||| b) &&& c = (a &&& c) ||| (b &&& c) = c ||| (b &&& c)
@@ -172,33 +188,31 @@ def networkNone : CapabilitySet := capEmpty
 def networkPrivate : CapabilitySet := flag_NETWORK_OUTBOUND ||| flag_NETWORK_INBOUND
 def networkPublic : CapabilitySet := flag_NETWORK_OUTBOUND ||| flag_NETWORK_INBOUND ||| flag_NETWORK_PUBLIC
 
--- None ≠ Private (proper subset)
+-- VERIFIED: Proved by showing BitVec.toNat values differ (0 vs 3) via decidability.
 theorem network_none_ne_private :
     networkNone ≠ networkPrivate := by
-  simp [networkNone, networkPrivate, flag_NETWORK_OUTBOUND]
-  sorry
-  -- Proof: 0 ≠ 1 <<< 0 ||| 1 <<< 1 (obvious, non-zero value)
+  intro h
+  exact absurd (congrArg BitVec.toNat h) (by decide)
 
--- Private ≠ Public (proper subset)
+-- VERIFIED: Proved by showing BitVec.toNat values differ (3 vs 7) via decidability.
 theorem network_private_ne_public :
     networkPrivate ≠ networkPublic := by
-  simp [networkPrivate, networkPublic, flag_NETWORK_PUBLIC]
-  sorry
-  -- Proof: bits 0-1 ≠ bits 0-2 (bit 2 differs)
+  intro h
+  exact absurd (congrArg BitVec.toNat h) (by decide)
 
--- Private ⊆ Public (subset)
+-- VERIFIED: Concrete BitVec computation: (bits 0-2) &&& (bits 0-1) = bits 0-1.
+-- Both sides are concrete values; equality holds by rfl after unfolding check.
 theorem network_private_subset_public :
     check networkPublic networkPrivate = true := by
-  simp [check, networkPrivate, networkPublic]
-  sorry
-  -- Proof: (bits 0-2) &&& (bits 0-1) = bits 0-1
+  simp only [check]
+  exact rfl
 
--- None ⊆ Private (subset)
+-- VERIFIED: Concrete BitVec computation: (bits 0-1) &&& 0 = 0.
+-- Both sides are concrete values; equality holds by rfl after unfolding check.
 theorem network_none_subset_private :
     check networkPrivate networkNone = true := by
-  simp [check, networkNone, networkPrivate]
-  sorry
-  -- Proof: (bits 0-1) &&& 0 = 0 = capEmpty
+  simp only [check]
+  exact rfl
 
 -- Strict chain: None ⊂ Private ⊂ Public
 theorem network_strict_chain :

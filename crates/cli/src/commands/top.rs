@@ -4,6 +4,7 @@
 //! Connects to the Aether dashboard HTTP API to fetch live runtime data.
 
 use clap::Args;
+use std::collections::VecDeque;
 use std::io;
 use std::time::Duration;
 use thiserror::Error;
@@ -13,14 +14,20 @@ use crossterm::{
     execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
+use futures_util::StreamExt;
 use ratatui::{
     Frame, Terminal,
     backend::CrosstermBackend,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Cell, Gauge, Paragraph, Row, Table, Tabs},
+    widgets::{
+        Block, Borders, Cell, Gauge, Paragraph, Row, Scrollbar, ScrollbarOrientation,
+        ScrollbarState, Table, Tabs, Wrap,
+    },
 };
+use tokio::sync::mpsc;
+use tokio_tungstenite::connect_async;
 
 use serde::Deserialize;
 
@@ -77,11 +84,25 @@ struct SystemMetrics {
     #[allow(dead_code)]
     stopped: u32,
     cpu_total: u16,
+    cpu_cores: u32,
     memory_total_mb: u64,
     memory_available_mb: u64,
     uptime_secs: u64,
 }
 
+#[derive(Debug, Clone, Default)]
+struct MeshInfo {
+    nodes: usize,
+    connections: usize,
+}
+
+#[derive(Debug, Clone)]
+struct LogLine {
+    text: String,
+    is_error: bool,
+}
+
+#[derive(Clone)]
 struct DashboardClient {
     client: reqwest::Client,
     base_url: String,
@@ -150,17 +171,90 @@ impl DashboardClient {
             .ok()?;
         resp.json().await.ok()
     }
+
+    async fn fetch_mesh(&self) -> MeshInfo {
+        let resp = match self
+            .client
+            .get(format!("{}/api/v1/mesh", self.base_url))
+            .send()
+            .await
+        {
+            Ok(r) if r.status().is_success() => r,
+            _ => return MeshInfo::default(),
+        };
+
+        let val: serde_json::Value = match resp.json().await {
+            Ok(v) => v,
+            Err(_) => return MeshInfo::default(),
+        };
+
+        let nodes = val.get("nodes").and_then(|n| n.as_u64()).unwrap_or(1) as usize;
+        let connections = val.get("connections").and_then(|c| c.as_u64()).unwrap_or(0) as usize;
+
+        MeshInfo { nodes, connections }
+    }
+
+    fn ws_url(&self) -> String {
+        self.base_url
+            .replace("http://", "ws://")
+            .replace("https://", "wss://")
+    }
+
+    async fn connect_logs_ws(&self, tx: mpsc::Sender<LogLine>) {
+        let url = format!("{}/ws", self.ws_url());
+        let ws_stream = match connect_async(&url).await {
+            Ok((stream, _)) => stream,
+            Err(_) => {
+                let _ = tx
+                    .send(LogLine {
+                        text: "Failed to connect to log stream".to_string(),
+                        is_error: true,
+                    })
+                    .await;
+                return;
+            }
+        };
+
+        let (_, mut read) = ws_stream.split();
+        while let Some(msg) = read.next().await {
+            match msg {
+                Ok(m) => {
+                    if m.is_text() || m.is_binary() {
+                        let text = if m.is_text() {
+                            m.to_text().map(|s| s.to_string()).unwrap_or_default()
+                        } else {
+                            String::from_utf8_lossy(&m.into_data()).to_string()
+                        };
+
+                        let is_error = text.contains("\"level\":\"Error\"")
+                            || text.contains("\"level\":\"error\"")
+                            || text.contains("ERROR");
+                        if tx.send(LogLine { text, is_error }).await.is_err() {
+                            break;
+                        }
+                    }
+                }
+                Err(_) => break,
+            }
+        }
+    }
 }
 
 struct App {
     actors: Vec<ActorInfo>,
     metrics: SystemMetrics,
+    mesh: MeshInfo,
+    log_lines: VecDeque<LogLine>,
+    log_rx: Option<mpsc::Receiver<LogLine>>,
+    log_scroll: u16,
     selected_tab: usize,
+    selected_actor: usize,
     tabs: Vec<&'static str>,
     filter: Option<String>,
     sort_field: String,
     should_quit: bool,
     connected: bool,
+    ws_connected: bool,
     dashboard: DashboardClient,
 }
 
@@ -170,12 +264,18 @@ impl App {
         Self {
             actors: Vec::new(),
             metrics: SystemMetrics::empty(),
+            mesh: MeshInfo::default(),
+            log_lines: VecDeque::new(),
+            log_rx: None,
+            log_scroll: 0,
             selected_tab: 0,
+            selected_actor: 0,
             tabs: vec!["Actors", "Resources", "Mesh", "Logs"],
             filter: args.filter.clone(),
             sort_field: args.sort.clone(),
             should_quit: false,
             connected: false,
+            ws_connected: false,
             dashboard,
         }
     }
@@ -186,8 +286,12 @@ impl App {
         if !self.connected {
             self.actors.clear();
             self.metrics = SystemMetrics::empty();
+            self.mesh = MeshInfo::default();
+            self.ws_connected = false;
             return;
         }
+
+        let (cpu_cores, mem_total_mb, mem_available_mb) = read_system_metrics();
 
         if let Some(status) = self.dashboard.fetch_status().await {
             self.metrics = SystemMetrics {
@@ -196,11 +300,14 @@ impl App {
                 pending: 0,
                 stopped: 0,
                 cpu_total: 0,
-                memory_total_mb: 0,
-                memory_available_mb: 0,
+                cpu_cores,
+                memory_total_mb: mem_total_mb,
+                memory_available_mb: mem_available_mb,
                 uptime_secs: status.uptime_secs as u64,
             };
         }
+
+        self.mesh = self.dashboard.fetch_mesh().await;
 
         if let Some(api_actors) = self.dashboard.fetch_actors().await {
             self.actors = api_actors
@@ -228,6 +335,29 @@ impl App {
                 .actors
                 .sort_by_key(|b| std::cmp::Reverse(b.cpu_percent)),
         }
+
+        if self.selected_actor >= self.actors.len() {
+            self.selected_actor = self.actors.len().saturating_sub(1);
+        }
+
+        if self.log_rx.is_none() && self.selected_tab == 3 {
+            let (tx, rx) = mpsc::channel(256);
+            self.log_rx = Some(rx);
+            self.ws_connected = true;
+            let client = self.dashboard.clone();
+            tokio::spawn(async move {
+                client.connect_logs_ws(tx).await;
+            });
+        }
+
+        if let Some(ref mut rx) = self.log_rx {
+            while let Ok(line) = rx.try_recv() {
+                if self.log_lines.len() >= 100 {
+                    self.log_lines.pop_front();
+                }
+                self.log_lines.push_back(line);
+            }
+        }
     }
 
     fn handle_key(&mut self, key: KeyCode) {
@@ -239,8 +369,25 @@ impl App {
             KeyCode::Right | KeyCode::Char('l') if self.selected_tab < self.tabs.len() - 1 => {
                 self.selected_tab += 1;
             }
-            KeyCode::Up | KeyCode::Char('k') => {}
-            KeyCode::Down | KeyCode::Char('j') => {}
+            KeyCode::Up | KeyCode::Char('k') => {
+                if self.selected_tab == 0 && self.selected_actor > 0 {
+                    self.selected_actor -= 1;
+                } else if self.selected_tab == 3 && self.log_scroll > 0 {
+                    self.log_scroll = self.log_scroll.saturating_sub(1);
+                }
+            }
+            KeyCode::Down | KeyCode::Char('j') => {
+                if self.selected_tab == 0 && !self.actors.is_empty() {
+                    if self.selected_actor < self.actors.len() - 1 {
+                        self.selected_actor += 1;
+                    }
+                } else if self.selected_tab == 3 {
+                    let max_scroll = self.log_lines.len().saturating_sub(1) as u16;
+                    if self.log_scroll < max_scroll {
+                        self.log_scroll += 1;
+                    }
+                }
+            }
             _ => {}
         }
     }
@@ -248,17 +395,56 @@ impl App {
 
 impl SystemMetrics {
     fn empty() -> Self {
+        let (cpu_cores, mem_total_mb, mem_available_mb) = read_system_metrics();
         Self {
             total_actors: 0,
             running: 0,
             pending: 0,
             stopped: 0,
             cpu_total: 0,
-            memory_total_mb: 0,
-            memory_available_mb: 0,
+            cpu_cores,
+            memory_total_mb: mem_total_mb,
+            memory_available_mb: mem_available_mb,
             uptime_secs: 0,
         }
     }
+}
+
+fn read_system_metrics() -> (u32, u64, u64) {
+    let cpu_cores = std::thread::available_parallelism()
+        .map(|n| n.get() as u32)
+        .unwrap_or(0);
+
+    let (mem_total_mb, mem_available_mb) = read_linux_memory();
+
+    (cpu_cores, mem_total_mb, mem_available_mb)
+}
+
+fn read_linux_memory() -> (u64, u64) {
+    let content = match std::fs::read_to_string("/proc/meminfo") {
+        Ok(c) => c,
+        Err(_) => return (0, 0),
+    };
+
+    let mut total_kb: u64 = 0;
+    let mut available_kb: u64 = 0;
+
+    for line in content.lines() {
+        if let Some(val) = line.strip_prefix("MemTotal:") {
+            total_kb = parse_meminfo_kb(val);
+        } else if let Some(val) = line.strip_prefix("MemAvailable:") {
+            available_kb = parse_meminfo_kb(val);
+        }
+    }
+
+    (total_kb / 1024, available_kb / 1024)
+}
+
+fn parse_meminfo_kb(s: &str) -> u64 {
+    s.split_whitespace()
+        .next()
+        .and_then(|n| n.parse::<u64>().ok())
+        .unwrap_or(0)
 }
 
 pub async fn execute(args: TopArgs) -> Result<(), Error> {
@@ -525,15 +711,18 @@ fn render_actors_table(f: &mut Frame, app: &App, area: Rect) {
     let rows: Vec<Row> = app
         .actors
         .iter()
-        .map(|a| {
+        .enumerate()
+        .map(|(i, a)| {
             let status_color = match a.status.as_str() {
                 "running" => Color::Green,
-                "pending" => Color::Yellow,
-                "stopped" => Color::Red,
+                "failed" => Color::Red,
+                "suspended" => Color::Yellow,
+                "creating" | "stopped" => Color::Gray,
+                "draining" => Color::Magenta,
                 _ => Color::Gray,
             };
             let cells = [
-                Cell::from(a.name.as_str()).style(Style::default().fg(Color::White)),
+                Cell::from(a.name.as_str()),
                 Cell::from(a.status.as_str()).style(Style::default().fg(status_color)),
                 Cell::from(a.instances.to_string()),
                 Cell::from(format!("{:>3}%", a.cpu_percent)).style(Style::default().fg(
@@ -548,13 +737,20 @@ fn render_actors_table(f: &mut Frame, app: &App, area: Rect) {
                 Cell::from(format!("{} MB", a.memory_mb)),
                 Cell::from(format!("{:>6}", a.messages_per_sec)),
             ];
-            Row::new(cells).height(1)
+            let row_style = if i == app.selected_actor {
+                Style::default()
+                    .bg(Color::DarkGray)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default()
+            };
+            Row::new(cells).style(row_style).height(1)
         })
         .collect();
 
     let widths = [
         Constraint::Length(20),
-        Constraint::Length(10),
+        Constraint::Length(12),
         Constraint::Length(10),
         Constraint::Length(8),
         Constraint::Length(12),
@@ -569,7 +765,9 @@ fn render_actors_table(f: &mut Frame, app: &App, area: Rect) {
                 .title(" Actors ")
                 .title_style(Style::default().fg(Color::Cyan)),
         )
-        .column_spacing(2);
+        .column_spacing(2)
+        .row_highlight_style(Style::default().bg(Color::DarkGray))
+        .highlight_symbol(">> ");
     f.render_widget(table, area);
 }
 
@@ -601,7 +799,7 @@ fn render_resources_panel(f: &mut Frame, app: &App, area: Rect) {
     let content = vec![
         Line::from(vec![
             Span::styled(" CPU Cores: ", Style::default().fg(Color::DarkGray)),
-            Span::styled("8", Style::default().fg(Color::Cyan)),
+            Span::styled(format!("{}", m.cpu_cores), Style::default().fg(Color::Cyan)),
         ]),
         Line::from(vec![
             Span::styled(" Total CPU Usage: ", Style::default().fg(Color::DarkGray)),
@@ -671,18 +869,33 @@ fn render_mesh_panel(f: &mut Frame, app: &App, area: Rect) {
         return;
     }
 
+    let mesh = &app.mesh;
+    let status_text = if mesh.nodes <= 1 {
+        "local only"
+    } else {
+        "clustered"
+    };
+    let status_color = if mesh.nodes <= 1 {
+        Color::Green
+    } else {
+        Color::Cyan
+    };
+
     let content = vec![
         Line::from(vec![
             Span::styled(" Nodes: ", Style::default().fg(Color::DarkGray)),
-            Span::styled("1", Style::default().fg(Color::Cyan)),
+            Span::styled(format!("{}", mesh.nodes), Style::default().fg(Color::Cyan)),
         ]),
         Line::from(vec![
             Span::styled(" Connections: ", Style::default().fg(Color::DarkGray)),
-            Span::styled("0", Style::default().fg(Color::Cyan)),
+            Span::styled(
+                format!("{}", mesh.connections),
+                Style::default().fg(Color::Cyan),
+            ),
         ]),
         Line::from(vec![
             Span::styled(" Status: ", Style::default().fg(Color::DarkGray)),
-            Span::styled("local only", Style::default().fg(Color::Green)),
+            Span::styled(status_text, Style::default().fg(status_color)),
         ]),
     ];
 
@@ -718,25 +931,73 @@ fn render_logs_panel(f: &mut Frame, app: &App, area: Rect) {
         return;
     }
 
-    let content = vec![Line::from(vec![
-        Span::styled(" Connected. Use ", Style::default().fg(Color::DarkGray)),
-        Span::styled(
-            "aether logs",
-            Style::default()
-                .fg(Color::Cyan)
-                .add_modifier(Modifier::BOLD),
-        ),
-        Span::styled(
-            " for live log streaming.",
-            Style::default().fg(Color::DarkGray),
-        ),
-    ])];
+    if app.log_lines.is_empty() && !app.ws_connected {
+        let content = vec![Line::from(vec![Span::styled(
+            " Connecting to log stream...",
+            Style::default().fg(Color::Yellow),
+        )])];
+        let panel = Paragraph::new(content).block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(" Logs (live) ")
+                .title_style(Style::default().fg(Color::Cyan)),
+        );
+        f.render_widget(panel, area);
+        return;
+    }
 
-    let panel = Paragraph::new(content).block(
-        Block::default()
-            .borders(Borders::ALL)
-            .title(" Logs (live) ")
-            .title_style(Style::default().fg(Color::Cyan)),
-    );
+    if app.log_lines.is_empty() {
+        let content = vec![Line::from(vec![Span::styled(
+            " Waiting for log entries...",
+            Style::default().fg(Color::DarkGray),
+        )])];
+        let panel = Paragraph::new(content).block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(" Logs (live) ")
+                .title_style(Style::default().fg(Color::Cyan)),
+        );
+        f.render_widget(panel, area);
+        return;
+    }
+
+    let lines: Vec<Line> = app
+        .log_lines
+        .iter()
+        .map(|entry| {
+            let style = if entry.is_error {
+                Style::default().fg(Color::Red)
+            } else {
+                Style::default().fg(Color::White)
+            };
+            Line::from(Span::styled(&entry.text, style))
+        })
+        .collect();
+
+    let title = format!(" Logs (live) [{} lines] ", app.log_lines.len());
+    let panel = Paragraph::new(lines)
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(title)
+                .title_style(Style::default().fg(Color::Cyan)),
+        )
+        .wrap(Wrap { trim: false })
+        .scroll((app.log_scroll, 0));
     f.render_widget(panel, area);
+
+    let total_lines = app.log_lines.len() as u16;
+    if total_lines > 0 {
+        let mut scrollbar_state =
+            ScrollbarState::new(total_lines as usize).position(app.log_scroll as usize);
+        let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight);
+        f.render_stateful_widget(
+            scrollbar,
+            area.inner(ratatui::layout::Margin {
+                vertical: 0,
+                horizontal: 0,
+            }),
+            &mut scrollbar_state,
+        );
+    }
 }

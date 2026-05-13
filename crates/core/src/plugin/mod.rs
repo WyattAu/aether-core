@@ -3,6 +3,7 @@
 //! Provides signed WASM module management with capability manifests,
 //! discovery, versioning, and sandboxed execution.
 
+pub mod loader;
 pub mod manifest;
 pub mod registry;
 pub mod signature;
