@@ -38,7 +38,7 @@ MAJOR.MINOR.PATCH[-PRERELEASE]
 - No breaking changes
 
 **Process:**
-1. Fix bugs in `develop` branch
+1. Fix bugs in `main` branch
 2. Merge to `main`
 3. Tag with patch version
 4. Automated release builds
@@ -51,7 +51,7 @@ MAJOR.MINOR.PATCH[-PRERELEASE]
 
 **Process:**
 1. Develop features in feature branches
-2. Merge to `develop`
+2. Merge to `main`
 3. Test thoroughly
 4. Merge to `main`
 5. Tag with minor version
@@ -65,7 +65,7 @@ MAJOR.MINOR.PATCH[-PRERELEASE]
 
 **Process:**
 1. Plan breaking changes
-2. Develop in feature branches
+2. Develop in `main` branch
 3. Create migration guide
 4. Extensive testing
 5. Beta/RC releases

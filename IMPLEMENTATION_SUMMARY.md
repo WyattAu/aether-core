@@ -1,6 +1,6 @@
 # Aether Implementation Summary
 
-**Date:** May 10, 2026
+**Date:** May 14, 2026
 **Version:** 2.0.0
 **Status:** Post-v2.0.0 Hardening -- Core Runtime Complete
 
@@ -100,7 +100,7 @@ Aether is a distributed actor runtime built in Rust that provides WASM execution
 | Memory benchmarks | 4 | All passing |
 | Test fixtures | 7 | All passing |
 | Doc tests | 18 | All passing, 43 ignored (require external deps) |
-| **Total** | **1,275** | **0 failures, 88 ignored** |
+| **Total** | **1,623** | **1,531 passing, 92 ignored** |
 
 ---
 

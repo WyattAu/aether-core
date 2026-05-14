@@ -20,7 +20,7 @@ This document provides a high-level summary of identified standard conflicts. Fo
 - **Total Conflicts:** 7
 - **Resolved:** 5
 - **Mitigated:** 1
-- **Partial:** 1
+- **In Progress:** 1
 - **Open:** 0
 
 ## Related Documents

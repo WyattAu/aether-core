@@ -130,13 +130,13 @@ This document consolidates all traceability information for Project Aether, link
 
 | ADR | Decision | Requirements | Standards | Status |
 |-----|----------|--------------|-----------|--------|
-| ADR-001 | Host-injected entropy | REQ-DBG-01, REQ-DBG-04 | IEC 61508, NIST SP 800-53 | Draft |
-| ADR-002 | Validated zero-copy | REQ-DBG-03, REQ-PERF-04 | IEC 61508 | Draft |
-| ADR-003 | Hybrid isolation model | REQ-EXEC-02, REQ-SAFE-04 | IEC 62443, NIST SP 800-53 | Draft |
-| ADR-004 | Async audit logging | REQ-SEC-05 | NIST SP 800-53 | Draft |
-| ADR-005 | FIPS mode switching | REQ-SEC-02, REQ-SEC-04 | FIPS 140-2/3 | Draft |
-| ADR-006 | WASM abstraction layer | REQ-EXEC-01, REQ-EXEC-06, REQ-EXEC-07 | WASI Preview 2 | Draft |
-| ADR-007 | Topology-aware placement | REQ-ORCH-02, REQ-STOR-04 | GDPR, IEC 61508 | Draft |
+| ADR-001 | Dual Runtime Architecture | REQ-EXEC-01, REQ-EXEC-06 | IEC 61508, NIST SP 800-53 | Accepted |
+| ADR-002 | Deny-by-Default Capability Model | REQ-SEC-01, REQ-SAFE-01 | IEC 61508 | Accepted |
+| ADR-003 | Panic Abort Policy | REQ-EXEC-05, REQ-SAFE-01 | IEC 61508 | Accepted |
+| ADR-004 | Wasmtime WASM Runtime Selection | REQ-EXEC-01, REQ-EXEC-07 | WASI Preview 2 | Accepted |
+| ADR-005 | Firecracker VMM Selection | REQ-SAFE-04, REQ-EXEC-02 | IEC 62443 | Accepted |
+| ADR-006 | Multi-Language SDK Strategy | REQ-EXEC-06, REQ-EXEC-07 | ISO 12207 | Accepted |
+| ADR-007 | MkDocs for Documentation Site | REQ-SEC-05 | ISO 12207 | Accepted |
 
 ---
 
@@ -180,8 +180,8 @@ This document consolidates all traceability information for Project Aether, link
 | stakeholder_analysis.md | Stakeholder matrix | ISO 12207 | Complete |
 | moscow_priority.md | Prioritization | ISO 12207 | Complete |
 | traceability_matrix.md | Full traceability | ISO 12207 | Complete |
-| privacy_impact_assessment.md | GDPR analysis | GDPR | Planned |
-| safety_case.md | Safety argumentation | IEC 61508, ISO 26262 | Planned |
+| privacy_impact_assessment.md | GDPR analysis | GDPR | Not yet created |
+| safety_case.md | Safety argumentation | IEC 61508, ISO 26262 | Not yet created |
 
 ---
 

@@ -557,7 +557,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **State API**: Async state management with State class
 - **Error Handling**: AetherError hierarchy with specific error types
 
-#### JavaScript SDK (`sdks/js/`)
+#### JavaScript SDK (`sdks/javascript/`)
 - **Actor Framework**: Full `Actor` class with async lifecycle
 - **Message Types**: MessageType enum, Message class with factory methods
 - **Capabilities**: Capability enum and require() method
