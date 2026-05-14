@@ -102,9 +102,10 @@ impl ActorRegistry {
 
     /// Register a new actor with a name.
     ///
-    /// This operation is atomic: if the ID already exists, no name mapping is created.
-    /// If the name already exists, no ID mapping is created. This prevents TOCTOU races
-    /// where a concurrent registration could observe partial state.
+    /// This operation is fully atomic: both the ID and name mappings are created
+    /// (or rejected) under a single critical section. The `by_name` write lock
+    /// serializes all registrations, preventing TOCTOU races where a concurrent
+    /// registration could observe or corrupt partial state.
     pub fn register_named(&self, id: ActorId, name: Option<String>) -> crate::Result<Arc<Mailbox>> {
         let mailbox = Arc::new(Mailbox::new(id, self.mailbox_config.clone()));
 
@@ -116,7 +117,13 @@ impl ActorRegistry {
             last_active: std::sync::atomic::AtomicI64::new(chrono::Utc::now().timestamp()),
         });
 
-        // Check for duplicate ID first (cheaper check on lock-free map).
+        // Serialize ALL registrations through the name lock, even unnamed ones.
+        // This prevents a TOCTOU race where thread A (named) inserts into by_name
+        // then thread B (unnamed, same ID) inserts into by_id before A does,
+        // causing A's entry to silently replace B's.
+        let mut by_name = self.by_name.write();
+
+        // Check for duplicate ID.
         if self.by_id.contains_key(&id) {
             return Err(Error::actor(format!(
                 "actor with id {:?} already exists",
@@ -124,45 +131,31 @@ impl ActorRegistry {
             )));
         }
 
-        // Hold the name lock for the entire registration to prevent TOCTOU races.
-        // Between releasing the name lock and inserting into by_id, another thread
-        // could register the same name. By holding both, we ensure atomicity.
+        // Check for duplicate name (if a name is provided).
         if let Some(ref actor_name) = name {
-            let mut by_name = self.by_name.write();
             if by_name.contains_key(actor_name) {
                 return Err(Error::actor(format!(
                     "actor with name '{}' already exists",
                     actor_name
                 )));
             }
-
-            // Double-check ID under name lock (another thread may have inserted it).
-            if self.by_id.contains_key(&id) {
-                return Err(Error::actor(format!(
-                    "actor with id {:?} already exists",
-                    id
-                )));
-            }
-
-            by_name.insert(actor_name.clone(), id);
-            // Fall through to by_id insertion while still holding name lock.
-            // The by_id insert uses DashMap's internal locking, which is safe
-            // because we check contains_key above.
         }
 
-        // This should not fail given the contains_key checks above, but we
-        // handle it defensively. If it does fail, we clean up the name mapping.
+        // Insert into by_id first. This must not fail given the check above,
+        // but we handle it defensively to avoid corrupting the name mapping.
         if self.by_id.insert(id, entry).is_some() {
-            // Clean up name mapping if we created one.
-            if let Some(ref actor_name) = name {
-                self.by_name.write().remove(actor_name);
-            }
             return Err(Error::actor(format!(
                 "actor with id {:?} already exists",
                 id
             )));
         }
 
+        // Insert name mapping (if provided) now that by_id is consistent.
+        if let Some(ref actor_name) = name {
+            by_name.insert(actor_name.clone(), id);
+        }
+
+        // Release by_name lock (implicit drop at end of scope).
         Ok(mailbox)
     }
 
@@ -431,5 +424,53 @@ mod tests {
 
         // The original name mapping should still be intact.
         assert_eq!(registry.lookup("my-actor"), Some(id));
+    }
+
+    #[test]
+    fn test_registry_toctou_unnamed_vs_named_same_id() {
+        // Verify that two threads registering the same ID (one unnamed, one named)
+        // cannot both succeed. Previously this was a TOCTOU race: the unnamed path
+        // skipped the name lock, so it could insert into by_id between the named
+        // path's contains_key check and its insert.
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::thread;
+
+        let registry = Arc::new(ActorRegistry::new());
+        let id = ActorId::new();
+        let success_count = Arc::new(AtomicUsize::new(0));
+
+        // Pre-generate the named registration closure (shares the same ID).
+        let named_id = id;
+        let unnamed_id = id;
+        let reg1 = registry.clone();
+        let reg2 = registry.clone();
+        let sc1 = success_count.clone();
+        let sc2 = success_count.clone();
+
+        let h1 = thread::spawn(move || {
+            match reg1.register_named(named_id, Some("named-actor".to_string())) {
+                Ok(_) => {
+                    sc1.fetch_add(1, Ordering::Relaxed);
+                }
+                Err(_) => {}
+            }
+        });
+
+        let h2 = thread::spawn(move || match reg2.register_named(unnamed_id, None) {
+            Ok(_) => {
+                sc2.fetch_add(1, Ordering::Relaxed);
+            }
+            Err(_) => {}
+        });
+
+        h1.join().unwrap();
+        h2.join().unwrap();
+
+        assert_eq!(
+            success_count.load(Ordering::Relaxed),
+            1,
+            "exactly one registration with the same ID should succeed"
+        );
+        assert_eq!(registry.len(), 1);
     }
 }

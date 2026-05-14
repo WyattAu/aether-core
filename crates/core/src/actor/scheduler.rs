@@ -3,6 +3,7 @@
 //! Implements a multi-worker scheduler with work stealing for load balancing.
 
 use parking_lot::{Mutex, RwLock};
+use std::panic::AssertUnwindSafe;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::thread::{self, JoinHandle};
@@ -452,21 +453,21 @@ impl ActorScheduler {
 
             // Try priority queue first
             if let Some(task) = priority_queue.pop() {
-                Self::process_task(&registry, task, &total_processed, &stats, executor);
+                Self::process_task_safe(&registry, task, &total_processed, &stats, executor);
                 consecutive_empty = 0;
                 continue;
             }
 
             // Try local queue
             if let Some(task) = worker.pop() {
-                Self::process_task(&registry, task, &total_processed, &stats, executor);
+                Self::process_task_safe(&registry, task, &total_processed, &stats, executor);
                 consecutive_empty = 0;
                 continue;
             }
 
             // Try global queue
             if let Some(task) = global_queue.steal_global() {
-                Self::process_task(&registry, task, &total_processed, &stats, executor);
+                Self::process_task_safe(&registry, task, &total_processed, &stats, executor);
                 consecutive_empty = 0;
                 continue;
             }
@@ -474,7 +475,7 @@ impl ActorScheduler {
             // Try stealing from other workers
             if let Some(task) = stealer.steal() {
                 stats.stolen.fetch_add(1, Ordering::Relaxed);
-                Self::process_task(&registry, task, &total_processed, &stats, executor);
+                Self::process_task_safe(&registry, task, &total_processed, &stats, executor);
                 consecutive_empty = 0;
                 continue;
             }
@@ -492,6 +493,44 @@ impl ActorScheduler {
                 std::thread::sleep(std::time::Duration::from_micros(config.idle_sleep_us));
             } else if consecutive_empty > 10 {
                 std::hint::spin_loop();
+            }
+        }
+    }
+
+    /// Process a task with panic protection.
+    ///
+    /// Wraps `process_task` in `catch_unwind` so that a panic in the executor
+    /// or handler does not kill the worker thread. On panic, the actor is marked
+    /// as `Failed` and its mailbox is drained to prevent further processing of
+    /// messages by the panicked actor.
+    fn process_task_safe(
+        registry: &ActorRegistry,
+        task: Task,
+        total_processed: &AtomicU64,
+        stats: &WorkerStats,
+        executor: Option<&Arc<dyn ActorExecutor>>,
+    ) {
+        let actor_id = task.actor_id;
+        let result = std::panic::catch_unwind(AssertUnwindSafe(|| {
+            Self::process_task(registry, task, total_processed, stats, executor);
+        }));
+
+        if let Err(panic_payload) = result {
+            tracing::error!(
+                actor_id = ?actor_id,
+                "worker panicked while processing task; marking actor as Failed and draining mailbox"
+            );
+            // Mark the actor as failed.
+            let _ = registry.set_state(&actor_id, ActorState::Failed);
+            // Drain the mailbox so no further messages are processed by this actor.
+            if let Some(mailbox) = registry.get_mailbox(&actor_id) {
+                mailbox.clear();
+            }
+            // Log the panic payload for diagnostics.
+            if let Some(s) = panic_payload.downcast_ref::<&str>() {
+                tracing::error!(panic_message = %s, "panic details");
+            } else if let Some(s) = panic_payload.downcast_ref::<String>() {
+                tracing::error!(panic_message = %s, "panic details");
             }
         }
     }
@@ -519,10 +558,23 @@ impl ActorScheduler {
                         }
                         ExecutionResult::FuelExhausted { .. } => {
                             let _ = registry.set_state(&task.actor_id, ActorState::Failed);
+                            // Drain the mailbox so no further messages are processed
+                            // by this failed actor. Messages are intentionally dropped
+                            // (not re-queued) because the actor is in a terminal state.
+                            if let Some(mailbox) = registry.get_mailbox(&task.actor_id) {
+                                mailbox.clear();
+                            }
                             false
                         }
                         ExecutionResult::Failed { error } => {
                             tracing::warn!("Actor execution failed: {}", error);
+                            // Mark the actor as failed and drain its mailbox.
+                            // Without this, the actor stays in Running state with
+                            // unprocessed messages accumulating indefinitely.
+                            let _ = registry.set_state(&task.actor_id, ActorState::Failed);
+                            if let Some(mailbox) = registry.get_mailbox(&task.actor_id) {
+                                mailbox.clear();
+                            }
                             false
                         }
                         ExecutionResult::NotReady => {
