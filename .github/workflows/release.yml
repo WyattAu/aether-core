@@ -194,8 +194,8 @@ jobs:
         run: cargo publish -p aether-cli --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
         continue-on-error: true
       
-      - name: Publish aether-actor-sdk
-        run: cargo publish -p aether-actor-sdk --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+      - name: Publish aether-actor
+        run: cargo publish -p aether-actor --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
         continue-on-error: true
 
   release:

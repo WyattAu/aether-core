@@ -76,7 +76,7 @@ jobs:
         run: cargo build --features fdb
 
       - name: Run integration tests (fdb)
-        run: cargo test --test integration --features fdb -- --nocapture
+        run: cargo test --workspace --features fdb -- --nocapture fdb_integration_tests
 
       - name: Run actor migration tests (fdb)
         run: cargo test --features fdb migration -- --nocapture

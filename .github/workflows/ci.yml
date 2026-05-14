@@ -76,17 +76,8 @@ jobs:
       - name: Run tests
         run: cargo test --workspace --all-features
 
-      - name: Run integration tests
-        run: cargo test --test integration --all-features
-
-      - name: Run memory benchmarks
-        run: cargo test --test memory_benchmarks --all-features -- --nocapture
-
       - name: Run property tests
         run: cargo test --test property_tests --all-features
-
-      - name: Run security tests
-        run: cargo test --test security_tests --all-features
 
       - name: Install wasm32-wasip1 target
         run: rustup target add wasm32-wasip1
@@ -157,7 +148,7 @@ jobs:
         run: cargo install cargo-audit
 
       - name: Security audit
-        run: cargo audit --deny RUSTSEC-2026-0044 --deny RUSTSEC-2026-0048 --deny RUSTSEC-2026-0037 2>&1 || true
+        run: cargo audit --deny warnings 2>&1 || true
 
       - name: Audit summary
         if: always()
@@ -186,13 +177,6 @@ jobs:
       - name: Build docs
         run: cargo doc --workspace --no-deps
 
-      - name: Deploy docs
-        if: github.ref == 'refs/heads/main'
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./target/doc
-
   build:
     name: Build
     runs-on: ${{ matrix.os }}
@@ -218,13 +202,13 @@ jobs:
 
       - name: Strip binary
         if: matrix.os == 'ubuntu-latest'
-        run: strip target/${{ matrix.target }}/release/aether
+        run: strip target/release/aether
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
-          path: target/${{ matrix.target }}/release/aether
+          path: target/release/aether
 
   release:
     name: Release

@@ -30,6 +30,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -129,14 +132,14 @@ jobs:
           
           # Run basic health check
           docker run -d --name aether-test \
-            -p 9001:9001 \
+            -p 8080:8080 \
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
           
           # Wait for startup
           sleep 10
           
           # Health check
-          curl -f http://localhost:9001/health || exit 1
+          curl -f http://localhost:8080/health || exit 1
           
           # Cleanup
           docker stop aether-test

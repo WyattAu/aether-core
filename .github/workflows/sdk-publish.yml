@@ -34,7 +34,7 @@ jobs:
     if: ${{ github.event_name == 'release' || inputs.sdk == 'all' || inputs.sdk == 'javascript' }}
     defaults:
       run:
-        working-directory: sdks/js
+        working-directory: sdks/javascript
     steps:
       - uses: actions/checkout@v4
       
