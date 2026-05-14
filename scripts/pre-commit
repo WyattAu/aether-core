@@ -74,6 +74,16 @@ if [ -n "$RUST_CHANGED" ]; then
         log_fail "Documentation errors detected."
         exit 1
     fi
+
+    # Step 6: Forbidden pattern check
+    STEPS=$((STEPS + 1))
+    log_step "${STEPS}/${TOTAL}: Checking for forbidden patterns..."
+    TOTAL=$((TOTAL + 1))
+    if grep -rn 'todo!\|unimplemented!\|generate_mock\|SimulatedLogStreamer' crates/ 2>/dev/null; then
+        log_fail "Forbidden patterns detected (todo!, unimplemented!, stubs). Remove before committing."
+        exit 1
+    fi
+    log_step "No forbidden patterns detected."
 fi
 
 # --- Documentation quality gate ---

@@ -13,12 +13,12 @@ path = "src/main.rs"
 
 [dependencies]
 aether-core = { workspace = true }
-axum = { version = "0.8", features = ["json", "macros", "ws"] }
+axum = { version = "0.7", features = ["json", "macros", "ws"] }
 tokio = { workspace = true, features = ["signal", "rt"] }
 rusqlite = { version = "0.32", features = ["bundled"], optional = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-tower-http = { version = "0.6", features = ["cors", "trace", "compression-gzip"] }
+tower-http = { version = "0.5", features = ["cors", "trace", "compression-gzip"] }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 uuid = { workspace = true }

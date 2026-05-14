@@ -26,16 +26,23 @@ if ! cargo clippy --workspace --all-features -- -D warnings 2>&1; then
 fi
 
 # Step 3: Full test suite (unit + integration + property + fuzz)
-log_step "3/4: Running full test suite..."
+log_step "3/5: Running full test suite..."
 if ! cargo test --workspace --all-features 2>&1; then
     log_fail "Test failures detected. Fix before pushing."
     exit 1
 fi
 
 # Step 4: Documentation build
-log_step "4/4: Building documentation..."
+log_step "4/5: Building documentation..."
 if ! cargo doc --workspace --no-deps 2>&1; then
     log_fail "Documentation build failed."
+    exit 1
+fi
+
+# Step 5: Forbidden pattern check
+log_step "5/5: Checking for forbidden patterns..."
+if grep -rn 'todo!\|unimplemented!\|generate_mock\|SimulatedLogStreamer' crates/ 2>/dev/null; then
+    log_fail "Forbidden patterns detected (todo!, unimplemented!, stubs). Remove before pushing."
     exit 1
 fi
 
