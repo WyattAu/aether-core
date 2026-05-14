@@ -299,8 +299,32 @@ pub fn create_require_auth_layer(
     }
 }
 
+/// Create an authentication middleware layer based on the `require` flag.
+///
+/// When `require` is `true`, returns 401 for unauthenticated requests.
+/// When `require` is `false`, attaches [`AuthContext`] if a valid token is present.
+pub fn create_auth_layer(
+    config: AuthConfig,
+    require: bool,
+) -> impl Fn(Request, Next) -> std::pin::Pin<Box<dyn std::future::Future<Output = Response> + Send>>
++ Clone
++ Send
++ Sync
++ 'static {
+    move |request, next| {
+        let config = config.clone();
+        Box::pin(async move {
+            if require {
+                require_auth_inner(config, request, next).await
+            } else {
+                optional_auth_inner(config, request, next).await
+            }
+        })
+    }
+}
+
 /// Internal implementation of optional auth.
-async fn optional_auth_inner(config: AuthConfig, mut request: Request, next: Next) -> Response {
+pub async fn optional_auth_inner(config: AuthConfig, mut request: Request, next: Next) -> Response {
     if let Some(token) = extract_bearer_token(&request) {
         if let Some(ctx) = authenticate_token(&config, token) {
             request.extensions_mut().insert(ctx);
@@ -310,7 +334,7 @@ async fn optional_auth_inner(config: AuthConfig, mut request: Request, next: Nex
 }
 
 /// Internal implementation of require auth.
-async fn require_auth_inner(config: AuthConfig, request: Request, next: Next) -> Response {
+pub async fn require_auth_inner(config: AuthConfig, request: Request, next: Next) -> Response {
     if let Some(token) = extract_bearer_token(&request) {
         if let Some(ctx) = authenticate_token(&config, token) {
             let mut request = request;

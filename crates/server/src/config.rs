@@ -21,6 +21,16 @@ pub struct ServerConfig {
     /// JWT secret for authentication.
     pub jwt_secret: Option<String>,
 
+    /// Comma-separated list of API keys in `key=principal` format.
+    /// Example: `AETHER_API_KEYS="secret-key=admin,read-only=viewer"`
+    pub api_keys: Option<String>,
+
+    /// Whether to require authentication for all endpoints.
+    /// When `false` (default), auth is optional and attaches `AuthContext`
+    /// to requests that present valid credentials.
+    /// When `true`, requests without valid credentials receive 401.
+    pub require_auth: bool,
+
     /// PostgreSQL connection URL.
     pub postgres_url: Option<String>,
 
@@ -51,6 +61,8 @@ impl Default for ServerConfig {
             grpc_port: default_grpc_port(),
             cluster_enabled: false,
             jwt_secret: None,
+            api_keys: None,
+            require_auth: false,
             postgres_url: None,
             redis_url: None,
             log_level: default_log_level(),
@@ -80,6 +92,10 @@ impl ServerConfig {
         }
 
         config.jwt_secret = env::var("AETHER_JWT_SECRET").ok();
+        config.api_keys = env::var("AETHER_API_KEYS").ok();
+        config.require_auth = env::var("AETHER_REQUIRE_AUTH")
+            .map(|v| v == "true" || v == "1")
+            .unwrap_or(false);
         config.postgres_url = env::var("AETHER_POSTGRES_URL").ok();
         config.redis_url = env::var("AETHER_REDIS_URL").ok();
 
