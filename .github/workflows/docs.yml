@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
     paths:
+      - 'docs-site/**'
       - 'sdks/python/docs/**'
       - 'sdks/javascript/docs/**'
       - 'sdks/javascript/src/**'
@@ -26,83 +27,26 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      
-      - name: Install Python docs dependencies
+
+      - name: Install MkDocs and dependencies
         run: |
-          pip install sphinx sphinx-rtd-theme
-      
-      - name: Build Sphinx docs
+          pip install mkdocs-material mkdocs-git-revision-date-localized
+
+      - name: Build MkDocs site
         run: |
-          cd sdks/python/docs
-          make html
-          mkdir -p ../../docs-site/python
-          cp -r _build/html/* ../../docs-site/python/
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      
-      - name: Install TypeDoc
-        run: npm install -g typedoc
-      
-      - name: Build TypeDoc
-        run: |
-          cd sdks/javascript
-          typedoc
-          mkdir -p ../../docs-site/javascript
-          cp -r docs/* ../../docs-site/javascript/
-      
-      - name: Create index page
-        run: |
-          mkdir -p docs-site
-          cat > docs-site/index.html << 'HTMLEOF'
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <meta charset="utf-8">
-            <title>Aether SDK Documentation</title>
-            <meta http-equiv="refresh" content="0; url=python/index.html">
-            <style>
-              body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; 
-                     max-width: 800px; margin: 80px auto; padding: 0 20px; }
-              h1 { color: #2563eb; }
-              a { color: #2563eb; text-decoration: none; }
-              a:hover { text-decoration: underline; }
-              .sdk-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 40px; }
-              .sdk-card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; }
-              .sdk-card h2 { margin-top: 0; }
-            </style>
-          </head>
-          <body>
-            <h1>Aether SDK Documentation</h1>
-            <p>Actor-based distributed systems framework with SDKs for Python, JavaScript, Go, and Java.</p>
-            <div class="sdk-grid">
-              <div class="sdk-card">
-                <h2>Python SDK</h2>
-                <p>Comprehensive actor, resilience, streaming, workflow, and event modules.</p>
-                <p><a href="python/index.html">Browse docs →</a></p>
-              </div>
-              <div class="sdk-card">
-                <h2>JavaScript SDK</h2>
-                <p>TypeScript-first SDK with full type safety and modern async patterns.</p>
-                <p><a href="javascript/index.html">Browse docs →</a></p>
-              </div>
-            </div>
-          </body>
-          </html>
-          HTMLEOF
-      
+          cd docs-site
+          mkdocs build --strict
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: docs-site
-      
+          path: docs-site/site
+
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4

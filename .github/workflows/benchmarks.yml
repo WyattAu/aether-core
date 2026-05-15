@@ -40,7 +40,7 @@ jobs:
 
       - name: Run benchmarks
         run: |
-          cargo bench --workspace 2>&1 | tee benchmark-results.txt || true
+          cargo bench --workspace 2>&1 | tee benchmark-results.txt
       
       - name: Download previous baseline
         continue-on-error: true
@@ -55,15 +55,15 @@ jobs:
           if [ -d "target/criterion" ]; then
             echo "## Performance Comparison" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            cargo bench --workspace -- --baseline new-baseline --output-format bencher 2>&1 | tee comparison.txt || true
+             cargo bench --workspace -- --baseline new-baseline --output-format bencher 2>&1 | tee comparison.txt
             
             if grep -q "Performance has regressed" comparison.txt; then
-              echo "⚠️ Performance regression detected!" >> $GITHUB_STEP_SUMMARY
+              echo "WARNING: Performance regression detected!" >> $GITHUB_STEP_SUMMARY
               echo '```' >> $GITHUB_STEP_SUMMARY
               grep -A 5 "Performance has regressed" comparison.txt >> $GITHUB_STEP_SUMMARY
               echo '```' >> $GITHUB_STEP_SUMMARY
             else
-              echo "✅ No performance regressions detected" >> $GITHUB_STEP_SUMMARY
+              echo "No performance regressions detected" >> $GITHUB_STEP_SUMMARY
             fi
           fi
       
@@ -128,7 +128,7 @@ jobs:
 
       - name: Run aether-core benchmarks
         run: |
-          cargo bench --package aether-core --bench roadmap_targets --features "wasm,mesh" 2>&1 | tee regression-results.txt || true
+           cargo bench --package aether-core --bench roadmap_targets --features "wasm,mesh" 2>&1 | tee regression-results.txt
 
       - name: Download previous baseline
         continue-on-error: true
@@ -146,7 +146,7 @@ jobs:
 
           if [ -d "target/criterion" ]; then
             cargo bench --package aether-core --bench roadmap_targets --features "wasm,mesh" \
-              --baseline previous --output-format bencher 2>&1 | tee regression-comparison.txt || true
+              --baseline previous --output-format bencher 2>&1 | tee regression-comparison.txt
 
             if grep -q "Performance has regressed" regression-comparison.txt; then
               echo "### Performance Regression Detected" >> $GITHUB_STEP_SUMMARY
@@ -204,7 +204,7 @@ jobs:
           echo "## Memory Usage Analysis" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
-          valgrind --tool=massif --massif-out-file=massif.out ./target/release/aether-cli --help || true
+          valgrind --tool=massif --massif-out-file=massif.out ./target/release/aether-cli --help
           
           if [ -f massif.out ]; then
             ms_print massif.out > memory-report.txt
@@ -274,12 +274,12 @@ jobs:
           cache: 'pip'
           cache-dependency-path: sdks/python/requirements*.txt
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install -r requirements-dev.txt
-          pip install -e .
+       - name: Install dependencies
+         run: |
+           python -m pip install --upgrade pip
+           pip install -r requirements.txt
+           pip install pytest-benchmark
+           pip install -e .
 
       - name: Run benchmarks
         run: pytest tests/performance/ -v --benchmark-only 2>&1 | tee benchmark-results.txt

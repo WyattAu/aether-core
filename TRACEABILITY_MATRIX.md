@@ -14,7 +14,7 @@ This document consolidates all traceability information for Project Aether, link
 **Standards Referenced:** 17  
 **Test Cases Defined:** 1,623 (1,072 core + 23 cli + 10 cli-lib + 59 server + 267 integration + 16 property + 4 benchmark + 20 security + 17 fuzz + 7 fixtures + 10 wasm-e2e + 27 doc + 92 doc-ignored)  
 **Components Identified:** 75  
-**Tests Passing:** 1,531 / 1,623 (0 failures, 92 ignored requiring external deps)
+**Tests Passing:** 1,532 / 1,624 (0 failures, 92 ignored requiring external deps)
 
 ---
 
@@ -293,7 +293,7 @@ This document consolidates all traceability information for Project Aether, link
 | Category | Status |
 |----------|--------|
 | Requirements | 40/40 defined, 40/40 implemented |
-| Tests | 1,531 passing (92 ignored: FDB/Firecracker/cluster/doc-tests) |
+| Tests | 1,532 passing (92 ignored: FDB/Firecracker/cluster/doc-tests) |
 | Standards | 17 mapped, compliance matrix active |
 | ADRs | 7 documented (ADR-001 through ADR-007) |
 | Quality | Zero clippy warnings, deny-all safety lints |

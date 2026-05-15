@@ -31,7 +31,9 @@ jobs:
         run: cargo install cargo-audit
       
       - name: Run security audit
-        run: cargo audit --json > audit-results.json 2>&1 || true
+        run: |
+          cargo audit --json > audit-results.json 2>&1 || true
+          cargo audit --deny warnings
       
       - name: Generate SARIF output
         run: |
@@ -212,7 +214,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Dependency Audit | ${{ needs.audit.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| CodeQL Analysis | ${{ needs.codeql.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Secrets Scan | ${{ needs.secrets-scan.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| License Check | ${{ needs.license-check.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Dependency Audit | ${{ needs.audit.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| CodeQL Analysis | ${{ needs.codeql.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Secrets Scan | ${{ needs.secrets-scan.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| License Check | ${{ needs.license-check.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
