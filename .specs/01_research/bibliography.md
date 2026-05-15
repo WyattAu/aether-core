@@ -10,13 +10,13 @@
 
 ## Table of Contents
 
-1. [WebAssembly & Runtime Systems](#1-webassembly--runtime-systems)
-2. [Virtualization & KVM](#2-virtualization--kvm)
-3. [Distributed Systems & Networking](#3-distributed-systems--networking)
-4. [Serialization & Zero-Copy](#4-serialization--zero-copy)
-5. [Async I/O & io_uring](#5-async-i-o--io_uring)
+1. [WebAssembly & Runtime Systems](#1-webassembly-runtime-systems)
+2. [Virtualization & KVM](#2-virtualization-kvm)
+3. [Distributed Systems & Networking](#3-distributed-systems-networking)
+4. [Serialization & Zero-Copy](#4-serialization-zero-copy)
+5. [Async I/O & io_uring](#5-async-i-o-io_uring)
 6. [Academic Papers](#6-academic-papers)
-7. [Standards & Specifications](#7-standards--specifications)
+7. [Standards & Specifications](#7-standards-specifications)
 
 ---
 

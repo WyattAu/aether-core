@@ -43,6 +43,12 @@ jobs:
 
       - name: Start FDB container
         run: |
+          # Install FDB client library (needed by foundationdb-sys crate for linking)
+          curl -sSL https://github.com/apple/foundationdb/releases/download/7.3.27/foundationdb-clients_7.3.27-1_amd64.deb -o /tmp/fdb-client.deb
+          sudo dpkg -i /tmp/fdb-client.deb || true
+          sudo ldconfig
+          export LIBRARY_PATH="/usr/lib/x86_64-linux-gnu:${LIBRARY_PATH:-}"
+
           docker network create aether-net
           docker run -d \
             --name fdb \
@@ -112,6 +118,13 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: nightly-2026-03-01
+
+      - name: Install FoundationDB client
+        run: |
+          curl -sSL https://github.com/apple/foundationdb/releases/download/7.3.27/foundationdb-clients_7.3.27-1_amd64.deb -o /tmp/fdb-client.deb
+          sudo dpkg -i /tmp/fdb-client.deb || true
+          sudo ldconfig
+          echo "LIBRARY_PATH=/usr/lib/x86_64-linux-gnu" >> "$GITHUB_ENV"
 
       - name: Build release binary
         run: cargo build --release --features fdb
@@ -240,12 +253,12 @@ jobs:
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "| Test Suite | Status |" >> "$GITHUB_STEP_SUMMARY"
           echo "|-------------|--------|" >> "$GITHUB_STEP_SUMMARY"
-          echo "| FDB Integration Tests | ${{ needs.docker-integration.result == 'success' && '✅ Passed' || needs.docker-integration.result == 'skipped' && '⚠️ Skipped' || '❌ Failed' }} |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| 3-Node Cluster Tests | ${{ needs.docker-cluster.result == 'success' && '✅ Passed' || needs.docker-cluster.result == 'skipped' && '⚠️ Skipped' || '❌ Failed' }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| FDB Integration Tests | ${{ needs.docker-integration.result == 'success' && '[PASS]' || needs.docker-integration.result == 'skipped' && '[SKIP]' || '[FAIL]' }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| 3-Node Cluster Tests | ${{ needs.docker-cluster.result == 'success' && '[PASS]' || needs.docker-cluster.result == 'skipped' && '[SKIP]' || '[FAIL]' }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
 
           if [[ "${{ needs.docker-integration.result }}" == "failure" || "${{ needs.docker-cluster.result }}" == "failure" ]]; then
-            echo "### ❌ One or more test suites failed" >> "$GITHUB_STEP_SUMMARY"
+            echo "### One or more test suites failed" >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
 

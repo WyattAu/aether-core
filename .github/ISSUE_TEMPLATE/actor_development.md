@@ -23,10 +23,10 @@ Describe approaches you've already attempted.
 ## Documentation Checked
 
 List documentation you've already consulted:
-- [ ] [Getting Started](/.docs/getting_started.md)
-- [ ] [Code Examples](/.docs/code_examples.md)
-- [ ] [API Reference](/.docs/api_reference.md)
-- [ ] [User Guide](/.docs/user_guide.md)
+- [ ] [Getting Started](docs/getting_started.md)
+- [ ] [Code Examples](docs/code_examples.md)
+- [ ] [API Reference](docs/api_reference.md)
+- [ ] [User Guide](docs/user_guide.md)
 
 ## Environment
 

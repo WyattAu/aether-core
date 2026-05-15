@@ -88,7 +88,7 @@ jobs:
     if: github.event_name != 'pull_request'
     steps:
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
           format: 'sarif'
@@ -102,7 +102,7 @@ jobs:
           category: 'container-vulnerabilities'
 
       - name: Run Trivy for exit code
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
           format: 'table'
@@ -157,8 +157,8 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Step | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Build | ${{ needs.build.result == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Security Scan | ${{ needs.scan.result == 'success' && '✅ Passed' || '⚠️ Check Results' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Integration Test | ${{ needs.test.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build | ${{ needs.build.result == 'success' && '[PASS]' || '[FAIL]' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Security Scan | ${{ needs.scan.result == 'success' && '[PASS]' || '[WARN]' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Integration Test | ${{ needs.test.result == 'success' && '[PASS]' || '[FAIL]' }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Image:** \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}\`" >> $GITHUB_STEP_SUMMARY
