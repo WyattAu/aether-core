@@ -95,12 +95,12 @@ jobs:
       
       - name: Strip binary
         if: runner.os == 'Linux'
-        run: strip target/${{ matrix.target }}/release/aether
+        run: strip target/${{ matrix.target }}/release/aether-cli
       
       - name: Create archive
         run: |
           cd target/${{ matrix.target }}/release
-          tar -czf ../../../${{ matrix.artifact }}.tar.gz aether
+          tar -czf ../../../${{ matrix.artifact }}.tar.gz aether-cli
       
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -188,15 +188,12 @@ jobs:
       
       - name: Publish aether-core
         run: cargo publish -p aether-core --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        continue-on-error: true
       
       - name: Publish aether-cli
         run: cargo publish -p aether-cli --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        continue-on-error: true
       
       - name: Publish aether-actor
         run: cargo publish -p aether-actor --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        continue-on-error: true
 
   release:
     name: Create Release
@@ -238,7 +235,7 @@ jobs:
             # Linux/macOS
             curl -LO https://github.com/WyattAu/aether-core/releases/download/${{ github.ref_name }}/aether-linux-x86_64.tar.gz
             tar xzf aether-linux-x86_64.tar.gz
-            sudo mv aether /usr/local/bin/
+            sudo mv aether-cli /usr/local/bin/
             ```
             
             ## Verify

@@ -3,7 +3,7 @@
 **Date:** 2026-05-13
 **Current Version:** 2.0.0
 **Commit:** 05688d0
-**Auditor:** Full monorepo audit -- 1,531 tests, 0 failures, 0 warnings
+**Auditor:** Full monorepo audit -- 1,532 tests, 0 failures, 0 warnings
 
 ---
 
@@ -25,7 +25,7 @@
 | E2E tests | 0 | 0 | 15 | 15 |
 | WASM E2E tests | 10 | 0 | 0 | 10 |
 | Doc-tests | 27 | 0 | 47 | 74 |
-| **Total** | **1,531** | **0** | **92** | **1,623** |
+| **Total** | **1,532** | **0** | **92** | **1,623** |
 
 ### 1.2 Quality Gates (All Passing)
 
@@ -450,7 +450,7 @@ v3.0.0 Critical Path:
 
 | Metric | v2.0.0 (Current) | v2.1.0 Target | v2.2.0 Target | v3.0.0 Target |
 |--------|------------------|----------------|----------------|----------------|
-| Total tests | 1,531 | 1,600+ | 1,750+ | 2,200+ |
+| Total tests | 1,532 | 1,600+ | 1,750+ | 2,200+ |
 | Ignored tests | 92 | 81 (FDB enabled) | 51 (doc-tests fixed) | 15 (Firecracker only) |
 | Clippy warnings | 0 | 0 | 0 | 0 |
 | Stubs (production) | 2 | 1 | 0 | 0 |
@@ -470,7 +470,7 @@ Items completed in this audit session (commit b9edce3):
 
 | # | Action | Status |
 |---|--------|--------|
-| 1 | Run full test suite (1,531 pass) | DONE |
+| 1 | Run full test suite (1,532 pass) | DONE |
 | 2 | Clippy lint (zero warnings) | DONE |
 | 3 | Format check (zero violations) | DONE |
 | 4 | Documentation build (zero warnings) | DONE |
@@ -672,7 +672,7 @@ These items have no timeline but represent ongoing investigation:
 
 | Metric | v2.0.0 | v2.1.0 | v2.2.0 | v3.0.0 | v4.0.0 |
 |--------|--------|--------|--------|--------|--------|
-| Test count | 1,531 | 1,600+ | 1,750+ | 2,200+ | 3,000+ |
+| Test count | 1,532 | 1,600+ | 1,750+ | 2,200+ | 3,000+ |
 | P99 latency (same node) | N/A | N/A | <1ms | <1ms | <1ms |
 | Cold start time | ~61us | <50us | <20us | <10us | <10us |
 | Throughput (msg/s) | N/A | 10K | 100K | 500K | 1M |

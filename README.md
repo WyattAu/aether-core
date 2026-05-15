@@ -169,7 +169,7 @@ New to the project? Look for [`good first issue`](https://github.com/WyattAu/aet
 - WASM (wasmtime 25), QUIC mesh, mTLS, RBAC, secrets management (Vault/AWS/GCP)
 - Multi-tenancy, chaos testing, OTLP tracing, MCP, AI integration
 - Firecracker VM, FDB state, OPA policy engine, distributed tracing
-- 1,531 tests, zero clippy warnings, deny-all safety lints
+- 1,532 tests, zero clippy warnings, deny-all safety lints
 
 See [CHANGELOG.md](CHANGELOG.md) for full release history.
 

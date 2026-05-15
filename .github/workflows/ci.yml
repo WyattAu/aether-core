@@ -80,7 +80,7 @@ jobs:
         run: cargo test --test property_tests --all-features
 
       - name: Install wasm32-wasip1 target
-        run: rustup target add wasm32-wasip1
+        run: echo "Already installed via dtolnay/rust-toolchain targets"
 
       - name: Check aether-actor compiles to wasm32-wasip1
         run: cargo check --target wasm32-wasip1 -p aether-actor
@@ -148,7 +148,7 @@ jobs:
         run: cargo install cargo-audit
 
       - name: Security audit
-        run: cargo audit --deny warnings 2>&1 || true
+        run: cargo audit --deny warnings 2>&1
 
       - name: Audit summary
         if: always()
@@ -175,7 +175,7 @@ jobs:
           toolchain: nightly-2026-03-01
 
       - name: Build docs
-        run: cargo doc --workspace --no-deps
+        run: cargo doc --workspace --no-deps --all-features
 
   build:
     name: Build
@@ -202,13 +202,13 @@ jobs:
 
       - name: Strip binary
         if: matrix.os == 'ubuntu-latest'
-        run: strip target/release/aether
+        run: strip target/release/aether-cli
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
-          path: target/release/aether
+          path: target/release/aether-cli
 
   release:
     name: Release
@@ -220,9 +220,9 @@ jobs:
         uses: actions/download-artifact@v4
 
       - name: Create release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
-          files: aether-*/aether
+          files: aether-*/aether-cli
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

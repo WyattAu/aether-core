@@ -197,14 +197,14 @@ jobs:
         run: sudo apt-get install -y valgrind
 
       - name: Build release
-        run: cargo build --release
+        run: cargo build --release --workspace
       
       - name: Run memory benchmark
         run: |
           echo "## Memory Usage Analysis" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
-          valgrind --tool=massif --massif-out-file=massif.out ./target/release/aether --help || true
+          valgrind --tool=massif --massif-out-file=massif.out ./target/release/aether-cli --help || true
           
           if [ -f massif.out ]; then
             ms_print massif.out > memory-report.txt
@@ -234,7 +234,7 @@ jobs:
           toolchain: nightly-2026-03-01
 
       - name: Build release
-        run: cargo build --release
+        run: cargo build --release --workspace
       
       - name: Measure startup time
         run: |
@@ -246,7 +246,7 @@ jobs:
           TOTAL=0
           for i in {1..10}; do
             START=$(date +%s%N)
-            ./target/release/aether --help > /dev/null 2>&1
+            ./target/release/aether-cli --help > /dev/null 2>&1
             END=$(date +%s%N)
             TIME=$(( (END - START) / 1000000 ))
             TOTAL=$((TOTAL + TIME))

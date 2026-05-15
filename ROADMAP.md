@@ -1,9 +1,9 @@
 # Aether-Core: Roadmap to Production and Beyond
 
 **Date:** 2026-05-15
-**Current Version:** 2.0.1
+**Current Version:** 2.0.0
 **Audit Session:** Full monorepo audit with CI/CD, documentation, and code quality review
-**Verified State:** 1,531 tests passing, 0 failures, 0 clippy warnings, 0 fmt violations
+**Verified State:** 1,532 tests passing, 0 failures, 0 clippy warnings, 0 fmt violations
 
 ---
 
@@ -26,7 +26,7 @@
 
 | Gate | Result |
 |------|--------|
-| `cargo test --workspace --all-features` | 1,531 passed, 0 failed, 92 ignored |
+| `cargo test --workspace --all-features` | 1,532 passed, 0 failed, 92 ignored |
 | `cargo clippy --workspace --all-features -- -D warnings` | Zero warnings |
 | `cargo fmt --all -- --check` | Zero violations |
 | `cargo doc --workspace --no-deps` | Zero warnings |
@@ -265,7 +265,7 @@ The long-term goal: replace the entire Kubernetes/Docker/CI/CD stack with a sing
 
 | Metric | v2.0.1 (Current) | v2.1.0 | v2.2.0 | v2.3.0 | v3.0.0 | v4.0.0 |
 |--------|------------------|--------|--------|--------|--------|--------|
-| Total tests | 1,531 | 1,600+ | 1,750+ | 2,000+ | 2,200+ | 3,000+ |
+| Total tests | 1,532 | 1,600+ | 1,750+ | 2,000+ | 2,200+ | 3,000+ |
 | Ignored tests | 92 | 81 | 51 | 30 | 15 | 0 |
 | Critical code issues | 1 | 0 | 0 | 0 | 0 | 0 |
 | P99 latency (same node) | N/A | N/A | <1ms | <1ms | <1ms | <1ms |
