@@ -252,12 +252,14 @@ The long-term goal: replace the entire Kubernetes/Docker/CI/CD stack with a sing
 
 | Item | Priority | Details |
 |------|----------|---------|
-| Resolve GitHub Actions billing | Blocking | Account-level spending limit issue |
-| Remove duplicate workflows | Medium | ci.yml vs security.yml vs docs.yml overlap |
-| Unify Rust toolchain pinning | Medium | All workflows should use same nightly date |
+| Resolve GitHub Actions billing | Blocking | Account-level spending limit issue; all workflows fail with billing error |
+| Pin third-party actions to SHA | Medium | All 13 workflows use tag-based versions; supply-chain risk |
+| Remove remaining `|| true` | Medium | integration.yml chaos/stress tests mask failures (acceptable for scheduled) |
 | Add Swatinem/rust-cache to all workflows | Low | Faster CI via intelligent caching |
-| Pin third-party actions to SHA | Low | Security best practice |
-| Remove `|| true` error masking | Medium | Several steps silently swallow failures |
+| Unify Rust toolchain via rust-toolchain.toml | Low | All workflows hardcode nightly-2026-03-01 |
+| Fix bibliography.md anchor links | Low | 7 broken anchors from `&` removal in heading slugs |
+| Fix .github/ISSUE_TEMPLATE absolute links | Low | 5 broken links use `/` prefix instead of relative |
+| Consolidate duplicate roadmaps | Low | 3 active roadmap files overlap (ROADMAP.md, PRODUCTION_ROADMAP.md, ROADMAP_FORWARD.md) |
 
 ---
 

@@ -11,6 +11,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Items below are in active development for v2.1.0.
 
+### Fixed
+- Removed failure-masking `|| true` from CI workflows: benchmarks.yml, ci.yml, security.yml
+- Fixed `npm ci` to `pnpm install` in sdk-ci.yml and sdk-publish.yml (no package-lock.json exists)
+- Removed `continue-on-error: true` from JS SDK lint/typecheck/build steps
+- Removed duplicate `javascript-sdk-benchmark` job from sdk-ci.yml (already in benchmarks.yml)
+- Fixed `--workspace --features fdb` to `--package aether-core --features fdb` in docker-integration.yml
+- Replaced Sphinx+TypeDoc docs deployment with MkDocs build for docs-site
+- Removed emoji from CI summary outputs (security.yml, benchmarks.yml)
+- Fixed missing `requirements-dev.txt` reference in benchmarks.yml
+- Corrected test counts in RELEASE_NOTES.md and TRACEABILITY_MATRIX.md (1532 passed, 1624 total, 92 ignored)
+
 ### Added
 - TLA+ formal specification for work-stealing scheduler (no-task-loss, priority ordering, fair stealing, state machine integrity invariants)
 - TLA+ formal specification for actor migration two-phase protocol (state machine, at-most-one-active, source ownership, checkpoint consistency, no-orphan invariants)
