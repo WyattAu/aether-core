@@ -115,11 +115,13 @@
 //! - Connections per node: 1,000
 
 pub mod backpressure;
+#[cfg(feature = "mesh-circuit-breaker")]
 pub mod circuit_breaker;
 pub mod connection;
 pub mod message;
 pub mod node;
 pub mod quic;
+#[cfg(feature = "mesh-region")]
 pub mod region;
 pub mod resolver;
 
@@ -127,6 +129,7 @@ pub use backpressure::{
     BackpressureController, BufferPool, BufferStats, CreditAccount, FlowState, WindowUpdate,
     ZeroWindowSignaler,
 };
+#[cfg(feature = "mesh-circuit-breaker")]
 pub use circuit_breaker::{
     CircuitBreaker, CircuitBreakerConfig, CircuitBreakerRegistry, CircuitError, CircuitState,
     CircuitStats,
@@ -142,6 +145,7 @@ pub use message::{
 };
 pub use node::{MeshNode, ShutdownResult};
 pub use quic::{CertificateConfig, QuicClient, QuicConfig, QuicEndpoint, QuicServer};
+#[cfg(feature = "mesh-region")]
 pub use region::{
     PlacementDecision, PlacementPolicy, PlacementReason, PlacementStrategy, Region, RegionConfig,
 };

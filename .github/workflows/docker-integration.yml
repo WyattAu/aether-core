@@ -70,7 +70,9 @@ jobs:
         run: |
           docker cp fdb:/etc/foundationdb/fdb.cluster /tmp/fdb.cluster
           cat /tmp/fdb.cluster
-          echo "FDB_CLUSTER_FILE=/tmp/fdb.cluster" >> "$GITHUB_ENV"
+          sudo mkdir -p /etc/foundationdb
+          sudo cp /tmp/fdb.cluster /etc/foundationdb/fdb.cluster
+          echo "FDB_CLUSTER_FILE=/etc/foundationdb/fdb.cluster" >> "$GITHUB_ENV"
 
       - name: Build with fdb feature
         run: cargo build --features fdb

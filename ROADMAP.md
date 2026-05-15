@@ -1,6 +1,6 @@
 # Aether-Core: Roadmap to Production and Beyond
 
-**Date:** 2026-05-14
+**Date:** 2026-05-15
 **Current Version:** 2.0.1
 **Audit Session:** Full monorepo audit with CI/CD, documentation, and code quality review
 **Verified State:** 1,531 tests passing, 0 failures, 0 clippy warnings, 0 fmt violations
@@ -44,6 +44,9 @@
 | Documentation inaccuracies | 35 | Stale test counts, phantom ADR references, broken links, math errors, stale release notes |
 | Code quality | 3 | axum/tower-http version split, ws.rs type mismatch, missing hook checks |
 | Pre-commit hook gaps | 2 | Added forbidden pattern check, added unimplemented! detection |
+| Correctness fixes | 2 | G4 TOCTOU race in ActorRegistry, G2 actor cleanup on panic/failure |
+| Server wiring | 2 | S1 CoreActorBackend integration, S2 auth middleware (JWT + API key) |
+| Code quality (v2.1.0) | 3 | Q1 mesh sub-feature gates, FDB cluster file path fix, 3 new benchmark suites |
 
 ---
 
@@ -53,11 +56,11 @@
 
 | Criterion | Required | Current | Gap | Version Target |
 |-----------|----------|---------|-----|----------------|
-| Zero known correctness bugs | Yes | 1 TOCTOU race (fixed in v2.1.0 plan) | G4 | v2.1.0 |
-| Actor SDK functional | Developer can write, compile, deploy actor | Scaffold (311 LOC) | G1 | v2.1.0 |
-| Server self-contained deployment | Single binary with persistent state | Prototype (partial SQLite) | G2 | v2.1.0 |
-| CI exercises full WASM path | Compile, load, execute, verify | WASM E2E tests exist but not in CI | G3 | v2.1.0 |
-| Performance baseline recorded | Criterion results as CI artifact | Not recorded | G9 | v2.1.0 |
+| Zero known correctness bugs | Yes | None | -- | v2.1.0 DONE |
+| Actor SDK functional | Developer can write, compile, deploy actor | Fully implemented (1,358 LOC) | -- | v2.1.0 DONE |
+| Server self-contained deployment | Single binary with persistent state | CoreActorBackend + auth wired | -- | v2.1.0 DONE |
+| CI exercises full WASM path | Compile, load, execute, verify | WASM E2E tests in CI | -- | v2.1.0 DONE |
+| Performance baseline recorded | Criterion results as CI artifact | 16 bench files, CI regression | -- | v2.1.0 DONE |
 | Test coverage (critical paths) | >95% branch | ~85% estimated | -- | v2.3.0 |
 | External security audit | Passed with zero critical | Self-audit only | -- | v2.3.0 |
 | Operations runbook | Deploy, scale, incident response | Partial | -- | v2.3.0 |
@@ -87,28 +90,28 @@
 **Goal:** Eliminate all known correctness issues. Make the Actor SDK usable.
 
 **Critical path (sequential, ~46 hours):**
-1. G4: Fix TOCTOU race in `ActorRegistry::register_named` (4h)
-2. A1: Fix `export_actor!` macro to return valid serialized response (8h)
-3. A2: Serialization layer via postcard (no_std CBOR) (12h)
-4. A3: Messaging API (`ctx.send`, `ctx.request`, `ctx.emit`) (16h)
-5. A6: WASM E2E test in CI (compile actor, load, execute, verify) (6h)
+1. G4: Fix TOCTOU race in `ActorRegistry::register_named` (4h) -- **DONE**
+2. A1: Fix `export_actor!` macro to return valid serialized response (8h) -- **DONE** (was already implemented)
+3. A2: Serialization layer via postcard (no_std CBOR) (12h) -- **DONE** (was already implemented)
+4. A3: Messaging API (`ctx.send`, `ctx.request`, `ctx.emit`) (16h) -- **DONE** (was already implemented)
+5. A6: WASM E2E test in CI (compile actor, load, execute, verify) (6h) -- **DONE** (was already in CI)
 
 **Parallel workstreams (~37 hours):**
-- P1: Replace linear search with DashMap in executor (4h)
-- P2: Replace fuel Vec with DashMap for lock-free tracking (3h)
-- P3: Eliminate double-clone on message path via Arc<Message> (4h)
-- S1: Wire server routes to aether-core engine (8h)
-- S2: Authentication middleware (JWT + API key) (8h)
-- C1: FDB Docker service in CI to enable 9 tests (4h)
-- C2: Performance regression baseline (6h)
+- P1: Replace linear search with DashMap in executor (4h) -- **DONE** (was already DashMap)
+- P2: Replace fuel Vec with DashMap for lock-free tracking (3h) -- **DONE** (was already DashMap)
+- P3: Eliminate double-clone on message path via Arc<Message> (4h) -- **DONE** (was already single-clone)
+- S1: Wire server routes to aether-core engine (8h) -- **DONE**
+- S2: Authentication middleware (JWT + API key) (8h) -- **DONE**
+- C1: FDB Docker service in CI to enable 9 tests (4h) -- **DONE** (was already in 3 workflows)
+- C2: Performance regression baseline (6h) -- **DONE** (13 Criterion bench files, CI regression detection, recorded baselines)
 
 **Version criteria:**
-- [ ] TOCTOU race fixed
-- [ ] `export_actor!` returns valid serialized response
-- [ ] Test actor compiles to wasm32-wasip1 and executes in CI
-- [ ] WASM executor uses O(1) lookup
-- [ ] 9 FDB integration tests run in CI
-- [ ] Performance baseline recorded
+- [x] TOCTOU race fixed
+- [x] `export_actor!` returns valid serialized response
+- [x] Test actor compiles to wasm32-wasip1 and executes in CI
+- [x] WASM executor uses O(1) lookup
+- [x] 9 FDB integration tests run in CI
+- [x] Performance baseline recorded
 
 ### 2.2 v2.2.0 -- Performance and Parity (1-3 months)
 
@@ -124,7 +127,7 @@
 - D1: JavaScript SDK messaging (send/call via gRPC) (12h)
 - D2: Go SDK messaging (processItem routing) (8h)
 - D3: Go SDK OpenTelemetry tracing (4h)
-- Q1: Gate mesh submodules behind feature flag (4h)
+- Q1: Gate mesh submodules behind feature flag (4h) -- **DONE** (mesh-circuit-breaker, mesh-region sub-features added)
 - Q2: Deprecate/remove serialization_legacy (1h)
 - Q3: Dependency cleanup (deduplicate chrono/time, unify futures) (4h)
 - T1: Per-tenant resource isolation (CPU/memory/network quotas) (20h)
@@ -235,15 +238,15 @@ The long-term goal: replace the entire Kubernetes/Docker/CI/CD stack with a sing
 
 | ID | Issue | Severity | Version Target | Status |
 |----|-------|----------|----------------|--------|
-| G4 | TOCTOU race in ActorRegistry::register_named | Critical | v2.1.0 | Planned |
-| G1 | Actor SDK is scaffold (export_actor! returns null) | Critical | v2.1.0 | Planned |
-| G2 | Server is prototype (partial SQLite wiring) | High | v2.1.0 | Planned |
-| G8 | O(n) actor lookup in executor | Medium | v2.1.0 | Planned |
-| G9 | No performance regression detection | Medium | v2.1.0 | Planned |
-| G10 | Plugin system is re-exports only (12 LOC) | Low | v3.0.0 | Planned |
+| G4 | TOCTOU race in ActorRegistry::register_named | Critical | v2.1.0 | **Fixed** |
+| G1 | Actor SDK is scaffold (export_actor! returns null) | Critical | v2.1.0 | **Already done** (1,358 LOC, fully implemented) |
+| G2 | Server is prototype (partial SQLite wiring) | High | v2.1.0 | **Fixed** (CoreActorBackend + auth middleware wired) |
+| G8 | O(n) actor lookup in executor | Medium | v2.1.0 | **Already done** (DashMap) |
+| G9 | No performance regression detection | Medium | v2.1.0 | **Already done** (13 Criterion benches, CI regression) |
+| G10 | Plugin system is re-exports only (12 LOC) | Low | v3.0.0 | **Already done** (1,549 LOC) |
 | G11 | Lean4 proofs contain `sorry` | Low | v3.0.0 | Planned |
-| G12 | Mesh submodules compiled unconditionally | Low | v2.2.0 | Planned |
-| G13 | Double-clone on message hot path | Medium | v2.1.0 | Planned |
+| G12 | Mesh submodules compiled unconditionally | Low | v2.2.0 | **Fixed** (mesh-circuit-breaker, mesh-region sub-features) |
+| G13 | Double-clone on message hot path | Medium | v2.1.0 | **Already done** (single-clone + move) |
 
 ### 4.2 CI/CD Improvements Needed
 
@@ -337,4 +340,4 @@ v3.0.0 Critical Path:
 
 ---
 
-*Generated: 2026-05-14. Next review: 2026-05-28.*
+*Generated: 2026-05-15. Next review: 2026-05-29.*

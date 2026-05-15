@@ -11,6 +11,8 @@ description = "Aether Core Runtime - The Post-Container Application OS"
 default = ["wasm", "mesh", "rkyv"]
 wasm = ["wasmtime", "wasmtime-wasi"]
 mesh = ["quinn", "rustls"]
+mesh-circuit-breaker = []
+mesh-region = []
 enterprise = []
 fdb = ["foundationdb"]
 firecracker = []
@@ -89,6 +91,7 @@ tokio-test = "0.4"
 wat = "1.220"
 criterion = { version = "0.5", features = ["html_reports"] }
 tempfile = "3.14"
+postcard = "1"
 
 [[bench]]
 name = "capability_bench"
@@ -96,6 +99,19 @@ harness = false
 
 [[bench]]
 name = "serialization_bench"
+harness = false
+
+[[bench]]
+name = "serialization_postcard_bench"
+harness = false
+
+[[bench]]
+name = "rkyv_bench"
+harness = false
+required-features = ["rkyv"]
+
+[[bench]]
+name = "dispatch_bench"
 harness = false
 
 [[bench]]
@@ -140,6 +156,12 @@ harness = false
 [[bench]]
 name = "circuit_breaker_bench"
 harness = false
+required-features = ["mesh-circuit-breaker"]
+
+[[bench]]
+name = "roadmap_targets"
+harness = false
+required-features = ["wasm", "mesh"]
 
 [lints]
 workspace = true
