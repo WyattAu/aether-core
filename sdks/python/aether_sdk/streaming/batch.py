@@ -6,17 +6,17 @@ batch collection, aggregation, and and emission.
 
 Example:
     from aether_sdk.streaming import BatchProcessor, BatchConfig
-    
+
     # Configure batch processing
     config = BatchConfig(
         max_batch_size=1000,
         max_wait_time_ms=100,
         max_bytes=1024 * 1024,  # 1MB
     )
-    
+
     # Create batch processor
     processor = BatchProcessor(config)
-    
+
     async for batch in processor.batches():
         # Process batch of events
         results = process_batch(batch)
@@ -24,36 +24,23 @@ Example:
 """
 
 from __future__ import annotations
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import (
-    Any,
-    Generic,
-    TypeVar,
-    Optional,
-    Callable,
-    List,
-    Dict,
-    Tuple,
-    Union,
-    AsyncIterator,
-    Awaitable,
-)
-from abc import ABC, abstractmethod
+
 import asyncio
 import time
-from collections import defaultdict
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from typing import Any, Awaitable, Callable, Generic, List, Optional, TypeVar
 
-from .types import StreamEvent, Timestamp, Duration
+from .types import StreamEvent
 
-
-T = TypeVar('T')
-R = TypeVar('R')
+T = TypeVar("T")
+R = TypeVar("R")
 
 
 @dataclass
 class BatchConfig:
     """Configuration for batch processing."""
+
     max_batch_size: int = 1000
     max_wait_time_ms: int = 100
     max_bytes: int = 1024 * 1024  # 1MB
@@ -82,6 +69,7 @@ class BatchConfig:
 @dataclass
 class BatchResult(Generic[T]):
     """Result of batch processing."""
+
     items: List[T]
     size_bytes: int = 0
     processing_time_ms: float = 0.0
@@ -95,11 +83,12 @@ class BatchResult(Generic[T]):
 @dataclass
 class BatchStats:
     """Statistics for batch processing."""
+
     total_items: int = 0
     total_batches: int = 0
     total_bytes: int = 0
     total_processing_time_ms: float = 0.0
-    min_processing_time_ms: float = float('inf')
+    min_processing_time_ms: float = float("inf")
     max_processing_time_ms: float = 0.0
     avg_batch_size: float = 0.0
     failed_batches: int = 0
@@ -110,42 +99,42 @@ class BatchStats:
 class BatchCollector(Generic[T]):
     """
     Collects items into batches based on size, time, or byte limits.
-    
+
     Example:
         collector = BatchCollector[str](BatchConfig(max_batch_size=100))
-        
+
         for item in items:
             batch = collector.add(item)
             if batch:
                 await process_batch(batch)
-        
+
         # Get any remaining items
         remaining = collector.flush()
     """
-    
+
     def __init__(self, config: BatchConfig):
         self.config = config
         self._items: List[T] = []
         self._current_bytes = 0
         self._batch_start_time: Optional[float] = None
         self._batch_count = 0
-    
+
     def add(self, item: T, size_bytes: int = 0) -> Optional[BatchResult[T]]:
         """Add an item to current batch."""
         # Initialize batch timing
         if not self._batch_start_time:
             self._batch_start_time = time.monotonic()
-        
+
         # Add item
         self._items.append(item)
         self._current_bytes += size_bytes
-        
+
         # Check if batch is complete
         if self._should_flush():
             return self.flush()
-        
+
         return None
-    
+
     def add_many(self, items: List[T], size_bytes: int = 0) -> Optional[BatchResult[T]]:
         """Add multiple items at once."""
         for i in range(len(items)):
@@ -154,7 +143,7 @@ class BatchCollector(Generic[T]):
             if result:
                 return result
         return None
-    
+
     def _should_flush(self) -> bool:
         """Check if batch should be flushed."""
         if len(self._items) >= self.config.max_batch_size:
@@ -166,19 +155,19 @@ class BatchCollector(Generic[T]):
             if elapsed_ms >= self.config.max_wait_time_ms:
                 return self.config.timeout_on_full
         return False
-    
+
     def flush(self) -> Optional[BatchResult[T]]:
         """Flush the current batch."""
         if not self._items:
             return None
-        
+
         processing_time = 0
         if self._batch_start_time:
             processing_time = (time.monotonic() - self._batch_start_time) * 1000
-        
+
         self._batch_count += 1
         batch_id = f"batch-{self._batch_count}"
-        
+
         result = BatchResult(
             items=self._items,
             size_bytes=self._current_bytes,
@@ -186,24 +175,24 @@ class BatchCollector(Generic[T]):
             batch_id=batch_id,
             timestamp=datetime.now(timezone.utc),
         )
-        
+
         # Reset
         self._items = []
         self._current_bytes = 0
         self._batch_start_time = None
-        
+
         return result
-    
+
     @property
     def current_size(self) -> int:
         """Get current batch size."""
         return len(self._items)
-    
+
     @property
     def current_bytes(self) -> int:
         """Get current batch byte size."""
         return self._current_bytes
-    
+
     def is_empty(self) -> bool:
         """Check if batch is empty."""
         return len(self._items) == 0
@@ -212,31 +201,31 @@ class BatchCollector(Generic[T]):
 class BatchAggregator(Generic[T, R]):
     """
     Aggregates batch items into a single result.
-    
+
     Example:
         class SumAggregator(BatchAggregator[int, float]):
             def aggregate(self, batch: List[int]) -> float:
                 return sum(batch) / len(batch)
     """
-    
+
     def __init__(
         self,
         aggregate_func: Optional[Callable[[List[T]], R]] = None,
-        key_extractor: Optional[Callable[[T], str]] = None
+        key_extractor: Optional[Callable[[T], str]] = None,
     ):
         self.aggregate_func = aggregate_func
         self.key_extractor = key_extractor
         self._batch_count = 0
         self._total_events = 0
         self._processing_time = 0.0
-    
+
     def aggregate(self, batch: List[T], key: Optional[str] = None) -> R:
         """Aggregate a batch of items."""
         if not batch:
             raise ValueError("batch cannot be empty")
-        
+
         start_time = time.monotonic()
-        
+
         try:
             # Apply aggregation function
             if self.aggregate_func:
@@ -244,15 +233,15 @@ class BatchAggregator(Generic[T, R]):
             else:
                 # Default: return last item
                 result = batch[-1]  # type: ignore
-            
+
             # Update stats
             self._batch_count += 1
             self._total_events += len(batch)
             self._processing_time += time.monotonic() - start_time
-            
+
             return result  # type: ignore
-            
-        except Exception as e:
+
+        except Exception:
             self._processing_time += time.monotonic() - start_time
             raise
 
@@ -260,23 +249,23 @@ class BatchAggregator(Generic[T, R]):
 class BatchEmitter(Generic[T]):
     """
     Emits batch results to downstream consumers.
-    
+
     Example:
         class MyEmitter(BatchEmitter[dict]):
             def __init__(self, downstream: Callable):
                 self._downstream = downstream
-            
+
             async def emit(self, batch: BatchResult[dict]) -> None:
                 await self._downstream(batch)
     """
-    
+
     def __init__(self):
         self._handlers: List[Callable[[BatchResult[T]], Awaitable[None]]] = []
-    
+
     def add_handler(self, handler: Callable[[BatchResult[T]], Awaitable[None]]) -> None:
         """Add a handler for batch results."""
         self._handlers.append(handler)
-    
+
     async def emit(self, batch: BatchResult[T]) -> None:
         """Emit batch to all handlers."""
         for handler in self._handlers:
@@ -286,10 +275,10 @@ class BatchEmitter(Generic[T]):
 class BatchProcessor(Generic[T]):
     """
     Processes events in batches with configurable size and timing.
-    
+
     Supports both sync and async processing patterns.
     """
-    
+
     def __init__(self, config: BatchConfig):
         self.config = config
         self._collector = BatchCollector[T](config)
@@ -299,66 +288,66 @@ class BatchProcessor(Generic[T]):
         self._running = False
         self._lock = asyncio.Lock()
         self._stats = BatchStats()
-        
+
         # Initialize aggregator if provided
         if self.config.aggregator_factory:
             self._aggregator = self.config.aggregator_factory()
-        
+
         # Initialize emitter if provided
         if self.config.emitter_factory:
             self._emitter = self.config.emitter_factory()
-    
+
     async def start(self) -> None:
         """Start the batch processor."""
         async with self._lock:
             self._running = True
             self._stats.start_time = time.monotonic()
-    
+
     async def stop(self) -> None:
         """Stop the batch processor."""
         async with self._lock:
             self._running = False
-            
+
             # Process remaining batches
             while not self._queue.empty():
                 batch = await self._queue.get()
                 await self._process_batch(batch)
-            
+
             # Flush collector
             remaining = self._collector.flush()
             if remaining:
                 await self._process_batch(remaining)
-            
+
             self._stats.end_time = time.monotonic()
-    
+
     async def add(self, event: StreamEvent[T]) -> bool:
         """Add an event to batch processor."""
         if not self._running:
             raise RuntimeError("Batch processor not running")
-        
+
         async with self._lock:
             # Get event size
-            size_bytes = len(event.value) if hasattr(event.value, '__len__') else 0
-            
+            size_bytes = len(event.value) if hasattr(event.value, "__len__") else 0
+
             # Try to add to collector
             batch_result = self._collector.add(event.value, size_bytes)
-            
+
             if batch_result:
                 await self._process_batch(batch_result)
                 return True
-            
+
             return False
-    
+
     async def _process_batch(self, batch: BatchResult[T]) -> None:
         """Process a batch."""
         start_time = time.monotonic()
-        
+
         try:
             # Aggregate if configured
             aggregated = None
             if self._aggregator:
                 aggregated = self._aggregator.aggregate(batch.items)
-            
+
             # Create result
             result = BatchResult(
                 items=aggregated if aggregated is not None else batch.items,
@@ -367,16 +356,16 @@ class BatchProcessor(Generic[T]):
                 batch_id=batch.batch_id,
                 timestamp=batch.timestamp,
             )
-            
+
             # Emit if configured
             if self._emitter:
                 await self._emitter.emit(result)
-            
+
             # Update stats
             self._stats.total_batches += 1
             self._stats.total_items += len(batch.items)
             self._stats.total_bytes += batch.size_bytes
-            
+
             processing_time = (time.monotonic() - start_time) * 1000
             self._stats.total_processing_time_ms += processing_time
             self._stats.min_processing_time_ms = min(
@@ -385,11 +374,11 @@ class BatchProcessor(Generic[T]):
             self._stats.max_processing_time_ms = max(
                 self._stats.max_processing_time_ms, processing_time
             )
-            
+
             # Callback
             if self.config.on_batch_complete:
                 await self.config.on_batch_complete(result)
-                
+
         except Exception as e:
             self._stats.failed_batches += 1
             if self.config.on_failure:
@@ -398,7 +387,7 @@ class BatchProcessor(Generic[T]):
                 self.config.error_handler(e)
             else:
                 raise
-    
+
     def get_stats(self) -> BatchStats:
         """Get current statistics."""
         return BatchStats(
@@ -415,11 +404,11 @@ class BatchProcessor(Generic[T]):
 
 
 __all__ = [
-    'BatchConfig',
-    'BatchResult',
-    'BatchStats',
-    'BatchCollector',
-    'BatchAggregator',
-    'BatchEmitter',
-    'BatchProcessor',
+    "BatchConfig",
+    "BatchResult",
+    "BatchStats",
+    "BatchCollector",
+    "BatchAggregator",
+    "BatchEmitter",
+    "BatchProcessor",
 ]

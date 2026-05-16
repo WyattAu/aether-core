@@ -18,17 +18,10 @@ import asyncio
 import uuid
 from datetime import datetime
 
-from aether_sdk.workflow.state_machine import Workflow, WorkflowExecutor
-from aether_sdk.workflow.saga import Saga, SagaExecutor
 from aether_sdk.workflow.human_task import HumanTask, HumanTaskManager, TaskForm
-from aether_sdk.workflow.types import (
-    Duration,
-    RetryConfig,
-    RetryPolicy,
-    SagaStatus,
-    WorkflowStatus,
-    HumanTaskStatus,
-)
+from aether_sdk.workflow.saga import Saga, SagaExecutor
+from aether_sdk.workflow.state_machine import Workflow, WorkflowExecutor
+from aether_sdk.workflow.types import Duration, RetryConfig, RetryPolicy, SagaStatus
 
 AUDIT_LOG = []
 
@@ -61,21 +54,34 @@ async def run_approval_flow(simulate_saga_failure: bool = False):
         .transition("reject", "pending_review", "rejected")
         .transition("saga_success", "approved", "completed")
         .transition("saga_failed", "approved", "failed")
-        .on_enter("pending_review", lambda ctx: log_event(
-            f"ENTER pending_review: Document '{ctx.input['title']}' sent for review"
-        ))
-        .on_enter("approved", lambda ctx: log_event(
-            "ENTER approved: Document has been approved by reviewer"
-        ))
-        .on_enter("rejected", lambda ctx: log_event(
-            "ENTER rejected: Document has been rejected"
-        ))
-        .on_enter("completed", lambda ctx: log_event(
-            "ENTER completed: All post-approval steps finished successfully"
-        ))
-        .on_enter("failed", lambda ctx: log_event(
-            "ENTER failed: Post-approval saga failed, compensation applied"
-        ))
+        .on_enter(
+            "pending_review",
+            lambda ctx: log_event(
+                f"ENTER pending_review: Document '{ctx.input['title']}' sent for review"
+            ),
+        )
+        .on_enter(
+            "approved",
+            lambda ctx: log_event(
+                "ENTER approved: Document has been approved by reviewer"
+            ),
+        )
+        .on_enter(
+            "rejected",
+            lambda ctx: log_event("ENTER rejected: Document has been rejected"),
+        )
+        .on_enter(
+            "completed",
+            lambda ctx: log_event(
+                "ENTER completed: All post-approval steps finished successfully"
+            ),
+        )
+        .on_enter(
+            "failed",
+            lambda ctx: log_event(
+                "ENTER failed: Post-approval saga failed, compensation applied"
+            ),
+        )
         .build()
     )
     print(f"  States: {list(approval_workflow.states.keys())}")
@@ -130,11 +136,13 @@ async def run_approval_flow(simulate_saga_failure: bool = False):
         .step("archive-document")
         .action(archive_document)
         .compensate(undo_archive_document)
-        .retry(RetryConfig(
-            max_attempts=2,
-            policy=RetryPolicy.FIXED,
-            initial_delay=Duration.from_seconds(0.1),
-        ))
+        .retry(
+            RetryConfig(
+                max_attempts=2,
+                policy=RetryPolicy.FIXED,
+                initial_delay=Duration.from_seconds(0.1),
+            )
+        )
         .step("send-confirmation")
         .action(send_confirmation)
         .compensate(undo_send_confirmation)
@@ -177,20 +185,27 @@ async def run_approval_flow(simulate_saga_failure: bool = False):
         status = await workflow_executor.get_status(wf_id)
         log_event(f"Current state: {status.current_state}")
 
-        print(f"\n  >> Creating human review task...")
-        task = HumanTask(
-            task_type="document_review",
-            title=f"Review: {doc_title}",
-            description=f"Please review document {doc_id}",
-        ).with_assignee("reviewer@company.com").with_priority(2).with_form(review_form)
+        print("\n  >> Creating human review task...")
+        task = (
+            HumanTask(
+                task_type="document_review",
+                title=f"Review: {doc_title}",
+                description=f"Please review document {doc_id}",
+            )
+            .with_assignee("reviewer@company.com")
+            .with_priority(2)
+            .with_form(review_form)
+        )
         created_task = await human_task_manager.create_task(task, wf_id, "review-step")
         log_event(f"Review task created: {created_task.task_id}")
         log_event(f"  Assigned to: {created_task.assignee}")
 
         await asyncio.sleep(0.05)
 
-        print(f"\n  >> Human reviewer approves the document...")
-        await human_task_manager.claim_task(created_task.task_id, "reviewer@company.com")
+        print("\n  >> Human reviewer approves the document...")
+        await human_task_manager.claim_task(
+            created_task.task_id, "reviewer@company.com"
+        )
         await human_task_manager.complete_task(
             created_task.task_id,
             {"approved": True, "comments": "Looks good, approved."},
@@ -199,12 +214,12 @@ async def run_approval_flow(simulate_saga_failure: bool = False):
         log_event(f"Task completed by {created_task.completed_by}")
         log_event(f"  Result: {created_task.result}")
 
-        print(f"\n  >> Transition: pending_review -> approved")
+        print("\n  >> Transition: pending_review -> approved")
         await workflow_executor.transition(wf_id, "approve")
         status = await workflow_executor.get_status(wf_id)
         log_event(f"Current state: {status.current_state}")
 
-        print(f"\n  >> Executing post-approval saga...")
+        print("\n  >> Executing post-approval saga...")
         saga_result = await saga_executor.execute(
             approval_saga,
             {"title": doc_title, "id": doc_id, "workflow_id": wf_id},
@@ -219,19 +234,21 @@ async def run_approval_flow(simulate_saga_failure: bool = False):
             log_event(f"  Duration: {saga_result.duration_ms}ms")
 
         if saga_result.status == SagaStatus.COMPLETED:
-            print(f"\n  >> Transition: approved -> completed")
+            print("\n  >> Transition: approved -> completed")
             await workflow_executor.transition(wf_id, "saga_success")
         else:
-            print(f"\n  >> Transition: approved -> failed")
+            print("\n  >> Transition: approved -> failed")
             await workflow_executor.transition(wf_id, "saga_failed")
 
         final_status = await workflow_executor.get_status(wf_id)
-        log_event(f"Final state: {final_status.current_state} (status={final_status.status.value})")
+        log_event(
+            f"Final state: {final_status.current_state} (status={final_status.status.value})"
+        )
 
         print(f"\n  >> Audit trail for workflow {wf_id}:")
         for event in final_status.history:
             detail = event.get("details", {})
-            ts = event.get("timestamp", "?")
+            _ = event.get("timestamp", "?")
             evt_type = event.get("type", "?")
             detail_str = ", ".join(f"{k}={v}" for k, v in detail.items())
             log_event(f"  AUDIT: {evt_type} ({detail_str})")

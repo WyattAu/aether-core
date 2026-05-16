@@ -18,11 +18,11 @@ Example:
 """
 
 from __future__ import annotations
-from dataclasses import dataclass, field
-from typing import Callable, Optional, Dict, Any
-from enum import Enum
-import asyncio
+
 import time
+from dataclasses import dataclass
+from enum import Enum
+from typing import Any, Callable, Dict, Optional
 
 
 class CircuitState(Enum):
@@ -34,6 +34,7 @@ class CircuitState(Enum):
         HALF_OPEN: Probing — a limited number of requests are allowed
             to test whether the service has recovered.
     """
+
     CLOSED = "closed"
     OPEN = "open"
     HALF_OPEN = "half-open"
@@ -58,6 +59,7 @@ class CircuitBreakerConfig:
         on_half_open: Callback invoked when the circuit enters
             half-open state.
     """
+
     failure_threshold: int = 5
     success_threshold: int = 3
     timeout_ms: int = 30000
@@ -84,6 +86,7 @@ class CircuitBreakerStats:
         last_state_change: Unix timestamp of the most recent state
             transition.
     """
+
     state: CircuitState = CircuitState.CLOSED
     failures: int = 0
     successes: int = 0
@@ -103,6 +106,7 @@ class CircuitBreakerError(Exception):
         ... except CircuitBreakerError as e:
         ...     print(f"Blocked: {e}")
     """
+
     pass
 
 
@@ -114,6 +118,7 @@ class FailureRecord:
         timestamp: Unix timestamp when the failure occurred.
         error: The exception that caused the failure.
     """
+
     timestamp: float
     error: Exception
 
@@ -215,12 +220,12 @@ class CircuitBreaker:
                 self._rejected_calls += 1
                 raise CircuitBreakerError("Circuit breaker is open")
 
-        if (self._state == CircuitState.HALF_OPEN and
-            self._half_open_calls >= self._config.half_open_max_calls):
+        if (
+            self._state == CircuitState.HALF_OPEN
+            and self._half_open_calls >= self._config.half_open_max_calls
+        ):
             self._rejected_calls += 1
-            raise CircuitBreakerError(
-                "Circuit breaker is half-open and at max calls"
-            )
+            raise CircuitBreakerError("Circuit breaker is half-open and at max calls")
 
         try:
             if self._state == CircuitState.HALF_OPEN:
@@ -287,10 +292,7 @@ class CircuitBreaker:
         self._last_failure = time.time()
         self._failures += 1
 
-        self._failure_history.append(FailureRecord(
-            timestamp=time.time(),
-            error=error
-        ))
+        self._failure_history.append(FailureRecord(timestamp=time.time(), error=error))
 
         cutoff = time.time() - (self._config.failure_window_ms / 1000)
         self._failure_history = [
@@ -318,7 +320,6 @@ class CircuitBreaker:
         if self._state == new_state:
             return
 
-        old_state = self._state
         self._state = new_state
         self._last_state_change = time.time()
 
@@ -362,7 +363,9 @@ class CircuitBreakerManager:
         self._breakers: Dict[str, CircuitBreaker] = {}
         self._default_config = default_config or CircuitBreakerConfig()
 
-    def get(self, name: str, config: Optional[CircuitBreakerConfig] = None) -> CircuitBreaker:
+    def get(
+        self, name: str, config: Optional[CircuitBreakerConfig] = None
+    ) -> CircuitBreaker:
         """Get or create a circuit breaker by name.
 
         If a breaker with *name* already exists, the existing instance
@@ -379,11 +382,29 @@ class CircuitBreakerManager:
         """
         if name not in self._breakers:
             merged_config = CircuitBreakerConfig(
-                failure_threshold=config.failure_threshold if config else self._default_config.failure_threshold,
-                success_threshold=config.success_threshold if config else self._default_config.success_threshold,
-                timeout_ms=config.timeout_ms if config else self._default_config.timeout_ms,
-                half_open_max_calls=config.half_open_max_calls if config else self._default_config.half_open_max_calls,
-                failure_window_ms=config.failure_window_ms if config else self._default_config.failure_window_ms,
+                failure_threshold=(
+                    config.failure_threshold
+                    if config
+                    else self._default_config.failure_threshold
+                ),
+                success_threshold=(
+                    config.success_threshold
+                    if config
+                    else self._default_config.success_threshold
+                ),
+                timeout_ms=(
+                    config.timeout_ms if config else self._default_config.timeout_ms
+                ),
+                half_open_max_calls=(
+                    config.half_open_max_calls
+                    if config
+                    else self._default_config.half_open_max_calls
+                ),
+                failure_window_ms=(
+                    config.failure_window_ms
+                    if config
+                    else self._default_config.failure_window_ms
+                ),
             )
             self._breakers[name] = CircuitBreaker(merged_config)
         return self._breakers[name]
@@ -408,7 +429,4 @@ class CircuitBreakerManager:
         Returns:
             A list of breaker names.
         """
-        return [
-            name for name, breaker in self._breakers.items()
-            if breaker.is_open
-        ]
+        return [name for name, breaker in self._breakers.items() if breaker.is_open]

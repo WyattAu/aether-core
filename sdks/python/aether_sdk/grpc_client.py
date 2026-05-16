@@ -44,7 +44,9 @@ logger = logging.getLogger("aether-sdk.grpc")
 try:
     import grpc
     import grpc.aio
+
     from .proto import aether_pb2, aether_pb2_grpc
+
     _GRPC_AVAILABLE = True
 except ImportError:
     _GRPC_AVAILABLE = False
@@ -54,6 +56,7 @@ except ImportError:
 
 class AetherGrpcError(Exception):
     """Raised when a gRPC call fails."""
+
     def __init__(self, code: str, detail: str):
         self.code = code
         self.detail = detail
@@ -84,6 +87,7 @@ def _bytes_to_json(data: bytes) -> Any:
 def _handle_rpc_error(exc: Exception):
     """Convert a gRPC RpcError to AetherGrpcError."""
     import grpc as _grpc
+
     if isinstance(exc, _grpc.RpcError):
         status = exc.code()
         details = exc.details() or status.name
@@ -170,7 +174,9 @@ class AetherGrpcClient:
 
     def _ensure_connected(self):
         if self._channel is None:
-            raise RuntimeError("Client not connected. Use 'async with' or call connect()")
+            raise RuntimeError(
+                "Client not connected. Use 'async with' or call connect()"
+            )
 
     # === Health ===
 

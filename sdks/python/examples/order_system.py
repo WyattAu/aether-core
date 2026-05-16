@@ -22,10 +22,9 @@ from datetime import datetime, timezone
 
 from aether_sdk.event import (
     Aggregate,
-    EventEnvelope,
     InMemoryEventStore,
-    Schema,
     InMemorySchemaRegistry,
+    Schema,
 )
 from aether_sdk.event.schema import SchemaError
 from aether_sdk.workflow.saga import Saga, SagaExecutor
@@ -35,9 +34,7 @@ from aether_sdk.workflow.types import (
     RetryPolicy,
     SagaContext,
     SagaResult,
-    SagaStatus,
 )
-
 
 # -------------------------------------------------------------------
 # Event schemas (for validation)
@@ -107,6 +104,7 @@ DELIVERED_SCHEMA = Schema(
 # Order Aggregate (event-sourced)
 # -------------------------------------------------------------------
 
+
 class Order(Aggregate):
     """
     Event-sourced order aggregate.
@@ -165,6 +163,7 @@ class Order(Aggregate):
 # -------------------------------------------------------------------
 # Saga step handlers (simulate external services)
 # -------------------------------------------------------------------
+
 
 async def reserve_inventory(ctx: SagaContext) -> dict:
     """
@@ -252,6 +251,7 @@ async def cancel_shipment(ctx: SagaContext) -> None:
 # Helpers
 # -------------------------------------------------------------------
 
+
 def print_order_state(order: Order, label: str) -> None:
     print(f"  [{label}] {order}")
 
@@ -264,6 +264,7 @@ def print_separator(title: str) -> None:
 # -------------------------------------------------------------------
 # Main demo
 # -------------------------------------------------------------------
+
 
 async def main() -> None:
     print("=" * 60)
@@ -279,10 +280,17 @@ async def main() -> None:
     await registry.register("PaymentProcessed", PAYMENT_PROCESSED_SCHEMA)
     await registry.register("OrderShipped", SHIPPED_SCHEMA)
     await registry.register("OrderDelivered", DELIVERED_SCHEMA)
-    print("  Registered schemas: OrderCreated, PaymentProcessed, OrderShipped, OrderDelivered")
+    print(
+        "  Registered schemas: OrderCreated, PaymentProcessed, OrderShipped, OrderDelivered"
+    )
 
     # Validate a correct event
-    valid_event = {"order_id": "ord-001", "customer_id": "cust-1", "items": [], "total": 29.99}
+    valid_event = {
+        "order_id": "ord-001",
+        "customer_id": "cust-1",
+        "items": [],
+        "total": 29.99,
+    }
     is_valid = await registry.validate("OrderCreated", valid_event)
     print(f"  Validation (valid event): {is_valid}")
 
@@ -303,13 +311,33 @@ async def main() -> None:
         order_id,
         [
             {"type": "inventory_reserved", "order_id": order_id},
-            {"type": "order_created", "order_id": order_id, "customer_id": "cust-42", "items": [
-                {"sku": "WIDGET-1", "name": "Widget", "qty": 2, "price": 9.99},
-                {"sku": "GEAR-7", "name": "Gear", "qty": 1, "price": 10.01},
-            ], "total": 29.99},
-            {"type": "payment_processed", "order_id": order_id, "amount": 29.99, "payment_id": "pay-ord-100"},
-            {"type": "order_shipped", "order_id": order_id, "tracking_number": "TRK-ORD100", "carrier": "ACME Express"},
-            {"type": "order_delivered", "order_id": order_id, "delivered_at": datetime.now(timezone.utc).isoformat()},
+            {
+                "type": "order_created",
+                "order_id": order_id,
+                "customer_id": "cust-42",
+                "items": [
+                    {"sku": "WIDGET-1", "name": "Widget", "qty": 2, "price": 9.99},
+                    {"sku": "GEAR-7", "name": "Gear", "qty": 1, "price": 10.01},
+                ],
+                "total": 29.99,
+            },
+            {
+                "type": "payment_processed",
+                "order_id": order_id,
+                "amount": 29.99,
+                "payment_id": "pay-ord-100",
+            },
+            {
+                "type": "order_shipped",
+                "order_id": order_id,
+                "tracking_number": "TRK-ORD100",
+                "carrier": "ACME Express",
+            },
+            {
+                "type": "order_delivered",
+                "order_id": order_id,
+                "delivered_at": datetime.now(timezone.utc).isoformat(),
+            },
         ],
     )
 
@@ -356,9 +384,11 @@ async def main() -> None:
     }
 
     result: SagaResult = await executor.execute(saga, order_input)
-    print(f"  [Saga Result] status={result.status.value}, "
-          f"steps={result.completed_steps}, "
-          f"duration={result.duration_ms}ms")
+    print(
+        f"  [Saga Result] status={result.status.value}, "
+        f"steps={result.completed_steps}, "
+        f"duration={result.duration_ms}ms"
+    )
 
     # ----------------------------------------------------------------
     # 4. Saga: payment failure triggers compensation
@@ -388,9 +418,11 @@ async def main() -> None:
     }
 
     failed_result = await executor.execute(failed_saga, failed_order_input)
-    print(f"  [Saga Result] status={failed_result.status.value}, "
-          f"error={failed_result.error}, "
-          f"compensated_steps={failed_result.compensated_steps}")
+    print(
+        f"  [Saga Result] status={failed_result.status.value}, "
+        f"error={failed_result.error}, "
+        f"compensated_steps={failed_result.compensated_steps}"
+    )
 
     # ----------------------------------------------------------------
     # 5. State reconstruction after saga events
@@ -402,8 +434,18 @@ async def main() -> None:
     saga_events = [
         {"type": "inventory_reserved", "order_id": saga_order_id},
         {"type": "order_created", **order_input},
-        {"type": "payment_processed", "order_id": saga_order_id, "amount": order_input["total"], "payment_id": "pay-ord-200"},
-        {"type": "order_shipped", "order_id": saga_order_id, "tracking_number": "TRK-ORD200", "carrier": "FastShip"},
+        {
+            "type": "payment_processed",
+            "order_id": saga_order_id,
+            "amount": order_input["total"],
+            "payment_id": "pay-ord-200",
+        },
+        {
+            "type": "order_shipped",
+            "order_id": saga_order_id,
+            "tracking_number": "TRK-ORD200",
+            "carrier": "FastShip",
+        },
     ]
     await event_store.append(saga_order_id, saga_events)
 
@@ -421,8 +463,10 @@ async def main() -> None:
 
     # Take a snapshot of the current order state
     snapshot = saga_order.create_snapshot()
-    print(f"  Snapshot taken at version {snapshot.version}: "
-          f"status={snapshot.state.get('status')}")
+    print(
+        f"  Snapshot taken at version {snapshot.version}: "
+        f"status={snapshot.state.get('status')}"
+    )
 
     # Save and reload from snapshot
     await event_store.save_snapshot(snapshot)
@@ -431,7 +475,9 @@ async def main() -> None:
     reloaded = Order()
     reloaded.id = saga_order_id
     saved_snapshot = await event_store.load_snapshot(saga_order_id)
-    remaining_events = await event_store.get_events(saga_order_id, after_version=saved_snapshot.version)
+    remaining_events = await event_store.get_events(
+        saga_order_id, after_version=saved_snapshot.version
+    )
     reloaded.load_from_history(remaining_events, saved_snapshot)
     print_order_state(reloaded, "Reloaded from snapshot")
 

@@ -14,19 +14,26 @@ import pytest
 pytest.importorskip("grpc")
 
 import grpc
+
+from aether_sdk.client import (
+    ActorInfo,
+    DeliveryReceipt,
+    EventRecord,
+    ServerInfo,
+    StateEntry,
+)
 from aether_sdk.grpc_client import (
     AetherGrpcClient,
     AetherGrpcError,
-    _json_to_bytes,
     _bytes_to_json,
+    _json_to_bytes,
 )
-from aether_sdk.client import ActorInfo, StateEntry, EventRecord, DeliveryReceipt, ServerInfo
 from aether_sdk.proto import aether_pb2, aether_pb2_grpc
-
 
 # ============================================================
 # Minimal server implementation (using SDK stubs)
 # ============================================================
+
 
 class _MinimalActorService(aether_pb2_grpc.ActorServiceServicer):
     def __init__(self):
@@ -44,9 +51,11 @@ class _MinimalActorService(aether_pb2_grpc.ActorServiceServicer):
             "status": "active",
         }
         return aether_pb2.ActorInfo(
-            actor_id=aid, actor_type=request.actor_type,
+            actor_id=aid,
+            actor_type=request.actor_type,
             capabilities=request.capabilities,
-            metadata=request.metadata, status="active",
+            metadata=request.metadata,
+            status="active",
         )
 
     def Unregister(self, request, context):
@@ -59,8 +68,10 @@ class _MinimalActorService(aether_pb2_grpc.ActorServiceServicer):
             context.set_code(grpc.StatusCode.NOT_FOUND)
             return aether_pb2.ActorInfo()
         return aether_pb2.ActorInfo(
-            actor_id=request.actor_id, actor_type=info["type"],
-            capabilities=info["capabilities"], metadata=info["metadata"],
+            actor_id=request.actor_id,
+            actor_type=info["type"],
+            capabilities=info["capabilities"],
+            metadata=info["metadata"],
             status=info["status"],
         )
 
@@ -71,11 +82,15 @@ class _MinimalActorService(aether_pb2_grpc.ActorServiceServicer):
                 continue
             if request.status and info["status"] != request.status:
                 continue
-            results.append(aether_pb2.ActorInfo(
-                actor_id=aid, actor_type=info["type"],
-                capabilities=info["capabilities"], metadata=info["metadata"],
-                status=info["status"],
-            ))
+            results.append(
+                aether_pb2.ActorInfo(
+                    actor_id=aid,
+                    actor_type=info["type"],
+                    capabilities=info["capabilities"],
+                    metadata=info["metadata"],
+                    status=info["status"],
+                )
+            )
         return aether_pb2.ListActorsResponse(actors=results, total=len(results))
 
     def Heartbeat(self, request, context):
@@ -91,9 +106,11 @@ class _MinimalMessageService(aether_pb2_grpc.MessageServiceServicer):
 
     def Send(self, request, context):
         import time as _time
+
         mid = f"msg_{int(_time.time() * 1e6)}"
         receipt = aether_pb2.DeliveryReceipt(
-            message_id=mid, status="buffered",
+            message_id=mid,
+            status="buffered",
             correlation_id=request.correlation_id,
         )
         target = request.target_actor
@@ -105,10 +122,12 @@ class _MinimalMessageService(aether_pb2_grpc.MessageServiceServicer):
         # Return as PendingMessage protos (minimal)
         result = []
         for r in msgs:
-            result.append(aether_pb2.PendingMessage(
-                message_id=r.message_id,
-                correlation_id=r.correlation_id,
-            ))
+            result.append(
+                aether_pb2.PendingMessage(
+                    message_id=r.message_id,
+                    correlation_id=r.correlation_id,
+                )
+            )
         return aether_pb2.GetPendingMessagesResponse(messages=result)
 
 
@@ -137,15 +156,19 @@ class _MinimalStateService(aether_pb2_grpc.StateServiceServicer):
         current_ver = self._versions.get(key, 0)
         if expected is not None and expected != current_ver:
             context.set_code(grpc.StatusCode.ABORTED)
-            context.set_details(f"Version conflict: expected {expected}, actual {current_ver}")
+            context.set_details(
+                f"Version conflict: expected {expected}, actual {current_ver}"
+            )
             return aether_pb2.StateEntry()
 
         new_ver = current_ver + 1
         self._state[key] = {"value": value, "version": new_ver}
         self._versions[key] = new_ver
         return aether_pb2.StateEntry(
-            actor_id=request.actor_id, key=request.key,
-            value=request.value, version=new_ver,
+            actor_id=request.actor_id,
+            key=request.key,
+            value=request.value,
+            version=new_ver,
         )
 
     def DeleteState(self, request, context):
@@ -192,7 +215,7 @@ class _MinimalEventService(aether_pb2_grpc.EventServiceServicer):
 
     def AppendEvent(self, request, context):
         agg = request.aggregate_id
-        data = _bytes_to_json(request.data)
+        _data = _bytes_to_json(request.data)
         current_ver = self._events.get(agg, 0)
         expected = request.expected_version if request.expected_version > 0 else None
         if expected is not None and expected != current_ver:
@@ -201,8 +224,10 @@ class _MinimalEventService(aether_pb2_grpc.EventServiceServicer):
         new_ver = current_ver + 1
         self._events[agg] = new_ver
         return aether_pb2.EventRecord(
-            event_id=f"evt_{new_ver}", aggregate_id=agg,
-            event_type=request.event_type, data=request.data,
+            event_id=f"evt_{new_ver}",
+            aggregate_id=agg,
+            event_type=request.event_type,
+            data=request.data,
             version=new_ver,
         )
 
@@ -213,13 +238,20 @@ class _MinimalEventService(aether_pb2_grpc.EventServiceServicer):
 
 class _MinimalHealthService(aether_pb2_grpc.HealthServiceServicer):
     def __init__(self):
-        self._start = asyncio.get_event_loop().time() if asyncio.get_event_loop().is_running() else 0
+        self._start = (
+            asyncio.get_event_loop().time()
+            if asyncio.get_event_loop().is_running()
+            else 0
+        )
 
     def Health(self, request, context):
         import time as _time
+
         return aether_pb2.HealthResponse(
-            status="ok", uptime=_time.time() - self._start if self._start else 0,
-            actor_count=0, message_count=0,
+            status="ok",
+            uptime=_time.time() - self._start if self._start else 0,
+            actor_count=0,
+            message_count=0,
         )
 
     def Ready(self, request, context):
@@ -227,10 +259,13 @@ class _MinimalHealthService(aether_pb2_grpc.HealthServiceServicer):
 
     def Info(self, request, context):
         import time as _time
+
         return aether_pb2.InfoResponse(
-            version="0.1.0", status="ok",
+            version="0.1.0",
+            status="ok",
             uptime=_time.time() - self._start if self._start else 0,
-            actor_count=0, message_count=0,
+            actor_count=0,
+            message_count=0,
         )
 
 
@@ -271,6 +306,7 @@ async def grpc_client():
 # Unit Tests
 # ============================================================
 
+
 class TestHelpers:
     def test_json_to_bytes_none(self):
         assert _json_to_bytes(None) == b""
@@ -298,6 +334,7 @@ class TestHelpers:
 # Integration Tests
 # ============================================================
 
+
 class TestGrpcClientHealth:
 
     async def test_health(self, grpc_client):
@@ -323,7 +360,8 @@ class TestGrpcClientActors:
 
     async def test_register_with_capabilities(self, grpc_client):
         info = await grpc_client.register_actor(
-            "grpc-2", "compute",
+            "grpc-2",
+            "compute",
             capabilities=["gpu", "cuda"],
             metadata={"region": "us-east"},
         )
@@ -361,7 +399,9 @@ class TestGrpcClientMessaging:
 
     async def test_send_message(self, grpc_client):
         receipt = await grpc_client.send_message(
-            "msg-tgt", {"text": "hello"}, source="msg-src",
+            "msg-tgt",
+            {"text": "hello"},
+            source="msg-src",
         )
         assert isinstance(receipt, DeliveryReceipt)
         assert receipt.status == "buffered"
@@ -369,7 +409,9 @@ class TestGrpcClientMessaging:
 
     async def test_send_message_with_correlation(self, grpc_client):
         receipt = await grpc_client.send_message(
-            "corr-tgt", {"data": 42}, correlation_id="corr-123",
+            "corr-tgt",
+            {"data": 42},
+            correlation_id="corr-123",
         )
         assert receipt.correlation_id == "corr-123"
 

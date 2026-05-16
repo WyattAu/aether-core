@@ -40,6 +40,7 @@ def client():
     _needs_server()
     c = AetherClient(base_url=BASE_URL, actor_id="integration-test-sender")
     import asyncio
+
     asyncio.get_event_loop().run_until_complete(c.connect())
     yield c
     asyncio.get_event_loop().run_until_complete(c.close())
@@ -152,10 +153,13 @@ class TestMeshPeerDiscovery:
     async def test_cluster_info_endpoint(self, client):
         try:
             import httpx as _hx
+
             resp = _hx.get(f"{BASE_URL}/cluster/info", timeout=5.0)
             if resp.status_code == 200:
                 data = resp.json()
-                assert "node_id" in data or "cluster_enabled" in data or "status" in data
+                assert (
+                    "node_id" in data or "cluster_enabled" in data or "status" in data
+                )
             elif resp.status_code == 404:
                 pytest.skip("Cluster endpoints not available on this server")
         except Exception:
@@ -165,6 +169,7 @@ class TestMeshPeerDiscovery:
     async def test_cluster_nodes_endpoint(self, client):
         try:
             import httpx as _hx
+
             resp = _hx.get(f"{BASE_URL}/cluster/nodes", timeout=5.0)
             if resp.status_code == 200:
                 data = resp.json()

@@ -11,31 +11,22 @@ Example:
 """
 
 from __future__ import annotations
-from dataclasses import dataclass, field
-from datetime import datetime
-from typing import (
-    Any,
-    Callable,
-    Coroutine,
-    Dict,
-    List,
-    Optional,
-    Set,
-    TypeVar,
-    Union,
-)
-from abc import ABC, abstractmethod
+
 import asyncio
 import uuid
+from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Any, Callable, Dict, List, Optional, Set
 
 from ..actor import Actor
-from ..messaging import Message, MessageType
 from ..exceptions import AetherError
-
+from ..messaging import Message, MessageType
 
 # ============================================
 # Topic Configuration
 # ============================================
+
 
 @dataclass
 class Topic:
@@ -56,6 +47,7 @@ class Topic:
     Example:
         >>> Topic(name="user.events", partitions=4)
     """
+
     name: str
     partitions: int = 1
     retention_ms: Optional[int] = None
@@ -65,7 +57,7 @@ class Topic:
         """Validate the topic name format."""
         if not self.name:
             raise ValueError("Topic name cannot be empty")
-        if not all(c.isalnum() or c in '.-_' for c in self.name):
+        if not all(c.isalnum() or c in ".-_" for c in self.name):
             raise ValueError(f"Invalid topic name: {self.name}")
 
 
@@ -80,6 +72,7 @@ class Subscription:
         active: Whether the subscription is currently active.
         handler: Callback invoked when a matching message arrives.
     """
+
     id: str
     topic_pattern: str
     created_at: datetime = field(default_factory=datetime.utcnow)
@@ -101,6 +94,7 @@ class PubSubMessage:
         partition: Partition number (set by the backend).
         offset: Offset within the partition (set by the backend).
     """
+
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
     topic: str = ""
     value: Any = None
@@ -166,7 +160,7 @@ class PubSubBackend(ABC):
         self,
         topic_pattern: str,
         handler: Callable[[PubSubMessage], None],
-        subscription_id: Optional[str] = None
+        subscription_id: Optional[str] = None,
     ) -> Subscription:
         """Subscribe to a topic pattern.
 
@@ -255,7 +249,7 @@ class InMemoryPubSub(PubSubBackend):
         self,
         topic_pattern: str,
         handler: Callable[[PubSubMessage], None],
-        subscription_id: Optional[str] = None
+        subscription_id: Optional[str] = None,
     ) -> Subscription:
         """Subscribe to a topic pattern.
 
@@ -322,16 +316,16 @@ class InMemoryPubSub(PubSubBackend):
         Returns:
             ``True`` if the topic matches the pattern.
         """
-        if '*' in pattern:
+        if "*" in pattern:
             return True
-        topic_parts = topic.split('.')
-        pattern_parts = pattern.split('.')
+        topic_parts = topic.split(".")
+        pattern_parts = pattern.split(".")
 
         if len(topic_parts) != len(pattern_parts):
             return False
 
         for i in range(len(pattern_parts)):
-            if pattern_parts[i] != '*' and pattern_parts[i] != topic_parts[i]:
+            if pattern_parts[i] != "*" and pattern_parts[i] != topic_parts[i]:
                 return False
 
         return True
@@ -430,17 +424,10 @@ class PubSubClient:
         Returns:
             The created :class:`Subscription`.
         """
-        return await self._backend.subscribe(
-            topic_pattern,
-            handler,
-            subscription_id
-        )
+        return await self._backend.subscribe(topic_pattern, handler, subscription_id)
 
     async def subscribe_actor(
-        self,
-        topic_pattern: str,
-        actor: Actor,
-        method_name: str = "handle_event"
+        self, topic_pattern: str, actor: Actor, method_name: str = "handle_event"
     ) -> Subscription:
         """Subscribe an actor to a topic pattern.
 
@@ -458,6 +445,7 @@ class PubSubClient:
         Raises:
             AetherError: If the actor handler raises an exception.
         """
+
         async def actor_handler(msg: PubSubMessage) -> None:
             try:
                 method = getattr(actor, method_name, None)
@@ -513,12 +501,14 @@ def subscribe(topic_pattern: str, delivery_semantics: str = "at_least_once"):
         ... def handle_order(self, msg):
         ...     pass
     """
+
     def decorator(method):
         method._aether_subscribe = {
             "topic_pattern": topic_pattern,
-            "delivery_semantics": delivery_semantics
+            "delivery_semantics": delivery_semantics,
         }
         return method
+
     return decorator
 
 
@@ -527,7 +517,7 @@ async def publish(
     value: Any,
     key: Optional[str] = None,
     headers: Optional[Dict[str, str]] = None,
-    client: Optional[PubSubClient] = None
+    client: Optional[PubSubClient] = None,
 ) -> str:
     """Convenience function for publishing a single message.
 
@@ -549,17 +539,17 @@ async def publish(
 Event = PubSubMessage
 
 __all__ = [
-    'Topic',
-    'Subscription',
-    'PubSubMessage',
-    'PubSubBackend',
-    'InMemoryPubSub',
-    'PubSubClient',
-    'Publisher',
-    'Subscriber',
-    'Event',
-    'subscribe',
-    'publish',
+    "Topic",
+    "Subscription",
+    "PubSubMessage",
+    "PubSubBackend",
+    "InMemoryPubSub",
+    "PubSubClient",
+    "Publisher",
+    "Subscriber",
+    "Event",
+    "subscribe",
+    "publish",
 ]
 
 Publisher = PubSubClient

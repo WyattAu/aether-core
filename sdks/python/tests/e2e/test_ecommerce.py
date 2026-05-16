@@ -8,25 +8,23 @@ Simulates a complete e-commerce flow with saga-based compensation:
 - Full saga with compensation on failure
 """
 
-import pytest
-import asyncio
 import random
-from dataclasses import dataclass, field
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, Optional
 
+import pytest
+
+from aether_sdk.actor import Actor
+from aether_sdk.messaging import Message, MessageType
+from aether_sdk.state import StateHandle
 from aether_sdk.workflow.saga import Saga, SagaExecutor
+from aether_sdk.workflow.state_machine import Workflow, WorkflowExecutor
 from aether_sdk.workflow.types import (
-    SagaStatus,
-    SagaContext,
+    Duration,
     RetryConfig,
     RetryPolicy,
-    Duration,
+    SagaContext,
+    SagaStatus,
 )
-from aether_sdk.workflow.state_machine import Workflow, WorkflowExecutor
-from aether_sdk.state import StateHandle
-from aether_sdk.messaging import Message, MessageType
-from aether_sdk.actor import Actor
-
 
 random.seed(42)
 
@@ -130,7 +128,9 @@ class TestEcommerceOrderProcessing:
         return saga_def
 
     @pytest.mark.asyncio
-    async def test_complete_order_flow(self, inventory, payment_results, shipping_results, audit_log):
+    async def test_complete_order_flow(
+        self, inventory, payment_results, shipping_results, audit_log
+    ):
         """Test the full happy path: order placed -> paid -> shipped."""
         saga_def = self._build_order_saga(
             inventory, payment_results, shipping_results, audit_log
@@ -167,10 +167,15 @@ class TestEcommerceOrderProcessing:
         print(f"  Audit log: {audit_log}")
 
     @pytest.mark.asyncio
-    async def test_payment_failure_cancels_order(self, inventory, payment_results, shipping_results, audit_log):
+    async def test_payment_failure_cancels_order(
+        self, inventory, payment_results, shipping_results, audit_log
+    ):
         """Test that payment failure triggers compensation (no shipping)."""
         saga_def = self._build_order_saga(
-            inventory, payment_results, shipping_results, audit_log,
+            inventory,
+            payment_results,
+            shipping_results,
+            audit_log,
             force_payment_fail=True,
         )
         executor = SagaExecutor()
@@ -194,14 +199,19 @@ class TestEcommerceOrderProcessing:
         print(f"  Order ID: {order['order_id']}")
         print(f"  Status: {result.status.value}")
         print(f"  Completed before failure: {result.completed_steps}")
-        print(f"  Compensation: inventory released, no shipping")
+        print("  Compensation: inventory released, no shipping")
         print(f"  Inventory restored: {inventory}")
 
     @pytest.mark.asyncio
-    async def test_shipping_failure_compensates_all(self, inventory, payment_results, shipping_results, audit_log):
+    async def test_shipping_failure_compensates_all(
+        self, inventory, payment_results, shipping_results, audit_log
+    ):
         """Test that shipping failure triggers full compensation: refund + restore inventory."""
         saga_def = self._build_order_saga(
-            inventory, payment_results, shipping_results, audit_log,
+            inventory,
+            payment_results,
+            shipping_results,
+            audit_log,
             force_shipping_fail=True,
         )
         executor = SagaExecutor()
@@ -228,12 +238,16 @@ class TestEcommerceOrderProcessing:
         print(f"  Order ID: {order['order_id']}")
         print(f"  Status: {result.status.value}")
         print(f"  Steps completed before failure: {result.completed_steps}")
-        print(f"  Compensation chain: shipping cancelled -> payment refunded -> inventory released")
+        print(
+            "  Compensation chain: shipping cancelled -> payment refunded -> inventory released"
+        )
         print(f"  Inventory restored: {inventory}")
         print(f"  Payment refunded: {not payment_results['success']}")
 
     @pytest.mark.asyncio
-    async def test_multiple_items_order(self, inventory, payment_results, shipping_results, audit_log):
+    async def test_multiple_items_order(
+        self, inventory, payment_results, shipping_results, audit_log
+    ):
         """Test ordering multiple different products in a single order."""
         saga_def = self._build_order_saga(
             inventory, payment_results, shipping_results, audit_log
@@ -305,7 +319,9 @@ class TestEcommerceOrderProcessing:
         assert final.status.value == "completed"
         assert final.current_state == "shipped"
 
-        audit_log.append(f"WORKFLOW: Order {wf_result.workflow_id} completed full lifecycle")
+        audit_log.append(
+            f"WORKFLOW: Order {wf_result.workflow_id} completed full lifecycle"
+        )
 
         print("\n=== Order State Machine Summary ===")
         print(f"  Workflow ID: {wf_result.workflow_id}")
@@ -314,14 +330,18 @@ class TestEcommerceOrderProcessing:
         print(f"  History events: {len(final.history)}")
 
     @pytest.mark.asyncio
-    async def test_saga_with_retry_on_transient_failure(self, inventory, payment_results, shipping_results, audit_log):
+    async def test_saga_with_retry_on_transient_failure(
+        self, inventory, payment_results, shipping_results, audit_log
+    ):
         """Test that transient payment failures are retried before compensation."""
         attempt_count = {"value": 0}
 
         async def flaky_payment(ctx: SagaContext) -> Dict[str, Any]:
             attempt_count["value"] += 1
             if attempt_count["value"] < 3:
-                audit_log.append(f"PAYMENT: ATTEMPT {attempt_count['value']} FAILED (transient)")
+                audit_log.append(
+                    f"PAYMENT: ATTEMPT {attempt_count['value']} FAILED (transient)"
+                )
                 raise RuntimeError("Transient payment error")
             audit_log.append(f"PAYMENT: ATTEMPT {attempt_count['value']} SUCCEEDED")
             return {"transaction_id": "txn-flaky", "amount": 50.0}
@@ -346,17 +366,22 @@ class TestEcommerceOrderProcessing:
             .compensate(release_inv)
             .step("process-payment")
             .action(flaky_payment)
-            .retry(RetryConfig(
-                max_attempts=5,
-                policy=RetryPolicy.FIXED,
-                initial_delay=Duration(10),
-                max_delay=Duration(50),
-            ))
+            .retry(
+                RetryConfig(
+                    max_attempts=5,
+                    policy=RetryPolicy.FIXED,
+                    initial_delay=Duration(10),
+                    max_delay=Duration(50),
+                )
+            )
             .build()
         )
 
         executor = SagaExecutor()
-        order = {"order_id": "ORD-FLAKY", "items": [{"product": "widget", "quantity": 1}]}
+        order = {
+            "order_id": "ORD-FLAKY",
+            "items": [{"product": "widget", "quantity": 1}],
+        }
         result = await executor.execute(saga_def, order)
 
         assert result.status == SagaStatus.COMPLETED
@@ -388,16 +413,23 @@ class TestEcommerceMessagePassing:
             def name(cls) -> str:
                 return "order-actor"
 
-            async def handle_message(self, sender: str, message: Message) -> Optional[Message]:
+            async def handle_message(
+                self, sender: str, message: Message
+            ) -> Optional[Message]:
                 if message.payload.get("action") == "create":
                     order = message.payload["order"]
-                    await self._state.set_json(f"order:{order['id']}", {
-                        "id": order["id"],
-                        "status": "created",
-                        "items": order["items"],
-                    })
+                    await self._state.set_json(
+                        f"order:{order['id']}",
+                        {
+                            "id": order["id"],
+                            "status": "created",
+                            "items": order["items"],
+                        },
+                    )
                     self.processed_orders.append(order["id"])
-                    return Message(type=MessageType.CUSTOM, payload={"status": "created"})
+                    return Message(
+                        type=MessageType.CUSTOM, payload={"status": "created"}
+                    )
                 return None
 
         class PaymentActor(Actor):
@@ -410,18 +442,28 @@ class TestEcommerceMessagePassing:
             def name(cls) -> str:
                 return "payment-actor"
 
-            async def handle_message(self, sender: str, message: Message) -> Optional[Message]:
+            async def handle_message(
+                self, sender: str, message: Message
+            ) -> Optional[Message]:
                 if message.payload.get("action") == "charge":
                     order_id = message.payload["order_id"]
                     amount = message.payload["amount"]
                     txn_id = f"txn-{order_id}"
-                    self.payments.append({"order_id": order_id, "amount": amount, "txn_id": txn_id})
-                    await self._state.set_json(f"payment:{txn_id}", {
-                        "order_id": order_id,
-                        "amount": amount,
-                        "status": "completed",
-                    })
-                    return Message(type=MessageType.CUSTOM, payload={"txn_id": txn_id, "status": "success"})
+                    self.payments.append(
+                        {"order_id": order_id, "amount": amount, "txn_id": txn_id}
+                    )
+                    await self._state.set_json(
+                        f"payment:{txn_id}",
+                        {
+                            "order_id": order_id,
+                            "amount": amount,
+                            "status": "completed",
+                        },
+                    )
+                    return Message(
+                        type=MessageType.CUSTOM,
+                        payload={"txn_id": txn_id, "status": "success"},
+                    )
                 return None
 
         order_actor = OrderActor()
@@ -429,7 +471,10 @@ class TestEcommerceMessagePassing:
 
         order_msg = Message(
             type=MessageType.CUSTOM,
-            payload={"action": "create", "order": {"id": "ORD-MSG-001", "items": ["widget"]}},
+            payload={
+                "action": "create",
+                "order": {"id": "ORD-MSG-001", "items": ["widget"]},
+            },
         )
         response = await order_actor.handle_message("customer", order_msg)
         assert response is not None
@@ -444,7 +489,9 @@ class TestEcommerceMessagePassing:
             type=MessageType.CUSTOM,
             payload={"action": "charge", "order_id": "ORD-MSG-001", "amount": 49.99},
         )
-        payment_response = await payment_actor.handle_message("order-actor", payment_msg)
+        payment_response = await payment_actor.handle_message(
+            "order-actor", payment_msg
+        )
         assert payment_response.payload["status"] == "success"
         assert len(payment_actor.payments) == 1
 
@@ -454,4 +501,4 @@ class TestEcommerceMessagePassing:
         print("\n=== Actor Message-Based Order Summary ===")
         print(f"  Orders processed: {order_actor.processed_orders}")
         print(f"  Payments completed: {len(payment_actor.payments)}")
-        print(f"  StateHandle persistence verified for both actors")
+        print("  StateHandle persistence verified for both actors")

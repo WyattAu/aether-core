@@ -1,9 +1,8 @@
 """Type stubs for messaging module."""
 
 from dataclasses import dataclass
-from typing import Optional, Any
 from enum import Enum
-import json
+from typing import Any, Optional
 
 class MessageType(Enum):
     START: str = "start"
@@ -16,12 +15,12 @@ class MessageType(Enum):
 @dataclass
 class Message:
     """Actor message."""
+
     type: MessageType
     payload: Any
     sender: Optional[str] = None
     correlation_id: Optional[str] = None
-    
+
     def to_json(self) -> str: ...
-    
     @classmethod
     def from_json(cls, data: str) -> "Message": ...

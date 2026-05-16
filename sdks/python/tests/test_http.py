@@ -1,8 +1,10 @@
+from unittest.mock import AsyncMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from aether_sdk.http import HttpClient
+
 from aether_sdk.capabilities import Capability, CapabilitySet
 from aether_sdk.exceptions import CapabilityDenied
+from aether_sdk.http import HttpClient
 
 
 class TestHttpClient:
@@ -36,7 +38,7 @@ class TestHttpClient:
         mock_response = AsyncMock()
         mock_response.status = 200
 
-        with patch.object(client, '_get_session') as mock_get_session:
+        with patch.object(client, "_get_session") as mock_get_session:
             mock_session = AsyncMock()
             mock_session.get = AsyncMock(return_value=mock_response)
             mock_get_session.return_value = mock_session
@@ -60,7 +62,7 @@ class TestHttpClient:
 
         headers = {"Authorization": "Bearer token"}
 
-        with patch.object(client, '_get_session') as mock_get_session:
+        with patch.object(client, "_get_session") as mock_get_session:
             mock_session = AsyncMock()
             mock_session.get = AsyncMock(return_value=mock_response)
             mock_get_session.return_value = mock_session
@@ -84,7 +86,7 @@ class TestHttpClient:
 
         json_data = {"name": "test", "value": 42}
 
-        with patch.object(client, '_get_session') as mock_get_session:
+        with patch.object(client, "_get_session") as mock_get_session:
             mock_session = AsyncMock()
             mock_session.post = AsyncMock(return_value=mock_response)
             mock_get_session.return_value = mock_session
@@ -108,7 +110,7 @@ class TestHttpClient:
 
         json_data = {"id": 1, "name": "updated"}
 
-        with patch.object(client, '_get_session') as mock_get_session:
+        with patch.object(client, "_get_session") as mock_get_session:
             mock_session = AsyncMock()
             mock_session.put = AsyncMock(return_value=mock_response)
             mock_get_session.return_value = mock_session
@@ -130,7 +132,7 @@ class TestHttpClient:
         mock_response = AsyncMock()
         mock_response.status = 204
 
-        with patch.object(client, '_get_session') as mock_get_session:
+        with patch.object(client, "_get_session") as mock_get_session:
             mock_session = AsyncMock()
             mock_session.delete = AsyncMock(return_value=mock_response)
             mock_get_session.return_value = mock_session
@@ -175,7 +177,7 @@ class TestHttpClient:
         mock_response1 = AsyncMock(status=200)
         mock_response2 = AsyncMock(status=201)
 
-        with patch('aether_sdk.http.aiohttp.ClientSession') as MockSession:
+        with patch("aether_sdk.http.aiohttp.ClientSession") as MockSession:
             mock_session = AsyncMock()
             mock_session.get = AsyncMock(side_effect=[mock_response1, mock_response2])
             mock_session.closed = False
@@ -202,7 +204,7 @@ class TestHttpClient:
 
         mock_response = AsyncMock(status=200)
 
-        with patch('aether_sdk.http.aiohttp.ClientSession') as MockSession:
+        with patch("aether_sdk.http.aiohttp.ClientSession") as MockSession:
             mock_session = AsyncMock()
             mock_session.get = AsyncMock(return_value=mock_response)
             mock_session.closed = False
@@ -236,7 +238,7 @@ class TestHttpClient:
 
         mock_response = AsyncMock(status=200)
 
-        with patch('aether_sdk.http.aiohttp.ClientSession') as MockSession:
+        with patch("aether_sdk.http.aiohttp.ClientSession") as MockSession:
             mock_session = AsyncMock()
             mock_session.get = AsyncMock(return_value=mock_response)
             mock_session.closed = False
@@ -256,7 +258,7 @@ class TestHttpClient:
 
         mock_response = AsyncMock(status=200)
 
-        with patch('aether_sdk.http.aiohttp.ClientSession') as MockSession:
+        with patch("aether_sdk.http.aiohttp.ClientSession") as MockSession:
             mock_session = AsyncMock()
             mock_session.get = AsyncMock(return_value=mock_response)
             mock_session.closed = False

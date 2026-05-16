@@ -17,28 +17,22 @@ import asyncio
 import random
 import time
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
-from aether_sdk.streaming.types import (
-    Duration,
-    Timestamp,
-    StreamEvent,
-    Watermark,
-    WindowSpec,
-    WindowInfo,
-    WindowType,
-    StreamConfig,
-    BackpressureConfig,
-    BackpressureStrategy,
-    LateDataPolicy,
-    WatermarkStrategy,
-)
-from aether_sdk.streaming.window import TumblingWindow, WindowAssigner, WindowTrigger
 from aether_sdk.streaming.backpressure import (
     BackpressureController,
     MultiLevelBackpressure,
     RateBasedBackpressure,
 )
+from aether_sdk.streaming.types import (
+    BackpressureConfig,
+    BackpressureStrategy,
+    Duration,
+    StreamEvent,
+    Timestamp,
+    WindowInfo,
+)
+from aether_sdk.streaming.window import TumblingWindow
 
 AUDIT_LOG = []
 
@@ -52,6 +46,7 @@ def log(msg: str):
 # ========================================
 # Sensor Event Types
 # ========================================
+
 
 @dataclass
 class SensorReading:
@@ -104,6 +99,7 @@ def check_threshold(reading: SensorReading) -> Optional[str]:
 # Window Aggregation
 # ========================================
 
+
 @dataclass
 class AggregatedWindow:
     sensor_type: str
@@ -115,9 +111,19 @@ class AggregatedWindow:
     window_end: int
 
 
-def aggregate_events(events: List[StreamEvent[SensorReading]], window_info: WindowInfo) -> AggregatedWindow:
+def aggregate_events(
+    events: List[StreamEvent[SensorReading]], window_info: WindowInfo
+) -> AggregatedWindow:
     if not events:
-        return AggregatedWindow(sensor_type="", avg=0, min_val=0, max_val=0, count=0, window_start=0, window_end=0)
+        return AggregatedWindow(
+            sensor_type="",
+            avg=0,
+            min_val=0,
+            max_val=0,
+            count=0,
+            window_start=0,
+            window_end=0,
+        )
 
     values = [e.value.value for e in events]
     sensor_type = events[0].value.sensor_type
@@ -136,6 +142,7 @@ def aggregate_events(events: List[StreamEvent[SensorReading]], window_info: Wind
 # ========================================
 # Pipeline
 # ========================================
+
 
 async def run_sensor_pipeline():
     print("=" * 70)
@@ -177,7 +184,9 @@ async def run_sensor_pipeline():
         log(f"BACKPRESSURE: Buffer recovered (resume #{resume_count[0]})")
 
     backpressure.set_resume_callback(on_resume)
-    log(f"Backpressure configured: strategy={bp_config.strategy.value}, buffer={bp_config.buffer_size}")
+    log(
+        f"Backpressure configured: strategy={bp_config.strategy.value}, buffer={bp_config.buffer_size}"
+    )
     print()
 
     print("--- Step 3: Set up watermark tracking ---")
@@ -227,9 +236,11 @@ async def run_sensor_pipeline():
                 if late_event.timestamp < current_wm:
                     events_late += 1
                     late_events.append(late_event)
-                    log(f"LATE DATA: {sensor_type} from {reading.sensor_id} "
+                    log(
+                        f"LATE DATA: {sensor_type} from {reading.sensor_id} "
                         f"at {late_ts.to_datetime().strftime('%H:%M:%S')} "
-                        f"(watermark: {current_wm.to_datetime().strftime('%H:%M:%S')})")
+                        f"(watermark: {current_wm.to_datetime().strftime('%H:%M:%S')})"
+                    )
                     continue
 
             reading = generate_reading(sensor_type)
@@ -269,10 +280,12 @@ async def run_sensor_pipeline():
 
         if second_offset % 20 == 0:
             stats = backpressure.stats
-            log(f"PROGRESS: t={second_offset}s | accepted={events_accepted} "
+            log(
+                f"PROGRESS: t={second_offset}s | accepted={events_accepted} "
                 f"dropped={events_dropped} late={events_late} "
                 f"buffer={stats.current_buffer_size}/{bp_config.buffer_size} "
-                f"windows_fired={len(all_aggregations)}")
+                f"windows_fired={len(all_aggregations)}"
+            )
 
     print()
 
@@ -288,15 +301,20 @@ async def run_sensor_pipeline():
     print("--- Step 6: Multi-level backpressure demo ---")
     mlbp = MultiLevelBackpressure(buffer_size=10)
     for i in range(15):
-        priority = MultiLevelBackpressure.Priority.LOW if i < 8 else MultiLevelBackpressure.Priority.HIGH
-        event = StreamEvent.create(key=f"sensor-{i}", value=i, timestamp=Timestamp.now())
+        priority = (
+            MultiLevelBackpressure.Priority.LOW
+            if i < 8
+            else MultiLevelBackpressure.Priority.HIGH
+        )
+        event = StreamEvent.create(
+            key=f"sensor-{i}", value=i, timestamp=Timestamp.now()
+        )
         accepted = mlbp.push(event, priority)
         if not accepted:
             log(f"MLBP: Event {i} dropped (priority={priority})")
 
     mlbp_stats = mlbp.size()
-    log(f"Multi-level BP: buffered={mlbp_stats}, "
-        f"dropped={15 - mlbp_stats}")
+    log(f"Multi-level BP: buffered={mlbp_stats}, " f"dropped={15 - mlbp_stats}")
 
     while not mlbp.is_empty():
         mlbp.pop()
@@ -312,8 +330,10 @@ async def run_sensor_pipeline():
             allowed += 1
         else:
             rejected += 1
-    log(f"Rate-based BP: allowed={allowed}, rejected={rejected}, "
-        f"active={rate_bp.is_backpressure_active}")
+    log(
+        f"Rate-based BP: allowed={allowed}, rejected={rejected}, "
+        f"active={rate_bp.is_backpressure_active}"
+    )
     print()
 
     print("=" * 70)
@@ -332,9 +352,11 @@ async def run_sensor_pipeline():
         print("  Window Aggregations:")
         for agg in all_aggregations[:12]:
             duration_s = (agg.window_end - agg.window_start) / 1000
-            log(f"  [{agg.sensor_type:11s}] avg={agg.avg:6.1f} "
+            log(
+                f"  [{agg.sensor_type:11s}] avg={agg.avg:6.1f} "
                 f"min={agg.min_val:6.1f} max={agg.max_val:6.1f} "
-                f"count={agg.count:3d} window={duration_s:.0f}s")
+                f"count={agg.count:3d} window={duration_s:.0f}s"
+            )
         if len(all_aggregations) > 12:
             log(f"  ... and {len(all_aggregations) - 12} more")
     print()

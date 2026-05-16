@@ -17,19 +17,19 @@ Example:
         DeliveryGuarantee,
         SchemaRegistry,
     )
-    
+
     # Create a pub/sub client
     client = PubSubClient()
-    
+
     # Publish events
     await client.publish("user.events", {"userId": 123, "action": "login"})
-    
+
     # Subscribe to topics
     async def handle_event(msg):
         print(f"Received: {msg.value}")
-    
+
     await client.subscribe("user.*", handle_event)
-    
+
     # Use event sourcing
     store = EventStore("orders")
     await store.append("order-123", {"status": "created"})
@@ -37,52 +37,52 @@ Example:
 
 from __future__ import annotations
 
-# Pub/Sub components
-from .pubsub import (
-    PubSubClient,
-    Topic,
-    Subscription,
-    PubSubMessage,
-    Publisher,
-    Subscriber,
-    InMemoryPubSub,
-    Event,
-    subscribe,
-    publish,
+# Delivery guarantee components
+from .delivery import (
+    DeadLetterQueue,
+    DeliveryGuarantee,
+    DeliveryStats,
+    InMemoryOutbox,
+    OutboxEntry,
+    RetryPolicy,
 )
 
 # Event sourcing components
 from .event_sourcing import (
-    EventStore,
-    EventSourcedActor,
-    EventEnvelope,
-    EventVersion,
     Aggregate,
-    apply_event,
-    Snapshot,
+    EventEnvelope,
+    EventSourcedActor,
+    EventStore,
+    EventVersion,
     InMemoryEventStore,
+    Snapshot,
+    apply_event,
 )
 
-# Delivery guarantee components
-from .delivery import (
-    DeliveryGuarantee,
-    InMemoryOutbox,
-    DeadLetterQueue,
-    DeliveryStats,
-    RetryPolicy,
-    OutboxEntry,
+# Pub/Sub components
+from .pubsub import (
+    Event,
+    InMemoryPubSub,
+    Publisher,
+    PubSubClient,
+    PubSubMessage,
+    Subscriber,
+    Subscription,
+    Topic,
+    publish,
+    subscribe,
 )
 
 # Schema registry components
 from .schema import (
-    SchemaRegistry,
-    Schema,
-    SchemaVersion,
     Compatibility,
-    SchemaValidator,
     InMemorySchemaRegistry,
-    SchemaError,
     JsonSchemaValidator,
+    Schema,
+    SchemaError,
+    SchemaRegistry,
+    SchemaValidator,
+    SchemaVersion,
 )
 
 __all__ = [
@@ -121,4 +121,5 @@ __all__ = [
     "SchemaValidator",
     "InMemorySchemaRegistry",
     "SchemaError",
+    "JsonSchemaValidator",
 ]

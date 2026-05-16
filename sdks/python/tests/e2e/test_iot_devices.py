@@ -8,27 +8,29 @@ Simulates IoT device lifecycle:
 - Device Health via periodic ping
 """
 
-import pytest
 import asyncio
 import random
-from dataclasses import dataclass, field
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional
+
+import pytest
 
 from aether_sdk.actor import Actor
 from aether_sdk.messaging import Message, MessageType
-from aether_sdk.state import StateHandle
-from aether_sdk.resilience.circuit_breaker import CircuitBreaker, CircuitBreakerConfig, CircuitState
-from aether_sdk.resilience.retry import RetryPolicy, RetryConfig, BackoffStrategy
+from aether_sdk.resilience.circuit_breaker import (
+    CircuitBreaker,
+    CircuitBreakerConfig,
+    CircuitState,
+)
 from aether_sdk.resilience.health_check import (
     HealthChecker,
+    HealthCheckOptions,
     HealthCheckResult,
     HealthStatus,
-    HealthCheckOptions,
-    ping_health_check,
-    dependency_health_check,
 )
+from aether_sdk.resilience.retry import BackoffStrategy, RetryConfig, RetryPolicy
+from aether_sdk.state import StateHandle
 from aether_sdk.workflow.saga import Saga, SagaExecutor
-from aether_sdk.workflow.types import SagaStatus, RetryPolicy as SagaRetryPolicy, Duration as SagaDuration
+from aether_sdk.workflow.types import SagaStatus
 
 random.seed(42)
 
@@ -50,16 +52,21 @@ class TestIoTDeviceRegistration:
             def name(cls) -> str:
                 return "device-registry"
 
-            async def handle_message(self, sender: str, message: Message) -> Optional[Message]:
+            async def handle_message(
+                self, sender: str, message: Message
+            ) -> Optional[Message]:
                 action = message.payload.get("action")
                 if action == "register":
                     device_id = message.payload["device_id"]
                     metadata = message.payload.get("metadata", {})
-                    await self._state.set_json(f"device:{device_id}", {
-                        "device_id": device_id,
-                        "registered": True,
-                        "metadata": metadata,
-                    })
+                    await self._state.set_json(
+                        f"device:{device_id}",
+                        {
+                            "device_id": device_id,
+                            "registered": True,
+                            "metadata": metadata,
+                        },
+                    )
                     return Message(
                         type=MessageType.CUSTOM,
                         payload={"status": "registered", "device_id": device_id},
@@ -79,7 +86,11 @@ class TestIoTDeviceRegistration:
             payload={
                 "action": "register",
                 "device_id": "sensor-001",
-                "metadata": {"type": "temperature", "firmware": "v2.1.0", "location": "warehouse-a"},
+                "metadata": {
+                    "type": "temperature",
+                    "firmware": "v2.1.0",
+                    "location": "warehouse-a",
+                },
             },
         )
         response = await registry.handle_message("admin", reg_msg)
@@ -98,11 +109,11 @@ class TestIoTDeviceRegistration:
         assert device["metadata"]["firmware"] == "v2.1.0"
 
         print("\n=== Device Registration Summary ===")
-        print(f"  Device ID: sensor-001")
-        print(f"  Type: temperature")
-        print(f"  Firmware: v2.1.0")
-        print(f"  Location: warehouse-a")
-        print(f"  Status: registered")
+        print("  Device ID: sensor-001")
+        print("  Type: temperature")
+        print("  Firmware: v2.1.0")
+        print("  Location: warehouse-a")
+        print("  Status: registered")
 
     @pytest.mark.asyncio
     async def test_register_multiple_devices(self):
@@ -117,12 +128,15 @@ class TestIoTDeviceRegistration:
         ]
 
         for device in devices:
-            await registry_state.set_json(f"device:{device['device_id']}", {
-                "device_id": device["device_id"],
-                "type": device["type"],
-                "firmware": device["firmware"],
-                "registered": True,
-            })
+            await registry_state.set_json(
+                f"device:{device['device_id']}",
+                {
+                    "device_id": device["device_id"],
+                    "type": device["type"],
+                    "firmware": device["firmware"],
+                    "registered": True,
+                },
+            )
 
         all_devices: List[Dict[str, Any]] = []
         for device in devices:
@@ -134,7 +148,7 @@ class TestIoTDeviceRegistration:
         types = {d["type"] for d in all_devices}
         assert types == {"temperature", "humidity", "pressure"}
 
-        print(f"\n=== Multi-Device Registration Summary ===")
+        print("\n=== Multi-Device Registration Summary ===")
         print(f"  Total devices: {len(all_devices)}")
         for t in sorted(types):
             count = sum(1 for d in all_devices if d["type"] == t)
@@ -167,7 +181,12 @@ class TestTelemetryProcessing:
                         "device_id": device_id,
                         "type": sensor_type,
                         "value": value,
-                        "severity": "critical" if abs(value - (t["min"] + t["max"]) / 2) > (t["max"] - t["min"]) * 0.4 else "warning",
+                        "severity": (
+                            "critical"
+                            if abs(value - (t["min"] + t["max"]) / 2)
+                            > (t["max"] - t["min"]) * 0.4
+                            else "warning"
+                        ),
                         "message": f"{sensor_type} out of range: {value} (allowed: {t['min']}-{t['max']})",
                     }
                     alerts.append(alert)
@@ -196,7 +215,7 @@ class TestTelemetryProcessing:
             assert alert["severity"] in ("critical", "warning")
             assert "out of range" in alert["message"]
 
-        print(f"\n=== Telemetry Alerting Summary ===")
+        print("\n=== Telemetry Alerting Summary ===")
         print(f"  Total readings: {len(readings)}")
         print(f"  Alerts generated: {len(alerts)}")
         for a in alerts:
@@ -228,9 +247,11 @@ class TestTelemetryProcessing:
             assert s["count"] > 0
             assert s["min"] <= s["avg"] <= s["max"]
 
-        print(f"\n=== Telemetry Aggregation Summary ===")
+        print("\n=== Telemetry Aggregation Summary ===")
         for device_id, s in stats.items():
-            print(f"  {device_id}: count={s['count']}, avg={s['avg']:.1f}, min={s['min']:.1f}, max={s['max']:.1f}")
+            print(
+                f"  {device_id}: count={s['count']}, avg={s['avg']:.1f}, min={s['min']:.1f}, max={s['max']:.1f}"
+            )
 
 
 @pytest.mark.e2e
@@ -257,9 +278,9 @@ class TestFirmwareUpdate:
         assert all(d in updated_devices for d in devices)
         assert len(audit_log) == 10
 
-        print(f"\n=== Batch Firmware Update Summary ===")
+        print("\n=== Batch Firmware Update Summary ===")
         print(f"  Devices updated: {len(updated_devices)}/{len(devices)}")
-        print(f"  New version: v3.0.0")
+        print("  New version: v3.0.0")
         for d in updated_devices:
             print(f"  {d}: SUCCESS")
 
@@ -302,7 +323,7 @@ class TestFirmwareUpdate:
         assert len(rolled_back) == 2
         assert "FIRMWARE: temp-003 FAILED" in audit_log
 
-        print(f"\n=== Firmware Rollback Summary ===")
+        print("\n=== Firmware Rollback Summary ===")
         print(f"  Failed device: {failed_device}")
         print(f"  Updated before failure: {updated_devices}")
         print(f"  Rolled back: {rolled_back}")
@@ -354,7 +375,7 @@ class TestFirmwareUpdate:
         assert "temp-002" in rolled_back
         assert "temp-001" in rolled_back
 
-        print(f"\n=== Saga Firmware Update Summary ===")
+        print("\n=== Saga Firmware Update Summary ===")
         print(f"  Status: {result.status.value}")
         print(f"  Updated before failure: {updated}")
         print(f"  Rolled back: {rolled_back}")
@@ -368,9 +389,6 @@ class TestDeviceHealth:
     async def test_periodic_health_check(self):
         """Simulate periodic health checks for devices."""
         checker = HealthChecker(service_id="iot-gateway", version="1.0.0")
-
-        healthy_devices = ["temp-001", "hum-001", "pres-001"]
-        unhealthy_devices = ["temp-002"]
 
         await checker.register_check(
             "temp-001",
@@ -412,7 +430,7 @@ class TestDeviceHealth:
         liveness = await checker.get_liveness()
         assert liveness["alive"] is True
 
-        print(f"\n=== Device Health Check Summary ===")
+        print("\n=== Device Health Check Summary ===")
         print(f"  Overall status: {report.status.value}")
         for name, check in report.checks.items():
             print(f"  {name}: {check.status.value}")
@@ -431,12 +449,14 @@ class TestDeviceHealth:
                 raise ConnectionError(f"Device {device_id} unreachable")
             return True
 
-        cb = CircuitBreaker(CircuitBreakerConfig(
-            failure_threshold=3,
-            success_threshold=2,
-            timeout_ms=60000,
-            failure_window_ms=60000,
-        ))
+        cb = CircuitBreaker(
+            CircuitBreakerConfig(
+                failure_threshold=3,
+                success_threshold=2,
+                timeout_ms=60000,
+                failure_window_ms=60000,
+            )
+        )
 
         healthy_results = []
         for _ in range(5):
@@ -458,9 +478,9 @@ class TestDeviceHealth:
         stats = cb.get_stats()
         assert stats.failures >= 3
 
-        print(f"\n=== Circuit Breaker Device Ping Summary ===")
+        print("\n=== Circuit Breaker Device Ping Summary ===")
         print(f"  Stable device pings: {len(healthy_results)} successful")
-        print(f"  Flaky device failures: 3")
+        print("  Flaky device failures: 3")
         print(f"  Circuit breaker state: {cb.state.value}")
         print(f"  Stats: failures={stats.failures}, successes={stats.successes}")
 
@@ -476,18 +496,22 @@ class TestDeviceHealth:
                 raise ConnectionError("Timeout")
             return {"device_id": device_id, "command": command, "status": "ok"}
 
-        policy = RetryPolicy(RetryConfig(
-            max_attempts=5,
-            backoff=BackoffStrategy.EXPONENTIAL_JITTER,
-            base_delay_ms=10,
-            max_delay_ms=100,
-        ))
+        policy = RetryPolicy(
+            RetryConfig(
+                max_attempts=5,
+                backoff=BackoffStrategy.EXPONENTIAL_JITTER,
+                base_delay_ms=10,
+                max_delay_ms=100,
+            )
+        )
 
-        result = await policy.execute(lambda did="temp-001", cmd="read": send_command(did, cmd))
+        result = await policy.execute(
+            lambda did="temp-001", cmd="read": send_command(did, cmd)
+        )
         assert result.result["status"] == "ok"
         assert attempt_counts["temp-001:read"] == 3
 
-        print(f"\n=== Device Retry Communication Summary ===")
+        print("\n=== Device Retry Communication Summary ===")
         print(f"  Attempts needed: {result.attempts}")
         print(f"  Total delay: {result.total_delay_ms}ms")
         print(f"  Result: {result.result}")
@@ -501,33 +525,38 @@ class TestDeviceHealth:
 
         device_id = "sensor-lifecycle-001"
 
-        await device_state.set_json(f"device:{device_id}", {
-            "device_id": device_id,
-            "type": "temperature",
-            "firmware": "v1.0.0",
-            "status": "active",
-            "readings_count": 0,
-        })
+        await device_state.set_json(
+            f"device:{device_id}",
+            {
+                "device_id": device_id,
+                "type": "temperature",
+                "firmware": "v1.0.0",
+                "status": "active",
+                "readings_count": 0,
+            },
+        )
         audit_log.append(f"REGISTERED: {device_id}")
 
         for i in range(10):
             temp = random.uniform(-5, 60)
             if temp > 50:
-                alerts.append({
-                    "device_id": device_id,
-                    "type": "temperature",
-                    "value": temp,
-                    "severity": "critical",
-                })
+                alerts.append(
+                    {
+                        "device_id": device_id,
+                        "type": "temperature",
+                        "value": temp,
+                        "severity": "critical",
+                    }
+                )
             device = await device_state.get_json(f"device:{device_id}")
             device["readings_count"] = device.get("readings_count", 0) + 1
             await device_state.set_json(f"device:{device_id}", device)
-        audit_log.append(f"TELEMETRY: 10 readings processed")
+        audit_log.append("TELEMETRY: 10 readings processed")
 
         device = await device_state.get_json(f"device:{device_id}")
         device["firmware"] = "v2.0.0"
         await device_state.set_json(f"device:{device_id}", device)
-        audit_log.append(f"FIRMWARE: Updated to v2.0.0")
+        audit_log.append("FIRMWARE: Updated to v2.0.0")
 
         health_ok = True
         audit_log.append(f"HEALTH: {'healthy' if health_ok else 'unhealthy'}")
@@ -537,12 +566,12 @@ class TestDeviceHealth:
         assert final_device["readings_count"] == 10
         assert final_device["status"] == "active"
 
-        print(f"\n=== Full Device Lifecycle Summary ===")
+        print("\n=== Full Device Lifecycle Summary ===")
         print(f"  Device: {device_id}")
-        print(f"  Firmware: v1.0.0 -> v2.0.0")
+        print("  Firmware: v1.0.0 -> v2.0.0")
         print(f"  Readings processed: {final_device['readings_count']}")
         print(f"  Alerts generated: {len(alerts)}")
-        print(f"  Health: healthy")
-        print(f"  Audit log:")
+        print("  Health: healthy")
+        print("  Audit log:")
         for entry in audit_log:
             print(f"    {entry}")

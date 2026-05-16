@@ -18,43 +18,34 @@ Example:
 """
 
 from __future__ import annotations
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    Generic,
-    List,
-    Optional,
-    TypeVar,
-    Awaitable,
-)
-from abc import ABC, abstractmethod
+
 import asyncio
 import logging
 import random
 import uuid
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from typing import Any, Callable, Dict, Generic, List, Optional, TypeVar
 
 from .types import (
-    SagaStatus,
-    StepStatus,
-    SagaContext,
-    SagaResult,
-    SagaError,
-    SagaStepFailedError,
-    SagaCompensationFailedError,
+    ActionHandler,
+    CompensationHandler,
     Duration,
     RetryConfig,
     RetryPolicy,
-    ActionHandler,
-    CompensationHandler,
+    SagaCompensationFailedError,
+    SagaContext,
+    SagaError,
+    SagaResult,
+    SagaStatus,
+    SagaStepFailedError,
+    StepStatus,
 )
 
 logger = logging.getLogger(__name__)
 
-T = TypeVar('T')
-R = TypeVar('R')
+T = TypeVar("T")
+R = TypeVar("R")
 
 
 @dataclass
@@ -81,6 +72,7 @@ class SagaStep(Generic[T]):
         started_at: When execution started.
         completed_at: When execution completed.
     """
+
     name: str
     action: Optional[ActionHandler[T]] = None
     compensate: Optional[CompensationHandler[T]] = None
@@ -404,9 +396,14 @@ class SagaExecutor:
                 completed_steps=context.completed_steps,
                 started_at=context.started_at,
                 completed_at=context.completed_at,
-                duration_ms=int(
-                    (context.completed_at - context.started_at).total_seconds() * 1000
-                ) if context.started_at and context.completed_at else None,
+                duration_ms=(
+                    int(
+                        (context.completed_at - context.started_at).total_seconds()
+                        * 1000
+                    )
+                    if context.started_at and context.completed_at
+                    else None
+                ),
             )
 
         except SagaStepFailedError as e:
@@ -420,15 +417,24 @@ class SagaExecutor:
 
             return SagaResult(
                 saga_id=context.saga_id,
-                status=SagaStatus.COMPENSATED if context.completed_steps else SagaStatus.FAILED,
+                status=(
+                    SagaStatus.COMPENSATED
+                    if context.completed_steps
+                    else SagaStatus.FAILED
+                ),
                 error=context.error,
                 completed_steps=context.completed_steps,
                 compensated_steps=[s for s in context.completed_steps],
                 started_at=context.started_at,
                 completed_at=context.completed_at,
-                duration_ms=int(
-                    (context.completed_at - context.started_at).total_seconds() * 1000
-                ) if context.started_at and context.completed_at else None,
+                duration_ms=(
+                    int(
+                        (context.completed_at - context.started_at).total_seconds()
+                        * 1000
+                    )
+                    if context.started_at and context.completed_at
+                    else None
+                ),
             )
 
         except Exception as e:
@@ -500,8 +506,12 @@ class SagaExecutor:
                 return
 
             except asyncio.TimeoutError:
-                error_msg = f"Step '{step.name}' timed out after {timeout.total_seconds}s"
-                logger.warning(f"{error_msg} (attempt {attempt}/{retry_config.max_attempts})")
+                error_msg = (
+                    f"Step '{step.name}' timed out after {timeout.total_seconds}s"
+                )
+                logger.warning(
+                    f"{error_msg} (attempt {attempt}/{retry_config.max_attempts})"
+                )
                 step.error = error_msg
 
                 if attempt < retry_config.max_attempts:

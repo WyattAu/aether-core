@@ -14,12 +14,12 @@ Example:
 """
 
 from __future__ import annotations
-from dataclasses import dataclass, field
-from typing import Optional, Dict, Any, Callable
-from enum import Enum
+
 import asyncio
 import time
-import random
+from dataclasses import dataclass
+from enum import Enum
+from typing import Any, Callable, Dict, Optional
 
 
 class RateLimitStrategy(Enum):
@@ -33,6 +33,7 @@ class RateLimitStrategy(Enum):
         FIXED_WINDOW: Counts requests in fixed time intervals;
             allows a burst at the start of each window.
     """
+
     TOKEN_BUCKET = "token-bucket"
     SLIDING_WINDOW = "sliding-window"
     FIXED_WINDOW = "fixed-window"
@@ -50,6 +51,7 @@ class RateLimitConfig:
         window_size_ms: Window duration for sliding/fixed strategies
             (default 1000 ms).
     """
+
     requests_per_second: int = 100
     burst_size: Optional[int] = None
     strategy: RateLimitStrategy = RateLimitStrategy.TOKEN_BUCKET
@@ -66,6 +68,7 @@ class RateLimitStats:
         current_rate: Approximate current request rate.
         wait_time_ms: Estimated wait time for the next request (ms).
     """
+
     allowed_requests: int = 0
     rejected_requests: int = 0
     current_rate: float = 0.0
@@ -83,6 +86,7 @@ class RateLimitResult:
         reset_in: Milliseconds until the current window resets
             (window strategies only).
     """
+
     allowed: bool
     wait_time_ms: int = 0
     remaining_tokens: Optional[int] = None
@@ -91,12 +95,14 @@ class RateLimitResult:
 
 class RateLimitExhaustedError(Exception):
     """Raised when a rate limit cannot be satisfied within the allowed wait time."""
+
     pass
 
 
 # ============================================
 # Token Bucket Implementation
 # ============================================
+
 
 class TokenBucket:
     """Token bucket rate limiter implementation.
@@ -170,6 +176,7 @@ class TokenBucket:
 # Sliding Window Implementation
 # ============================================
 
+
 class SlidingWindow:
     """Sliding window rate limiter implementation.
 
@@ -231,6 +238,7 @@ class SlidingWindow:
 # Fixed Window Implementation
 # ============================================
 
+
 class FixedWindow:
     """Fixed window rate limiter implementation.
 
@@ -289,6 +297,7 @@ class FixedWindow:
 # ============================================
 # Rate Limiter
 # ============================================
+
 
 class RateLimiter:
     """Rate limiter with pluggable strategy backends.
@@ -418,9 +427,12 @@ class RateLimiter:
         current_rate = 0.0
 
         if isinstance(self._impl, TokenBucket):
-            current_rate = self._config.requests_per_second * (
-                1 - self._impl.get_tokens() / self._config.burst_size
-            ) if self._config.burst_size else 0
+            current_rate = (
+                self._config.requests_per_second
+                * (1 - self._impl.get_tokens() / self._config.burst_size)
+                if self._config.burst_size
+                else 0
+            )
         elif isinstance(self._impl, SlidingWindow):
             current_rate = self._impl.get_current_count()
         elif isinstance(self._impl, FixedWindow):
@@ -443,6 +455,7 @@ class RateLimiter:
 # Rate Limiter Manager
 # ============================================
 
+
 class RateLimiterManager:
     """Registry for named :class:`RateLimiter` instances.
 
@@ -460,11 +473,7 @@ class RateLimiterManager:
         self._limiters: Dict[str, RateLimiter] = {}
         self._default_config = default_config or RateLimitConfig()
 
-    def get(
-        self,
-        name: str,
-        config: Optional[RateLimitConfig] = None
-    ) -> RateLimiter:
+    def get(self, name: str, config: Optional[RateLimitConfig] = None) -> RateLimiter:
         """Get or create a rate limiter by name.
 
         Args:
@@ -482,15 +491,9 @@ class RateLimiterManager:
                     else self._default_config.requests_per_second
                 ),
                 burst_size=(
-                    config.burst_size
-                    if config
-                    else self._default_config.burst_size
+                    config.burst_size if config else self._default_config.burst_size
                 ),
-                strategy=(
-                    config.strategy
-                    if config
-                    else self._default_config.strategy
-                ),
+                strategy=(config.strategy if config else self._default_config.strategy),
                 window_size_ms=(
                     config.window_size_ms
                     if config
@@ -518,17 +521,20 @@ class RateLimiterManager:
 # Predefined Rate Limiters
 # ============================================
 
+
 def api_rate_limiter() -> RateLimiter:
     """Create a rate limiter for API requests (100 req/s with 200 burst).
 
     Returns:
         A :class:`RateLimiter` using the token bucket strategy.
     """
-    return RateLimiter(RateLimitConfig(
-        requests_per_second=100,
-        burst_size=200,
-        strategy=RateLimitStrategy.TOKEN_BUCKET,
-    ))
+    return RateLimiter(
+        RateLimitConfig(
+            requests_per_second=100,
+            burst_size=200,
+            strategy=RateLimitStrategy.TOKEN_BUCKET,
+        )
+    )
 
 
 def strict_rate_limiter(requests_per_second: int) -> RateLimiter:
@@ -540,10 +546,12 @@ def strict_rate_limiter(requests_per_second: int) -> RateLimiter:
     Returns:
         A :class:`RateLimiter` using the sliding window strategy.
     """
-    return RateLimiter(RateLimitConfig(
-        requests_per_second=requests_per_second,
-        strategy=RateLimitStrategy.SLIDING_WINDOW,
-    ))
+    return RateLimiter(
+        RateLimitConfig(
+            requests_per_second=requests_per_second,
+            strategy=RateLimitStrategy.SLIDING_WINDOW,
+        )
+    )
 
 
 def bursty_rate_limiter(burst_size: int, refill_rate: int) -> RateLimiter:
@@ -556,8 +564,10 @@ def bursty_rate_limiter(burst_size: int, refill_rate: int) -> RateLimiter:
     Returns:
         A :class:`RateLimiter` using the token bucket strategy.
     """
-    return RateLimiter(RateLimitConfig(
-        requests_per_second=refill_rate,
-        burst_size=burst_size,
-        strategy=RateLimitStrategy.TOKEN_BUCKET,
-    ))
+    return RateLimiter(
+        RateLimitConfig(
+            requests_per_second=refill_rate,
+            burst_size=burst_size,
+            strategy=RateLimitStrategy.TOKEN_BUCKET,
+        )
+    )

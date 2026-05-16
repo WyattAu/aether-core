@@ -21,10 +21,8 @@ import asyncio
 from typing import Optional
 
 from aether_sdk.actor import Actor
-from aether_sdk.messaging import Message, MessageType
-from aether_sdk.state import StateHandle
 from aether_sdk.capabilities import Capability
-
+from aether_sdk.messaging import Message, MessageType
 
 MAX_ROOM_MEMBERS = 5
 
@@ -68,9 +66,7 @@ class ChatRoom(Actor):
     # Message handling
     # ------------------------------------------------------------------
 
-    async def handle_message(
-        self, sender: str, message: Message
-    ) -> Optional[Message]:
+    async def handle_message(self, sender: str, message: Message) -> Optional[Message]:
         action = message.payload.get("action")
 
         if action == "join":
@@ -205,7 +201,9 @@ class ChatServer:
         await room.on_start()
         return room
 
-    async def send(self, room_name: str, sender: str, message: Message) -> Optional[Message]:
+    async def send(
+        self, room_name: str, sender: str, message: Message
+    ) -> Optional[Message]:
         room = self._rooms.get(room_name)
         if room is None:
             return Message(
@@ -291,7 +289,10 @@ async def main() -> None:
     resp = await server.send(
         "general",
         "bob",
-        Message(type=MessageType.CUSTOM, payload={"action": "say", "text": "Can I still talk?"}),
+        Message(
+            type=MessageType.CUSTOM,
+            payload={"action": "say", "text": "Can I still talk?"},
+        ),
     )
     print(f"  -> bob: {resp.payload}")
     print()
@@ -308,13 +309,27 @@ async def main() -> None:
 
     # --- Scenario 8: Error - room is full ---
     print("--- Error: Room full ---")
-    await server.create_room("small", )
-    await server.send("small", "u1", Message(type=MessageType.CUSTOM, payload={"action": "join"}))
-    await server.send("small", "u2", Message(type=MessageType.CUSTOM, payload={"action": "join"}))
-    await server.send("small", "u3", Message(type=MessageType.CUSTOM, payload={"action": "join"}))
-    await server.send("small", "u4", Message(type=MessageType.CUSTOM, payload={"action": "join"}))
-    await server.send("small", "u5", Message(type=MessageType.CUSTOM, payload={"action": "join"}))
-    resp = await server.send("small", "u6", Message(type=MessageType.CUSTOM, payload={"action": "join"}))
+    await server.create_room(
+        "small",
+    )
+    await server.send(
+        "small", "u1", Message(type=MessageType.CUSTOM, payload={"action": "join"})
+    )
+    await server.send(
+        "small", "u2", Message(type=MessageType.CUSTOM, payload={"action": "join"})
+    )
+    await server.send(
+        "small", "u3", Message(type=MessageType.CUSTOM, payload={"action": "join"})
+    )
+    await server.send(
+        "small", "u4", Message(type=MessageType.CUSTOM, payload={"action": "join"})
+    )
+    await server.send(
+        "small", "u5", Message(type=MessageType.CUSTOM, payload={"action": "join"})
+    )
+    resp = await server.send(
+        "small", "u6", Message(type=MessageType.CUSTOM, payload={"action": "join"})
+    )
     print(f"  -> u6: {resp.payload}")
     print()
 

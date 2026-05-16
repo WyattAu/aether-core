@@ -11,10 +11,10 @@ Example:
     >>> restored = Message.from_json(json_str)
 """
 
-from dataclasses import dataclass
-from typing import Optional, Any
-from enum import Enum
 import json
+from dataclasses import dataclass
+from enum import Enum
+from typing import Any, Optional
 
 
 class MessageType(Enum):
@@ -32,6 +32,7 @@ class MessageType(Enum):
         CHECKPOINT: Checkpoint barrier for exactly-once semantics.
         CHECKPOINT_ACK: Acknowledgement of a checkpoint barrier.
     """
+
     START = "start"
     STOP = "stop"
     SIGNAL = "signal"
@@ -68,12 +69,14 @@ class Message:
         Returns:
             A JSON-formatted string representation of the message.
         """
-        return json.dumps({
-            "type": self.type.value,
-            "payload": self.payload,
-            "sender": self.sender,
-            "correlation_id": self.correlation_id,
-        })
+        return json.dumps(
+            {
+                "type": self.type.value,
+                "payload": self.payload,
+                "sender": self.sender,
+                "correlation_id": self.correlation_id,
+            }
+        )
 
     @classmethod
     def from_json(cls, data: str) -> "Message":

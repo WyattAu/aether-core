@@ -14,25 +14,24 @@ Example:
 """
 
 from __future__ import annotations
-from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, Generic, List, Optional, TypeVar
+
 from collections import defaultdict
-import heapq
+from dataclasses import dataclass, field
+from typing import Callable, Dict, Generic, List, Optional, TypeVar
 
 from .types import (
     Duration,
-    Timestamp,
-    StreamEvent,
-    WindowSpec,
-    WindowInfo,
-    WindowType,
     PaneInfo,
-    Watermark,
+    StreamEvent,
+    Timestamp,
+    WindowInfo,
+    WindowSpec,
+    WindowType,
 )
 
-K = TypeVar('K')
-V = TypeVar('V')
-R = TypeVar('R')
+K = TypeVar("K")
+V = TypeVar("V")
+R = TypeVar("R")
 
 
 @dataclass
@@ -152,9 +151,7 @@ class WindowAssigner(Generic[K, V]):
         return windows
 
     def _assign_tumbling(
-        self,
-        event: StreamEvent[V],
-        key: K
+        self, event: StreamEvent[V], key: K
     ) -> Optional[WindowState[K, V]]:
         """Assign an event to a tumbling window."""
         size_ms = self.spec.size.ms
@@ -177,11 +174,7 @@ class WindowAssigner(Generic[K, V]):
         window.add_event(event)
         return window
 
-    def _assign_sliding(
-        self,
-        event: StreamEvent[V],
-        key: K
-    ) -> List[WindowState[K, V]]:
+    def _assign_sliding(self, event: StreamEvent[V], key: K) -> List[WindowState[K, V]]:
         """Assign an event to all overlapping sliding windows."""
         windows = []
         size_ms = self.spec.size.milliseconds
@@ -217,9 +210,7 @@ class WindowAssigner(Generic[K, V]):
         return windows
 
     def _assign_session(
-        self,
-        event: StreamEvent[V],
-        key: K
+        self, event: StreamEvent[V], key: K
     ) -> Optional[WindowState[K, V]]:
         """Assign an event to a session window (merges if within gap)."""
         gap_ms = self.spec.gap.ms if self.spec.gap else 0
@@ -260,10 +251,7 @@ class WindowAssigner(Generic[K, V]):
 
         return window
 
-    def get_triggered_windows(
-        self,
-        watermark: Timestamp
-    ) -> List[WindowState[K, V]]:
+    def get_triggered_windows(self, watermark: Timestamp) -> List[WindowState[K, V]]:
         """Return windows that should fire based on the watermark.
 
         A window is triggered when its end timestamp is less than or
@@ -293,9 +281,7 @@ class WindowAssigner(Generic[K, V]):
         Returns:
             The number of windows that were removed.
         """
-        to_remove = [
-            wid for wid, w in self._windows.items() if w.is_closed
-        ]
+        to_remove = [wid for wid, w in self._windows.items() if w.is_closed]
 
         for wid in to_remove:
             del self._windows[wid]
@@ -354,7 +340,9 @@ class WindowTrigger(Generic[K, V, R]):
             for window in windows:
                 if not window.early_fired and not window.is_empty():
                     if window.max_timestamp:
-                        elapsed = event.timestamp.milliseconds - window.start.milliseconds
+                        elapsed = (
+                            event.timestamp.milliseconds - window.start.milliseconds
+                        )
                         if elapsed >= self.early_firing.milliseconds:
                             result = self._fire_window(window, PaneInfo.EARLY)
                             if result is not None:
@@ -384,11 +372,7 @@ class WindowTrigger(Generic[K, V, R]):
 
         return results
 
-    def _fire_window(
-        self,
-        window: WindowState[K, V],
-        pane: PaneInfo
-    ) -> Optional[R]:
+    def _fire_window(self, window: WindowState[K, V], pane: PaneInfo) -> Optional[R]:
         """Fire a window by invoking the handler.
 
         Args:
@@ -565,6 +549,7 @@ def window(
         ... def process_batch(events, info):
         ...     return sum(e.value for e in events)
     """
+
     def decorator(func: Callable) -> Callable:
         func._window_config = WindowSpec(
             type=type,
@@ -573,6 +558,7 @@ def window(
             gap=gap,
         )
         return func
+
     return decorator
 
 

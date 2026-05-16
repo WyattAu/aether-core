@@ -4,6 +4,7 @@ Run with: mutmut run --paths-to-mutate=aether_sdk
 
 This file documents the expected mutation survival targets.
 """
+
 import pytest
 
 MUTATION_TARGETS = [
@@ -17,8 +18,10 @@ MUTATION_TARGETS = [
     "aether_sdk/validation/validators.py",
 ]
 
+
 @pytest.mark.parametrize("module", MUTATION_TARGETS)
 def test_mutation_target_exists(module):
     """Verify mutation target modules exist."""
     import importlib
+
     importlib.import_module(module.replace("/", ".").replace(".py", ""))

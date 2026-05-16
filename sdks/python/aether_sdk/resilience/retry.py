@@ -10,13 +10,14 @@ Example:
 """
 
 from __future__ import annotations
-from dataclasses import dataclass, field
-from typing import Callable, Optional, Any, TypeVar, Union, Generic, Awaitable
-from enum import Enum
+
 import asyncio
 import random
+from dataclasses import dataclass
+from enum import Enum
+from typing import Awaitable, Callable, Generic, Optional, TypeVar
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 class BackoffStrategy(Enum):
@@ -29,6 +30,7 @@ class BackoffStrategy(Enum):
         EXPONENTIAL_JITTER: Exponential delay with random jitter to
             avoid thundering-herd effects.
     """
+
     FIXED = "fixed"
     LINEAR = "linear"
     EXPONENTIAL = "exponential"
@@ -53,6 +55,7 @@ class RetryConfig:
         on_exhausted: Optional callback invoked when all retries are
             exhausted.
     """
+
     max_attempts: int = 3
     backoff: BackoffStrategy = BackoffStrategy.EXPONENTIAL_JITTER
     base_delay_ms: int = 100
@@ -77,6 +80,7 @@ class RetryStats:
         total_retry_delay_ms: Cumulative delay (ms) spent waiting
             between retries.
     """
+
     total_attempts: int = 0
     successful_attempts: int = 0
     failed_attempts: int = 0
@@ -94,6 +98,7 @@ class RetryResult(Generic[T]):
         attempts: Number of attempts required (1 = first try succeeded).
         total_delay_ms: Total time spent waiting between retries.
     """
+
     result: T
     attempts: int
     total_delay_ms: int
@@ -108,7 +113,9 @@ class RetryExhaustedError(Exception):
         total_delay_ms: Cumulative delay between retries.
     """
 
-    def __init__(self, message: str, last_error: Exception, attempts: int, total_delay_ms: int):
+    def __init__(
+        self, message: str, last_error: Exception, attempts: int, total_delay_ms: int
+    ):
         super().__init__(message)
         self.last_error = last_error
         self.attempts = attempts
@@ -205,7 +212,9 @@ class RetryPolicy:
             total_delay_ms,
         )
 
-    async def execute_safe(self, func: Callable[[], Awaitable[T]]) -> Optional[RetryResult[T]]:
+    async def execute_safe(
+        self, func: Callable[[], Awaitable[T]]
+    ) -> Optional[RetryResult[T]]:
         """Execute with retry logic but return ``None`` instead of raising.
 
         Args:
@@ -255,9 +264,13 @@ class RetryPolicy:
         elif self._config.backoff == BackoffStrategy.LINEAR:
             delay = self._config.base_delay_ms * attempt
         elif self._config.backoff == BackoffStrategy.EXPONENTIAL:
-            delay = self._config.base_delay_ms * (self._config.multiplier ** (attempt - 1))
+            delay = self._config.base_delay_ms * (
+                self._config.multiplier ** (attempt - 1)
+            )
         elif self._config.backoff == BackoffStrategy.EXPONENTIAL_JITTER:
-            base = self._config.base_delay_ms * (self._config.multiplier ** (attempt - 1))
+            base = self._config.base_delay_ms * (
+                self._config.multiplier ** (attempt - 1)
+            )
             delay = self._add_jitter(base)
 
         return min(int(delay), self._config.max_delay_ms)
@@ -286,14 +299,14 @@ class RetryPolicy:
             ``True`` if the error appears to be transient.
         """
         transient_messages = [
-            'ECONNRESET',
-            'ETIMEDOUT',
-            'ENOTFOUND',
-            'ECONNREFUSED',
-            'network',
-            'timeout',
-            'unavailable',
-            'temporary',
+            "ECONNRESET",
+            "ETIMEDOUT",
+            "ENOTFOUND",
+            "ECONNREFUSED",
+            "network",
+            "timeout",
+            "unavailable",
+            "temporary",
         ]
         message = str(error).lower()
         return any(m.lower() in message for m in transient_messages)
@@ -302,6 +315,7 @@ class RetryPolicy:
 # ============================================
 # Predefined Retry Policies
 # ============================================
+
 
 def network_retry_policy(**overrides) -> RetryPolicy:
     """Create a retry policy tuned for transient network errors.
@@ -319,12 +333,14 @@ def network_retry_policy(**overrides) -> RetryPolicy:
     Example:
         >>> policy = network_retry_policy(max_attempts=5)
     """
-    return RetryPolicy(RetryConfig(
-        max_attempts=overrides.get('max_attempts', 3),
-        backoff=BackoffStrategy.EXPONENTIAL_JITTER,
-        base_delay_ms=overrides.get('base_delay_ms', 100),
-        max_delay_ms=overrides.get('max_delay_ms', 5000),
-    ))
+    return RetryPolicy(
+        RetryConfig(
+            max_attempts=overrides.get("max_attempts", 3),
+            backoff=BackoffStrategy.EXPONENTIAL_JITTER,
+            base_delay_ms=overrides.get("base_delay_ms", 100),
+            max_delay_ms=overrides.get("max_delay_ms", 5000),
+        )
+    )
 
 
 def database_retry_policy(**overrides) -> RetryPolicy:
@@ -339,13 +355,15 @@ def database_retry_policy(**overrides) -> RetryPolicy:
     Returns:
         A configured :class:`RetryPolicy`.
     """
-    return RetryPolicy(RetryConfig(
-        max_attempts=overrides.get('max_attempts', 5),
-        backoff=BackoffStrategy.EXPONENTIAL,
-        base_delay_ms=overrides.get('base_delay_ms', 50),
-        max_delay_ms=overrides.get('max_delay_ms', 2000),
-        multiplier=overrides.get('multiplier', 2.0),
-    ))
+    return RetryPolicy(
+        RetryConfig(
+            max_attempts=overrides.get("max_attempts", 5),
+            backoff=BackoffStrategy.EXPONENTIAL,
+            base_delay_ms=overrides.get("base_delay_ms", 50),
+            max_delay_ms=overrides.get("max_delay_ms", 2000),
+            multiplier=overrides.get("multiplier", 2.0),
+        )
+    )
 
 
 def aggressive_retry_policy(**overrides) -> RetryPolicy:
@@ -360,14 +378,16 @@ def aggressive_retry_policy(**overrides) -> RetryPolicy:
     Returns:
         A configured :class:`RetryPolicy`.
     """
-    return RetryPolicy(RetryConfig(
-        max_attempts=overrides.get('max_attempts', 10),
-        backoff=BackoffStrategy.EXPONENTIAL_JITTER,
-        base_delay_ms=overrides.get('base_delay_ms', 10),
-        max_delay_ms=overrides.get('max_delay_ms', 1000),
-        multiplier=overrides.get('multiplier', 1.5),
-        jitter_factor=overrides.get('jitter_factor', 0.2),
-    ))
+    return RetryPolicy(
+        RetryConfig(
+            max_attempts=overrides.get("max_attempts", 10),
+            backoff=BackoffStrategy.EXPONENTIAL_JITTER,
+            base_delay_ms=overrides.get("base_delay_ms", 10),
+            max_delay_ms=overrides.get("max_delay_ms", 1000),
+            multiplier=overrides.get("multiplier", 1.5),
+            jitter_factor=overrides.get("jitter_factor", 0.2),
+        )
+    )
 
 
 def conservative_retry_policy(**overrides) -> RetryPolicy:
@@ -382,10 +402,12 @@ def conservative_retry_policy(**overrides) -> RetryPolicy:
     Returns:
         A configured :class:`RetryPolicy`.
     """
-    return RetryPolicy(RetryConfig(
-        max_attempts=overrides.get('max_attempts', 2),
-        backoff=BackoffStrategy.EXPONENTIAL,
-        base_delay_ms=overrides.get('base_delay_ms', 1000),
-        max_delay_ms=overrides.get('max_delay_ms', 10000),
-        multiplier=overrides.get('multiplier', 3.0),
-    ))
+    return RetryPolicy(
+        RetryConfig(
+            max_attempts=overrides.get("max_attempts", 2),
+            backoff=BackoffStrategy.EXPONENTIAL,
+            base_delay_ms=overrides.get("base_delay_ms", 1000),
+            max_delay_ms=overrides.get("max_delay_ms", 10000),
+            multiplier=overrides.get("multiplier", 3.0),
+        )
+    )

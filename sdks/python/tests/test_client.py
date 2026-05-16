@@ -1,6 +1,8 @@
 """Tests for AetherClient against the reference server."""
+
 import pytest
-from aether_sdk.client import AetherClient, AetherServerError
+
+from aether_sdk.client import AetherServerError
 
 
 class TestHealth:
@@ -103,7 +105,9 @@ class TestMessaging:
         await client.register_actor("corr-src", "worker")
         await client.register_actor("corr-tgt", "worker")
         receipt = await client.send_message(
-            "corr-tgt", {"data": "test"}, source="corr-src",
+            "corr-tgt",
+            {"data": "test"},
+            source="corr-src",
             correlation_id="my-corr-id",
         )
         assert receipt.correlation_id == "my-corr-id"
@@ -112,9 +116,7 @@ class TestMessaging:
     async def test_get_pending_messages(self, client):
         await client.register_actor("pend-1", "worker")
         await client.register_actor("pend-2", "worker")
-        await client.send_message(
-            "pend-2", {"data": "test"}, source="pend-1"
-        )
+        await client.send_message("pend-2", {"data": "test"}, source="pend-1")
         messages = await client.get_pending_messages("pend-2")
         assert len(messages) >= 1
         assert messages[0].source_actor == "pend-1"

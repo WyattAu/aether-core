@@ -5,15 +5,16 @@ reference server over HTTP.
 """
 
 import asyncio
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-from dataclasses import dataclass, field
 
 import httpx
 
 
 class AetherServerError(Exception):
     """Raised when the server returns an error."""
+
     def __init__(self, status_code: int, detail: str):
         self.status_code = status_code
         self.detail = detail
@@ -94,9 +95,13 @@ class AetherClient:
         http_client: Pre-configured httpx.AsyncClient (optional, for testing)
     """
 
-    def __init__(self, base_url: str = "http://localhost:8080",
-                 timeout: float = 30.0, actor_id: Optional[str] = None,
-                 http_client: Optional[httpx.AsyncClient] = None):
+    def __init__(
+        self,
+        base_url: str = "http://localhost:8080",
+        timeout: float = 30.0,
+        actor_id: Optional[str] = None,
+        http_client: Optional[httpx.AsyncClient] = None,
+    ):
         self._base_url = base_url.rstrip("/")
         self._timeout = timeout
         self._actor_id = actor_id
@@ -126,7 +131,9 @@ class AetherClient:
 
     def _ensure_connected(self):
         if self._client is None:
-            raise RuntimeError("Client not connected. Use 'async with' or call connect()")
+            raise RuntimeError(
+                "Client not connected. Use 'async with' or call connect()"
+            )
 
     def _handle_error(self, response: httpx.Response):
         if response.status_code >= 400:
@@ -160,9 +167,13 @@ class AetherClient:
         return resp.json()
 
     # === Actors ===
-    async def register_actor(self, actor_id: str, actor_type: str = "default",
-                             capabilities: Optional[List[str]] = None,
-                             metadata: Optional[Dict[str, Any]] = None) -> ActorInfo:
+    async def register_actor(
+        self,
+        actor_id: str,
+        actor_type: str = "default",
+        capabilities: Optional[List[str]] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> ActorInfo:
         """Register an actor with the server."""
         self._ensure_connected()
         body: Dict[str, Any] = {
@@ -188,8 +199,9 @@ class AetherClient:
         self._handle_error(resp)
         return self._parse_actor(resp.json())
 
-    async def list_actors(self, actor_type: Optional[str] = None,
-                          status: Optional[str] = None) -> List[ActorInfo]:
+    async def list_actors(
+        self, actor_type: Optional[str] = None, status: Optional[str] = None
+    ) -> List[ActorInfo]:
         """List actors with optional filters."""
         self._ensure_connected()
         params = {}
@@ -208,11 +220,15 @@ class AetherClient:
         self._handle_error(resp)
 
     # === Messaging ===
-    async def send_message(self, target: str, payload: Any,
-                           source: Optional[str] = None,
-                           message_type: str = "default",
-                           correlation_id: Optional[str] = None,
-                           priority: int = 0) -> DeliveryReceipt:
+    async def send_message(
+        self,
+        target: str,
+        payload: Any,
+        source: Optional[str] = None,
+        message_type: str = "default",
+        correlation_id: Optional[str] = None,
+        priority: int = 0,
+    ) -> DeliveryReceipt:
         """Send a message to an actor."""
         self._ensure_connected()
         body: Dict[str, Any] = {
@@ -235,10 +251,14 @@ class AetherClient:
         self._handle_error(resp)
         return [self._parse_message(m) for m in resp.json()]
 
-    async def send_and_receive(self, target: str, payload: Any,
-                               timeout_ms: float = 5000,
-                               poll_interval_ms: float = 100,
-                               **kwargs) -> List[MessageEnvelope]:
+    async def send_and_receive(
+        self,
+        target: str,
+        payload: Any,
+        timeout_ms: float = 5000,
+        poll_interval_ms: float = 100,
+        **kwargs,
+    ) -> List[MessageEnvelope]:
         """Send a message and wait for response messages."""
         me = self._actor_id or "unknown"
         cid = f"corr-{id(payload)}"
@@ -266,8 +286,9 @@ class AetherClient:
         data = resp.json()
         return data.get("value")
 
-    async def set_state(self, actor_id: str, key: str, value: Any,
-                        version: Optional[int] = None) -> StateEntry:
+    async def set_state(
+        self, actor_id: str, key: str, value: Any, version: Optional[int] = None
+    ) -> StateEntry:
         """Set a state value. Returns the StateEntry with new version."""
         self._ensure_connected()
         body: Dict[str, Any] = {"value": value}
@@ -295,17 +316,23 @@ class AetherClient:
         return data.get("state", {})
 
     # === Pub/Sub ===
-    async def publish(self, topic: str, payload: Any,
-                      headers: Optional[Dict[str, str]] = None) -> int:
+    async def publish(
+        self, topic: str, payload: Any, headers: Optional[Dict[str, str]] = None
+    ) -> int:
         """Publish a message to a topic. Returns subscriber count."""
         self._ensure_connected()
-        body: Dict[str, Any] = {"topic": topic, "payload": payload, "headers": headers or {}}
+        body: Dict[str, Any] = {
+            "topic": topic,
+            "payload": payload,
+            "headers": headers or {},
+        }
         resp = await self._client.post("/api/v1/events/publish", json=body)
         self._handle_error(resp)
         return resp.json().get("subscriber_count", 0)
 
-    async def subscribe(self, topic: str, subscriber_id: str,
-                        filter: Optional[str] = None) -> str:
+    async def subscribe(
+        self, topic: str, subscriber_id: str, filter: Optional[str] = None
+    ) -> str:
         """Subscribe to a topic. Returns subscription ID."""
         self._ensure_connected()
         body: Dict[str, Any] = {
@@ -345,9 +372,13 @@ class AetherClient:
         return resp.json()
 
     # === Event Sourcing ===
-    async def append_event(self, aggregate_id: str, event_type: str,
-                           data: Any = None,
-                           expected_version: Optional[int] = None) -> EventRecord:
+    async def append_event(
+        self,
+        aggregate_id: str,
+        event_type: str,
+        data: Any = None,
+        expected_version: Optional[int] = None,
+    ) -> EventRecord:
         """Append an event to an aggregate."""
         self._ensure_connected()
         body: Dict[str, Any] = {

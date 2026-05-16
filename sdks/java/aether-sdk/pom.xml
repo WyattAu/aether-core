@@ -4,14 +4,18 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>io.aether</groupId>
+    <parent>
+        <groupId>io.aether</groupId>
+        <artifactId>aether-java-sdk</artifactId>
+        <version>0.3.0</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
     <artifactId>aether-sdk</artifactId>
-    <version>0.3.0</version>
     <packaging>jar</packaging>
 
     <name>Aether SDK</name>
     <description>Java SDK for Aether Actor Runtime</description>
-    <url>https://github.com/WyattAu/aether-core</url>
 
     <licenses>
         <license>
@@ -22,12 +26,8 @@
     </licenses>
 
     <properties>
-        <maven.compiler.source>17</maven.compiler.source>
-        <maven.compiler.target>17</maven.compiler.target>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <jackson.version>2.15.2</jackson.version>
         <slf4j.version>2.0.9</slf4j.version>
-        <junit.version>5.10.0</junit.version>
     </properties>
 
     <dependencies>

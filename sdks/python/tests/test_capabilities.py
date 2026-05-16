@@ -1,4 +1,3 @@
-import pytest
 from aether_sdk.capabilities import Capability, CapabilitySet
 
 
@@ -12,46 +11,50 @@ class TestCapability:
 
     def test_capability_network_outbound_exists(self):
         """NETWORK_OUTBOUND capability should exist."""
-        assert hasattr(Capability, 'NETWORK_OUTBOUND')
+        assert hasattr(Capability, "NETWORK_OUTBOUND")
         assert Capability.NETWORK_OUTBOUND.value is not None
 
     def test_capability_network_inbound_exists(self):
         """NETWORK_INBOUND capability should exist."""
-        assert hasattr(Capability, 'NETWORK_INBOUND')
+        assert hasattr(Capability, "NETWORK_INBOUND")
         assert Capability.NETWORK_INBOUND.value is not None
 
     def test_capability_state_read_exists(self):
         """STATE_READ capability should exist."""
-        assert hasattr(Capability, 'STATE_READ')
+        assert hasattr(Capability, "STATE_READ")
         assert Capability.STATE_READ.value is not None
 
     def test_capability_state_write_exists(self):
         """STATE_WRITE capability should exist."""
-        assert hasattr(Capability, 'STATE_WRITE')
+        assert hasattr(Capability, "STATE_WRITE")
         assert Capability.STATE_WRITE.value is not None
 
     def test_capability_fs_read_exists(self):
         """FS_READ capability should exist."""
-        assert hasattr(Capability, 'FS_READ')
+        assert hasattr(Capability, "FS_READ")
         assert Capability.FS_READ.value is not None
 
     def test_capability_fs_write_exists(self):
         """FS_WRITE capability should exist."""
-        assert hasattr(Capability, 'FS_WRITE')
+        assert hasattr(Capability, "FS_WRITE")
         assert Capability.FS_WRITE.value is not None
 
     def test_capability_actor_messaging_exists(self):
         """ACTOR_MESSAGING capability should exist."""
-        assert hasattr(Capability, 'ACTOR_MESSAGING')
+        assert hasattr(Capability, "ACTOR_MESSAGING")
         assert Capability.ACTOR_MESSAGING.value is not None
 
     def test_capability_count(self):
         """Should have expected number of capabilities."""
-        expected_count = 13  # NETWORK_OUTBOUND, NETWORK_INBOUND, STATE_READ, STATE_WRITE,
-                            # FS_READ, FS_WRITE, ACTOR_MESSAGING, LOG, TIME, RANDOM,
-                            # ENVIRONMENT, HTTP_CLIENT, HTTP_SERVER
+        expected_count = (
+            13  # NETWORK_OUTBOUND, NETWORK_INBOUND, STATE_READ, STATE_WRITE,
+        )
+        # FS_READ, FS_WRITE, ACTOR_MESSAGING, LOG, TIME, RANDOM,
+        # ENVIRONMENT, HTTP_CLIENT, HTTP_SERVER
         actual_count = len(list(Capability))
-        assert actual_count == expected_count, f"Expected {expected_count} capabilities, got {actual_count}"
+        assert (
+            actual_count == expected_count
+        ), f"Expected {expected_count} capabilities, got {actual_count}"
 
 
 class TestCapabilitySet:

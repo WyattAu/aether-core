@@ -18,15 +18,15 @@ Example:
     ...         return Message(type=MessageType.CUSTOM, payload=f"Hello, {message.payload}!")
 """
 
-from typing import Callable, Optional, Dict, Any
-from abc import ABC, abstractmethod
 import asyncio
 import uuid
+from abc import ABC, abstractmethod
+from typing import Any, Dict, Optional
 
 from .capabilities import Capability, CapabilitySet
+from .exceptions import RpcError
 from .messaging import Message, MessageType
 from .state import StateHandle
-from .exceptions import ActorNotFound, RpcError
 
 
 class Actor(ABC):
@@ -320,7 +320,7 @@ def actor(cls: type) -> type:
     class ActorWrapper(cls, Actor):
         @classmethod
         def name(cls) -> str:
-            return getattr(cls, '_actor_name', cls.__name__.lower())
+            return getattr(cls, "_actor_name", cls.__name__.lower())
 
     ActorWrapper.__name__ = cls.__name__
     ActorWrapper.__qualname__ = cls.__qualname__

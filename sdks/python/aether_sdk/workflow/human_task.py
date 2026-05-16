@@ -12,35 +12,27 @@ Example:
 """
 
 from __future__ import annotations
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    List,
-    Optional,
-    Generic,
-    TypeVar,
-)
-from abc import ABC, abstractmethod
+
 import asyncio
 import logging
 import uuid
+from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional, TypeVar
 
 from .types import (
-    HumanTaskStatus,
+    Duration,
     HumanTaskContext,
     HumanTaskError,
+    HumanTaskStatus,
     HumanTaskTimeoutError,
-    HumanTaskNotAssignedError,
-    Duration,
     TaskFormValidator,
 )
 
 logger = logging.getLogger(__name__)
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 @dataclass
@@ -58,6 +50,7 @@ class FormField:
         options: Options for ``"select"`` fields.
         validation: Optional validation rules (e.g. ``{"min": 0, "max": 100}``).
     """
+
     name: str
     field_type: str
     label: Optional[str] = None
@@ -82,6 +75,7 @@ class TaskForm:
         >>> form.validate({"approved": True})
         True
     """
+
     fields: List[FormField] = field(default_factory=list)
 
     def add_field(
@@ -105,13 +99,15 @@ class TaskForm:
         Returns:
             Self for method chaining.
         """
-        self.fields.append(FormField(
-            name=name,
-            field_type=field_type,
-            label=label or name,
-            required=required,
-            **kwargs,
-        ))
+        self.fields.append(
+            FormField(
+                name=name,
+                field_type=field_type,
+                label=label or name,
+                required=required,
+                **kwargs,
+            )
+        )
         return self
 
     def validate(self, data: Dict[str, Any]) -> bool:
@@ -125,23 +121,23 @@ class TaskForm:
         Returns:
             ``True`` if the data is valid.
         """
-        for field in self.fields:
-            if field.required and field.name not in data:
+        for fld in self.fields:
+            if fld.required and fld.name not in data:
                 return False
 
-            if field.name in data:
-                value = data[field.name]
+            if fld.name in data:
+                value = data[fld.name]
 
-                if field.field_type == "number" and not isinstance(value, (int, float)):
+                if fld.field_type == "number" and not isinstance(value, (int, float)):
                     return False
-                elif field.field_type == "boolean" and not isinstance(value, bool):
+                elif fld.field_type == "boolean" and not isinstance(value, bool):
                     return False
-                elif field.field_type == "text" and not isinstance(value, str):
+                elif fld.field_type == "text" and not isinstance(value, str):
                     return False
 
-                if field.validation:
-                    min_val = field.validation.get("min")
-                    max_val = field.validation.get("max")
+                if fld.validation:
+                    min_val = fld.validation.get("min")
+                    max_val = fld.validation.get("max")
 
                     if min_val is not None and value < min_val:
                         return False
@@ -212,6 +208,7 @@ class HumanTask:
         ...     .with_assignee("manager@co.com")
         ...     .with_priority(3)
     """
+
     task_type: str
     title: str
     description: str = ""
@@ -486,9 +483,11 @@ class HumanTaskManager:
             raise HumanTaskError(f"Task cannot be claimed: status is {task.status}")
 
         can_claim = (
-            task.assignee == user or
-            user in task.candidate_users or
-            any(group in task.candidate_groups for group in self._get_user_groups(user))
+            task.assignee == user
+            or user in task.candidate_users
+            or any(
+                group in task.candidate_groups for group in self._get_user_groups(user)
+            )
         )
 
         if not can_claim:
@@ -811,6 +810,7 @@ class TaskQuery:
         limit: Maximum number of results.
         offset: Offset for pagination.
     """
+
     workflow_id: Optional[str] = None
     assignee: Optional[str] = None
     candidate_user: Optional[str] = None
@@ -953,10 +953,16 @@ class InMemoryTaskStore(TaskStore):
             if query.assignee and task.assignee != query.assignee:
                 continue
 
-            if query.candidate_user and query.candidate_user not in task.candidate_users:
+            if (
+                query.candidate_user
+                and query.candidate_user not in task.candidate_users
+            ):
                 continue
 
-            if query.candidate_group and query.candidate_group not in task.candidate_groups:
+            if (
+                query.candidate_group
+                and query.candidate_group not in task.candidate_groups
+            ):
                 continue
 
             if query.status and task.status not in query.status:
@@ -978,9 +984,9 @@ class InMemoryTaskStore(TaskStore):
             results.append(task)
 
         if query.offset:
-            results = results[query.offset:]
+            results = results[query.offset :]
         if query.limit:
-            results = results[:query.limit]
+            results = results[: query.limit]
 
         return results
 

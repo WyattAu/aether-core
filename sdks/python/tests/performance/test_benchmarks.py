@@ -12,7 +12,6 @@ from __future__ import annotations
 import asyncio
 import os
 import time
-from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
@@ -289,9 +288,7 @@ class TestValidation:
     def test_validate_uuid_throughput(self):
         from aether_sdk.validation import validate_uuid
 
-        uuids = [
-            f"{i:08x}-1234-5678-1234-{i:012x}" for i in range(N_VALIDATION)
-        ]
+        uuids = [f"{i:08x}-1234-5678-1234-{i:012x}" for i in range(N_VALIDATION)]
 
         t0 = time.perf_counter()
         for u in uuids:

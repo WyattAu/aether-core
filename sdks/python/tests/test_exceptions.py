@@ -1,10 +1,11 @@
 import pytest
+
 from aether_sdk.exceptions import (
+    ActorNotFound,
     AetherError,
     CapabilityDenied,
-    ActorNotFound,
-    StateError,
     RpcError,
+    StateError,
 )
 
 
@@ -146,13 +147,23 @@ class TestExceptionHierarchy:
         """All custom exceptions should inherit from AetherError."""
         exceptions = [CapabilityDenied, ActorNotFound, StateError, RpcError]
         for exc_class in exceptions:
-            assert issubclass(exc_class, AetherError), f"{exc_class.__name__} should inherit from AetherError"
+            assert issubclass(
+                exc_class, AetherError
+            ), f"{exc_class.__name__} should inherit from AetherError"
 
     def test_all_exceptions_inherit_from_exception(self):
         """All custom exceptions should ultimately inherit from Exception."""
-        exceptions = [AetherError, CapabilityDenied, ActorNotFound, StateError, RpcError]
+        exceptions = [
+            AetherError,
+            CapabilityDenied,
+            ActorNotFound,
+            StateError,
+            RpcError,
+        ]
         for exc_class in exceptions:
-            assert issubclass(exc_class, Exception), f"{exc_class.__name__} should inherit from Exception"
+            assert issubclass(
+                exc_class, Exception
+            ), f"{exc_class.__name__} should inherit from Exception"
 
     def test_catch_all_with_aether_error(self):
         """All AetherError subclasses should be catchable with AetherError."""
@@ -164,4 +175,6 @@ class TestExceptionHierarchy:
         ]
 
         for error in errors:
-            assert isinstance(error, AetherError), f"{type(error).__name__} should be instance of AetherError"
+            assert isinstance(
+                error, AetherError
+            ), f"{type(error).__name__} should be instance of AetherError"

@@ -1,12 +1,8 @@
 """Type stubs for aether_sdk package."""
 
-from .actor import Actor, actor
 from .capabilities import Capability, CapabilitySet
-from .messaging import Message, MessageType
+from .messaging import Message
 from .state import StateHandle
-from .http import HttpClient
-from .exceptions import AetherError, CapabilityDenied, ActorNotFound, StateError, RpcError
-from ._version import __version__
 
 __all__: list[str]
 
@@ -16,7 +12,7 @@ class Actor:
     _mailbox: ...
     _pending_responses: dict[str, ...]
     _running: bool
-    
+
     @classmethod
     def name(cls) -> str: ...
     async def handle_message(self, sender: str, message: Message) -> Message | None: ...

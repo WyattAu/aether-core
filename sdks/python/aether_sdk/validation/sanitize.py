@@ -6,10 +6,11 @@ attacks and normalizing data for safe storage and display.
 """
 
 from __future__ import annotations
-from typing import Any, Dict, List, Optional, Set
-import re
+
 import html
+import re
 import urllib.parse
+from typing import Any, List, Optional, Set
 
 
 def sanitize_string(value: str, max_length: int = 10000) -> str:
@@ -28,9 +29,9 @@ def sanitize_string(value: str, max_length: int = 10000) -> str:
     if not isinstance(value, str):
         raise ValueError(f"Expected string, got {type(value).__name__}")
 
-    sanitized = value.replace('\x00', '')
+    sanitized = value.replace("\x00", "")
     sanitized = sanitized.strip()
-    sanitized = re.sub(r'[ \t]+', ' ', sanitized)
+    sanitized = re.sub(r"[ \t]+", " ", sanitized)
 
     if len(sanitized) > max_length:
         sanitized = sanitized[:max_length]
@@ -52,7 +53,7 @@ def sanitize_html(value: str, allowed_tags: Optional[Set[str]] = None) -> str:
         return html.escape(value, quote=True)
 
     tag_pattern = re.compile(
-        r'<(/?)(\w+)([^>]*)>',
+        r"<(/?)(\w+)([^>]*)>",
         re.IGNORECASE,
     )
 
@@ -63,16 +64,16 @@ def sanitize_html(value: str, allowed_tags: Optional[Set[str]] = None) -> str:
 
         if tag_name in allowed_tags:
             if is_closing:
-                return f'</{tag_name}>'
-            safe_attrs = ''
+                return f"</{tag_name}>"
+            safe_attrs = ""
             if attrs:
-                for attr_match in re.finditer(
-                    r'(\w+)=["\']([^"\']*)["\']', attrs
-                ):
+                for attr_match in re.finditer(r'(\w+)=["\']([^"\']*)["\']', attrs):
                     attr_name = attr_match.group(1).lower()
-                    if attr_name in {'href', 'src', 'alt', 'title', 'class'}:
-                        safe_attrs += f' {attr_name}="{html.escape(attr_match.group(2))}"'
-            return f'<{tag_name}{safe_attrs}>'
+                    if attr_name in {"href", "src", "alt", "title", "class"}:
+                        safe_attrs += (
+                            f' {attr_name}="{html.escape(attr_match.group(2))}"'
+                        )
+            return f"<{tag_name}{safe_attrs}>"
         return html.escape(match.group(0), quote=True)
 
     return tag_pattern.sub(_replace, value)
@@ -90,21 +91,21 @@ def sanitize_sql(value: str) -> str:
         Sanitized string.
     """
     dangerous_patterns = [
-        r';?\s*DROP\s+',
-        r';?\s*DELETE\s+',
-        r';?\s*UPDATE\s+',
-        r';?\s*INSERT\s+',
-        r';?\s*EXEC\s*\(',
-        r';?\s*EXECUTE\s*\(',
-        r'--',
-        r'/\*',
-        r'\*/',
-        r'xp_cmdshell',
+        r";?\s*DROP\s+",
+        r";?\s*DELETE\s+",
+        r";?\s*UPDATE\s+",
+        r";?\s*INSERT\s+",
+        r";?\s*EXEC\s*\(",
+        r";?\s*EXECUTE\s*\(",
+        r"--",
+        r"/\*",
+        r"\*/",
+        r"xp_cmdshell",
     ]
 
     sanitized = value
     for pattern in dangerous_patterns:
-        sanitized = re.sub(pattern, '', sanitized, flags=re.IGNORECASE)
+        sanitized = re.sub(pattern, "", sanitized, flags=re.IGNORECASE)
 
     sanitized = sanitized.replace("'", "''")
     return sanitized
@@ -124,18 +125,18 @@ def sanitize_url(value: str) -> str:
     """
     stripped = value.strip()
 
-    if stripped.lower().startswith('javascript:'):
+    if stripped.lower().startswith("javascript:"):
         raise ValueError("URL scheme 'javascript' is not allowed")
 
-    if stripped.lower().startswith('data:'):
+    if stripped.lower().startswith("data:"):
         raise ValueError("URL scheme 'data' is not allowed")
 
-    if stripped.lower().startswith('vbscript:'):
+    if stripped.lower().startswith("vbscript:"):
         raise ValueError("URL scheme 'vbscript' is not allowed")
 
     parsed = urllib.parse.urlparse(stripped)
 
-    safe_schemes = {'http', 'https', 'ftp', 'ftps'}
+    safe_schemes = {"http", "https", "ftp", "ftps"}
     if parsed.scheme and parsed.scheme.lower() not in safe_schemes:
         raise ValueError(f"URL scheme '{parsed.scheme}' is not allowed")
 
@@ -170,13 +171,13 @@ def sanitize_filename(value: str) -> str:
     Returns:
         Safe filename string.
     """
-    sanitized = value.replace('/', '').replace('\\', '')
-    sanitized = sanitized.replace('\x00', '')
+    sanitized = value.replace("/", "").replace("\\", "")
+    sanitized = sanitized.replace("\x00", "")
 
-    while sanitized.startswith('.'):
+    while sanitized.startswith("."):
         sanitized = sanitized[1:]
 
-    sanitized = re.sub(r'[^\w\s.\-]', '', sanitized)
+    sanitized = re.sub(r"[^\w\s.\-]", "", sanitized)
     sanitized = sanitized.strip()
     sanitized = sanitized[:255]
 
@@ -193,10 +194,10 @@ def sanitize_slug(value: str) -> str:
         URL-safe slug string.
     """
     slug = value.lower()
-    slug = re.sub(r'[\s_]+', '-', slug)
-    slug = re.sub(r'[^a-z0-9-]', '', slug)
-    slug = re.sub(r'-+', '-', slug)
-    slug = slug.strip('-')
+    slug = re.sub(r"[\s_]+", "-", slug)
+    slug = re.sub(r"[^a-z0-9-]", "", slug)
+    slug = re.sub(r"-+", "-", slug)
+    slug = slug.strip("-")
     return slug
 
 
@@ -214,7 +215,7 @@ def sanitize_email(value: str) -> str:
     """
     email = value.strip().lower()
 
-    pattern = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
+    pattern = re.compile(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
     if not pattern.match(email):
         raise ValueError(f"Invalid email format: {email}")
 
@@ -234,10 +235,10 @@ def sanitize_phone(value: str) -> str:
     for char in value:
         if char.isdigit():
             result.append(char)
-        elif char == '+' and len(result) == 0:
+        elif char == "+" and len(result) == 0:
             result.append(char)
 
-    return ''.join(result)
+    return "".join(result)
 
 
 def sanitize_alphanumeric(value: str) -> str:
@@ -249,7 +250,7 @@ def sanitize_alphanumeric(value: str) -> str:
     Returns:
         Alphanumeric string with spaces preserved.
     """
-    return re.sub(r'[^a-zA-Z0-9 ]', '', value)
+    return re.sub(r"[^a-zA-Z0-9 ]", "", value)
 
 
 def remove_control_chars(value: str) -> str:
@@ -261,7 +262,7 @@ def remove_control_chars(value: str) -> str:
     Returns:
         String with control characters removed.
     """
-    return re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]', '', value)
+    return re.sub(r"[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]", "", value)
 
 
 def strip_html(value: str) -> str:
@@ -273,7 +274,7 @@ def strip_html(value: str) -> str:
     Returns:
         Plain text with tags removed.
     """
-    return re.sub(r'<[^>]*>', '', value)
+    return re.sub(r"<[^>]*>", "", value)
 
 
 def trim_and_normalize_whitespace(value: str) -> str:
@@ -285,12 +286,12 @@ def trim_and_normalize_whitespace(value: str) -> str:
     Returns:
         Whitespace-normalized string.
     """
-    stripped = value.strip().replace('\t', ' ').replace('\n', ' ').replace('\r', ' ')
-    normalized = re.sub(r'[ \t]+', ' ', stripped)
+    stripped = value.strip().replace("\t", " ").replace("\n", " ").replace("\r", " ")
+    normalized = re.sub(r"[ \t]+", " ", stripped)
     return normalized
 
 
-def truncate(value: str, max_length: int, suffix: str = '...') -> str:
+def truncate(value: str, max_length: int, suffix: str = "...") -> str:
     """Smart truncation with suffix.
 
     Args:
@@ -320,7 +321,7 @@ def escape_regex(value: str) -> str:
     Returns:
         Escaped string safe for regex use.
     """
-    return re.sub(r'[.*+?^${}()|[\]\\]', r'\\\g<0>', value)
+    return re.sub(r"[.*+?^${}()|[\]\\]", r"\\\g<0>", value)
 
 
 def escape_shell(value: str) -> str:
@@ -347,14 +348,20 @@ def redact_sensitive(value: str, pattern: Optional[str] = None) -> str:
         String with sensitive data redacted.
     """
     if pattern is not None:
-        return re.sub(pattern, '[REDACTED]', value)
+        return re.sub(pattern, "[REDACTED]", value)
 
     patterns = [
-        (r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', '[REDACTED-EMAIL]'),
-        (r'\b(?:sk|pk|api[_-]?key|secret|token|password)\s*[=:]\s*\S+', '[REDACTED-KEY]'),
-        (r'\b\d{3}[-.]?\d{2}[-.]?\d{4}\b', '[REDACTED-SSN]'),
-        (r'\b(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b', '[REDACTED-PHONE]'),
-        (r'\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b', '[REDACTED-CARD]'),
+        (r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b", "[REDACTED-EMAIL]"),
+        (
+            r"\b(?:sk|pk|api[_-]?key|secret|token|password)\s*[=:]\s*\S+",
+            "[REDACTED-KEY]",
+        ),
+        (r"\b\d{3}[-.]?\d{2}[-.]?\d{4}\b", "[REDACTED-SSN]"),
+        (
+            r"\b(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b",
+            "[REDACTED-PHONE]",
+        ),
+        (r"\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b", "[REDACTED-CARD]"),
     ]
 
     result = value
@@ -373,4 +380,4 @@ def normalize_line_endings(value: str) -> str:
     Returns:
         String with normalized line endings.
     """
-    return value.replace('\r\n', '\n').replace('\r', '\n')
+    return value.replace("\r\n", "\n").replace("\r", "\n")

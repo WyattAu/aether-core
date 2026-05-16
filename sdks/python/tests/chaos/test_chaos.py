@@ -1,41 +1,39 @@
+import asyncio
 import os
 import time
-import asyncio
+
 import pytest
 
+from aether_sdk.resilience.bulkhead import (
+    Bulkhead,
+    BulkheadConfig,
+    BulkheadRejectedError,
+)
 from aether_sdk.resilience.circuit_breaker import (
     CircuitBreaker,
     CircuitBreakerConfig,
     CircuitBreakerError,
     CircuitState,
 )
-from aether_sdk.resilience.bulkhead import (
-    Bulkhead,
-    BulkheadConfig,
-    BulkheadRejectedError,
-)
-from aether_sdk.resilience.retry import (
-    RetryPolicy,
-    RetryConfig,
-    BackoffStrategy,
-    RetryExhaustedError,
-)
 from aether_sdk.resilience.rate_limiter import (
-    RateLimiter,
     RateLimitConfig,
+    RateLimiter,
     RateLimitStrategy,
 )
-from aether_sdk.streaming.backpressure import (
-    BackpressureController,
-    BackpressureConfig,
+from aether_sdk.resilience.retry import (
+    BackoffStrategy,
+    RetryConfig,
+    RetryExhaustedError,
+    RetryPolicy,
 )
+from aether_sdk.streaming.backpressure import BackpressureConfig, BackpressureController
 from aether_sdk.streaming.types import (
     BackpressureStrategy,
-    Timestamp,
-    StreamEvent,
-    WindowType,
-    WindowSpec,
     Duration,
+    StreamEvent,
+    Timestamp,
+    WindowSpec,
+    WindowType,
 )
 from aether_sdk.streaming.window import WindowAssigner
 
@@ -69,7 +67,6 @@ async def test_circuit_breaker_flapping():
     failures = 0
     rejected = 0
     opens = 0
-    closes = 0
     total_calls = 0
 
     for cycle in range(125):
@@ -80,7 +77,9 @@ async def test_circuit_breaker_flapping():
                     await cb.execute(lambda: asyncio.sleep(0))
                     successes += 1
                 else:
-                    await cb.execute(lambda: (_ for _ in ()).throw(RuntimeError("fail")))
+                    await cb.execute(
+                        lambda: (_ for _ in ()).throw(RuntimeError("fail"))
+                    )
             except CircuitBreakerError:
                 rejected += 1
             except RuntimeError:
@@ -106,7 +105,11 @@ async def test_circuit_breaker_flapping():
     assert total_calls == 1000
     assert failures > 0
     assert successes > 0
-    assert stats.state in (CircuitState.CLOSED, CircuitState.OPEN, CircuitState.HALF_OPEN)
+    assert stats.state in (
+        CircuitState.CLOSED,
+        CircuitState.OPEN,
+        CircuitState.HALF_OPEN,
+    )
 
 
 # ============================================================
@@ -160,8 +163,10 @@ async def test_bulkhead_exhaustion_recovery():
 
 async def _run_bulkhead(bh, fn, idx):
     try:
+
         async def wrapper():
             return await fn(idx)
+
         return await bh.execute(wrapper)
     except BulkheadRejectedError:
         return BulkheadRejectedError(f"rejected-{idx}")
@@ -193,7 +198,6 @@ async def test_rate_limiter_burst():
         else:
             rejected += 1
 
-    stats = limiter.get_stats()
     elapsed = time.perf_counter() - start
     _print("elapsed", f"{elapsed:.3f}s")
     _print("allowed", allowed)
@@ -340,8 +344,10 @@ async def test_retry_timeout_storm():
 
     async def run_retry(idx):
         try:
+
             async def op():
                 return await timeout_operation(idx)
+
             await policy.execute(op)
         except RetryExhaustedError:
             pass

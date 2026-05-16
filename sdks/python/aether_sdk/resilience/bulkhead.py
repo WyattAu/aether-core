@@ -11,9 +11,10 @@ Example:
 """
 
 from __future__ import annotations
-from dataclasses import dataclass
-from typing import Optional, Dict, Any, Callable
+
 import asyncio
+from dataclasses import dataclass
+from typing import Any, Callable, Dict, Optional
 
 
 @dataclass
@@ -27,6 +28,7 @@ class BulkheadConfig:
         timeout_ms: Maximum time (ms) a queued call may wait for an
             execution slot. Set to ``0`` for no timeout.
     """
+
     max_concurrent: int = 10
     max_queued: int = 100
     timeout_ms: int = 0
@@ -45,6 +47,7 @@ class BulkheadStats:
         total_rejected: Total calls rejected due to capacity.
         total_timeout: Total calls that timed out while queued.
     """
+
     active: int = 0
     queued: int = 0
     max_concurrent: int = 0
@@ -59,11 +62,13 @@ class BulkheadRejectedError(Exception):
 
     This occurs when both the concurrency slots and the queue are full.
     """
+
     pass
 
 
 class BulkheadTimeoutError(Exception):
     """Raised when a queued call times out before an execution slot becomes available."""
+
     pass
 
 
@@ -149,8 +154,6 @@ class Bulkhead:
                     self._active -= 1
                 self._semaphore.release()
 
-        queue_acquired = self._queue_semaphore.locked() and self._queue_semaphore._value == 0
-
         if self._queue_semaphore._value == 0:
             async with self._stats_lock:
                 self._total_rejected += 1
@@ -169,7 +172,7 @@ class Bulkhead:
                 try:
                     await asyncio.wait_for(
                         self._semaphore.acquire(),
-                        timeout=self._config.timeout_ms / 1000
+                        timeout=self._config.timeout_ms / 1000,
                     )
                 except asyncio.TimeoutError:
                     async with self._stats_lock:
@@ -235,11 +238,7 @@ class BulkheadManager:
         self._bulkheads: Dict[str, Bulkhead] = {}
         self._default_config = default_config or BulkheadConfig()
 
-    def get(
-        self,
-        name: str,
-        config: Optional[BulkheadConfig] = None
-    ) -> Bulkhead:
+    def get(self, name: str, config: Optional[BulkheadConfig] = None) -> Bulkhead:
         """Get or create a bulkhead by name.
 
         Args:
@@ -257,14 +256,10 @@ class BulkheadManager:
                     else self._default_config.max_concurrent
                 ),
                 max_queued=(
-                    config.max_queued
-                    if config
-                    else self._default_config.max_queued
+                    config.max_queued if config else self._default_config.max_queued
                 ),
                 timeout_ms=(
-                    config.timeout_ms
-                    if config
-                    else self._default_config.timeout_ms
+                    config.timeout_ms if config else self._default_config.timeout_ms
                 ),
             )
             self._bulkheads[name] = Bulkhead(merged_config)
@@ -276,7 +271,9 @@ class BulkheadManager:
         Returns:
             A dict mapping bulkhead names to their :class:`BulkheadStats`.
         """
-        return {name: bulkhead.get_stats() for name, bulkhead in self._bulkheads.items()}
+        return {
+            name: bulkhead.get_stats() for name, bulkhead in self._bulkheads.items()
+        }
 
     def reset_all_stats(self) -> None:
         """Reset statistics for every registered bulkhead."""
@@ -293,10 +290,12 @@ def api_bulkhead(max_concurrent: int = 50) -> Bulkhead:
     Returns:
         A :class:`Bulkhead` with a 100-slot queue.
     """
-    return Bulkhead(BulkheadConfig(
-        max_concurrent=max_concurrent,
-        max_queued=100,
-    ))
+    return Bulkhead(
+        BulkheadConfig(
+            max_concurrent=max_concurrent,
+            max_queued=100,
+        )
+    )
 
 
 def database_bulkhead(max_concurrent: int = 10) -> Bulkhead:
@@ -308,11 +307,13 @@ def database_bulkhead(max_concurrent: int = 10) -> Bulkhead:
     Returns:
         A :class:`Bulkhead` with a 50-slot queue and 30-second timeout.
     """
-    return Bulkhead(BulkheadConfig(
-        max_concurrent=max_concurrent,
-        max_queued=50,
-        timeout_ms=30000,
-    ))
+    return Bulkhead(
+        BulkheadConfig(
+            max_concurrent=max_concurrent,
+            max_queued=50,
+            timeout_ms=30000,
+        )
+    )
 
 
 def strict_bulkhead(max_concurrent: int = 5) -> Bulkhead:
@@ -326,7 +327,9 @@ def strict_bulkhead(max_concurrent: int = 5) -> Bulkhead:
     Returns:
         A :class:`Bulkhead` with ``max_queued=0``.
     """
-    return Bulkhead(BulkheadConfig(
-        max_concurrent=max_concurrent,
-        max_queued=0,
-    ))
+    return Bulkhead(
+        BulkheadConfig(
+            max_concurrent=max_concurrent,
+            max_queued=0,
+        )
+    )

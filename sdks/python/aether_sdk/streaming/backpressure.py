@@ -16,21 +16,17 @@ Example:
 """
 
 from __future__ import annotations
-from dataclasses import dataclass, field
-from typing import Any, Callable, Generic, List, Optional, TypeVar
-from collections import deque
+
 import asyncio
 import threading
 import time
+from collections import deque
+from dataclasses import dataclass
+from typing import Callable, Generic, List, Optional, TypeVar
 
-from .types import (
-    BackpressureStrategy,
-    BackpressureConfig,
-    StreamEvent,
-    Timestamp,
-)
+from .types import BackpressureConfig, BackpressureStrategy, StreamEvent
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 @dataclass
@@ -49,6 +45,7 @@ class BackpressureStats:
         high_watermark_reached: Whether the buffer is currently above
             the high watermark.
     """
+
     total_events: int = 0
     buffered_events: int = 0
     dropped_events: int = 0
@@ -65,19 +62,20 @@ class BackpressureStats:
             A dict with all stat fields as key-value pairs.
         """
         return {
-            'total_events': self.total_events,
-            'buffered_events': self.buffered_events,
-            'dropped_events': self.dropped_events,
-            'rejected_events': self.rejected_events,
-            'overflow_count': self.overflow_count,
-            'resume_count': self.resume_count,
-            'current_buffer_size': self.current_buffer_size,
-            'high_watermark_reached': self.high_watermark_reached,
+            "total_events": self.total_events,
+            "buffered_events": self.buffered_events,
+            "dropped_events": self.dropped_events,
+            "rejected_events": self.rejected_events,
+            "overflow_count": self.overflow_count,
+            "resume_count": self.resume_count,
+            "current_buffer_size": self.current_buffer_size,
+            "high_watermark_reached": self.high_watermark_reached,
         }
 
 
 class BackpressureError(Exception):
     """Base exception for backpressure-related failures."""
+
     pass
 
 
@@ -363,6 +361,7 @@ class MultiLevelBackpressure(Generic[T]):
             NORMAL: Priority 1 — dropped after LOW events.
             LOW: Priority 2 — dropped first under pressure.
         """
+
         HIGH = 0
         NORMAL = 1
         LOW = 2
@@ -470,6 +469,7 @@ class MultiLevelBackpressure(Generic[T]):
 # ============================================
 # Rate-Based Backpressure
 # ============================================
+
 
 class RateBasedBackpressure:
     """Backpressure based on processing rate monitoring.

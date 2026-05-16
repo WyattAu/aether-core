@@ -21,69 +21,31 @@ Example:
 """
 
 from __future__ import annotations
+
+import inspect
 from abc import abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, Generic, List, Optional, TypeVar, Union
-import asyncio
-import inspect
+from typing import Any, Callable, Dict, Generic, List, Optional, TypeVar
 
 from ..actor import Actor
 from ..messaging import Message, MessageType
 from ..state import StateHandle
+from .backpressure import BackpressureController
 from .types import (
-    Duration,
-    Timestamp,
-    StreamEvent,
-    Watermark,
-    WindowSpec,
-    WindowInfo,
-    WindowType,
-    PaneInfo,
-    StreamConfig,
     BackpressureConfig,
-    PartitionConfig,
-    DeliveryConfig,
     LateDataPolicy,
-    WatermarkStrategy,
-    BackpressureStrategy,
-    DeliverySemantics,
-)
-from .window import (
-    WindowAssigner,
-    WindowTrigger,
-    WindowState,
-    TumblingWindow,
-    SlidingWindow,
-    SessionWindow,
-)
-from .backpressure import (
-    BackpressureController,
-    BackpressureStats,
-    BackpressureError,
-    BufferFullError,
-    MultiLevelBackpressure,
-    RateBasedBackpressure,
-)
-from ..state import StateHandle
-from .types import (
-    Duration,
-    Timestamp,
-    StreamEvent,
-    Watermark,
-    WindowSpec,
-    WindowInfo,
     StreamConfig,
-    BackpressureConfig,
-    BackpressureStrategy,
-    WatermarkStrategy,
-    LateDataPolicy,
+    StreamEvent,
+    Timestamp,
+    Watermark,
+    WindowInfo,
+    WindowSpec,
 )
-from .window import WindowAssigner, WindowTrigger, WindowState
-from .backpressure import BackpressureController, BufferFullError
+from .window import WindowAssigner, WindowTrigger
 
-K = TypeVar('K')
-V = TypeVar('V')
-R = TypeVar('R')
+K = TypeVar("K")
+V = TypeVar("V")
+R = TypeVar("R")
 
 
 @dataclass
@@ -97,6 +59,7 @@ class StreamState:
         last_processed_timestamp: Timestamp of the most recently
             processed event.
     """
+
     watermarks: Dict[str, Timestamp] = field(default_factory=dict)
     processed_count: int = 0
     late_events_count: int = 0
@@ -348,9 +311,9 @@ class StreamActor(Actor, Generic[K, V]):
                 await self.advance_watermark(watermark_data)
             elif isinstance(watermark_data, dict):
                 watermark = Watermark(
-                    timestamp=Timestamp(watermark_data.get('timestamp', 0)),
-                    stream_id=watermark_data.get('stream_id', ''),
-                    partition=watermark_data.get('partition'),
+                    timestamp=Timestamp(watermark_data.get("timestamp", 0)),
+                    stream_id=watermark_data.get("stream_id", ""),
+                    partition=watermark_data.get("partition"),
                 )
                 await self.advance_watermark(watermark)
 
@@ -368,13 +331,13 @@ class StreamActor(Actor, Generic[K, V]):
         """
         try:
             return StreamEvent(
-                key=data.get('key', ''),
-                value=data.get('value'),
-                timestamp=Timestamp(data.get('timestamp', 0)),
-                headers=data.get('headers', {}),
-                partition=data.get('partition'),
-                offset=data.get('offset'),
-                event_type=data.get('event_type'),
+                key=data.get("key", ""),
+                value=data.get("value"),
+                timestamp=Timestamp(data.get("timestamp", 0)),
+                headers=data.get("headers", {}),
+                partition=data.get("partition"),
+                offset=data.get("offset"),
+                event_type=data.get("event_type"),
             )
         except (KeyError, TypeError):
             return None
@@ -399,8 +362,7 @@ class StreamActor(Actor, Generic[K, V]):
         self._stream_state.processed_count += 1
 
         current_watermark = self._stream_state.watermarks.get(
-            event.event_type or 'default',
-            Timestamp(0)
+            event.event_type or "default", Timestamp(0)
         )
 
         if event.timestamp < current_watermark:
@@ -490,10 +452,7 @@ class StreamActor(Actor, Generic[K, V]):
         await self._do_emit(stream, event)
 
     async def emit_with_timestamp(
-        self,
-        stream: str,
-        value: Any,
-        timestamp: Timestamp
+        self, stream: str, value: Any, timestamp: Timestamp
     ) -> None:
         """Emit a value with a specific event timestamp.
 
@@ -527,16 +486,14 @@ class StreamActor(Actor, Generic[K, V]):
             else:
                 handler(event)
         else:
-            message = Message(
+            _message = Message(
                 type=MessageType.STREAM_EVENT,
                 payload=event,
             )
             pass
 
     def register_output_handler(
-        self,
-        stream: str,
-        handler: Callable[[StreamEvent], None]
+        self, stream: str, handler: Callable[[StreamEvent], None]
     ) -> None:
         """Register a handler for an output stream.
 
@@ -547,7 +504,9 @@ class StreamActor(Actor, Generic[K, V]):
         """
         self._output_handlers[stream] = handler
 
-    def register_late_data_handler(self, handler: Callable[[StreamEvent[V]], None]) -> None:
+    def register_late_data_handler(
+        self, handler: Callable[[StreamEvent[V]], None]
+    ) -> None:
         """Register a handler for late-arriving events.
 
         Args:
@@ -556,9 +515,7 @@ class StreamActor(Actor, Generic[K, V]):
         self._late_data_handler = handler
 
     def configure_window(
-        self,
-        spec: WindowSpec,
-        handler: Callable[[List[StreamEvent[V]], WindowInfo], R]
+        self, spec: WindowSpec, handler: Callable[[List[StreamEvent[V]], WindowInfo], R]
     ) -> None:
         """Configure windowing for this stream actor.
 
@@ -668,15 +625,15 @@ class StreamActor(Actor, Generic[K, V]):
             ``backpressure`` stats.
         """
         return {
-            'processed_count': self._stream_state.processed_count,
-            'late_events_count': self._stream_state.late_events_count,
-            'last_processed_timestamp': (
+            "processed_count": self._stream_state.processed_count,
+            "late_events_count": self._stream_state.late_events_count,
+            "last_processed_timestamp": (
                 self._stream_state.last_processed_timestamp.milliseconds
-                if self._stream_state.last_processed_timestamp else None
+                if self._stream_state.last_processed_timestamp
+                else None
             ),
-            'watermarks': {
-                k: v.milliseconds
-                for k, v in self._stream_state.watermarks.items()
+            "watermarks": {
+                k: v.milliseconds for k, v in self._stream_state.watermarks.items()
             },
-            'backpressure': self._backpressure.stats.to_dict(),
+            "backpressure": self._backpressure.stats.to_dict(),
         }

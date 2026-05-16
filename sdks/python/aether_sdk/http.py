@@ -14,8 +14,10 @@ Example:
     ...     data = await resp.text()
 """
 
+from typing import Any, Dict, Optional, Self
+
 import aiohttp
-from typing import Optional, Dict, Any, Self
+
 from .capabilities import Capability, CapabilitySet
 from .exceptions import CapabilityDenied
 
@@ -80,7 +82,9 @@ class HttpClient:
             self._session = aiohttp.ClientSession(timeout=self._timeout)
         return self._session
 
-    async def get(self, url: str, headers: Optional[Dict[str, str]] = None) -> aiohttp.ClientResponse:
+    async def get(
+        self, url: str, headers: Optional[Dict[str, str]] = None
+    ) -> aiohttp.ClientResponse:
         """Perform an HTTP GET request.
 
         Args:
@@ -93,7 +97,9 @@ class HttpClient:
         session = await self._get_session()
         return await session.get(url, headers=headers)
 
-    async def post(self, url: str, json: Any = None, headers: Optional[Dict[str, str]] = None) -> aiohttp.ClientResponse:
+    async def post(
+        self, url: str, json: Any = None, headers: Optional[Dict[str, str]] = None
+    ) -> aiohttp.ClientResponse:
         """Perform an HTTP POST request.
 
         Args:
@@ -107,7 +113,9 @@ class HttpClient:
         session = await self._get_session()
         return await session.post(url, json=json, headers=headers)
 
-    async def put(self, url: str, json: Any = None, headers: Optional[Dict[str, str]] = None) -> aiohttp.ClientResponse:
+    async def put(
+        self, url: str, json: Any = None, headers: Optional[Dict[str, str]] = None
+    ) -> aiohttp.ClientResponse:
         """Perform an HTTP PUT request.
 
         Args:
@@ -121,7 +129,9 @@ class HttpClient:
         session = await self._get_session()
         return await session.put(url, json=json, headers=headers)
 
-    async def delete(self, url: str, headers: Optional[Dict[str, str]] = None) -> aiohttp.ClientResponse:
+    async def delete(
+        self, url: str, headers: Optional[Dict[str, str]] = None
+    ) -> aiohttp.ClientResponse:
         """Perform an HTTP DELETE request.
 
         Args:

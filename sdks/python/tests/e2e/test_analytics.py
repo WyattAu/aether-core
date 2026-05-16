@@ -8,37 +8,28 @@ Simulates a real-time analytics pipeline:
 - Late data: inject late events and verify watermark handling
 """
 
-import pytest
 import random
-from typing import Dict, Any, List, Optional
-from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional
 
-from aether_sdk.streaming.types import (
-    Duration,
-    Timestamp,
-    StreamEvent,
-    Watermark,
-    WindowSpec,
-    WindowInfo,
-    WindowType,
-    PaneInfo,
-    StreamConfig,
-    BackpressureConfig,
-    BackpressureStrategy,
-    LateDataPolicy,
-)
-from aether_sdk.streaming.window import (
-    TumblingWindow,
-    WindowAssigner,
-    WindowTrigger,
-)
+import pytest
+
 from aether_sdk.streaming.backpressure import (
     BackpressureController,
     RateBasedBackpressure,
 )
-from aether_sdk.streaming.stream_actor import StreamActor, StreamState
-from aether_sdk.messaging import Message, MessageType
-
+from aether_sdk.streaming.stream_actor import StreamActor
+from aether_sdk.streaming.types import (
+    BackpressureConfig,
+    BackpressureStrategy,
+    Duration,
+    StreamEvent,
+    Timestamp,
+    Watermark,
+    WindowInfo,
+    WindowSpec,
+    WindowType,
+)
+from aether_sdk.streaming.window import TumblingWindow
 
 random.seed(42)
 
@@ -75,7 +66,9 @@ class TestAnalyticsPipeline:
                 if r < cumulative:
                     chosen = etype
                     break
-            events.append(_make_event(chosen, ts_offset_ms=random.randint(0, FIVE_MINUTES_MS - 1)))
+            events.append(
+                _make_event(chosen, ts_offset_ms=random.randint(0, FIVE_MINUTES_MS - 1))
+            )
 
         counts: Dict[str, int] = {"page_view": 0, "click": 0, "purchase": 0}
         for event in events:
@@ -126,24 +119,34 @@ class TestAnalyticsPipeline:
                 tw.process(event, key="analytics")
 
         watermark_ts = Timestamp(BASE_TS.milliseconds + FIVE_MINUTES_MS)
-        fired = tw.advance_watermark(watermark_ts)
+        tw.advance_watermark(watermark_ts)
 
         assert len(window_results) > 0
         for result in window_results:
             assert result["total"] > 0
-            assert "page_view" in result["counts"] or "click" in result["counts"] or "purchase" in result["counts"]
+            assert (
+                "page_view" in result["counts"]
+                or "click" in result["counts"]
+                or "purchase" in result["counts"]
+            )
 
         total_in_windows = sum(r["total"] for r in window_results)
-        print(f"\n=== Tumbling Window Aggregation Summary ===")
+        print("\n=== Tumbling Window Aggregation Summary ===")
         print(f"  Windows fired: {len(window_results)}")
         print(f"  Total events in windows: {total_in_windows}")
 
     @pytest.mark.asyncio
     async def test_running_average_computation(self):
         """Compute running averages per event type across windows."""
-        running_counts: Dict[str, List[int]] = {"page_view": [], "click": [], "purchase": []}
+        running_counts: Dict[str, List[int]] = {
+            "page_view": [],
+            "click": [],
+            "purchase": [],
+        }
 
-        def track_averages(events: List[StreamEvent], info: WindowInfo) -> Dict[str, float]:
+        def track_averages(
+            events: List[StreamEvent], info: WindowInfo
+        ) -> Dict[str, float]:
             counts: Dict[str, int] = {"page_view": 0, "click": 0, "purchase": 0}
             for e in events:
                 etype = e.value["type"]
@@ -168,12 +171,14 @@ class TestAnalyticsPipeline:
                 etype = random.choice(["page_view", "click", "purchase"])
                 tw.process(_make_event(etype, ts_offset_ms=ts_offset), key="avg-test")
 
-            tw.advance_watermark(Timestamp(BASE_TS.milliseconds + (window_idx + 1) * FIVE_MINUTES_MS))
+            tw.advance_watermark(
+                Timestamp(BASE_TS.milliseconds + (window_idx + 1) * FIVE_MINUTES_MS)
+            )
 
         assert all(len(v) >= 3 for v in running_counts.values())
         assert all(sum(v) > 0 for v in running_counts.values())
 
-        print(f"\n=== Running Average Summary ===")
+        print("\n=== Running Average Summary ===")
         for etype, vals in running_counts.items():
             avg = sum(vals) / len(vals)
             print(f"  {etype}: counts={vals}, avg={avg:.1f}")
@@ -184,7 +189,9 @@ class TestAnalyticsPipeline:
         alerts: List[Dict[str, Any]] = []
         ALERT_THRESHOLD = 1000
 
-        def check_alerts(events: List[StreamEvent], info: WindowInfo) -> Optional[Dict[str, Any]]:
+        def check_alerts(
+            events: List[StreamEvent], info: WindowInfo
+        ) -> Optional[Dict[str, Any]]:
             purchase_count = sum(1 for e in events if e.value["type"] == "purchase")
             if purchase_count > ALERT_THRESHOLD:
                 alert = {
@@ -203,7 +210,9 @@ class TestAnalyticsPipeline:
         )
 
         for i in range(1500):
-            event = _make_event("purchase", ts_offset_ms=random.randint(0, FIVE_MINUTES_MS - 1))
+            event = _make_event(
+                "purchase", ts_offset_ms=random.randint(0, FIVE_MINUTES_MS - 1)
+            )
             tw.process(event, key="alerts")
 
         tw.advance_watermark(Timestamp(BASE_TS.milliseconds + 2 * FIVE_MINUTES_MS))
@@ -212,19 +221,22 @@ class TestAnalyticsPipeline:
         for alert in alerts:
             assert alert["actual"] > ALERT_THRESHOLD
 
-        print(f"\n=== Alerting Summary ===")
+        print("\n=== Alerting Summary ===")
         print(f"  Alerts triggered: {len(alerts)}")
         for a in alerts:
-            print(f"  [{a['severity'].upper()}] {a['actual']} purchases (threshold: {a['threshold']})")
+            print(
+                f"  [{a['severity'].upper()}] {a['actual']} purchases (threshold: {a['threshold']})"
+            )
 
     @pytest.mark.asyncio
     async def test_late_data_watermark_handling(self):
         """Inject late events and verify watermark-based late data handling."""
         late_events: List[StreamEvent] = []
-        on_time_events: List[StreamEvent] = []
         all_fired: List[Dict[str, Any]] = []
 
-        def aggregate_window(events: List[StreamEvent], info: WindowInfo) -> Dict[str, Any]:
+        def aggregate_window(
+            events: List[StreamEvent], info: WindowInfo
+        ) -> Dict[str, Any]:
             result = {
                 "window_id": info.window_id,
                 "count": len(events),
@@ -250,7 +262,6 @@ class TestAnalyticsPipeline:
         fired = tw.advance_watermark(watermark.timestamp)
         on_time_count = sum(1 for e in fired if e is not None)
 
-        late_ts = Timestamp(BASE_TS.milliseconds + 1000)
         late_event = _make_event("click", ts_offset_ms=1000)
         late_events.append(late_event)
 
@@ -258,17 +269,19 @@ class TestAnalyticsPipeline:
             timestamp=Timestamp(BASE_TS.milliseconds + 2 * FIVE_MINUTES_MS),
             stream_id="analytics",
         )
-        late_fired = tw.advance_watermark(watermark_later.timestamp)
+        tw.advance_watermark(watermark_later.timestamp)
 
         assert on_time_count > 0
         assert len(all_fired) >= 1
         assert all(f["count"] > 0 for f in all_fired)
 
-        print(f"\n=== Late Data Handling Summary ===")
-        print(f"  On-time events processed: 500")
+        print("\n=== Late Data Handling Summary ===")
+        print("  On-time events processed: 500")
         print(f"  Windows fired on-time: {len(all_fired)}")
         print(f"  Late events injected: {len(late_events)}")
-        print(f"  Watermark advanced: {watermark.timestamp.milliseconds} -> {watermark_later.timestamp.milliseconds}")
+        print(
+            f"  Watermark advanced: {watermark.timestamp.milliseconds} -> {watermark_later.timestamp.milliseconds}"
+        )
 
 
 @pytest.mark.e2e
@@ -278,10 +291,12 @@ class TestBackpressureInPipeline:
     @pytest.mark.asyncio
     async def test_backpressure_under_load(self):
         """Verify backpressure controller handles event bursts correctly."""
-        bp = BackpressureController(BackpressureConfig(
-            strategy=BackpressureStrategy.BUFFER,
-            buffer_size=5000,
-        ))
+        bp = BackpressureController(
+            BackpressureConfig(
+                strategy=BackpressureStrategy.BUFFER,
+                buffer_size=5000,
+            )
+        )
 
         accepted = 0
         rejected = 0
@@ -303,8 +318,8 @@ class TestBackpressureInPipeline:
         assert consumed == accepted
         assert bp.is_empty()
 
-        print(f"\n=== Backpressure Under Load Summary ===")
-        print(f"  Events sent: 10_000")
+        print("\n=== Backpressure Under Load Summary ===")
+        print("  Events sent: 10_000")
         print(f"  Accepted: {accepted}")
         print(f"  Rejected (buffer full): {rejected}")
         print(f"  Consumed: {consumed}")
@@ -326,8 +341,8 @@ class TestBackpressureInPipeline:
         assert throttled > 0
         assert allowed <= 100
 
-        print(f"\n=== Rate-Based Backpressure Summary ===")
-        print(f"  Max rate: 100/s")
+        print("\n=== Rate-Based Backpressure Summary ===")
+        print("  Max rate: 100/s")
         print(f"  Allowed: {allowed}")
         print(f"  Throttled: {throttled}")
 
@@ -376,7 +391,7 @@ class TestBackpressureInPipeline:
         assert metrics["processed_count"] == 200
         assert len(window_results) > 0
 
-        print(f"\n=== Stream Actor with Windowing Summary ===")
+        print("\n=== Stream Actor with Windowing Summary ===")
         print(f"  Events processed: {metrics['processed_count']}")
         print(f"  Window results: {len(window_results)}")
         print(f"  Metrics: {metrics}")

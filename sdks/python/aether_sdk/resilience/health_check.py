@@ -13,13 +13,14 @@ Example:
 """
 
 from __future__ import annotations
-from dataclasses import dataclass, field
-from typing import Optional, Dict, Any, Callable, Awaitable, Union
-from enum import Enum
+
 import asyncio
-import time
-import resource
 import platform
+import resource
+import time
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any, Awaitable, Callable, Dict, Optional, Union
 
 
 class HealthStatus(Enum):
@@ -30,6 +31,7 @@ class HealthStatus(Enum):
         DEGRADED: Non-critical checks failing.
         UNHEALTHY: Critical checks failing or service is down.
     """
+
     HEALTHY = "healthy"
     DEGRADED = "degraded"
     UNHEALTHY = "unhealthy"
@@ -50,6 +52,7 @@ class HealthCheckResult:
         time: ISO 8601 timestamp of when the check ran.
         details: Arbitrary key-value details about the check.
     """
+
     status: HealthStatus
     component_id: str
     component_type: str
@@ -72,6 +75,7 @@ class HealthReport:
         checks: Map of check names to their results.
         uptime: Service uptime in seconds.
     """
+
     status: HealthStatus
     version: str
     service_id: str
@@ -94,6 +98,7 @@ class HealthCheckOptions:
         cache_duration_ms: Cache the result for this many ms.
             Set to ``0`` to disable caching.
     """
+
     timeout_ms: int = 5000
     critical: bool = False
     interval_ms: int = 0
@@ -107,6 +112,7 @@ HealthCheckFn = Callable[[], Union[HealthCheckResult, Awaitable[HealthCheckResul
 # Health Checker Implementation
 # ============================================
 
+
 class HealthChecker:
     """Health checker with Kubernetes-compatible probes.
 
@@ -119,11 +125,7 @@ class HealthChecker:
         >>> report = await checker.run_all()
     """
 
-    def __init__(
-        self,
-        service_id: str = "aether-actor",
-        version: str = "1.0.0"
-    ):
+    def __init__(self, service_id: str = "aether-actor", version: str = "1.0.0"):
         """Initialize the health checker.
 
         Args:
@@ -165,6 +167,7 @@ class HealthChecker:
             self._checks[name] = entry
 
         if resolved_options.interval_ms > 0:
+
             async def run_periodically():
                 while True:
                     try:
@@ -330,8 +333,7 @@ class HealthChecker:
             self._checks.clear()
 
     def _calculate_overall_status(
-        self,
-        checks: Dict[str, HealthCheckResult]
+        self, checks: Dict[str, HealthCheckResult]
     ) -> HealthStatus:
         """Determine the overall status from individual check results.
 
@@ -405,6 +407,7 @@ class HealthChecker:
 # Predefined Health Checks
 # ============================================
 
+
 def ping_health_check() -> HealthCheckFn:
     """Create a simple liveness ping health check.
 
@@ -413,6 +416,7 @@ def ping_health_check() -> HealthCheckFn:
     Returns:
         A :data:`HealthCheckFn` callable.
     """
+
     def check() -> HealthCheckResult:
         return HealthCheckResult(
             status=HealthStatus.HEALTHY,
@@ -422,6 +426,7 @@ def ping_health_check() -> HealthCheckFn:
             observed_unit="ms",
             time=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         )
+
     return check
 
 
@@ -441,6 +446,7 @@ def memory_health_check(
     Returns:
         A :data:`HealthCheckFn` callable.
     """
+
     def check() -> HealthCheckResult:
         rusage = resource.getrusage(resource.RUSAGE_SELF)
         if platform.system() == "Darwin":
@@ -473,6 +479,7 @@ def memory_health_check(
                 "rss_mb": rss_mb,
             },
         )
+
     return check
 
 
@@ -491,6 +498,7 @@ def state_health_check(
         A :data:`HealthCheckFn` callable. Reports DEGRADED if the
         read takes longer than 1 second.
     """
+
     async def check() -> HealthCheckResult:
         start = time.time()
         try:
@@ -519,6 +527,7 @@ def state_health_check(
                 output=str(e),
                 time=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             )
+
     return check
 
 
@@ -538,6 +547,7 @@ def dependency_health_check(
     Returns:
         A :data:`HealthCheckFn` callable.
     """
+
     async def check() -> HealthCheckResult:
         start = time.time()
         try:
@@ -573,4 +583,5 @@ def dependency_health_check(
                 output=str(e),
                 time=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             )
+
     return check

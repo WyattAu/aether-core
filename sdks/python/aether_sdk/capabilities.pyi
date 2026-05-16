@@ -1,10 +1,11 @@
 """Type stubs for capabilities module."""
 
-from enum import Flag, auto
+from enum import Flag
 from typing import Set
 
 class Capability(Flag):
     """Actor capabilities."""
+
     NETWORK_OUTBOUND: int = ...
     NETWORK_INBOUND: int = ...
     STATE_READ: int = ...
@@ -21,15 +22,11 @@ class Capability(Flag):
 
 class CapabilitySet:
     """Set of capabilities with helper methods."""
-    
+
     _caps: Set[Capability]
-    
+
     def __init__(self, *capabilities: Capability) -> None: ...
-    
     def add(self, cap: Capability) -> None: ...
-    
     def has(self, cap: Capability) -> bool: ...
-    
     def has_network(self) -> bool: ...
-    
     def has_state(self) -> bool: ...

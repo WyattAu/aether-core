@@ -15,13 +15,14 @@ Example:
 """
 
 from __future__ import annotations
+
+import time
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum, auto
-from typing import Any, Dict, Generic, List, Optional, TypeVar, Callable
-import time
+from typing import Any, Callable, Dict, Generic, List, Optional, TypeVar
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 class WindowType(Enum):
@@ -32,6 +33,7 @@ class WindowType(Enum):
         SLIDING: Fixed-size, overlapping windows.
         SESSION: Dynamic windows based on activity gaps.
     """
+
     TUMBLING = auto()
     SLIDING = auto()
     SESSION = auto()
@@ -45,6 +47,7 @@ class LateDataPolicy(Enum):
         SIDE_OUTPUT: Route late events to a side output stream.
         REPROCESS: Reprocess the affected windows.
     """
+
     DROP = auto()
     SIDE_OUTPUT = auto()
     REPROCESS = auto()
@@ -58,6 +61,7 @@ class WatermarkStrategy(Enum):
         PROCESSING_TIME: Watermarks based on wall-clock processing time.
         BOUNDED_OUT_OF_ORDER: Allows a bounded amount of lateness.
     """
+
     EVENT_TIME = auto()
     PROCESSING_TIME = auto()
     BOUNDED_OUT_OF_ORDER = auto()
@@ -72,6 +76,7 @@ class BackpressureStrategy(Enum):
         FAIL: Raise an error when overloaded.
         LATEST: Keep only the most recent events, discarding older ones.
     """
+
     BUFFER = auto()
     DROP = auto()
     FAIL = auto()
@@ -86,6 +91,7 @@ class DeliverySemantics(Enum):
         AT_LEAST_ONCE: Retries may cause duplicates.
         EXACTLY_ONCE: No duplicates, no loss (requires checkpointing).
     """
+
     AT_MOST_ONCE = auto()
     AT_LEAST_ONCE = auto()
     EXACTLY_ONCE = auto()
@@ -99,6 +105,7 @@ class PaneInfo(Enum):
         ON_TIME: Fired when the watermark reached the window end.
         LATE: Fired after the watermark passed the window end.
     """
+
     EARLY = auto()
     ON_TIME = auto()
     LATE = auto()
@@ -120,10 +127,11 @@ class Timestamp:
         >>> ts < later
         True
     """
+
     milliseconds: int
 
     @classmethod
-    def now(cls) -> 'Timestamp':
+    def now(cls) -> "Timestamp":
         """Create a timestamp from the current wall-clock time.
 
         Returns:
@@ -132,7 +140,7 @@ class Timestamp:
         return cls(int(time.time() * 1000))
 
     @classmethod
-    def from_datetime(cls, dt: datetime) -> 'Timestamp':
+    def from_datetime(cls, dt: datetime) -> "Timestamp":
         """Create a timestamp from a :class:`datetime`.
 
         Args:
@@ -144,7 +152,7 @@ class Timestamp:
         return cls(int(dt.timestamp() * 1000))
 
     @classmethod
-    def from_seconds(cls, seconds: float) -> 'Timestamp':
+    def from_seconds(cls, seconds: float) -> "Timestamp":
         """Create a timestamp from a number of seconds since epoch.
 
         Args:
@@ -171,22 +179,22 @@ class Timestamp:
         """
         return self.milliseconds / 1000
 
-    def __add__(self, other: 'Duration') -> 'Timestamp':
+    def __add__(self, other: "Duration") -> "Timestamp":
         return Timestamp(self.milliseconds + other.milliseconds)
 
-    def __sub__(self, other: 'Timestamp') -> 'Duration':
+    def __sub__(self, other: "Timestamp") -> "Duration":
         return Duration(self.milliseconds - other.milliseconds)
 
-    def __lt__(self, other: 'Timestamp') -> bool:
+    def __lt__(self, other: "Timestamp") -> bool:
         return self.milliseconds < other.milliseconds
 
-    def __le__(self, other: 'Timestamp') -> bool:
+    def __le__(self, other: "Timestamp") -> bool:
         return self.milliseconds <= other.milliseconds
 
-    def __gt__(self, other: 'Timestamp') -> bool:
+    def __gt__(self, other: "Timestamp") -> bool:
         return self.milliseconds > other.milliseconds
 
-    def __ge__(self, other: 'Timestamp') -> bool:
+    def __ge__(self, other: "Timestamp") -> bool:
         return self.milliseconds >= other.milliseconds
 
 
@@ -206,6 +214,7 @@ class Duration:
         >>> (d + Duration.from_seconds(10)).to_millis()
         310000
     """
+
     ms: int
 
     @property
@@ -214,7 +223,7 @@ class Duration:
         return self.ms
 
     @classmethod
-    def from_timedelta(cls, td: timedelta) -> 'Duration':
+    def from_timedelta(cls, td: timedelta) -> "Duration":
         """Create from a :class:`datetime.timedelta`.
 
         Args:
@@ -226,7 +235,7 @@ class Duration:
         return cls(int(td.total_seconds() * 1000))
 
     @classmethod
-    def from_millis(cls, ms: int) -> 'Duration':
+    def from_millis(cls, ms: int) -> "Duration":
         """Create from milliseconds.
 
         Args:
@@ -238,7 +247,7 @@ class Duration:
         return cls(ms)
 
     @classmethod
-    def from_seconds(cls, s: float) -> 'Duration':
+    def from_seconds(cls, s: float) -> "Duration":
         """Create from seconds.
 
         Args:
@@ -250,7 +259,7 @@ class Duration:
         return cls(int(s * 1000))
 
     @classmethod
-    def from_minutes(cls, m: float) -> 'Duration':
+    def from_minutes(cls, m: float) -> "Duration":
         """Create from minutes.
 
         Args:
@@ -262,7 +271,7 @@ class Duration:
         return cls(int(m * 60 * 1000))
 
     @classmethod
-    def from_hours(cls, h: float) -> 'Duration':
+    def from_hours(cls, h: float) -> "Duration":
         """Create from hours.
 
         Args:
@@ -297,10 +306,10 @@ class Duration:
         """
         return self.ms
 
-    def __add__(self, other: 'Duration') -> 'Duration':
+    def __add__(self, other: "Duration") -> "Duration":
         return Duration(self.ms + other.ms)
 
-    def __mul__(self, factor: int) -> 'Duration':
+    def __mul__(self, factor: int) -> "Duration":
         return Duration(self.ms * factor)
 
 
@@ -317,6 +326,7 @@ class StreamEvent(Generic[T]):
         offset: Offset within the partition.
         event_type: Optional type identifier for the event.
     """
+
     key: str
     value: T
     timestamp: Timestamp
@@ -327,12 +337,8 @@ class StreamEvent(Generic[T]):
 
     @classmethod
     def create(
-        cls,
-        key: str,
-        value: T,
-        timestamp: Optional[Timestamp] = None,
-        **kwargs
-    ) -> 'StreamEvent[T]':
+        cls, key: str, value: T, timestamp: Optional[Timestamp] = None, **kwargs
+    ) -> "StreamEvent[T]":
         """Create a new stream event with defaults for optional fields.
 
         Args:
@@ -346,10 +352,7 @@ class StreamEvent(Generic[T]):
             A new :class:`StreamEvent` instance.
         """
         return cls(
-            key=key,
-            value=value,
-            timestamp=timestamp or Timestamp.now(),
-            **kwargs
+            key=key, value=value, timestamp=timestamp or Timestamp.now(), **kwargs
         )
 
 
@@ -364,6 +367,7 @@ class Watermark:
         stream_id: Identifier of the stream this watermark belongs to.
         partition: Optional partition number.
     """
+
     timestamp: Timestamp
     stream_id: str
     partition: Optional[int] = None
@@ -393,6 +397,7 @@ class WindowSpec:
             included in the window.
         allowed_lateness: Maximum lateness allowed before side-output.
     """
+
     type: WindowType
     size: Duration
     slide: Optional[Duration] = None
@@ -424,6 +429,7 @@ class WindowInfo:
         pane: Which pane triggered (early, on-time, or late).
         window_id: Optional unique window identifier.
     """
+
     start: Timestamp
     end: Timestamp
     max_timestamp: Timestamp
@@ -474,15 +480,20 @@ class StreamConfig:
         buffer_capacity: Maximum buffered events before backpressure.
         buffer_timeout: Maximum time to buffer before flushing.
     """
+
     input_streams: List[str] = field(default_factory=list)
     output_streams: List[str] = field(default_factory=list)
     parallelism: int = 1
-    partition_strategy: str = 'key'
+    partition_strategy: str = "key"
     watermark_strategy: WatermarkStrategy = WatermarkStrategy.PROCESSING_TIME
-    watermark_interval: Duration = field(default_factory=lambda: Duration.from_seconds(1))
+    watermark_interval: Duration = field(
+        default_factory=lambda: Duration.from_seconds(1)
+    )
     out_of_orderness: Duration = field(default_factory=lambda: Duration.from_seconds(0))
     checkpointing_enabled: bool = False
-    checkpoint_interval: Duration = field(default_factory=lambda: Duration.from_minutes(1))
+    checkpoint_interval: Duration = field(
+        default_factory=lambda: Duration.from_minutes(1)
+    )
     late_data_policy: LateDataPolicy = LateDataPolicy.DROP
     late_data_output: Optional[str] = None
     buffer_capacity: int = 10000
@@ -503,6 +514,7 @@ class BackpressureConfig:
         on_overflow: Callback invoked when the buffer overflows.
         on_resume: Callback invoked when the buffer recovers.
     """
+
     strategy: BackpressureStrategy = BackpressureStrategy.BUFFER
     buffer_size: int = 10000
     high_watermark: float = 0.9
@@ -522,7 +534,8 @@ class PartitionConfig:
         key_extractor: Optional callable to extract partition keys
             from events.
     """
-    strategy: str = 'key'
+
+    strategy: str = "key"
     partitions: int = 1
     key_extractor: Optional[Callable[[Any], str]] = None
 
@@ -539,6 +552,7 @@ class DeliveryConfig:
         enable_idempotence: Whether to deduplicate on the producer
             side.
     """
+
     semantics: DeliverySemantics = DeliverySemantics.AT_LEAST_ONCE
     max_retries: int = 3
     retry_backoff: Duration = field(default_factory=lambda: Duration.from_seconds(1))

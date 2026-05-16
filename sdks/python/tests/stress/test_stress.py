@@ -23,11 +23,7 @@ from aether_sdk.resilience.circuit_breaker import (
     CircuitBreakerError,
     CircuitState,
 )
-from aether_sdk.resilience.retry import (
-    BackoffStrategy,
-    RetryConfig,
-    RetryPolicy,
-)
+from aether_sdk.resilience.retry import BackoffStrategy, RetryConfig, RetryPolicy
 from aether_sdk.streaming.backpressure import BackpressureController
 from aether_sdk.streaming.types import (
     BackpressureConfig,
@@ -91,7 +87,7 @@ def test_1m_stream_events_windowing():
     growth_mb = (mem_after - mem_before) / (1024 * 1024)
     eps = 1_000_000 / elapsed
 
-    print(f"\n=== 1M Stream Events Windowing ===")
+    print("\n=== 1M Stream Events Windowing ===")
     print(f"  Time:       {elapsed:.2f}s")
     print(f"  Events/sec: {eps:,.0f}")
     print(f"  Mem before: {mem_before / 1024 ** 2:.1f} MB")
@@ -141,7 +137,7 @@ async def test_100k_concurrent_circuit_breaker():
     await asyncio.gather(*[call(i) for i in range(100_000)])
     elapsed = time.perf_counter() - start
 
-    print(f"\n=== 100K Concurrent Circuit Breaker ===")
+    print("\n=== 100K Concurrent Circuit Breaker ===")
     print(f"  Time:      {elapsed:.2f}s")
     print(f"  Successes: {success_count:,}")
     print(f"  Failures:  {fail_count:,}")
@@ -187,7 +183,7 @@ def test_1m_backpressure_push_pop():
         popped += 1
     elapsed = time.perf_counter() - start
 
-    print(f"\n=== 1M Backpressure Push/Pop ===")
+    print("\n=== 1M Backpressure Push/Pop ===")
     print(f"  Time:   {elapsed:.2f}s")
     print(f"  Pushed: {pushed:,}")
     print(f"  Popped: {popped:,}")
@@ -231,9 +227,7 @@ def test_memory_stability():
             )
         )
         for j in range(100):
-            bp.try_push(
-                StreamEvent.create(key="k", value=j, timestamp=Timestamp(j))
-            )
+            bp.try_push(StreamEvent.create(key="k", value=j, timestamp=Timestamp(j)))
         for _ in range(100):
             bp.pop()
         del bp
@@ -249,19 +243,17 @@ def test_memory_stability():
     slope = _linear_slope(samples_x, samples_y)
     slope_per_iter = slope * 100
 
-    print(f"\n=== Memory Stability ===")
+    print("\n=== Memory Stability ===")
     print(f"  Iterations:  {iterations:,}")
     print(f"  Samples:     {len(samples_x)}")
     print(f"  Slope:       {slope_per_iter:.1f} bytes/iteration")
     print(f"  First mem:   {samples_y[0] / 1024:.1f} KB")
     print(f"  Last mem:    {samples_y[-1] / 1024:.1f} KB")
-    print(
-        f"  Mem range:   {(max(samples_y) - min(samples_y)) / 1024:.1f} KB"
-    )
+    print(f"  Mem range:   {(max(samples_y) - min(samples_y)) / 1024:.1f} KB")
 
-    assert slope_per_iter < 1024, (
-        f"Memory growth {slope_per_iter:.1f}B/iter (limit 1KB/iter)"
-    )
+    assert (
+        slope_per_iter < 1024
+    ), f"Memory growth {slope_per_iter:.1f}B/iter (limit 1KB/iter)"
 
 
 # ------------------------------------------------------------------ #
@@ -305,15 +297,13 @@ async def test_retry_storm():
     successes = sum(1 for r in results if not isinstance(r, BaseException))
     failures = sum(1 for r in results if isinstance(r, BaseException))
 
-    print(f"\n=== Retry Storm (10K operations) ===")
+    print("\n=== Retry Storm (10K operations) ===")
     print(f"  Time:      {elapsed:.2f}s")
     print(f"  Successes: {successes:,}")
     print(f"  Failures:  {failures:,}")
     print(f"  Ops/sec:   {10_000 / elapsed:,.0f}")
 
     stats = policy.get_stats()
-    print(
-        f"  Stats: attempts={stats.total_attempts}, retried={stats.retried_calls}"
-    )
+    print(f"  Stats: attempts={stats.total_attempts}, retried={stats.retried_calls}")
 
     assert successes == 10_000, f"Expected 10K successes, got {successes}"

@@ -16,41 +16,28 @@ Example:
 """
 
 from __future__ import annotations
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    Generic,
-    List,
-    Optional,
-    Set,
-    TypeVar,
-    Awaitable,
-)
-from abc import ABC, abstractmethod
-from enum import Enum
-import asyncio
+
 import logging
 import uuid
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from typing import Any, Callable, Dict, Generic, List, Optional, Set, TypeVar
 
 from .types import (
-    WorkflowStatus,
-    TransitionStatus,
-    WorkflowContext,
-    WorkflowResult,
-    TransitionResult,
-    WorkflowError,
-    InvalidTransitionError,
-    WorkflowSuspendedError,
     Duration,
+    InvalidTransitionError,
     TransitionHandler,
+    TransitionResult,
+    WorkflowContext,
+    WorkflowError,
+    WorkflowResult,
+    WorkflowStatus,
+    WorkflowSuspendedError,
 )
 
 logger = logging.getLogger(__name__)
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 @dataclass
@@ -67,6 +54,7 @@ class State:
         timeout_transition: Transition to fire on timeout.
         metadata: Arbitrary key-value metadata.
     """
+
     name: str
     is_initial: bool = False
     is_final: bool = False
@@ -90,6 +78,7 @@ class Transition:
         action: Optional action executed during the transition.
         metadata: Arbitrary key-value metadata.
     """
+
     name: str
     from_state: str
     to_state: str
@@ -164,7 +153,9 @@ class Workflow(Generic[T]):
 
         if is_initial:
             if self._initial_state is not None:
-                raise WorkflowError(f"Multiple initial states: {self._initial_state} and {name}")
+                raise WorkflowError(
+                    f"Multiple initial states: {self._initial_state} and {name}"
+                )
             self._initial_state = name
 
         if is_final:
@@ -644,10 +635,7 @@ class WorkflowExecutor:
             return []
 
         transitions = workflow.get_transitions(context.current_state)
-        return [
-            t.name for t in transitions
-            if t.guard is None or t.guard(context)
-        ]
+        return [t.name for t in transitions if t.guard is None or t.guard(context)]
 
 
 def workflow(name: str) -> Workflow:
