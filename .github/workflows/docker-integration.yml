@@ -12,8 +12,8 @@ on:
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
-  FDB_VERSION: "7.3.23"
-  FDB_IMAGE: foundationdb/foundationdb:7.3.23
+  FDB_VERSION: "7.3.27"
+  FDB_IMAGE: foundationdb/foundationdb:7.3.27
 
 jobs:
   docker-integration:

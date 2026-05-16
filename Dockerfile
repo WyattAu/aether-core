@@ -11,7 +11,7 @@
 # ============================================
 # Stage 1: Build
 # ============================================
-FROM rust:1.85-slim AS builder
+FROM rustlang/rust:nightly-2026-03-01-slim AS builder
 
 WORKDIR /build
 

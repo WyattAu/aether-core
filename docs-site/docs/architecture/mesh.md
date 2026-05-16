@@ -179,7 +179,7 @@ Each node advertises:
     "namespace": ["default", "production"],
     "actor_count": 150,
     "load": 0.75,
-    "version": "1.3.0",
+    "version": "2.0.0",
     "capabilities": ["ai", "gpu"]
 }
 ```

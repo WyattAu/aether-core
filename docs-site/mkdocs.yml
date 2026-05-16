@@ -39,7 +39,9 @@ nav:
     - Introduction: getting-started/introduction.md
     - Installation: getting-started/installation.md
     - Quick Start: getting-started/quickstart.md
+    - Tutorial: getting-started/tutorial.md
     - Core Concepts: getting-started/concepts.md
+    - Best Practices: getting-started/best-practices.md
   - SDKs:
     - Overview: sdks/overview.md
     - Go SDK: sdks/go.md
@@ -53,11 +55,18 @@ nav:
     - AI Actor: examples/ai-actor.md
     - Mesh Communication: examples/mesh.md
     - Chat Application: examples/chat-app.md
+    - Resilient Actor: examples/resilient-actor.md
+  - Guides:
+    - Resilience Patterns: guides/resilience-patterns.md
   - Architecture:
     - Overview: architecture/overview.md
     - Actor Model: architecture/actor-model.md
     - Mesh Network: architecture/mesh.md
     - Security: architecture/security.md
+  - Performance:
+    - Overview: performance/overview.md
+  - Operations:
+    - Runbook: operations/runbook.md
   - API Reference: api-reference.md
 
 markdown_extensions:

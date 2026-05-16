@@ -151,9 +151,9 @@ actor.Require(
 | Metric | Value |
 |--------|-------|
 | Cold Start P99 | < 50µs |
-| Actors per Node | 50,000+ |
-| Message Latency P99 | < 10µs |
-| Memory per Actor | ~2KB |
+| Actors per Node | 100,000+ |
+| Message Latency P99 (local) | < 10us |
+| Memory per Actor | ~100KB (cold), ~2KB (pooled) |
 
 ## Get Started
 

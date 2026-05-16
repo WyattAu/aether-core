@@ -86,7 +86,7 @@ docker run -d --name aether-node ghcr.io/wyattau/aether:latest
 
 ```bash
 aether version
-# Output: aether 1.3.0
+# Output: aether 2.0.0
 ```
 
 ### Check SDK

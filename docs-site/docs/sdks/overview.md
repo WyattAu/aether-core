@@ -9,7 +9,7 @@ Aether provides SDKs for multiple programming languages, all sharing the same co
 | Go | [DONE] Stable | `github.com/WyattAu/aether-core/sdks/go/aether` | [Go SDK](go.md) |
 | Python | [DONE] Stable | `aether-sdk` | [Python SDK](python.md) |
 | JavaScript | [DONE] Stable | `@aether/sdk` | [JavaScript SDK](javascript.md) |
-| Rust | [IN PROGRESS] Beta | `aether` | [Rust SDK](rust.md) |
+| Rust | [DONE] Stable | `aether` | [Rust SDK](rust.md) |
 
 ## Common API Patterns
 
