@@ -138,7 +138,7 @@ func TestCircuitBreaker_GetStats(t *testing.T) {
 }
 
 func TestCircuitBreaker_Callbacks(t *testing.T) {
-	openCalled, closeCalled, halfOpenCalled := false
+	openCalled, closeCalled, halfOpenCalled := false, false, false
 	mu := sync.Mutex{}
 
 	config := CircuitBreakerConfig{
