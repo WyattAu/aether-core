@@ -11,7 +11,7 @@
 # ============================================
 # Stage 1: Build
 # ============================================
-FROM rustlang/rust:nightly-2026-03-01-slim AS builder
+FROM rust:1-slim AS builder
 
 WORKDIR /build
 
@@ -48,7 +48,7 @@ COPY tests/ tests/
 RUN touch crates/core/src/lib.rs crates/actor-sdk/src/lib.rs \
     crates/server/src/main.rs crates/cli/src/main.rs
 
-# Build the actual binaries
+# Build the actual binaries (without --all-features to avoid FDB dependency)
 RUN cargo build --release --package aether-server --package aether-cli
 
 # ============================================

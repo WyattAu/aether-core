@@ -48,7 +48,7 @@ jobs:
 
       - name: Run benchmarks
         run: |
-          cargo bench --workspace -- --output-format bencher 2>&1 | tee benchmark-results.txt
+          cargo bench --package aether-core -- --output-format bencher 2>&1 | tee benchmark-results.txt
       
       - name: Download previous baseline
         continue-on-error: true
@@ -124,6 +124,14 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: nightly-2026-03-01
+
+      - name: Install FoundationDB client
+        run: |
+          curl -sSL https://github.com/apple/foundationdb/releases/download/7.3.27/foundationdb-clients_7.3.27-1_amd64.deb -o /tmp/fdb.deb
+          sudo dpkg -i /tmp/fdb.deb || true
+          sudo ldconfig
+          echo "LIBRARY_PATH=/usr/lib/x86_64-linux-gnu" >> $GITHUB_ENV
+          echo "LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu" >> $GITHUB_ENV
 
       - name: Cache cargo registry
         uses: actions/cache@v4
@@ -201,11 +209,19 @@ jobs:
         with:
           toolchain: nightly-2026-03-01
 
+      - name: Install FoundationDB client
+        run: |
+          curl -sSL https://github.com/apple/foundationdb/releases/download/7.3.27/foundationdb-clients_7.3.27-1_amd64.deb -o /tmp/fdb.deb
+          sudo dpkg -i /tmp/fdb.deb || true
+          sudo ldconfig
+          echo "LIBRARY_PATH=/usr/lib/x86_64-linux-gnu" >> $GITHUB_ENV
+          echo "LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu" >> $GITHUB_ENV
+
       - name: Install valgrind
         run: sudo apt-get install -y valgrind
 
       - name: Build release
-        run: cargo build --release --workspace
+        run: cargo build --release --package aether-server --package aether-cli
       
       - name: Run memory benchmark
         run: |
@@ -241,8 +257,16 @@ jobs:
         with:
           toolchain: nightly-2026-03-01
 
+      - name: Install FoundationDB client
+        run: |
+          curl -sSL https://github.com/apple/foundationdb/releases/download/7.3.27/foundationdb-clients_7.3.27-1_amd64.deb -o /tmp/fdb.deb
+          sudo dpkg -i /tmp/fdb.deb || true
+          sudo ldconfig
+          echo "LIBRARY_PATH=/usr/lib/x86_64-linux-gnu" >> $GITHUB_ENV
+          echo "LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu" >> $GITHUB_ENV
+
       - name: Build release
-        run: cargo build --release --workspace
+        run: cargo build --release --package aether-server --package aether-cli
       
       - name: Measure startup time
         run: |
