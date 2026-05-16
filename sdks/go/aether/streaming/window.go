@@ -1,6 +1,7 @@
 package streaming
 
 import (
+	"fmt"
 	"sync"
 )
 
@@ -209,7 +210,7 @@ func (wa *WindowAssigner[K, V]) calculateWindowStart(ts Timestamp, size Duration
 }
 
 func (wa *WindowAssigner[K, V]) makeWindowID(key K, start Timestamp) string {
-	return string(any(key).(string)) + "_" + string(start.Milliseconds)
+	return string(any(key).(string)) + "_" + fmt.Sprint(start.Milliseconds)
 }
 
 func (wa *WindowAssigner[K, V]) GetWindow(windowID string) *WindowState[K, V] {

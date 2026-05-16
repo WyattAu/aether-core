@@ -265,7 +265,9 @@ func TestHealthChecker_Readiness(t *testing.T) {
 	
 	result := hc.GetReadiness(context.Background())
 	if result == nil {
-	
+		t.Fatal("expected non-nil readiness result")
+	}
+
 	if !result["ready"].(bool) {
 		t.Error("expected ready to be true")
 	}
