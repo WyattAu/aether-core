@@ -138,7 +138,7 @@ func TestCircuitBreaker_GetStats(t *testing.T) {
 }
 
 func TestCircuitBreaker_Callbacks(t *testing.T) {
-	var openCalled, closeCalled, halfOpenCalled bool
+	openCalled, closeCalled, halfOpenCalled := false
 	mu := sync.Mutex{}
 
 	config := CircuitBreakerConfig{
@@ -160,6 +160,8 @@ func TestCircuitBreaker_Callbacks(t *testing.T) {
 	if !openCalled {
 		t.Error("OnOpen should have been called")
 	}
+	_ = closeCalled
+	_ = halfOpenCalled
 	mu.Unlock()
 }
 
