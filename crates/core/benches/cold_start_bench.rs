@@ -6,7 +6,7 @@
 use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
 use std::sync::Arc;
 
-#[cfg(feature = "wasm")]
+#[cfg(all(feature = "wasm", feature = "instance-pool"))]
 fn bench_cold_start(c: &mut Criterion) {
     use aether_core::engine::{InstancePool, WasmInstance, WasmModule, create_engine};
 
@@ -65,21 +65,20 @@ fn bench_cold_start(c: &mut Criterion) {
         })
     });
 
-    let module_arc = Arc::new(minimal_module);
-    let pool = InstancePool::new(module_arc.clone(), 16, 64);
-    pool.refill().expect("Failed to refill pool");
+    let _module_arc = Arc::new(minimal_module);
+    let pool = InstancePool::new(64);
 
     group.bench_function("pool_acquire", |b| {
         b.iter(|| {
-            let instance = pool.acquire().expect("Failed to acquire");
-            black_box(instance);
+            let _instance = pool.acquire("bench").expect("Failed to acquire");
+            // PooledInstance auto-releases on drop
         })
     });
 
     group.bench_function("pool_acquire_release", |b| {
         b.iter(|| {
-            let instance = pool.acquire().expect("Failed to acquire");
-            pool.release(instance);
+            let _instance = pool.acquire("bench").expect("Failed to acquire");
+            // PooledInstance auto-releases on drop via Deref + Drop impl
         })
     });
 
@@ -178,8 +177,11 @@ fn bench_warm_start(c: &mut Criterion) {
     group.finish();
 }
 
-#[cfg(feature = "wasm")]
+#[cfg(all(feature = "wasm", feature = "instance-pool"))]
 criterion_group!(benches, bench_cold_start, bench_warm_start);
+
+#[cfg(all(feature = "wasm", not(feature = "instance-pool")))]
+criterion_group!(benches, bench_warm_start);
 
 #[cfg(not(feature = "wasm"))]
 fn bench_no_wasm(c: &mut Criterion) {
