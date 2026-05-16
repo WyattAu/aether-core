@@ -1,345 +1,296 @@
-# Aether-Core: Roadmap to Production and Beyond
+# ROADMAP
 
-**Date:** 2026-05-15 (updated)
-**Current Version:** 2.0.0
-**Audit Session:** Full monorepo re-audit -- CI/CD workflow fixes, documentation accuracy, code quality verification
-**Verified State:** 1,532 tests passing, 0 failures, 92 ignored, 0 clippy warnings, 0 fmt violations
+**Date:** 2026-05-16
+**Current Version:** 2.0.0 (released)
+**MSRV:** 1.88 (darling 0.23 requirement)
+**Consolidated from:** ROADMAP.md, PRODUCTION_ROADMAP.md, ROADMAP_FORWARD.md
 
 ---
 
-## 0. Current State Summary
+## Current State
 
-### 0.1 Codebase Metrics
+### Codebase Metrics
 
 | Metric | Value |
 |--------|-------|
-| Total source lines | 97,219 across 252 files |
-| Core crate | 73,724 lines (144 files) |
-| Test code | 11,202 lines (49 files) |
-| CLI crate | 6,424 lines (19 files) |
-| Server crate | 4,511 lines (18 files) |
-| Actor SDK | 1,358 lines (7 files) |
+| Total source lines | ~97K across 252 files |
 | Workspace crates | 5 (core, cli, actor-sdk, server, tests) |
-| Workspace dependencies | 70+ |
+| Languages | Rust (primary), Go/Python/JS SDKs |
+| CLI commands | 17 |
+| Feature flags | 7 (wasm, mesh, enterprise, fdb, firecracker, chaos, instance-pool) |
+| Benchmark suites | 16 Criterion + 1 memory |
+| CI/CD workflows | 13 GitHub Actions |
+| SDKs | 5 (Rust, Go, Python, JavaScript, Java) |
 
-### 0.2 Quality Gate Results (2026-05-14)
+### Test Matrix
+
+| Suite | Passed | Failed | Ignored | Total |
+|-------|--------|--------|---------|-------|
+| Unit (core) | 1,072 | 0 | 9 | 1,081 |
+| Unit (cli) | 33 | 0 | 0 | 33 |
+| Unit (server) | 59 | 0 | 0 | 59 |
+| Integration | 266 | 0 | 21 | 287 |
+| Property (proptest) | 16 | 0 | 0 | 16 |
+| Fuzz targets | 17 | 0 | 0 | 17 |
+| Security | 20 | 0 | 0 | 20 |
+| Memory benchmarks | 4 | 0 | 0 | 4 |
+| WASM E2E | 10 | 0 | 0 | 10 |
+| Doc-tests | 27 | 0 | 47 | 74 |
+| **Total** | **1,532** | **0** | **92** | **1,623** |
+
+Ignored breakdown: 9 FDB (requires running instance), 7 Firecracker (requires KVM), 21 cluster E2E (requires 3-node cluster), 47 doc-tests (reference external state), 8 test fixtures.
+
+### Quality Gates
 
 | Gate | Result |
 |------|--------|
-| `cargo test --workspace --all-features` | 1,532 passed, 0 failed, 92 ignored |
-| `cargo clippy --workspace --all-features -- -D warnings` | Zero warnings |
 | `cargo fmt --all -- --check` | Zero violations |
+| `cargo clippy --workspace --all-features -- -D warnings` | Zero warnings |
+| `cargo test --workspace --all-features` | 1,532 passed |
 | `cargo doc --workspace --no-deps` | Zero warnings |
 | Forbidden patterns (todo!, unimplemented!, stubs) | Zero found |
-| `unsafe` blocks with SAFETY comments | All 28 blocks documented |
-| Pre-commit hook (6-gate) | ACTIVE and verified |
-| Pre-push hook (5-gate) | ACTIVE and verified |
-| Dependency alignment (axum, tower-http) | Unified to 0.7 / 0.5 |
+| `unsafe` blocks with SAFETY comments | All 28 documented |
+| Pre-commit hook (6-gate) | ACTIVE: fmt, clippy, compile, test, docs, emoji/stubs |
+| Pre-push hook (5-gate) | ACTIVE |
+| Dependency alignment (axum 0.7, tower-http 0.5) | Unified |
 
-### 0.3 Issues Fixed This Session
+### v2.1.0 Code Completion
 
-| Category | Count | Details |
-|----------|-------|---------|
-| CI/CD workflow bugs | 9 | Missing test files, wrong paths, outdated nightlies, duplicate workflows, missing QEMU, wrong ports |
-| Documentation inaccuracies | 35 | Stale test counts, phantom ADR references, broken links, math errors, stale release notes |
-| Code quality | 3 | axum/tower-http version split, ws.rs type mismatch, missing hook checks |
-| Pre-commit hook gaps | 2 | Added forbidden pattern check, added unimplemented! detection |
-| Correctness fixes | 2 | G4 TOCTOU race in ActorRegistry, G2 actor cleanup on panic/failure |
-| Server wiring | 2 | S1 CoreActorBackend integration, S2 auth middleware (JWT + API key) |
-| Code quality (v2.1.0) | 3 | Q1 mesh sub-feature gates, FDB cluster file path fix, 3 new benchmark suites |
+All code tasks are DONE. TOCTOU race fixed, Actor SDK complete (1,358 LOC), server wired (CoreActorBackend + JWT/API-key auth), WASM E2E in CI, performance baseline recorded (13 Criterion suites), mesh feature gates added.
 
 ---
 
-## 1. Production Readiness Assessment
+## Version Plan
 
-### 1.1 Readiness Matrix
+### v2.1.0 -- Stability Foundation [DONE]
 
-| Criterion | Required | Current | Gap | Version Target |
-|-----------|----------|---------|-----|----------------|
-| Zero known correctness bugs | Yes | None | -- | v2.1.0 DONE |
-| Actor SDK functional | Developer can write, compile, deploy actor | Fully implemented (1,358 LOC) | -- | v2.1.0 DONE |
-| Server self-contained deployment | Single binary with persistent state | CoreActorBackend + auth wired | -- | v2.1.0 DONE |
-| CI exercises full WASM path | Compile, load, execute, verify | WASM E2E tests in CI | -- | v2.1.0 DONE |
-| Performance baseline recorded | Criterion results as CI artifact | 16 bench files, CI regression | -- | v2.1.0 DONE |
-| Test coverage (critical paths) | >95% branch | ~85% estimated | -- | v2.3.0 |
-| External security audit | Passed with zero critical | Self-audit only | -- | v2.3.0 |
-| Operations runbook | Deploy, scale, incident response | Partial | -- | v2.3.0 |
-| Load testing at target scale | 100K msg/s sustained | Not tested | -- | v2.3.0 |
-| Disaster recovery tested | Backup, restore, failover | Not tested | -- | v3.0.0 |
-| SLA documentation | Uptime, latency, error budget | None | -- | v3.0.0 |
+**Code tasks complete.** Remaining ops tasks:
 
-### 1.2 Risk Register
+| ID | Task | Priority | Effort |
+|----|------|----------|--------|
+| D1 | Fix Dockerfile to build Rust core (currently builds Python server) | P0 | 2d |
+| D2 | Add `--set image.repository` to Helm values | P0 | 0.5d |
+| D3 | Update docs-site stale version refs (1.3.0/1.4.0 to 2.0.0) | P1 | 0.5d |
+| D4 | Fix broken link in tutorial.md | P1 | 0.1d |
+| D5 | Add 6 orphan docs-site pages to mkdocs.yml nav | P1 | 0.5d |
+| D6 | Reconcile Go SDK API docs (pick BaseActor+ctx style) | P1 | 1d |
+| D7 | Fix Rust SDK status contradiction in sdks/overview.md | P2 | 0.1d |
+| D8 | Clean up VERSION.md (remove duplicate section) | P2 | 0.5d |
+| D9 | Consolidate publish.yml and sdk-publish.yml | P2 | 0.5d |
+| D10 | Standardize Go 1.22 and pnpm 9 across workflows | P2 | 0.3d |
+| D11 | Add kubeconfig step to gitops.yml | P2 | 0.5d |
+| D12 | Remove no-op jobs (sdk-compatibility, update-homebrew, publish-java) | P2 | 0.3d |
+| D13 | Gate sdk-publish version step on tag push | P2 | 0.1d |
 
-| Risk | Probability | Impact | Mitigation |
-|------|------------|--------|------------|
-| WASM FFI pointer semantics | Medium | High | Prototype in v2.1.0; rkyv for deterministic layout |
-| Actor SDK API lock-in | High | High | Semver from v2.1.0; stability guarantees |
-| io_uring kernel compatibility | Medium | High | Feature-gated; tokio fallback always available |
-| Firecracker requires KVM | High | Medium | Mock-based testing; defer to bare-metal CI |
-| FDB cluster setup complexity | Medium | High | SQLite for dev; InMemory for unit tests |
-| Lean4 proof effort vs value | Medium | Low | Proof sketches; full proofs for safety-critical only |
-| SDK API drift across languages | Medium | Medium | Shared protobuf schema; CI builds all SDKs |
-| GitHub Actions billing | Present | Medium | Account-level issue; not code-related |
+### v2.2.0 -- Performance and Parity [PLANNED, 1-3 months]
 
----
+**Targets:**
 
-## 2. Version Roadmap
+| Metric | Current | Target |
+|--------|---------|--------|
+| P99 latency (same node) | N/A | <1ms |
+| P99 latency (cross-node) | ~5ms | <2ms |
+| WASM warm spawn (from pool) | ~61us | <50us |
+| Memory per actor (idle) | ~32KB | <16KB |
+| Binary size (stripped) | TBD | <15MB |
+| Message throughput (local) | ~100K/s | 500K/s |
 
-### 2.1 v2.1.0 -- Stability Foundation (2 weeks)
+**Tasks:**
 
-**Goal:** Eliminate all known correctness issues. Make the Actor SDK usable.
+| ID | Task | Priority | Effort |
+|----|------|----------|--------|
+| P1 | Zero-copy message path (rkyv, replace stubs.rs) | P0 | 5d |
+| P2 | io_uring storage backend (monoio, feature-gated) | P0 | 5d |
+| P3 | WASM instance pool warm-up and pre-compilation | P0 | 3d |
+| P4 | Content-addressable WASM module cache | P1 | 3d |
+| P5 | Batched message dispatch (coalesce to same actor) | P1 | 2d |
+| P6 | Lock-free actor mailbox (crossbeam/atomic queue) | P1 | 3d |
+| P7 | QUIC connection pooling and multiplexing | P1 | 2d |
+| P8 | Compile-time WASM validation and pre-linking | P2 | 3d |
+| P9 | Adaptive scheduler (work-stealing with locality) | P2 | 5d |
+| P10 | Benchmark regression gating in CI | P1 | 1d |
+| L1-L2 | CLI server integration for 13 commands | P1 | 4d |
+| D1-D3 | JS/Go SDK messaging + Go OTel tracing | P1 | 3d |
+| T1-T2 | Per-tenant resource isolation and scoped secrets | P1 | 4d |
+| Q1-Q3 | Deprecate serialization_legacy, dependency cleanup | P2 | 1d |
 
-**Critical path (sequential, ~46 hours):**
-1. G4: Fix TOCTOU race in `ActorRegistry::register_named` (4h) -- **DONE**
-2. A1: Fix `export_actor!` macro to return valid serialized response (8h) -- **DONE** (was already implemented)
-3. A2: Serialization layer via postcard (no_std CBOR) (12h) -- **DONE** (was already implemented)
-4. A3: Messaging API (`ctx.send`, `ctx.request`, `ctx.emit`) (16h) -- **DONE** (was already implemented)
-5. A6: WASM E2E test in CI (compile actor, load, execute, verify) (6h) -- **DONE** (was already in CI)
+### v2.3.0 -- Production Hardening [PLANNED, 1-2 months]
 
-**Parallel workstreams (~37 hours):**
-- P1: Replace linear search with DashMap in executor (4h) -- **DONE** (was already DashMap)
-- P2: Replace fuel Vec with DashMap for lock-free tracking (3h) -- **DONE** (was already DashMap)
-- P3: Eliminate double-clone on message path via Arc<Message> (4h) -- **DONE** (was already single-clone)
-- S1: Wire server routes to aether-core engine (8h) -- **DONE**
-- S2: Authentication middleware (JWT + API key) (8h) -- **DONE**
-- C1: FDB Docker service in CI to enable 9 tests (4h) -- **DONE** (was already in 3 workflows)
-- C2: Performance regression baseline (6h) -- **DONE** (13 Criterion bench files, CI regression detection, recorded baselines)
+**Targets:**
 
-**Version criteria:**
-- [x] TOCTOU race fixed
-- [x] `export_actor!` returns valid serialized response
-- [x] Test actor compiles to wasm32-wasip1 and executes in CI
-- [x] WASM executor uses O(1) lookup
-- [x] 9 FDB integration tests run in CI
-- [x] Performance baseline recorded
+| Metric | Target |
+|--------|--------|
+| MTBF | >720h (30 days) |
+| MTTR | <30s |
+| Branch coverage (critical) | >95% |
+| External security audit | Zero critical findings |
+| Sustained throughput | 100K msg/s, P99 <5ms |
 
-### 2.2 v2.2.0 -- Performance and Parity (1-3 months)
+**Tasks:**
 
-**Goal:** Sub-millisecond actor-to-actor messaging. Full SDK parity.
+| ID | Task | Priority | Effort |
+|----|------|----------|--------|
+| H1 | Lean4 proof sketches for actor scheduler | P0 | 10d |
+| H2 | TLA+ model for cluster consensus | P0 | 10d |
+| H3 | Coverage enforcement in CI (cargo-llvm-cov) | P0 | 1d |
+| H4 | Chaos testing (partitions, disk failures, clock skew) | P1 | 5d |
+| H5 | Distributed tracing (OTLP to Jaeger/Tempo) | P1 | 3d |
+| H6 | Structured error taxonomy (severity levels 1-10) | P1 | 2d |
+| H7 | Graceful degradation under resource pressure | P1 | 3d |
+| H8 | Blue-green deployment with automated canary | P2 | 3d |
+| H9 | Security audit preparation and coordination | P1 | 5d |
+| H10 | SBOM automation (syft/cyclonedx in CI) | P2 | 1d |
+| H11 | FIPS 140-2 compliance assessment | P2 | 5d |
 
-**Critical path (~64 hours):**
-1. O2: Zero-copy message path via rkyv (20h) -- enables sub-100us round-trip
-2. O3: WASM instance pooling (16h) -- eliminates cold-start overhead
-3. L1-L2: CLI server integration for 13 commands (28h)
+### v3.0.0 -- Production Release [PLANNED, 3-6 months]
 
-**Parallel workstreams (~136 hours):**
-- O1: io_uring integration (experimental, feature-gated) (40h)
-- D1: JavaScript SDK messaging (send/call via gRPC) (12h)
-- D2: Go SDK messaging (processItem routing) (8h)
-- D3: Go SDK OpenTelemetry tracing (4h)
-- Q1: Gate mesh submodules behind feature flag (4h) -- **DONE** (mesh-circuit-breaker, mesh-region sub-features added)
-- Q2: Deprecate/remove serialization_legacy (1h)
-- Q3: Dependency cleanup (deduplicate chrono/time, unify futures) (4h)
-- T1: Per-tenant resource isolation (CPU/memory/network quotas) (20h)
-- T2: Tenant-scoped secrets with audit trail (12h)
+**Targets:**
 
-**Version criteria:**
-- [ ] P99 actor-to-actor latency <1ms (same node)
-- [ ] WASM warm spawn <50us
-- [ ] CLI can deploy and manage actors on a running server
-- [ ] All SDKs can send/receive messages via mesh
-- [ ] io_uring available behind feature flag
+| Requirement | Target |
+|-------------|--------|
+| Uptime SLA | 99.95% |
+| RPO | 0 (synchronous replication) |
+| RTO | <60s (automated failover) |
+| Scale | 100+ nodes, 1M+ actors |
+| Regions | 3+ active-active |
+| Support | Commercial tier with response SLA |
 
-### 2.3 v2.3.0 -- Production Hardening (1-2 months)
+**Tasks:**
 
-**Goal:** Pass external security audit. Handle 1K-node clusters under chaos.
+| ID | Task | Priority | Effort |
+|----|------|----------|--------|
+| G1 | Multi-region active-active mesh | P0 | 15d |
+| G2 | Automated failover with health-based routing | P0 | 10d |
+| G3 | Native WASM actor SDKs for Go/Python/JS | P0 | 20d |
+| G4 | OCI-compliant actor registry (push/pull/sign .wasm) | P1 | 10d |
+| G5 | Web dashboard (topology, metrics, traces) | P1 | 10d |
+| G6 | API gateway (rate limiting, auth, routing) | P1 | 5d |
+| G7 | Terraform provider | P2 | 10d |
+| G8 | Helm chart hardening (PDB, HPA, VPA, network policies) | P1 | 5d |
+| G9 | Observability stack (VictoriaMetrics + Grafana) | P1 | 5d |
+| G10 | GitOps deployment (ArgoCD/Flux integration) | P1 | 4d |
+| G11 | Python-to-Rust migration tooling | P0 | 10d |
+| G12 | 100-node load test (1M actors) | P1 | 5d |
+| E1 | TUI dashboard (ratatui) | P2 | 4d |
+| E2 | Plugin system (dynamic loading via WASM) | P2 | 5d |
+| F1 | Complete Lean4 proofs (3 verified theorems) | P2 | 10d |
+| F2 | TLA+ model checking (migration protocol) | P2 | 4d |
 
-**Workstreams:**
-- External security audit coordination and remediation
-- Load testing: 1K concurrent actors, 100K messages/s sustained
-- Chaos testing: network partitions, node failures, state corruption
-- Multi-tenancy enforcement with quota monitoring
-- SLA documentation: uptime SLO, latency SLO, error budget policy
-- Operations runbook: deployment, scaling, incident response
-- Code coverage push: >95% branch on critical paths
+### v3.1.0 -- Edge and IoT [PLANNED]
 
-**Version criteria:**
-- [ ] External security audit passed with zero critical findings
-- [ ] Sustained 100K messages/s with P99 <5ms
-- [ ] Cluster survives random node failure without data loss
-- [ ] Tenant isolation enforced (no cross-tenant resource impact)
-- [ ] >95% branch coverage on critical paths
+- MCU support: lightweight single-binary for resource-constrained devices (<64MB RAM)
+- WASI preview 2: upgrade from preview 1 for improved capability model
+- Aggressive memory pooling: target <8KB per actor
+- Network partition tolerance: CRDTs for local-first offline operation
+- Air-gapped deployment: full offline install with no external dependencies
+- Hardware abstraction: GPIO/I2C/SPI access from WASM actors
 
-### 2.4 v3.0.0 -- Production Release (3-6 months)
+### v3.2.0 -- AI-Native Runtime [PLANNED]
 
-**Goal:** Public production release with full ecosystem.
+- Model serving actors: hot-loaded ML models as WASM actors with automatic batching
+- Prompt injection defense: sandboxed LLM I/O with content policy enforcement
+- Token budget enforcement: per-actor and per-tenant token quotas
+- GPU passthrough: WGPU backend for inference acceleration
+- Semantic routing: automatic actor placement based on workload characteristics
+- Autonomous agent patterns: multi-step reasoning with tool-use actors
 
-**Workstreams (~390 hours):**
-- I1: Blue-green deployment with automatic rollback (40h)
-- I2: Full observability stack (OTLP, Grafana dashboards, alerting) (30h)
-- I3: GitOps deployment (aether deploy from git, ArgoCD/Flux) (20h)
-- M1: OCI-compliant actor registry (push/pull/sign .wasm) (40h)
-- M2: Actor composition (declarative topology in aether.toml) (20h)
-- E1: Web dashboard (actor topology, metrics, deployment) (60h)
-- E2: TUI dashboard (ratatui-based terminal UI) (30h)
-- E3: Plugin system (dynamic loading via WASM) (40h)
-- F1: Complete Lean4 proofs (3 verified theorems) (80h)
-- F2: TLA+ model checking (migration protocol spec) (30h)
+### v3.3.0 -- Multi-Cloud Federation [PLANNED]
 
-**Version criteria:**
-- [ ] Zero-downtime rolling deployment
-- [ ] Complete observability (traces, metrics, logs)
-- [ ] Public documentation for external operators
-- [ ] At least 3 non-trivial example applications deployed
-- [ ] Actor marketplace with OCI registry
-- [ ] Plugin system functional
+- Cross-cloud state replication: eventually consistent across AWS/GCP/Azure
+- Global load balancing: QUIC mesh spanning multiple providers
+- Multi-tenant isolation: hardware-level separation via namespace isolation
+- Cost optimization: automatic actor placement based on spot/preemptible pricing
+- Federated identity: cross-cluster mTLS with shared CA
 
----
+### v4.0.0 -- Universal Runtime Vision [PLANNED]
 
-## 3. Future Plans (v3.1.0+)
-
-### 3.1 v3.1.0 -- Edge and IoT
-
-- Lightweight single-binary for resource-constrained devices (<64MB RAM)
-- OTA updates: remote actor code update without downtime
-- Local-first state via CRDTs for offline operation
-- Hardware abstraction: GPIO/I2C/SPI from WASM actors (embedded)
-
-### 3.2 v3.2.0 -- AI-Native Runtime
-
-- First-class LLM inference actor type
-- GPU passthrough via WGPU backend
-- Model serving: hot-loaded ML models as WASM actors
-- Prompt engineering SDK as composable actor graphs
-
-### 3.3 v3.3.0 -- Multi-Cloud Federation
-
-- QUIC mesh spanning AWS, GCP, Azure simultaneously
-- Federated identity with cross-cluster mTLS
-- Eventually consistent state replication across regions
-- Automatic actor placement based on spot/preemptible pricing
-
-### 3.4 v4.0.0 -- Universal Runtime Vision
-
-The long-term goal: replace the entire Kubernetes/Docker/CI/CD stack with a single platform.
-
-- Built-in CI/CD: `aether push` compiles, tests, deploys
-- Built-in service mesh: no Istio/linkerd needed
-- Built-in observability: no Prometheus/Grafana needed
-- Built-in secrets: no Vault needed
+- Language-agnostic actor interface: WASM Component Model as universal ABI
+- Hardware acceleration: CHERI/RISC-V integration for hardware-enforced sandboxing
+- Formal verification: full Lean4 proofs for scheduler and consensus
+- Built-in CI/CD, service mesh, observability, secrets (replace external stack)
 - Universal compatibility: WASM for new code, Firecracker VMs for legacy containers
 
-### 3.5 Research Track (No Timeline)
+---
 
-| Topic | Description | Dependency |
-|-------|-------------|------------|
-| WASM GC | Garbage-collected languages (Java, Kotlin) to WASM | WasmGC spec stabilization |
-| WASM Threads | Multi-threaded WASM actors with shared memory | Thread proposal phase 2 |
-| CHERI integration | Hardware-enforced sandboxing via CHERI/RISC-V | CHERI hardware availability |
-| Scheduler formal verification | Full Lean4 proof of work-stealing correctness | Proof engineering effort |
-| Deterministic replay | Record and replay actor execution for debugging | Event log architecture |
-| Distributed consensus | Replace gossip with Raft for strong consistency | Use-case requirements |
+## Technical Debt
+
+| Priority | Item | Version Target | Status |
+|----------|------|----------------|--------|
+| P0 | Dockerfile builds Python server, not Rust core | v2.1.0 | Open |
+| P0 | Non-Rust SDKs are gRPC clients, not native WASM | v3.0.0 | Architectural |
+| P1 | `actor/zero_copy/stubs.rs` (141 LOC stub) | v2.2.0 | Planned |
+| P1 | GitHub Actions billing limit blocks all workflows | External | Open |
+| P1 | Pin third-party actions to SHA (supply-chain risk) | v2.1.0 | Open |
+| P2 | Lean4 proofs contain `sorry` (5 theorems) | v3.0.0 | Planned |
+| P2 | 47 ignored doc-tests (reference external state) | v2.2.0 | Planned |
+| P2 | `.docs/` files stale (last updated 2026-03-12) | v2.1.0 | Open |
+| P3 | Consolidate duplicate CI workflows | v2.1.0 | Open |
+| P3 | Remove remaining `|| true` in chaos/stress tests | v2.2.0 | Deferred |
+| P3 | Unify Rust toolchain via rust-toolchain.toml | v2.1.0 | Open |
 
 ---
 
-## 4. Technical Debt Tracker
+## Risk Register
 
-### 4.1 Known Issues (From This Audit)
-
-| ID | Issue | Severity | Version Target | Status |
-|----|-------|----------|----------------|--------|
-| G4 | TOCTOU race in ActorRegistry::register_named | Critical | v2.1.0 | **Fixed** |
-| G1 | Actor SDK is scaffold (export_actor! returns null) | Critical | v2.1.0 | **Already done** (1,358 LOC, fully implemented) |
-| G2 | Server is prototype (partial SQLite wiring) | High | v2.1.0 | **Fixed** (CoreActorBackend + auth middleware wired) |
-| G8 | O(n) actor lookup in executor | Medium | v2.1.0 | **Already done** (DashMap) |
-| G9 | No performance regression detection | Medium | v2.1.0 | **Already done** (13 Criterion benches, CI regression) |
-| G10 | Plugin system is re-exports only (12 LOC) | Low | v3.0.0 | **Already done** (1,549 LOC) |
-| G11 | Lean4 proofs contain `sorry` | Low | v3.0.0 | Planned |
-| G12 | Mesh submodules compiled unconditionally | Low | v2.2.0 | **Fixed** (mesh-circuit-breaker, mesh-region sub-features) |
-| G13 | Double-clone on message hot path | Medium | v2.1.0 | **Already done** (single-clone + move) |
-
-### 4.2 CI/CD Improvements Needed
-
-| Item | Priority | Details |
-|------|----------|---------|
-| Resolve GitHub Actions billing | Blocking | Account-level spending limit issue; all workflows fail with billing error |
-| Pin third-party actions to SHA | Medium | All 13 workflows use tag-based versions; supply-chain risk |
-| Remove remaining `|| true` | Medium | integration.yml chaos/stress tests mask failures (acceptable for scheduled) |
-| Add Swatinem/rust-cache to all workflows | Low | Faster CI via intelligent caching |
-| Unify Rust toolchain via rust-toolchain.toml | Low | All workflows hardcode nightly-2026-03-01 |
-| Fix bibliography.md anchor links | Low | 7 broken anchors from `&` removal in heading slugs |
-| Fix .github/ISSUE_TEMPLATE absolute links | Low | 5 broken links use `/` prefix instead of relative |
-| Consolidate duplicate roadmaps | Low | 3 active roadmap files overlap (ROADMAP.md, PRODUCTION_ROADMAP.md, ROADMAP_FORWARD.md) |
+| Risk | Probability | Impact | Mitigation |
+|------|-------------|--------|------------|
+| WASM FFI pointer semantics breakage | Medium | High | rkyv for deterministic layout; pin wasmtime 25.x |
+| Actor SDK API lock-in | High | High | Semver from v2.1.0; stability guarantees; deprecation policy |
+| io_uring kernel compatibility | Medium | High | Feature-gated; tokio fallback always available |
+| Firecracker requires KVM | High | Medium | Mock-based testing; defer to bare-metal CI |
+| FoundationDB operational complexity | Medium | High | In-memory FDB default; SQLite for dev |
+| Formal verification cost vs value | Medium | Low | Proof sketches first; full proofs for safety-critical only |
+| SDK API drift across languages | Medium | Medium | Shared protobuf schema; CI builds all SDKs |
+| Multi-region consistency | High | High | Start active-passive; evolve to active-active |
+| Performance targets not met | Medium | Medium | Profile early in v2.1.0; adjust targets on data |
+| GitHub Actions billing exhaustion | Present | Medium | Increase spending limit; evaluate self-hosted runners |
 
 ---
 
-## 5. Success Metrics Trajectory
+## Effort Summary
 
-| Metric | v2.0.1 (Current) | v2.1.0 | v2.2.0 | v2.3.0 | v3.0.0 | v4.0.0 |
-|--------|------------------|--------|--------|--------|--------|--------|
-| Total tests | 1,532 | 1,600+ | 1,750+ | 2,000+ | 2,200+ | 3,000+ |
-| Ignored tests | 92 | 81 | 51 | 30 | 15 | 0 |
-| Critical code issues | 1 | 0 | 0 | 0 | 0 | 0 |
-| P99 latency (same node) | N/A | N/A | <1ms | <1ms | <1ms | <1ms |
-| Cold start time | ~61us | <50us | <20us | <15us | <10us | <10us |
-| Throughput (msg/s) | N/A | 10K | 100K | 100K | 500K | 1M |
-| Max cluster size | 3 | 3 | 10 | 100 | 100 | 1K |
-| Branch coverage (critical) | ~85% | ~90% | ~92% | >95% | >95% | >95% |
-| Published crates | 4 | 4 | 4 | 4 | 5 | 5 |
-| SDK languages | 1 (Rust) | 1 | 4 | 4 | 4 | 5+ |
-| External audit | No | No | No | Yes | Yes | Yes |
-
----
-
-## 6. Build Order and Dependencies
-
-```
-v2.1.0 Critical Path:
-
-  G4 (TOCTOU fix) [4h, must be first]
-  |
-  +---> A1 (export_actor!) [8h]
-  |       |
-  |       +---> A2 (serialization) [12h]
-  |               |
-  |               +---> A3 (messaging API) [16h]
-  |                       |
-  |                       +---> A6 (E2E WASM CI) [6h]
-
-  Parallel tracks:
-  P1 (DashMap executor) [4h]
-  P2 (DashMap fuel) [3h]
-  P3 (Arc<Message>) [4h]
-  S1 (server wiring) [8h] ---> S2 (auth) [8h]
-  C1 (FDB in CI) [4h]
-  C2 (perf baseline) [6h]
-
-v2.2.0 Critical Path:
-
-  O2 (zero-copy) [20h]
-  |
-  +---> O3 (instance pooling) [16h]
-
-  L1 (CLI wiring) [20h] ---> L2 (aether run) [8h]
-
-  Parallel:
-  O1 (io_uring) [40h, experimental]
-  D1-D3 (SDK parity) [24h]
-  T1-T2 (multi-tenancy) [32h]
-  Q1-Q3 (code quality) [9h]
-
-v3.0.0 Critical Path:
-
-  I1 (blue-green) [40h] ---> I3 (GitOps) [20h]
-  M1 (OCI registry) [40h] ---> M2 (composition) [20h]
-  I2 (observability) [30h, parallel]
-  E1-E3 (dashboards + plugins) [130h, parallel]
-  F1-F2 (formal verification) [110h, parallel]
-```
-
----
-
-## 7. Effort Summary
-
-| Phase | Effort (hours) | Calendar Time | Risk Level |
-|-------|----------------|---------------|------------|
-| v2.1.0 Stability | ~94 | 2 weeks | Medium |
+| Phase | Effort (hours) | Calendar Time | Risk |
+|-------|----------------|---------------|------|
+| v2.1.0 ops (code done) | ~60 | 1-2 weeks | Low |
 | v2.2.0 Performance | ~200 | 1-3 months | Medium-High |
 | v2.3.0 Hardening | ~160 | 1-2 months | High |
 | v3.0.0 Production | ~390 | 3-6 months | High |
 | v3.1.0+ Future | TBD | TBD | TBD |
-| **Total to production** | **~844** | **~12 months** | -- |
+| **Total to production** | **~810** | **~12 months** | -- |
 
 ---
 
-*Generated: 2026-05-15. Next review: 2026-05-29.*
+## Decision Log
+
+| Decision | Rationale | Date |
+|----------|-----------|------|
+| MSRV 1.88 | darling 0.23 requires it; no practical workaround | 2026-05 |
+| Zero-copy via rkyv | Deterministic memory layout; no_std compatible; outperforms serde | 2026-05 |
+| postcard for Actor SDK serialization | no_std CBOR; small codegen; WASM-friendly | 2026-05 |
+| DashMap for executor lookups | O(1) concurrent lookup; replaces O(n) Vec scan | 2026-05 |
+| Feature-gate mesh submodules | Reduce binary size for non-mesh deployments | 2026-05 |
+| Tokio primary runtime, monoio experimental | io_uring kernel compatibility risk; tokio is battle-tested | 2026-05 |
+| JWT + API key auth | Covers both human operators and programmatic access | 2026-05 |
+| SQLite for dev, FDB for production | FDB operational complexity too high for local development | 2026-05 |
+| Active-passive before active-active | Multi-region consistency is high-risk; incremental approach | 2026-05 |
+| Lean4 proofs: sketches before full verification | Proof engineering is expensive; focus on safety-critical paths | 2026-05 |
+
+---
+
+## Metrics Trajectory
+
+| Metric | v2.0.0 | v2.1.0 | v2.2.0 | v2.3.0 | v3.0.0 | v4.0.0 |
+|--------|--------|--------|--------|--------|--------|--------|
+| Tests passing | 1,532 | 1,600+ | 2,000+ | 2,500+ | 3,000+ | 3,000+ |
+| Ignored tests | 92 | 81 | 51 | 30 | 15 | 0 |
+| P99 latency (same node) | N/A | N/A | <1ms | <1ms | <1ms | <1ms |
+| Cold start (warm) | ~61us | <50us | <50us | <50us | <50us | <10us |
+| Throughput (msg/s) | N/A | 10K | 100K | 100K | 500K | 1M |
+| Max cluster size | 3 | 3 | 10 | 50 | 100+ | 1K |
+| Branch coverage (critical) | ~85% | ~90% | ~92% | >95% | >95% | >95% |
+| Native WASM SDKs | 1 | 1 | 2 | 4 | 5 | 5+ |
+| External audit | No | No | No | Yes | Yes | Yes |
+
+---
+
+*Consolidated: 2026-05-16. Next review: 2026-05-30.*
