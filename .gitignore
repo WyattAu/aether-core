@@ -44,7 +44,8 @@ node_modules/
 coverage/
 .pnpm-store/
 
-# Docs build output (regenerate from source)
+# Docs build output
+docs-site/site/
 sdks/python/docs/_build/
 pytestdebug.log
 
