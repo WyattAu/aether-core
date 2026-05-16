@@ -48,7 +48,7 @@ jobs:
 
       - name: Run benchmarks
         run: |
-          cargo bench --package aether-core -- --output-format bencher 2>&1 | tee benchmark-results.txt
+          cargo bench --package aether-core --features "wasm,mesh,rkyv" -- --output-format bencher 2>&1 | tee benchmark-results.txt
       
       - name: Download previous baseline
         continue-on-error: true
