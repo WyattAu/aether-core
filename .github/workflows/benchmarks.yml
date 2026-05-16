@@ -49,6 +49,12 @@ jobs:
       - name: Run benchmarks
         run: |
           cargo bench --package aether-core --features "wasm,mesh,rkyv" -- --output-format bencher 2>&1 | tee benchmark-results.txt
+          # Verify at least one benchmark ran
+          if ! grep -q 'test' benchmark-results.txt; then
+            echo "WARNING: No benchmark output detected. Benchmark compilation may have failed."
+            echo "Benchmark output was:"
+            cat benchmark-results.txt
+          fi
       
       - name: Download previous baseline
         continue-on-error: true
