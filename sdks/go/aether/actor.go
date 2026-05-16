@@ -89,16 +89,6 @@ func (a *BaseActor) OnStop(ctx context.Context) error {
 	return nil
 }
 
-// OnStart is called when the actor starts.
-func (a *BaseActor) OnStart(ctx context.Context) error {
-	return nil
-}
-
-// OnStop is called when the actor stops.
-func (a *BaseActor) OnStop(ctx context.Context) error {
-	return nil
-}
-
 // Require declares required capabilities.
 func (a *BaseActor) Require(capabilities ...Capability) {
 	for _, cap := range capabilities {

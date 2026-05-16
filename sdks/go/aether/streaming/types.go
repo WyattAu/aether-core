@@ -48,6 +48,10 @@ func (ts Timestamp) Equal(other Timestamp) bool {
 	return ts.Milliseconds == other.Milliseconds
 }
 
+func (ts Timestamp) IsZero() bool {
+	return ts.Milliseconds == 0
+}
+
 type Duration struct {
 	Milliseconds int64
 }

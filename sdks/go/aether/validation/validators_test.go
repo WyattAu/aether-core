@@ -2,6 +2,7 @@ package validation
 
 import (
 	"encoding/json"
+	"regexp"
 	"testing"
 	"time"
 )
@@ -609,7 +610,7 @@ func TestValidateString(t *testing.T) {
 			if !tt.pattern {
 				pat = nil
 			}
-			if got := ValidateString(tt.value, tt.minLen, tt.maxLen, pat.(*import_regexp.Regexp)); got != tt.valid {
+			if got := ValidateString(tt.value, tt.minLen, tt.maxLen, pat.(*regexp.Regexp)); got != tt.valid {
 				t.Errorf("ValidateString() = %v, want %v", got, tt.valid)
 			}
 		})
