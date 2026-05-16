@@ -75,16 +75,16 @@ impl ServerConfig {
     pub fn from_env() -> Self {
         let mut config = Self::default();
 
-        if let Ok(port) = env::var("AETHER_HTTP_PORT") {
-            if let Ok(p) = port.parse() {
-                config.http_port = p;
-            }
+        if let Ok(port) = env::var("AETHER_HTTP_PORT")
+            && let Ok(p) = port.parse()
+        {
+            config.http_port = p;
         }
 
-        if let Ok(port) = env::var("AETHER_GRPC_PORT") {
-            if let Ok(p) = port.parse() {
-                config.grpc_port = p;
-            }
+        if let Ok(port) = env::var("AETHER_GRPC_PORT")
+            && let Ok(p) = port.parse()
+        {
+            config.grpc_port = p;
         }
 
         if let Ok(val) = env::var("AETHER_CLUSTER_ENABLED") {

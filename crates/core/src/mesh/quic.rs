@@ -257,10 +257,10 @@ impl QuicEndpoint {
         let lock = self.connection_pool.get_or_wait_connect_lock(node_id).await;
         let _guard = lock.lock().await;
 
-        if let Some((conn, state)) = self.connection_pool.get_connection(node_id) {
-            if state == ConnectionState::Active {
-                return Ok(conn);
-            }
+        if let Some((conn, state)) = self.connection_pool.get_connection(node_id)
+            && state == ConnectionState::Active
+        {
+            return Ok(conn);
         }
 
         for attempt in 0..self.reconnect_config.max_attempts {
@@ -522,11 +522,10 @@ impl QuicServer {
 
                             match endpoint.recv_message(&conn).await {
                                 Ok((msg, remote_addr)) => {
-                                    if let Some(response) = handler(msg, remote_addr) {
-                                        if let Err(e) = Self::send_response(&conn, &response).await
-                                        {
-                                            tracing::error!("Failed to send response: {}", e);
-                                        }
+                                    if let Some(response) = handler(msg, remote_addr)
+                                        && let Err(e) = Self::send_response(&conn, &response).await
+                                    {
+                                        tracing::error!("Failed to send response: {}", e);
                                     }
                                 }
                                 Err(e) => {

@@ -221,13 +221,12 @@ impl FileLogStreamer {
                     line = lines.next_line() => {
                         match line {
                             Ok(Some(line)) => {
-                                if let Some(entry) = parse_log_line(&line) {
-                                    if entry_tx.send(entry).await.is_err() {
-                                        break;
-                                    }
+                                if let Some(entry) = parse_log_line(&line)
+                                    && entry_tx.send(entry).await.is_err()
+                                {
+                                    break;
                                 }
-                            }
-                            Ok(None) => {
+                            }Ok(None) => {
                                 tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
                             }
                             Err(e) => {
@@ -490,40 +489,36 @@ impl DashboardLogFetcher {
 
         let mut entries = Vec::new();
 
-        if let Ok(resp) = traces_resp {
-            if resp.status().is_success() {
-                if let Ok(traces) = resp.json::<Vec<serde_json::Value>>().await {
-                    for trace in &traces {
-                        let operation = trace
-                            .get("operation")
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("unknown");
-                        let duration = trace
-                            .get("duration_us")
-                            .and_then(|v| v.as_u64())
-                            .unwrap_or(0);
+        if let Ok(resp) = traces_resp
+            && resp.status().is_success()
+            && let Ok(traces) = resp.json::<Vec<serde_json::Value>>().await
+        {
+            for trace in &traces {
+                let operation = trace
+                    .get("operation")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("unknown");
+                let duration = trace
+                    .get("duration_us")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(0);
 
-                        let actor = trace
-                            .get("operation")
-                            .and_then(|v| v.as_str())
-                            .and_then(|s| s.split("::").next())
-                            .map(|s| s.to_string());
+                let actor = trace
+                    .get("operation")
+                    .and_then(|v| v.as_str())
+                    .and_then(|s| s.split("::").next())
+                    .map(|s| s.to_string());
 
-                        if let Some(ref filter) = self.actor_filter {
-                            if actor.as_deref() != Some(filter.as_str()) {
-                                continue;
-                            }
-                        }
-
-                        entries.push(
-                            LogEntry::new(
-                                LogLevel::Info,
-                                format!("{} ({}us)", operation, duration),
-                            )
-                            .with_actor(actor.unwrap_or_else(|| "system".to_string())),
-                        );
-                    }
+                if let Some(ref filter) = self.actor_filter
+                    && actor.as_deref() != Some(filter.as_str())
+                {
+                    continue;
                 }
+
+                entries.push(
+                    LogEntry::new(LogLevel::Info, format!("{} ({}us)", operation, duration))
+                        .with_actor(actor.unwrap_or_else(|| "system".to_string())),
+                );
             }
         }
 
@@ -586,16 +581,16 @@ fn should_display(
     level_filter: &Option<LogLevel>,
     actor_filter: &Option<String>,
 ) -> bool {
-    if let Some(filter) = level_filter {
-        if entry.level < *filter {
-            return false;
-        }
+    if let Some(filter) = level_filter
+        && entry.level < *filter
+    {
+        return false;
     }
 
-    if let Some(actor) = actor_filter {
-        if entry.actor.as_deref() != Some(actor.as_str()) {
-            return false;
-        }
+    if let Some(actor) = actor_filter
+        && entry.actor.as_deref() != Some(actor.as_str())
+    {
+        return false;
     }
 
     true
@@ -671,10 +666,10 @@ fn parse_log_line(line: &str) -> Option<LogEntry> {
         return None;
     }
 
-    if line.starts_with('{') {
-        if let Ok(entry) = serde_json::from_str::<LogEntry>(line) {
-            return Some(entry);
-        }
+    if line.starts_with('{')
+        && let Ok(entry) = serde_json::from_str::<LogEntry>(line)
+    {
+        return Some(entry);
     }
 
     let remaining = line;

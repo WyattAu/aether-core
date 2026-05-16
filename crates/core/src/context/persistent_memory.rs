@@ -219,14 +219,14 @@ impl PersistentMemoryStore {
         };
 
         // Try to load existing data
-        if store.file_path.exists() {
-            if let Err(e) = store.load() {
-                tracing::warn!(
-                    "Failed to load memory from {}: {}",
-                    store.file_path.display(),
-                    e
-                );
-            }
+        if store.file_path.exists()
+            && let Err(e) = store.load()
+        {
+            tracing::warn!(
+                "Failed to load memory from {}: {}",
+                store.file_path.display(),
+                e
+            );
         }
 
         store
@@ -257,10 +257,10 @@ impl PersistentMemoryStore {
         entries.push(Arc::new(entry));
 
         // Auto-save if enabled
-        if self.auto_save {
-            if let Err(e) = self.save_internal(&entries) {
-                tracing::warn!("Failed to auto-save memory: {}", e);
-            }
+        if self.auto_save
+            && let Err(e) = self.save_internal(&entries)
+        {
+            tracing::warn!("Failed to auto-save memory: {}", e);
         }
     }
 
@@ -424,10 +424,10 @@ impl PersistentMemoryStore {
             self.index.write().add_entry(persistent);
 
             // Auto-save
-            if self.auto_save {
-                if let Err(e) = self.save_internal(&entries) {
-                    tracing::warn!("Failed to auto-save memory: {}", e);
-                }
+            if self.auto_save
+                && let Err(e) = self.save_internal(&entries)
+            {
+                tracing::warn!("Failed to auto-save memory: {}", e);
             }
 
             true
@@ -444,10 +444,10 @@ impl PersistentMemoryStore {
             let removed = entries.remove(pos);
             self.index.write().remove_entry(&removed);
 
-            if self.auto_save {
-                if let Err(e) = self.save_internal(&entries) {
-                    tracing::warn!("Failed to auto-save memory: {}", e);
-                }
+            if self.auto_save
+                && let Err(e) = self.save_internal(&entries)
+            {
+                tracing::warn!("Failed to auto-save memory: {}", e);
             }
 
             true
@@ -497,10 +497,10 @@ impl PersistentMemoryStore {
         entries.clear();
         *self.index.write() = MemoryIndex::default();
 
-        if self.auto_save {
-            if let Err(e) = self.save_internal(&entries) {
-                tracing::warn!("Failed to auto-save memory: {}", e);
-            }
+        if self.auto_save
+            && let Err(e) = self.save_internal(&entries)
+        {
+            tracing::warn!("Failed to auto-save memory: {}", e);
         }
     }
 
@@ -529,10 +529,11 @@ impl PersistentMemoryStore {
 
         let pruned = initial_len - entries.len();
 
-        if pruned > 0 && self.auto_save {
-            if let Err(e) = self.save_internal(&entries) {
-                tracing::warn!("Failed to auto-save memory: {}", e);
-            }
+        if pruned > 0
+            && self.auto_save
+            && let Err(e) = self.save_internal(&entries)
+        {
+            tracing::warn!("Failed to auto-save memory: {}", e);
         }
 
         pruned

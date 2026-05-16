@@ -202,10 +202,10 @@ impl Headers {
     pub fn to_http(&self) -> http::header::HeaderMap {
         let mut map = http::header::HeaderMap::new();
         for (name, value) in &self.0 {
-            if let Ok(header_name) = http::header::HeaderName::try_from(name.clone()) {
-                if let Ok(header_value) = http::header::HeaderValue::from_bytes(value) {
-                    map.append(header_name, header_value);
-                }
+            if let Ok(header_name) = http::header::HeaderName::try_from(name.clone())
+                && let Ok(header_value) = http::header::HeaderValue::from_bytes(value)
+            {
+                map.append(header_name, header_value);
             }
         }
         map
@@ -861,12 +861,11 @@ async fn handle_connection(
                     let mut builder = Response::builder().status(response.status);
 
                     for (name, value) in response.headers.iter() {
-                        if let Ok(header_name) = http::header::HeaderName::try_from(name.clone()) {
-                            if let Ok(header_value) =
+                        if let Ok(header_name) = http::header::HeaderName::try_from(name.clone())
+                            && let Ok(header_value) =
                                 http::header::HeaderValue::from_bytes(value.as_slice())
-                            {
-                                builder = builder.header(header_name, header_value);
-                            }
+                        {
+                            builder = builder.header(header_name, header_value);
                         }
                     }
 

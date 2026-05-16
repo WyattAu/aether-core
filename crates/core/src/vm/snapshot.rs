@@ -425,12 +425,10 @@ impl SnapshotManager {
             if path
                 .extension()
                 .is_some_and(|ext| ext == self.config.state_suffix.trim_start_matches('.'))
+                && let Some(stem) = path.file_stem()
+                && let Some(name) = stem.to_str()
             {
-                if let Some(stem) = path.file_stem() {
-                    if let Some(name) = stem.to_str() {
-                        snapshots.push(name.to_string());
-                    }
-                }
+                snapshots.push(name.to_string());
             }
         }
 

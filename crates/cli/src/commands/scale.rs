@@ -58,22 +58,22 @@ pub async fn execute(args: ScaleArgs) -> Result<(), Error> {
         ));
     }
 
-    if let Some(min) = args.min {
-        if args.replicas < min {
-            return Err(Error::InvalidReplicaCount(format!(
-                "Replicas ({}) is less than minimum ({})",
-                args.replicas, min
-            )));
-        }
+    if let Some(min) = args.min
+        && args.replicas < min
+    {
+        return Err(Error::InvalidReplicaCount(format!(
+            "Replicas ({}) is less than minimum ({})",
+            args.replicas, min
+        )));
     }
 
-    if let Some(max) = args.max {
-        if args.replicas > max {
-            return Err(Error::InvalidReplicaCount(format!(
-                "Replicas ({}) exceeds maximum ({})",
-                args.replicas, max
-            )));
-        }
+    if let Some(max) = args.max
+        && args.replicas > max
+    {
+        return Err(Error::InvalidReplicaCount(format!(
+            "Replicas ({}) exceeds maximum ({})",
+            args.replicas, max
+        )));
     }
 
     let client = reqwest::Client::builder()

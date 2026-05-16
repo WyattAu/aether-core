@@ -483,16 +483,14 @@ impl SecurityAuditLog {
                 continue;
             }
 
-            if let Some(ref sig) = event.signature {
-                if let Some(ref key) = self.signing_key {
-                    let expected = self.sign_event(event, key);
-                    if sig != &expected {
-                        result.chain_intact = false;
-                        result.first_break = Some(idx);
-                        result.invalid_events += 1;
-                        continue;
-                    }
-                }
+            if let Some(ref sig) = event.signature
+                && let Some(ref key) = self.signing_key
+                && sig != &self.sign_event(event, key)
+            {
+                result.chain_intact = false;
+                result.first_break = Some(idx);
+                result.invalid_events += 1;
+                continue;
             }
 
             expected_prev_hash = event.event_hash;

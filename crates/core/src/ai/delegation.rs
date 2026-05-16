@@ -233,13 +233,11 @@ impl AiDelegationManager {
         let request_id = response.request_id.clone();
 
         // Remove from pending
-        if let Some(request) = self.pending.write().remove(&request_id) {
-            // Update actor load
-            if let Some(target) = request.target_actor {
-                if let Some(cap) = self.capabilities.write().get_mut(&target) {
-                    cap.current_tasks = cap.current_tasks.saturating_sub(1);
-                }
-            }
+        if let Some(request) = self.pending.write().remove(&request_id)
+            && let Some(target) = request.target_actor
+            && let Some(cap) = self.capabilities.write().get_mut(&target)
+        {
+            cap.current_tasks = cap.current_tasks.saturating_sub(1);
         }
 
         // Store completed

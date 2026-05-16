@@ -41,15 +41,14 @@ fn resolve_path(root_dir: &Path, path_str: &str) -> Result<PathBuf> {
         }
         Err(_) => {
             // File doesn't exist - check parent directory
-            if let Some(parent) = resolved.parent() {
-                if let Ok(canonical_parent) = parent.canonicalize() {
-                    if !canonical_parent.starts_with(root_dir) {
-                        return Err(Error::capability_denied_simple(format!(
-                            "Path '{}' resolves outside root directory",
-                            path_str
-                        )));
-                    }
-                }
+            if let Some(parent) = resolved.parent()
+                && let Ok(canonical_parent) = parent.canonicalize()
+                && !canonical_parent.starts_with(root_dir)
+            {
+                return Err(Error::capability_denied_simple(format!(
+                    "Path '{}' resolves outside root directory",
+                    path_str
+                )));
             }
             Ok(resolved)
         }
@@ -147,13 +146,13 @@ impl ToolExecutor for WriteFileTool {
         let path = resolve_path(&self.root_dir, path_str)?;
 
         // Create parent directories if needed
-        if let Some(parent) = path.parent() {
-            if let Err(e) = tokio::fs::create_dir_all(parent).await {
-                return Ok(ToolResult::error(format!(
-                    "Failed to create directories: {}",
-                    e
-                )));
-            }
+        if let Some(parent) = path.parent()
+            && let Err(e) = tokio::fs::create_dir_all(parent).await
+        {
+            return Ok(ToolResult::error(format!(
+                "Failed to create directories: {}",
+                e
+            )));
         }
 
         match tokio::fs::write(&path, content).await {
@@ -318,10 +317,10 @@ impl SearchFilesTool {
             for entry in entries.flatten() {
                 let name = entry.file_name().to_string_lossy().to_string();
 
-                if name.to_lowercase().contains(&pattern_lower) {
-                    if let Ok(relative) = entry.path().strip_prefix(&self.root_dir) {
-                        results.push(relative.to_string_lossy().to_string());
-                    }
+                if name.to_lowercase().contains(&pattern_lower)
+                    && let Ok(relative) = entry.path().strip_prefix(&self.root_dir)
+                {
+                    results.push(relative.to_string_lossy().to_string());
                 }
 
                 let path = entry.path();

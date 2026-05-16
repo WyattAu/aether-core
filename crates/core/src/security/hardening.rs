@@ -327,11 +327,11 @@ impl HardeningReport {
 
         self.recommendations.clear();
         for check in &self.checks {
-            if check.status == CheckStatus::Fail || check.status == CheckStatus::Warn {
-                if let Some(ref remediation) = check.remediation {
-                    self.recommendations
-                        .push(format!("[{}] {}", check.id, remediation));
-                }
+            if (check.status == CheckStatus::Fail || check.status == CheckStatus::Warn)
+                && let Some(ref remediation) = check.remediation
+            {
+                self.recommendations
+                    .push(format!("[{}] {}", check.id, remediation));
             }
         }
     }

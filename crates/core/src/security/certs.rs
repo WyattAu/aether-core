@@ -347,10 +347,10 @@ impl CertificateValidator {
     ) -> Result<CertificateValidity> {
         if let Some(crl_lock) = &self.crl {
             let crl = crl_lock.read().await;
-            if let Some(serial_num) = serial {
-                if crl.contains(serial_num) {
-                    return Err(Error::internal("Certificate has been revoked"));
-                }
+            if let Some(serial_num) = serial
+                && crl.contains(serial_num)
+            {
+                return Err(Error::internal("Certificate has been revoked"));
             }
         }
 

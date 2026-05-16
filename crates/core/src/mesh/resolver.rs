@@ -267,11 +267,11 @@ impl ActorResolver {
             return Some(entry.clone());
         }
 
-        if let Some(mut entry) = self.remote_cache.get_mut(actor_id) {
-            if !entry.is_expired() {
-                entry.record_hit();
-                return Some(entry.location.clone());
-            }
+        if let Some(mut entry) = self.remote_cache.get_mut(actor_id)
+            && !entry.is_expired()
+        {
+            entry.record_hit();
+            return Some(entry.location.clone());
         }
 
         None

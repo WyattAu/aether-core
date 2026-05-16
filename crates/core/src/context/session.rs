@@ -606,12 +606,11 @@ impl SessionManager {
                 entry.map_err(|e| Error::storage_read(format!("Failed to read entry: {}", e)))?;
             let path = entry.path();
 
-            if path.extension().map(|e| e == "json").unwrap_or(false) {
-                if let Ok(content) = std::fs::read_to_string(&path) {
-                    if let Ok(data) = serde_json::from_str::<SessionData>(&content) {
-                        sessions.push(data.metadata);
-                    }
-                }
+            if path.extension().is_some_and(|ext| ext == "json")
+                && let Ok(content) = std::fs::read_to_string(&path)
+                && let Ok(data) = serde_json::from_str::<SessionData>(&content)
+            {
+                sessions.push(data.metadata);
             }
         }
 

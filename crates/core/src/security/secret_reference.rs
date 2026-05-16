@@ -332,16 +332,16 @@ impl SecretMetadata {
         }
 
         if let Some(policy) = self.reference.rotation_policy() {
-            if let Ok(elapsed) = self.updated_at.elapsed() {
-                if elapsed >= policy.max_age {
-                    return true;
-                }
+            if let Ok(elapsed) = self.updated_at.elapsed()
+                && elapsed >= policy.max_age
+            {
+                return true;
             }
 
-            if let Some(max_count) = policy.max_access_count {
-                if self.access_count >= max_count as u64 {
-                    return true;
-                }
+            if let Some(max_count) = policy.max_access_count
+                && self.access_count >= max_count as u64
+            {
+                return true;
             }
         }
 

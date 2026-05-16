@@ -325,22 +325,22 @@ pub fn create_auth_layer(
 
 /// Internal implementation of optional auth.
 pub async fn optional_auth_inner(config: AuthConfig, mut request: Request, next: Next) -> Response {
-    if let Some(token) = extract_bearer_token(&request) {
-        if let Some(ctx) = authenticate_token(&config, token) {
-            request.extensions_mut().insert(ctx);
-        }
+    if let Some(token) = extract_bearer_token(&request)
+        && let Some(ctx) = authenticate_token(&config, token)
+    {
+        request.extensions_mut().insert(ctx);
     }
     next.run(request).await
 }
 
 /// Internal implementation of require auth.
 pub async fn require_auth_inner(config: AuthConfig, request: Request, next: Next) -> Response {
-    if let Some(token) = extract_bearer_token(&request) {
-        if let Some(ctx) = authenticate_token(&config, token) {
-            let mut request = request;
-            request.extensions_mut().insert(ctx);
-            return next.run(request).await;
-        }
+    if let Some(token) = extract_bearer_token(&request)
+        && let Some(ctx) = authenticate_token(&config, token)
+    {
+        let mut request = request;
+        request.extensions_mut().insert(ctx);
+        return next.run(request).await;
     }
 
     // Response builder with known-good status and body cannot fail.
@@ -378,14 +378,14 @@ fn authenticate_token(config: &AuthConfig, token: &str) -> Option<AuthContext> {
 
     // Try JWT validation if configured.
     #[cfg(feature = "jwt")]
-    if let Some(ref jwt_config) = config.jwt {
-        if let Some(claims) = validate_jwt(jwt_config, token) {
-            return Some(AuthContext {
-                principal: claims.sub.clone(),
-                method: AuthMethod::Jwt,
-                claims: serde_json::to_value(&claims.extra).unwrap_or(serde_json::Value::Null),
-            });
-        }
+    if let Some(ref jwt_config) = config.jwt
+        && let Some(claims) = validate_jwt(jwt_config, token)
+    {
+        return Some(AuthContext {
+            principal: claims.sub.clone(),
+            method: AuthMethod::Jwt,
+            claims: serde_json::to_value(&claims.extra).unwrap_or(serde_json::Value::Null),
+        });
     }
 
     None
@@ -448,15 +448,15 @@ pub fn generate_test_token(
 /// This is the original simple version that accepts any non-empty bearer token.
 /// For production use, prefer [`create_optional_auth_layer`] with an [`AuthConfig`].
 pub async fn optional_auth(mut request: Request, next: Next) -> Response {
-    if let Some(token) = extract_bearer_token(&request) {
-        if !token.is_empty() {
-            let ctx = AuthContext {
-                principal: token.to_string(),
-                method: AuthMethod::ApiKey,
-                claims: serde_json::Value::Object(serde_json::Map::new()),
-            };
-            request.extensions_mut().insert(ctx);
-        }
+    if let Some(token) = extract_bearer_token(&request)
+        && !token.is_empty()
+    {
+        let ctx = AuthContext {
+            principal: token.to_string(),
+            method: AuthMethod::ApiKey,
+            claims: serde_json::Value::Object(serde_json::Map::new()),
+        };
+        request.extensions_mut().insert(ctx);
     }
     next.run(request).await
 }
@@ -466,17 +466,17 @@ pub async fn optional_auth(mut request: Request, next: Next) -> Response {
 /// This is the original simple version that accepts any non-empty bearer token.
 /// For production use, prefer [`create_require_auth_layer`] with an [`AuthConfig`].
 pub async fn require_auth(request: Request, next: Next) -> Response {
-    if let Some(token) = extract_bearer_token(&request) {
-        if !token.is_empty() {
-            let ctx = AuthContext {
-                principal: token.to_string(),
-                method: AuthMethod::ApiKey,
-                claims: serde_json::Value::Object(serde_json::Map::new()),
-            };
-            let mut request = request;
-            request.extensions_mut().insert(ctx);
-            return next.run(request).await;
-        }
+    if let Some(token) = extract_bearer_token(&request)
+        && !token.is_empty()
+    {
+        let ctx = AuthContext {
+            principal: token.to_string(),
+            method: AuthMethod::ApiKey,
+            claims: serde_json::Value::Object(serde_json::Map::new()),
+        };
+        let mut request = request;
+        request.extensions_mut().insert(ctx);
+        return next.run(request).await;
     }
 
     // Response builder with known-good status and body cannot fail.

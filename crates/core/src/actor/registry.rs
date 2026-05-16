@@ -132,13 +132,13 @@ impl ActorRegistry {
         }
 
         // Check for duplicate name (if a name is provided).
-        if let Some(ref actor_name) = name {
-            if by_name.contains_key(actor_name) {
-                return Err(Error::actor(format!(
-                    "actor with name '{}' already exists",
-                    actor_name
-                )));
-            }
+        if let Some(ref actor_name) = name
+            && by_name.contains_key(actor_name)
+        {
+            return Err(Error::actor(format!(
+                "actor with name '{}' already exists",
+                actor_name
+            )));
         }
 
         // Insert into by_id first. This must not fail given the check above,

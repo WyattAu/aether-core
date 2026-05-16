@@ -42,10 +42,10 @@ async fn handle_socket(mut socket: WebSocket) {
             }
             Message::Text(text) => {
                 let response = handle_ws_message(text).await;
-                if let Some(resp) = response {
-                    if socket.send(Message::Text(resp)).await.is_err() {
-                        return;
-                    }
+                if let Some(resp) = response
+                    && socket.send(Message::Text(resp)).await.is_err()
+                {
+                    return;
                 }
             }
             _ => continue,

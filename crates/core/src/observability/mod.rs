@@ -243,41 +243,41 @@ impl Observability {
         let (shutdown_tx, _) = broadcast::channel::<()>(1);
         self.shutdown_tx = Some(shutdown_tx.clone());
 
-        if config.metrics_push_enabled {
-            if let Some(url) = config.victoriametrics_url {
-                let interval_secs = config
-                    .metrics_push_interval
-                    .unwrap_or(config.victoriametrics_push_interval.unwrap_or(15));
-                let metrics = Arc::clone(&self.metrics);
-                let mut rx = shutdown_tx.subscribe();
-                tokio::spawn(async move {
-                    let pusher = match VictoriaMetricsPusher::new(VictoriaMetricsConfig {
-                        endpoint: url.clone(),
-                        push_interval: Duration::from_secs(interval_secs),
-                        extra_labels: vec![],
-                    }) {
-                        Ok(p) => p,
-                        Err(e) => {
-                            tracing::warn!(error = %e, "Failed to create VictoriaMetrics pusher");
-                            return;
+        if config.metrics_push_enabled
+            && let Some(url) = config.victoriametrics_url
+        {
+            let interval_secs = config
+                .metrics_push_interval
+                .unwrap_or(config.victoriametrics_push_interval.unwrap_or(15));
+            let metrics = Arc::clone(&self.metrics);
+            let mut rx = shutdown_tx.subscribe();
+            tokio::spawn(async move {
+                let pusher = match VictoriaMetricsPusher::new(VictoriaMetricsConfig {
+                    endpoint: url.clone(),
+                    push_interval: Duration::from_secs(interval_secs),
+                    extra_labels: vec![],
+                }) {
+                    Ok(p) => p,
+                    Err(e) => {
+                        tracing::warn!(error = %e, "Failed to create VictoriaMetrics pusher");
+                        return;
+                    }
+                };
+                let mut interval = tokio::time::interval(Duration::from_secs(interval_secs));
+                loop {
+                    tokio::select! {
+                        _ = interval.tick() => {
+                            let data = metrics.export_prometheus();
+                            if let Err(e) = pusher.push(&data).await {
+                                tracing::warn!(error = %e, "Failed to push metrics to VictoriaMetrics");
+                            }
                         }
-                    };
-                    let mut interval = tokio::time::interval(Duration::from_secs(interval_secs));
-                    loop {
-                        tokio::select! {
-                            _ = interval.tick() => {
-                                let data = metrics.export_prometheus();
-                                if let Err(e) = pusher.push(&data).await {
-                                    tracing::warn!(error = %e, "Failed to push metrics to VictoriaMetrics");
-                                }
-                            }
-                            _ = rx.recv() => {
-                                break;
-                            }
+                        _ = rx.recv() => {
+                            break;
                         }
                     }
-                });
-            }
+                }
+            });
         }
 
         if config.log_shipping_enabled {

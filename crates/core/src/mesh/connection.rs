@@ -391,12 +391,12 @@ impl ConnectionPool {
                 continue;
             }
 
-            if let Some(ref conn) = entry.connection {
-                if conn.close_reason().is_some() {
-                    entry.state = ConnectionState::Unhealthy;
-                    unhealthy.push(entry.key().clone());
-                    continue;
-                }
+            if let Some(ref conn) = entry.connection
+                && conn.close_reason().is_some()
+            {
+                entry.state = ConnectionState::Unhealthy;
+                unhealthy.push(entry.key().clone());
+                continue;
             }
 
             if now.duration_since(entry.last_health_check) > HEALTH_CHECK_INTERVAL {

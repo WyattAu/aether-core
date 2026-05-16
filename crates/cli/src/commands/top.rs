@@ -484,10 +484,9 @@ async fn run_app<B: ratatui::backend::Backend>(
 
         if event::poll(Duration::from_millis(refresh_ms))
             .map_err(|e| Error::Terminal(e.to_string()))?
+            && let Event::Key(key) = event::read().map_err(|e| Error::Terminal(e.to_string()))?
         {
-            if let Event::Key(key) = event::read().map_err(|e| Error::Terminal(e.to_string()))? {
-                app.handle_key(key.code);
-            }
+            app.handle_key(key.code);
         }
 
         app.update().await;

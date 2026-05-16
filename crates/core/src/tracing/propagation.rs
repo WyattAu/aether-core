@@ -90,12 +90,12 @@ impl TraceContext {
     pub fn from_headers(headers: &HashMap<String, String>) -> Self {
         let mut ctx = Self::new();
 
-        if let Some(traceparent) = headers.get(TRACE_PARENT_HEADER) {
-            if let Some((trace_id, span_id, flags)) = parse_traceparent(traceparent) {
-                ctx.trace_id = Some(trace_id);
-                ctx.span_id = Some(span_id);
-                ctx.trace_flags = Some(flags);
-            }
+        if let Some(traceparent) = headers.get(TRACE_PARENT_HEADER)
+            && let Some((trace_id, span_id, flags)) = parse_traceparent(traceparent)
+        {
+            ctx.trace_id = Some(trace_id);
+            ctx.span_id = Some(span_id);
+            ctx.trace_flags = Some(flags);
         }
 
         if let Some(state) = headers.get(TRACE_STATE_HEADER) {

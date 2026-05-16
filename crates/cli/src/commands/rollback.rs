@@ -149,12 +149,12 @@ impl DeploymentHistory {
     ) -> Result<&DeploymentRecord, Error> {
         let current = self.get_current(actor).cloned();
 
-        if let Some(ref current_rec) = current {
-            if current_rec.revision == target_revision {
-                return Err(Error::RollbackFailed(
-                    "Cannot rollback to current revision".to_string(),
-                ));
-            }
+        if let Some(ref current_rec) = current
+            && current_rec.revision == target_revision
+        {
+            return Err(Error::RollbackFailed(
+                "Cannot rollback to current revision".to_string(),
+            ));
         }
 
         let target_idx = self
@@ -163,14 +163,14 @@ impl DeploymentHistory {
             .position(|r| r.actor == actor && r.revision == target_revision)
             .ok_or(Error::RevisionNotFound(target_revision))?;
 
-        if let Some(ref current_rec) = current {
-            if let Some(idx) = self.records.iter().position(|r| {
+        if let Some(ref current_rec) = current
+            && let Some(idx) = self.records.iter().position(|r| {
                 r.actor == actor
                     && r.revision == current_rec.revision
                     && r.status == DeploymentStatus::Active
-            }) {
-                self.records[idx].status = DeploymentStatus::RolledBack;
-            }
+            })
+        {
+            self.records[idx].status = DeploymentStatus::RolledBack;
         }
 
         self.records[target_idx].status = DeploymentStatus::Active;

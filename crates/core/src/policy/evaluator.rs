@@ -77,10 +77,10 @@ impl PolicyEvaluator {
             return None;
         }
 
-        if let Some(ref condition) = rule.condition {
-            if !Self::condition_matches(condition, ctx) {
-                return None;
-            }
+        if let Some(ref condition) = rule.condition
+            && !Self::condition_matches(condition, ctx)
+        {
+            return None;
         }
 
         let reason = format!("rule '{}' matched scope '{}'", rule.id, rule.scope);

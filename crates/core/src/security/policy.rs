@@ -535,11 +535,11 @@ impl PolicyEvaluator {
 
     fn get_cached(&self, key: &CacheKey) -> Option<PolicyEffect> {
         let timestamps = self.cache_timestamps.read();
-        if let Some(timestamp) = timestamps.get(key) {
-            if timestamp.elapsed() < self.cache_ttl {
-                let mut cache = self.cache.write();
-                return cache.get(key).copied();
-            }
+        if let Some(timestamp) = timestamps.get(key)
+            && timestamp.elapsed() < self.cache_ttl
+        {
+            let mut cache = self.cache.write();
+            return cache.get(key).copied();
         }
         None
     }

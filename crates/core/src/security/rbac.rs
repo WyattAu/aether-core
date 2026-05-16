@@ -528,12 +528,12 @@ impl RoleManager {
         let assignments = self.assignments.read();
 
         for assignment in assignments.iter() {
-            if assignment.subject == subject && assignment.is_valid() {
-                if let Some(role) = roles.get(&assignment.role) {
-                    if role.has_permission(resource, permission) {
-                        return true;
-                    }
-                }
+            if assignment.subject == subject
+                && assignment.is_valid()
+                && let Some(role) = roles.get(&assignment.role)
+                && role.has_permission(resource, permission)
+            {
+                return true;
             }
         }
 

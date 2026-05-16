@@ -780,11 +780,11 @@ impl TenantQuotaTracker {
             let tenant = entry.key();
             let quota = entry.value();
             // Simple approach: reset every interval_secs seconds aligned to epoch.
-            if now % quota.cpu_interval_secs == 0 {
-                if let Some(fuel) = fuel_map.get(tenant.as_str()) {
-                    fuel.value()
-                        .store(quota.cpu_fuel_per_interval, Ordering::Relaxed);
-                }
+            if now.is_multiple_of(quota.cpu_interval_secs)
+                && let Some(fuel) = fuel_map.get(tenant.as_str())
+            {
+                fuel.value()
+                    .store(quota.cpu_fuel_per_interval, Ordering::Relaxed);
             }
         }
     }

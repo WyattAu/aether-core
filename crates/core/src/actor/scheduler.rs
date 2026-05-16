@@ -272,10 +272,10 @@ impl ActorScheduler {
 
     /// Spawn a new actor with a name.
     pub fn spawn_named(&self, name: Option<String>) -> crate::Result<ActorId> {
-        if let Some(ref enforcer) = self.quota_enforcer {
-            if let Err(reason) = enforcer.try_acquire_actor() {
-                return Err(Error::resource_exhausted(reason));
-            }
+        if let Some(ref enforcer) = self.quota_enforcer
+            && let Err(reason) = enforcer.try_acquire_actor()
+        {
+            return Err(Error::resource_exhausted(reason));
         }
         let id = ActorId::new();
         self.registry.register_named(id, name)?;
@@ -308,10 +308,10 @@ impl ActorScheduler {
 
     /// Send a message to an actor.
     pub async fn send(&self, target: ActorId, message: Message) -> crate::Result<()> {
-        if let Some(ref enforcer) = self.quota_enforcer {
-            if let Err(reason) = enforcer.check_message_rate() {
-                return Err(Error::resource_exhausted(reason));
-            }
+        if let Some(ref enforcer) = self.quota_enforcer
+            && let Err(reason) = enforcer.check_message_rate()
+        {
+            return Err(Error::resource_exhausted(reason));
         }
 
         let mailbox = self
@@ -442,7 +442,7 @@ impl ActorScheduler {
         while running.load(Ordering::Acquire) {
             iteration = iteration.wrapping_add(1);
 
-            if iteration % config.stealer_refresh_interval == 0 {
+            if iteration.is_multiple_of(config.stealer_refresh_interval) {
                 let current_version = stealer_registry.version();
                 if current_version != last_version {
                     let stealers = stealer_registry.get_stealers(worker_id);

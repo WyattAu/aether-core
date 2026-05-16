@@ -379,12 +379,12 @@ impl TopologyGraph {
             }
         }
         while let Some(current) = queue.pop_front() {
-            if visited.insert(current) {
-                if let Some(upstream) = self.reverse.get(current) {
-                    for dep in upstream {
-                        if dep.as_str() != current && !visited.contains(dep.as_str()) {
-                            queue.push_back(dep.as_str());
-                        }
+            if visited.insert(current)
+                && let Some(upstream) = self.reverse.get(current)
+            {
+                for dep in upstream {
+                    if dep.as_str() != current && !visited.contains(dep.as_str()) {
+                        queue.push_back(dep.as_str());
                     }
                 }
             }
@@ -404,12 +404,12 @@ impl TopologyGraph {
             }
         }
         while let Some(current) = queue.pop_front() {
-            if visited.insert(current) {
-                if let Some(downstream) = self.forward.get(current) {
-                    for dep in downstream {
-                        if dep.as_str() != current && !visited.contains(dep.as_str()) {
-                            queue.push_back(dep.as_str());
-                        }
+            if visited.insert(current)
+                && let Some(downstream) = self.forward.get(current)
+            {
+                for dep in downstream {
+                    if dep.as_str() != current && !visited.contains(dep.as_str()) {
+                        queue.push_back(dep.as_str());
                     }
                 }
             }

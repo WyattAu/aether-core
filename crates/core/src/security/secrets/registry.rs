@@ -98,10 +98,10 @@ impl SecretsProviderRegistry {
     pub async fn resolve(&self, reference: &SecretReference) -> Result<ExternalSecretValue> {
         let provider_name = self.provider_mapping.get(&reference.provider());
 
-        if let Some(name) = provider_name {
-            if let Some(provider) = self.get_provider(name) {
-                return provider.get(reference.path(), reference.key()).await;
-            }
+        if let Some(name) = provider_name
+            && let Some(provider) = self.get_provider(name)
+        {
+            return provider.get(reference.path(), reference.key()).await;
         }
 
         if let Some(default_provider) = self.get_default_provider() {
@@ -127,10 +127,10 @@ impl SecretsProviderRegistry {
     ) -> Result<HashMap<String, ExternalSecretValue>> {
         let provider_name = self.provider_mapping.get(&reference.provider());
 
-        if let Some(name) = provider_name {
-            if let Some(provider) = self.get_provider(name) {
-                return provider.get_all(reference.path()).await;
-            }
+        if let Some(name) = provider_name
+            && let Some(provider) = self.get_provider(name)
+        {
+            return provider.get_all(reference.path()).await;
         }
 
         if let Some(default_provider) = self.get_default_provider() {

@@ -69,10 +69,10 @@ pub async fn execute(args: DashboardArgs) -> Result<(), Error> {
     println!();
     println!("╚═══════════════════════════════════════════════════════════════╝");
 
-    if args.open {
-        if let Err(e) = open_browser(&url) {
-            eprintln!("Warning: Could not open browser: {}", e);
-        }
+    if args.open
+        && let Err(e) = open_browser(&url)
+    {
+        eprintln!("Warning: Could not open browser: {}", e);
     }
 
     // Create observability layer

@@ -126,10 +126,10 @@ impl SecretsProvider for CachedSecretProvider {
 
         {
             let cache = self.cache.read();
-            if let Some(entry) = cache.get(&cache_key) {
-                if entry.cached_at.elapsed() < self.ttl {
-                    return Ok(entry.value.clone());
-                }
+            if let Some(entry) = cache.get(&cache_key)
+                && entry.cached_at.elapsed() < self.ttl
+            {
+                return Ok(entry.value.clone());
             }
         }
 
@@ -155,23 +155,21 @@ impl SecretsProvider for CachedSecretProvider {
 
         {
             let cache = self.cache.read();
-            if let Some(entry) = cache.get(&cache_key) {
-                if entry.cached_at.elapsed() < self.ttl {
-                    if let Ok(map) = entry
-                        .value
-                        .parse_as_json::<HashMap<String, serde_json::Value>>()
-                    {
-                        let mut result = HashMap::new();
-                        for (k, v) in map {
-                            if let serde_json::Value::String(s) = v {
-                                result.insert(k, ExternalSecretValue::from_string(&s));
-                            } else {
-                                result.insert(k, ExternalSecretValue::from_json(&v)?);
-                            }
-                        }
-                        return Ok(result);
+            if let Some(entry) = cache.get(&cache_key)
+                && entry.cached_at.elapsed() < self.ttl
+                && let Ok(map) = entry
+                    .value
+                    .parse_as_json::<HashMap<String, serde_json::Value>>()
+            {
+                let mut result = HashMap::new();
+                for (k, v) in map {
+                    if let serde_json::Value::String(s) = v {
+                        result.insert(k, ExternalSecretValue::from_string(&s));
+                    } else {
+                        result.insert(k, ExternalSecretValue::from_json(&v)?);
                     }
                 }
+                return Ok(result);
             }
         }
 

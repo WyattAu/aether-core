@@ -287,16 +287,15 @@ impl VirtualFs for MemoryFs {
     async fn write(&self, path: &Path, data: &[u8]) -> Result<()> {
         self.sandbox.check_write(path)?;
 
-        if let Some(parent) = path.parent() {
-            if parent != Path::new("") && parent != Path::new("/") {
-                let parent_node = self.get_node(parent).await;
-                if parent_node.is_err() {
-                    return Err(Error::io(std::io::Error::new(
-                        std::io::ErrorKind::NotFound,
-                        "parent directory does not exist",
-                    )));
-                }
-            }
+        if let Some(parent) = path.parent()
+            && parent != Path::new("")
+            && parent != Path::new("/")
+            && self.get_node(parent).await.is_err()
+        {
+            return Err(Error::io(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "parent directory does not exist",
+            )));
         }
 
         let (parent_node, name) = self.get_parent_and_name(path).await?;

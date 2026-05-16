@@ -139,13 +139,13 @@ impl Mailbox {
 
     /// Receive a message from the mailbox (non-blocking).
     pub fn try_recv(&self) -> Option<Message> {
-        if self.config.priority_queue {
-            if let Some(msg) = self.critical_queue.lock().pop() {
-                self.size.fetch_sub(1, Ordering::Relaxed);
-                self.semaphore.add_permits(1);
-                self.check_backpressure();
-                return Some(msg);
-            }
+        if self.config.priority_queue
+            && let Some(msg) = self.critical_queue.lock().pop()
+        {
+            self.size.fetch_sub(1, Ordering::Relaxed);
+            self.semaphore.add_permits(1);
+            self.check_backpressure();
+            return Some(msg);
         }
 
         let msg = self.queue.lock().pop();

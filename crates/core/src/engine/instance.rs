@@ -263,10 +263,10 @@ impl WasmInstance {
     /// Get remaining fuel from the store
     #[cfg(feature = "wasm")]
     pub fn sync_fuel(&mut self) -> Result<()> {
-        if let Some(store) = self.store.as_mut() {
-            if let Ok(fuel) = store.get_fuel() {
-                self.fuel_remaining = fuel;
-            }
+        if let Some(store) = self.store.as_mut()
+            && let Ok(fuel) = store.get_fuel()
+        {
+            self.fuel_remaining = fuel;
         }
         Ok(())
     }

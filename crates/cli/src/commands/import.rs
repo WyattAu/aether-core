@@ -260,10 +260,10 @@ fn parse_compose_file(args: &ImportArgs) -> Result<Vec<ComposeService>, Error> {
     let mut services = Vec::new();
     let mut all_warnings = Vec::new();
 
-    if let Some(ref version) = compose.version {
-        if args.verbose {
-            println!("Detected compose version: {}", version);
-        }
+    if let Some(ref version) = compose.version
+        && args.verbose
+    {
+        println!("Detected compose version: {}", version);
     }
 
     for (name, raw_service) in compose.services {
@@ -281,13 +281,13 @@ fn parse_compose_file(args: &ImportArgs) -> Result<Vec<ComposeService>, Error> {
         }
     }
 
-    if let Some(ref networks) = compose.networks {
-        if !networks.is_empty() {
-            all_warnings.push(format!(
-                "Custom networks defined: {}. Aether uses automatic service mesh.",
-                networks.keys().cloned().collect::<Vec<_>>().join(", ")
-            ));
-        }
+    if let Some(ref networks) = compose.networks
+        && !networks.is_empty()
+    {
+        all_warnings.push(format!(
+            "Custom networks defined: {}. Aether uses automatic service mesh.",
+            networks.keys().cloned().collect::<Vec<_>>().join(", ")
+        ));
     }
 
     if !all_warnings.is_empty() && args.verbose {
@@ -340,13 +340,13 @@ fn convert_service(
         Some(DependsOn::List(list)) => list,
         Some(DependsOn::Map(map)) => {
             for (dep_name, config) in &map {
-                if let Some(ref condition) = config.condition {
-                    if condition == "service_healthy" {
-                        warnings.push(format!(
-                            "Service '{}' depends on health of '{}'. Aether uses readiness checks.",
-                            name, dep_name
-                        ));
-                    }
+                if let Some(ref condition) = config.condition
+                    && condition == "service_healthy"
+                {
+                    warnings.push(format!(
+                        "Service '{}' depends on health of '{}'. Aether uses readiness checks.",
+                        name, dep_name
+                    ));
                 }
             }
             map.keys().cloned().collect()
@@ -375,13 +375,13 @@ fn convert_service(
         ));
     }
 
-    if let Some(ref restart) = raw.restart {
-        if restart == "always" || restart == "unless-stopped" {
-            warnings.push(format!(
-                "Service '{}' uses restart:'{}' - mapped to supervisor strategy",
-                name, restart
-            ));
-        }
+    if let Some(ref restart) = raw.restart
+        && (restart == "always" || restart == "unless-stopped")
+    {
+        warnings.push(format!(
+            "Service '{}' uses restart:'{}' - mapped to supervisor strategy",
+            name, restart
+        ));
     }
 
     let service_type = detect_service_type(&image);
@@ -544,11 +544,10 @@ log_level = "info"
             output.push_str("health_check = { enabled = true, interval = \"30s\" }\n");
         }
 
-        if let Some(ref restart) = service.restart {
-            if restart == "always" || restart == "unless-stopped" {
-                output
-                    .push_str("supervisor = { strategy = \"always-restart\", max_retries = 3 }\n");
-            }
+        if let Some(ref restart) = service.restart
+            && (restart == "always" || restart == "unless-stopped")
+        {
+            output.push_str("supervisor = { strategy = \"always-restart\", max_retries = 3 }\n");
         }
 
         if !service.environment.is_empty() {
@@ -593,10 +592,10 @@ fn generate_capabilities(service: &ComposeService) -> Vec<String> {
             .iter()
             .filter_map(|p| {
                 let parts: Vec<&str> = p.split(':').collect();
-                if let Some(host_port) = parts.first() {
-                    if let Ok(port) = host_port.parse::<u16>() {
-                        return Some(format!("\"tcp:0.0.0.0:{}\"", port));
-                    }
+                if let Some(host_port) = parts.first()
+                    && let Ok(port) = host_port.parse::<u16>()
+                {
+                    return Some(format!("\"tcp:0.0.0.0:{}\"", port));
                 }
                 None
             })

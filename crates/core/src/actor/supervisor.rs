@@ -547,14 +547,12 @@ impl Supervisor {
 
         let is_significant = child.spec.significant && reason.is_abnormal();
 
-        if is_significant {
-            if let Some(parent_id) = self.parent {
-                tracing::warn!(
-                    "Significant child '{}' exited, escalating to parent {:?}",
-                    name,
-                    parent_id
-                );
-            }
+        if is_significant && let Some(parent_id) = self.parent {
+            tracing::warn!(
+                "Significant child '{}' exited, escalating to parent {:?}",
+                name,
+                parent_id
+            );
         }
 
         if !should_restart {
