@@ -156,13 +156,12 @@ jobs:
           sudo ldconfig
           # Verify libfdb_c is findable by the linker
           ldconfig -p | grep libfdb_c || echo "WARNING: libfdb_c not found in linker cache"
+          echo "LIBRARY_PATH=/usr/lib/x86_64-linux-gnu" >> $GITHUB_ENV
+          echo "LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu" >> $GITHUB_ENV
+          echo "FDB_CLIENT_LIB_DIR=/usr/lib/x86_64-linux-gnu" >> $GITHUB_ENV
 
       - name: Build
-        run: |
-          export FDB_CLIENT_LIB_DIR="/usr/lib/x86_64-linux-gnu"
-          export LIBRARY_PATH="/usr/lib/x86_64-linux-gnu:${LIBRARY_PATH:-}"
-          export LD_LIBRARY_PATH="/usr/lib/x86_64-linux-gnu:${LD_LIBRARY_PATH:-}"
-          cargo build --workspace --all-features
+        run: cargo build --workspace --all-features
       
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3

@@ -233,7 +233,7 @@ jobs:
     needs: check
     services:
       foundationdb:
-        image: foundationdb/foundationdb:7.3
+        image: foundationdb/foundationdb:7.3.27
         ports:
           - 4500:4500
           - 4501:4501
@@ -250,8 +250,11 @@ jobs:
 
       - name: Install FoundationDB client
         run: |
-          curl -sSL https://github.com/apple/foundationdb/releases/download/7.3.0/foundationdb-clients_7.3.0-1_amd64.deb -o /tmp/fdb.deb
-          sudo dpkg -i /tmp/fdb.deb
+          curl -sSL https://github.com/apple/foundationdb/releases/download/7.3.27/foundationdb-clients_7.3.27-1_amd64.deb -o /tmp/fdb.deb
+          sudo dpkg -i /tmp/fdb.deb || true
+          sudo ldconfig
+          echo "LIBRARY_PATH=/usr/lib/x86_64-linux-gnu" >> $GITHUB_ENV
+          echo "LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu" >> $GITHUB_ENV
           sudo mkdir -p /etc/foundationdb
           echo "aether-ci:127.0.0.1:4500" | sudo tee /etc/foundationdb/fdb.cluster
           echo -e "trace_enable = 1\ntrace_log_group = aether-ci" | sudo tee /etc/foundationdb/fdb.options

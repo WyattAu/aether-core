@@ -47,7 +47,7 @@ jobs:
           curl -sSL https://github.com/apple/foundationdb/releases/download/7.3.27/foundationdb-clients_7.3.27-1_amd64.deb -o /tmp/fdb-client.deb
           sudo dpkg -i /tmp/fdb-client.deb || true
           sudo ldconfig
-          export LIBRARY_PATH="/usr/lib/x86_64-linux-gnu:${LIBRARY_PATH:-}"
+          echo "LIBRARY_PATH=/usr/lib/x86_64-linux-gnu" >> "$GITHUB_ENV"
 
           docker network create aether-net
           docker run -d \
