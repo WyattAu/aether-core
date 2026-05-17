@@ -337,11 +337,17 @@ func TestMultiLevelBackpressure_GetStats(t *testing.T) {
 
 func TestAdaptiveBackpressure(t *testing.T) {
 	ab := NewAdaptiveBackpressure[int](100, 50, 1000)
-	ab.Offer(1)
-	ab.Offer(2)
-
+	if ab.controller.Capacity() != 100 {
+		t.Errorf("expected initial size 100, got %d", ab.controller.Capacity())
+	}
+	if err := ab.Offer(1); err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if err := ab.Offer(2); err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
 	stats := ab.GetStats()
-	if stats.BufferSize != 100 {
-		t.Errorf("expected initial size 100, got %d", stats.BufferSize)
+	if stats.BufferUsed != 2 {
+		t.Errorf("expected 2 items in buffer, got %d", stats.BufferUsed)
 	}
 }

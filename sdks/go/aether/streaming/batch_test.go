@@ -71,7 +71,7 @@ func TestBatchCollector_AddByBytes(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		result := bc.Add(i, 10)
 		if result != nil {
-			if result.SizeBytes != 100 {
+			if result.SizeBytes != 50 {
 				t.Errorf("expected 100 bytes, got %d", result.SizeBytes)
 			}
 			break

@@ -168,7 +168,7 @@ func TestSanitizePath(t *testing.T) {
 	}{
 		{"normal/path", "normal/path"},
 		{"../etc/passwd", "etc/passwd"},
-		{"..\\windows\\system32", "windowssystem32"},
+		{"..\\windows\\system32", "windows/system32"},
 		{"path\x00inject", "pathinject"},
 		{"", ""},
 	}
@@ -290,7 +290,7 @@ func TestRedactSensitive(t *testing.T) {
 		showChars int
 		expected  string
 	}{
-		{"long", "secret-password-value", 2, "se*************ue"},
+		{"long", "secret-password-value", 2, "se****************ue"},
 		{"short", "ab", 2, "**"},
 		{"exact double", "abcd", 2, "abcd"},
 		{"single char", "a", 1, "*"},

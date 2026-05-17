@@ -136,7 +136,7 @@ func (bc *BatchCollector[T]) shouldFlush() bool {
 	if len(bc.items) >= bc.config.MaxBatchSize {
 		return true
 	}
-	if bc.currentBytes >= int64(bc.config.MaxBytes) {
+	if bc.config.MaxBytes > 0 && bc.currentBytes >= int64(bc.config.MaxBytes) {
 		return true
 	}
 	if !bc.batchStartTime.IsZero() {

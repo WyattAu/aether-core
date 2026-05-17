@@ -12,8 +12,8 @@ func TestBulkhead_NewWithZeroConfig(t *testing.T) {
 	if bh.config.MaxConcurrent != 10 {
 		t.Errorf("expected default max concurrent 10, got %d", bh.config.MaxConcurrent)
 	}
-	if bh.config.MaxQueued != 100 {
-		t.Errorf("expected default max queued 100, got %d", bh.config.MaxQueued)
+	if bh.config.MaxQueued != 0 {
+		t.Errorf("expected max queued 0 when not specified, got %d", bh.config.MaxQueued)
 	}
 }
 

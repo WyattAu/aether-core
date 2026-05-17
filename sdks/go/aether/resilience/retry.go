@@ -201,30 +201,8 @@ func (r *RetryPolicy) isRetryable(err error, attempt int) bool {
 }
 
 func (r *RetryPolicy) isRetryableDefault(err error) bool {
-	// Check for transient error messages
-	msg := strings.ToLower(err.Error())
-	transient := []string{
-		"connection reset",
-		"timeout",
-		"temporary",
-		"transient",
-		"unavailable",
-		"network",
-		"eof",
-	}
-
-	for _, t := range transient {
-		if strings.Contains(msg, t) {
-			return true
-		}
-	}
-
-	// Check for context errors
-	if errors.Is(err, context.DeadlineExceeded) {
-		return true
-	}
-
-	return false
+	// By default, retry all errors. Use config.IsRetryable for selective retrying.
+	return true
 }
 
 func (r *RetryPolicy) calculateDelay(attempt int) time.Duration {

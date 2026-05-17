@@ -33,26 +33,27 @@ func SanitizeHTML(value string) string {
 // SanitizeSQL removes common SQL injection patterns.
 // WARNING: Always use parameterized queries instead!
 func SanitizeSQL(value string) string {
-	// Remove common SQL injection patterns
+	re := regexp.MustCompile(`(?i)/\*.*?\*/`)
+	sanitized := re.ReplaceAllString(value, "")
+
+	re = regexp.MustCompile(`--.*`)
+	sanitized = re.ReplaceAllString(sanitized, "")
+
 	dangerousPatterns := []string{
-		`;?\s*DROP\s+`,
-		`;?\s*DELETE\s+`,
-		`;?\s*UPDATE\s+`,
-		`;?\s*INSERT\s+`,
-		`;?\s*EXEC\s*\(`,
-		`;?\s*EXECUTE\s*\(`,
-		`--`,
-		`/\*`,
-		`\*/`,
+		`;\s*DROP\s+`,
+		`;\s*DELETE\s+`,
+		`;\s*UPDATE\s+`,
+		`;\s*INSERT\s+`,
+		`;\s*EXEC\s*\(`,
+		`;\s*EXECUTE\s*\(`,
 		`xp_cmdshell`,
 	}
-	
-	sanitized := value
+
 	for _, pattern := range dangerousPatterns {
-		re := regexp.MustCompile("(?i)" + pattern)
-		sanitized = re.ReplaceAllString(sanitized, "")
+		re = regexp.MustCompile("(?i)" + pattern)
+		sanitized = re.ReplaceAllString(sanitized, " ")
 	}
-	
+
 	return sanitized
 }
 
@@ -120,13 +121,10 @@ func SanitizeFilename(filename string) string {
 
 // SanitizePath sanitizes a file path.
 func SanitizePath(path string) string {
-	// Remove null bytes
 	path = strings.ReplaceAll(path, "\x00", "")
-	
-	// Remove directory traversal attempts
+	path = strings.ReplaceAll(path, "\\", "/")
 	path = strings.ReplaceAll(path, "../", "")
-	path = strings.ReplaceAll(path, "..\\", "")
-	
+	path = strings.ReplaceAll(path, "..", "")
 	return path
 }
 
@@ -209,7 +207,7 @@ func SanitizeSlug(s string) string {
 
 // RedactSensitive redacts sensitive data for logging.
 func RedactSensitive(value string, showChars int) string {
-	if len(value) <= showChars*2 {
+	if len(value) < showChars*2 {
 		return strings.Repeat("*", len(value))
 	}
 	

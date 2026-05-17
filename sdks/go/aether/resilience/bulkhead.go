@@ -73,27 +73,29 @@ func NewBulkhead(config BulkheadConfig) *Bulkhead {
 
 // Execute runs the given function with bulkhead protection.
 func (b *Bulkhead) Execute(ctx context.Context, fn func(ctx context.Context) (any, error)) (any, error) {
-	// Check if queue has space
-	select {
-	case b.queueSemaphore <- struct{}{}:
-		// Got queue slot
-	default:
+	if b.config.MaxQueued > 0 {
+		// Check if queue has space
+		select {
+		case b.queueSemaphore <- struct{}{}:
+			// Got queue slot
+		default:
+			b.mu.Lock()
+			b.totalRejected++
+			b.mu.Unlock()
+			return nil, BulkheadRejectedError
+		}
+		defer func() { <-b.queueSemaphore }()
+
 		b.mu.Lock()
-		b.totalRejected++
+		b.queued++
 		b.mu.Unlock()
-		return nil, BulkheadRejectedError
+
+		defer func() {
+			b.mu.Lock()
+			b.queued--
+			b.mu.Unlock()
+		}()
 	}
-	defer func() { <-b.queueSemaphore }()
-
-	b.mu.Lock()
-	b.queued++
-	b.mu.Unlock()
-
-	defer func() {
-		b.mu.Lock()
-		b.queued--
-		b.mu.Unlock()
-	}()
 
 	// Try to acquire execution slot
 	var acquired bool
