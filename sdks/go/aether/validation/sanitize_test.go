@@ -290,7 +290,7 @@ func TestRedactSensitive(t *testing.T) {
 		showChars int
 		expected  string
 	}{
-		{"long", "secret-password-value", 2, "se****************ue"},
+		{"long", "secret-password-value", 2, "se*****************ue"},
 		{"short", "ab", 2, "**"},
 		{"exact double", "abcd", 2, "abcd"},
 		{"single char", "a", 1, "*"},

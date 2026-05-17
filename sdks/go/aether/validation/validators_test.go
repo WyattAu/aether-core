@@ -606,11 +606,11 @@ func TestValidateString(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var pat interface{} = AlphanumericPattern
-			if !tt.pattern {
-				pat = nil
+			var pat *regexp.Regexp
+			if tt.pattern {
+				pat = AlphanumericPattern
 			}
-			if got := ValidateString(tt.value, tt.minLen, tt.maxLen, pat.(*regexp.Regexp)); got != tt.valid {
+			if got := ValidateString(tt.value, tt.minLen, tt.maxLen, pat); got != tt.valid {
 				t.Errorf("ValidateString() = %v, want %v", got, tt.valid)
 			}
 		})

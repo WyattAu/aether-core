@@ -242,16 +242,18 @@ func TestActorOnStartStop(t *testing.T) {
 	started := false
 	stopped := false
 
-	// Override lifecycle methods via custom actor
-	customActor := &LifecycleActor{
-		BaseActor: actor,
-		onStart:   func() { started = true },
-		onStop:    func() { stopped = true },
+	actor.OnStartFunc = func(ctx context.Context) error {
+		started = true
+		return nil
+	}
+	actor.OnStopFunc = func(ctx context.Context) error {
+		stopped = true
+		return nil
 	}
 
 	// Run should call OnStart and OnStop
 	go func() {
-		_ = customActor.Run(ctx)
+		_ = actor.Run(ctx)
 	}()
 
 	// Wait for context to timeout

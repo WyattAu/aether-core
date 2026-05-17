@@ -140,6 +140,10 @@ func RemoveControlChars(s string) string {
 }
 
 func isControlChar(r rune) bool {
+	// Exclude common whitespace characters (tab, newline, carriage return)
+	if r == '\t' || r == '\n' || r == '\r' {
+		return false
+	}
 	return r < 32 || (r >= 127 && r <= 159)
 }
 
