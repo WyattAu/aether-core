@@ -8,14 +8,9 @@ import asyncio
 
 import pytest
 
-from aether_sdk.event.schema import (
-    Compatibility,
-    InMemorySchemaRegistry,
-    JsonSchemaValidator,
-    Schema,
-    SchemaError,
-    SchemaVersion,
-)
+from aether_sdk.event.schema import (Compatibility, InMemorySchemaRegistry,
+                                     JsonSchemaValidator, Schema, SchemaError,
+                                     SchemaVersion)
 
 # ============================================
 # Compatibility Tests

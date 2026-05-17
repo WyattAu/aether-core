@@ -21,14 +21,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, TypeVar
 
-from .types import (
-    Duration,
-    HumanTaskContext,
-    HumanTaskError,
-    HumanTaskStatus,
-    HumanTaskTimeoutError,
-    TaskFormValidator,
-)
+from .types import (Duration, HumanTaskContext, HumanTaskError,
+                    HumanTaskStatus, HumanTaskTimeoutError, TaskFormValidator)
 
 logger = logging.getLogger(__name__)
 

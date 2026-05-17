@@ -1,12 +1,7 @@
 import pytest
 
-from aether_sdk.exceptions import (
-    ActorNotFound,
-    AetherError,
-    CapabilityDenied,
-    RpcError,
-    StateError,
-)
+from aether_sdk.exceptions import (ActorNotFound, AetherError,
+                                   CapabilityDenied, RpcError, StateError)
 
 
 class TestAetherError:

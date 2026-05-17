@@ -182,8 +182,10 @@ func (h *HealthChecker) RunCheck(ctx context.Context, name string) HealthCheckRe
 	result.Time = time.Now().UTC().Format(time.RFC3339)
 
 	// Cache result
+	h.mu.Lock()
 	entry.lastResult = &result
 	entry.lastRun = time.Now()
+	h.mu.Unlock()
 
 	return result
 }

@@ -17,23 +17,17 @@ import tracemalloc
 
 import pytest
 
-from aether_sdk.resilience.circuit_breaker import (
-    CircuitBreaker,
-    CircuitBreakerConfig,
-    CircuitBreakerError,
-    CircuitState,
-)
-from aether_sdk.resilience.retry import BackoffStrategy, RetryConfig, RetryPolicy
+from aether_sdk.resilience.circuit_breaker import (CircuitBreaker,
+                                                   CircuitBreakerConfig,
+                                                   CircuitBreakerError,
+                                                   CircuitState)
+from aether_sdk.resilience.retry import (BackoffStrategy, RetryConfig,
+                                         RetryPolicy)
 from aether_sdk.streaming.backpressure import BackpressureController
-from aether_sdk.streaming.types import (
-    BackpressureConfig,
-    BackpressureStrategy,
-    Duration,
-    StreamEvent,
-    Timestamp,
-    WindowSpec,
-    WindowType,
-)
+from aether_sdk.streaming.types import (BackpressureConfig,
+                                        BackpressureStrategy, Duration,
+                                        StreamEvent, Timestamp, WindowSpec,
+                                        WindowType)
 from aether_sdk.streaming.window import WindowAssigner
 
 SKIP_STRESS = os.environ.get("SKIP_STRESS", "0") == "1"

@@ -6,15 +6,9 @@ Tests for topic-based publish/subscribe messaging.
 
 import pytest
 
-from aether_sdk.event.pubsub import (
-    InMemoryPubSub,
-    PubSubClient,
-    PubSubMessage,
-    Subscription,
-    Topic,
-    publish,
-    subscribe,
-)
+from aether_sdk.event.pubsub import (InMemoryPubSub, PubSubClient,
+                                     PubSubMessage, Subscription, Topic,
+                                     publish, subscribe)
 
 # ============================================
 # Topic Tests

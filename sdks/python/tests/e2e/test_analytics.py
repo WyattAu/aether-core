@@ -13,22 +13,13 @@ from typing import Any, Dict, List, Optional
 
 import pytest
 
-from aether_sdk.streaming.backpressure import (
-    BackpressureController,
-    RateBasedBackpressure,
-)
+from aether_sdk.streaming.backpressure import (BackpressureController,
+                                               RateBasedBackpressure)
 from aether_sdk.streaming.stream_actor import StreamActor
-from aether_sdk.streaming.types import (
-    BackpressureConfig,
-    BackpressureStrategy,
-    Duration,
-    StreamEvent,
-    Timestamp,
-    Watermark,
-    WindowInfo,
-    WindowSpec,
-    WindowType,
-)
+from aether_sdk.streaming.types import (BackpressureConfig,
+                                        BackpressureStrategy, Duration,
+                                        StreamEvent, Timestamp, Watermark,
+                                        WindowInfo, WindowSpec, WindowType)
 from aether_sdk.streaming.window import TumblingWindow
 
 random.seed(42)

@@ -4,20 +4,11 @@ Tests for Workflow Engine - State Machine Module
 
 import pytest
 
-from aether_sdk.workflow.state_machine import (
-    State,
-    Transition,
-    Workflow,
-    WorkflowExecutor,
-    workflow,
-)
-from aether_sdk.workflow.types import (
-    Duration,
-    InvalidTransitionError,
-    WorkflowError,
-    WorkflowStatus,
-    WorkflowSuspendedError,
-)
+from aether_sdk.workflow.state_machine import (State, Transition, Workflow,
+                                               WorkflowExecutor, workflow)
+from aether_sdk.workflow.types import (Duration, InvalidTransitionError,
+                                       WorkflowError, WorkflowStatus,
+                                       WorkflowSuspendedError)
 
 
 class TestState:

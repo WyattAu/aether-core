@@ -8,18 +8,14 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from aether_sdk.resilience.tracing import (
-    ResilienceInstrumentation,
-    TracingContext,
-    create_resilience_span,
-    get_tracer,
-    record_resilience_event,
-    set_resilience_attribute,
-    traced_bulkhead,
-    traced_circuit_breaker,
-    traced_rate_limiter,
-    traced_retry,
-)
+from aether_sdk.resilience.tracing import (ResilienceInstrumentation,
+                                           TracingContext,
+                                           create_resilience_span, get_tracer,
+                                           record_resilience_event,
+                                           set_resilience_attribute,
+                                           traced_bulkhead,
+                                           traced_circuit_breaker,
+                                           traced_rate_limiter, traced_retry)
 
 # ============================================
 # TracingContext Tests

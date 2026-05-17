@@ -19,19 +19,12 @@ import time
 from dataclasses import dataclass
 from typing import Dict, List, Optional
 
-from aether_sdk.streaming.backpressure import (
-    BackpressureController,
-    MultiLevelBackpressure,
-    RateBasedBackpressure,
-)
-from aether_sdk.streaming.types import (
-    BackpressureConfig,
-    BackpressureStrategy,
-    Duration,
-    StreamEvent,
-    Timestamp,
-    WindowInfo,
-)
+from aether_sdk.streaming.backpressure import (BackpressureController,
+                                               MultiLevelBackpressure,
+                                               RateBasedBackpressure)
+from aether_sdk.streaming.types import (BackpressureConfig,
+                                        BackpressureStrategy, Duration,
+                                        StreamEvent, Timestamp, WindowInfo)
 from aether_sdk.streaming.window import TumblingWindow
 
 AUDIT_LOG = []

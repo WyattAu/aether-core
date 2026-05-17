@@ -15,19 +15,10 @@ pytest.importorskip("grpc")
 
 import grpc
 
-from aether_sdk.client import (
-    ActorInfo,
-    DeliveryReceipt,
-    EventRecord,
-    ServerInfo,
-    StateEntry,
-)
-from aether_sdk.grpc_client import (
-    AetherGrpcClient,
-    AetherGrpcError,
-    _bytes_to_json,
-    _json_to_bytes,
-)
+from aether_sdk.client import (ActorInfo, DeliveryReceipt, EventRecord,
+                               ServerInfo, StateEntry)
+from aether_sdk.grpc_client import (AetherGrpcClient, AetherGrpcError,
+                                    _bytes_to_json, _json_to_bytes)
 from aether_sdk.proto import aether_pb2, aether_pb2_grpc
 
 # ============================================================

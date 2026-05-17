@@ -10,15 +10,12 @@ import time
 
 import pytest
 
-from aether_sdk.resilience.circuit_breaker import (
-    CircuitBreaker,
-    CircuitBreakerConfig,
-    CircuitBreakerError,
-    CircuitBreakerManager,
-    CircuitBreakerStats,
-    CircuitState,
-    FailureRecord,
-)
+from aether_sdk.resilience.circuit_breaker import (CircuitBreaker,
+                                                   CircuitBreakerConfig,
+                                                   CircuitBreakerError,
+                                                   CircuitBreakerManager,
+                                                   CircuitBreakerStats,
+                                                   CircuitState, FailureRecord)
 
 # ============================================
 # CircuitState Tests

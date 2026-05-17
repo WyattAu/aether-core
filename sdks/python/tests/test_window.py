@@ -6,26 +6,12 @@ Tests for time-based windowing functions.
 
 from typing import Any, List
 
-from aether_sdk.streaming.types import (
-    Duration,
-    StreamEvent,
-    Timestamp,
-    WindowInfo,
-    WindowSpec,
-    WindowType,
-)
-from aether_sdk.streaming.window import (
-    SessionWindow,
-    SlidingWindow,
-    TumblingWindow,
-    WindowAssigner,
-    WindowState,
-    WindowTrigger,
-    session,
-    sliding,
-    tumbling,
-    window,
-)
+from aether_sdk.streaming.types import (Duration, StreamEvent, Timestamp,
+                                        WindowInfo, WindowSpec, WindowType)
+from aether_sdk.streaming.window import (SessionWindow, SlidingWindow,
+                                         TumblingWindow, WindowAssigner,
+                                         WindowState, WindowTrigger, session,
+                                         sliding, tumbling, window)
 
 # ============================================
 # Helper Functions

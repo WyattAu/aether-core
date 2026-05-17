@@ -23,17 +23,9 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, Generic, List, Optional, Set, TypeVar
 
-from .types import (
-    Duration,
-    InvalidTransitionError,
-    TransitionHandler,
-    TransitionResult,
-    WorkflowContext,
-    WorkflowError,
-    WorkflowResult,
-    WorkflowStatus,
-    WorkflowSuspendedError,
-)
+from .types import (Duration, InvalidTransitionError, TransitionHandler,
+                    TransitionResult, WorkflowContext, WorkflowError,
+                    WorkflowResult, WorkflowStatus, WorkflowSuspendedError)
 
 logger = logging.getLogger(__name__)
 

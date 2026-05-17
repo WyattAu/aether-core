@@ -227,7 +227,8 @@ def test_rate_limiter_creation():
 
 def test_rate_limiter_try_acquire():
     """Benchmark rate limiter try_acquire."""
-    from aether_sdk.resilience import RateLimitConfig, RateLimiter, RateLimitStrategy
+    from aether_sdk.resilience import (RateLimitConfig, RateLimiter,
+                                       RateLimitStrategy)
 
     limiter = RateLimiter(
         RateLimitConfig(
@@ -256,7 +257,8 @@ def test_rate_limiter_try_acquire():
 
 def test_rate_limiter_token_bucket():
     """Benchmark token bucket rate limiter."""
-    from aether_sdk.resilience import RateLimitConfig, RateLimiter, RateLimitStrategy
+    from aether_sdk.resilience import (RateLimitConfig, RateLimiter,
+                                       RateLimitStrategy)
 
     limiter = RateLimiter(
         RateLimitConfig(
@@ -478,13 +480,8 @@ def test_sanitize_html():
 
 def test_resilient_executor():
     """Benchmark combined resilient executor."""
-    from aether_sdk.resilience import (
-        Bulkhead,
-        CircuitBreaker,
-        RateLimiter,
-        ResilientExecutor,
-        RetryPolicy,
-    )
+    from aether_sdk.resilience import (Bulkhead, CircuitBreaker, RateLimiter,
+                                       ResilientExecutor, RetryPolicy)
 
     executor = ResilientExecutor(
         breaker=CircuitBreaker(),

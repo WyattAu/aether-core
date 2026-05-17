@@ -30,14 +30,8 @@ import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-from .client import (
-    ActorInfo,
-    DeliveryReceipt,
-    EventRecord,
-    MessageEnvelope,
-    ServerInfo,
-    StateEntry,
-)
+from .client import (ActorInfo, DeliveryReceipt, EventRecord, MessageEnvelope,
+                     ServerInfo, StateEntry)
 
 logger = logging.getLogger("aether-sdk.grpc")
 

@@ -8,17 +8,12 @@ import asyncio
 
 import pytest
 
-from aether_sdk.resilience.bulkhead import (
-    Bulkhead,
-    BulkheadConfig,
-    BulkheadManager,
-    BulkheadRejectedError,
-    BulkheadStats,
-    BulkheadTimeoutError,
-    api_bulkhead,
-    database_bulkhead,
-    strict_bulkhead,
-)
+from aether_sdk.resilience.bulkhead import (Bulkhead, BulkheadConfig,
+                                            BulkheadManager,
+                                            BulkheadRejectedError,
+                                            BulkheadStats,
+                                            BulkheadTimeoutError, api_bulkhead,
+                                            database_bulkhead, strict_bulkhead)
 
 # ============================================
 # BulkheadConfig Tests

@@ -4,24 +4,14 @@ Tests for Workflow Engine - Types Module
 
 from datetime import timedelta
 
-from aether_sdk.workflow.types import (
-    Duration,
-    HumanTaskContext,
-    HumanTaskError,
-    HumanTaskStatus,
-    InvalidTransitionError,
-    RetryConfig,
-    RetryPolicy,
-    SagaContext,
-    SagaResult,
-    SagaStatus,
-    SagaStepFailedError,
-    TransitionResult,
-    WorkflowContext,
-    WorkflowError,
-    WorkflowResult,
-    WorkflowStatus,
-)
+from aether_sdk.workflow.types import (Duration, HumanTaskContext,
+                                       HumanTaskError, HumanTaskStatus,
+                                       InvalidTransitionError, RetryConfig,
+                                       RetryPolicy, SagaContext, SagaResult,
+                                       SagaStatus, SagaStepFailedError,
+                                       TransitionResult, WorkflowContext,
+                                       WorkflowError, WorkflowResult,
+                                       WorkflowStatus)
 
 
 class TestDuration:

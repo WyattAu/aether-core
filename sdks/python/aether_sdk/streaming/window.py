@@ -19,15 +19,8 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Callable, Dict, Generic, List, Optional, TypeVar
 
-from .types import (
-    Duration,
-    PaneInfo,
-    StreamEvent,
-    Timestamp,
-    WindowInfo,
-    WindowSpec,
-    WindowType,
-)
+from .types import (Duration, PaneInfo, StreamEvent, Timestamp, WindowInfo,
+                    WindowSpec, WindowType)
 
 K = TypeVar("K")
 V = TypeVar("V")

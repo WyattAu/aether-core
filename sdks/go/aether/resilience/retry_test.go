@@ -117,6 +117,9 @@ func TestRetryPolicy_NonRetryableError(t *testing.T) {
 		MaxAttempts: 5,
 		Backoff:     BackoffFixed,
 		BaseDelay:   time.Millisecond,
+		IsRetryable: func(err error, attempt int) bool {
+			return false // Never retry
+		},
 	})
 
 	var attempts int32
