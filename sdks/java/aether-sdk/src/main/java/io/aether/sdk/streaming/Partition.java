@@ -24,7 +24,7 @@ public enum PartitionStrategy {
 /**
  * Configuration for partitioning.
  */
-class PartitionConfig {
+public class PartitionConfig {
     public PartitionStrategy strategy = PartitionStrategy.KEY;
     public int partitions = 10;
     public Function<Object, String> keyExtractor;
@@ -38,7 +38,7 @@ class PartitionConfig {
 /**
  * Statistics for partition distribution.
  */
-class PartitionStats {
+public class PartitionStats {
     public final AtomicLong totalEvents = new AtomicLong(0);
     public final AtomicLong[] partitionCount;
     public final AtomicLong rebalances = new AtomicLong(0);
@@ -66,7 +66,7 @@ class PartitionStats {
 /**
  * Partitions events across multiple consumers.
  */
-class Partitioner {
+public class Partitioner {
     private PartitionConfig config;
     private final AtomicInteger currentIndex = new AtomicInteger(0);
     private PartitionStats stats;
@@ -198,7 +198,7 @@ class Partitioner {
 /**
  * Extracts partition keys from events.
  */
-class KeyExtractor<T> {
+public class KeyExtractor<T> {
     private final Function<T, String> extractor;
     private String fallback = "default";
     private final AtomicLong count = new AtomicLong(0);
@@ -245,7 +245,7 @@ class KeyExtractor<T> {
 /**
  * Processes events for a specific partition.
  */
-class PartitionProcessor<T> {
+public class PartitionProcessor<T> {
     private final int partitionId;
     private final Function<StreamEvent<T>, Void> handler;
     private final AtomicLong eventCount = new AtomicLong(0);
@@ -288,7 +288,7 @@ class PartitionProcessor<T> {
 /**
  * Strategy weight tuple for composite partitioning.
  */
-class StrategyWeight<T> {
+public class StrategyWeight<T> {
     public final PartitionStrategy strategy;
     public final double weight;
     public final Function<T, String> extractor;
@@ -303,7 +303,7 @@ class StrategyWeight<T> {
 /**
  * Combines multiple partitioning strategies.
  */
-class CompositePartitioner<T> {
+public class CompositePartitioner<T> {
     private final List<StrategyWeight<T>> strategies;
     private final List<Partitioner> partitioners;
     private final int numPartitions;

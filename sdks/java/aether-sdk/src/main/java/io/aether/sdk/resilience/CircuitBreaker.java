@@ -6,15 +6,6 @@ import java.util.concurrent.locks.*;
 import java.time.Duration;
 
 /**
- * Circuit breaker states.
- */
-public enum CircuitState {
-    CLOSED,
-    OPEN,
-    HALF_OPEN
-}
-
-/**
  * Circuit Breaker pattern implementation.
  * 
  * Prevents cascading failures by stopping requests to a failing service.
