@@ -153,29 +153,25 @@ func (h *HealthChecker) RunCheck(ctx context.Context, name string) HealthCheckRe
 	}
 
 	// Run check with timeout
-	checkCtx, cancel := context.WithTimeout(ctx, entry.options.Timeout)
-	defer cancel()
+	var result HealthCheckResult
+	done := make(chan struct{}, 1)
 
-	type checkResult struct {
-		result HealthCheckResult
-		err    error
-	}
-	ch := make(chan checkResult, 1)
 	go func() {
-		r := entry.fn(checkCtx)
-		ch <- checkResult{result: r}
+		checkCtx, cancel := context.WithTimeout(ctx, entry.options.Timeout)
+		defer cancel()
+		result = entry.fn(checkCtx)
+		done <- struct{}{}
 	}()
 
-	var result HealthCheckResult
 	select {
-	case cr := <-ch:
-		result = cr.result
-	case <-checkCtx.Done():
+	case <-done:
+		// Check completed
+	case <-ctx.Done():
 		result = HealthCheckResult{
 			Status:        StatusUnhealthy,
 			ComponentID:   name,
 			ComponentType: "check",
-			Output:        "check timed out",
+			Output:        "check canceled",
 			Time:          time.Now().UTC().Format(time.RFC3339),
 		}
 	}
