@@ -2,9 +2,7 @@ package resilience
 
 import (
 	"context"
-	"errors"
 	"math/rand"
-	"strings"
 	"time"
 )
 

@@ -109,8 +109,8 @@
                         <goals>
                             <goal>jar-no-fork</goal>
                         </goals>
+                    </execution>
                 </executions>
-                </execution>
             </plugin>
         </plugins>
     </build>
