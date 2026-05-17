@@ -921,7 +921,6 @@ public final class Backpressure {
             return timestamp;
         }
     }
-}
 
     public static <T> BackpressureResult<T> withDropped(BackpressureResult<T> result, T dropped, String reason) {
         return new BackpressureResult<>(result.accepted, result.element, dropped, reason, result.waitTimeMs);

@@ -17,8 +17,12 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from aether_sdk.streaming import StreamEvent
 from aether_sdk.streaming.batch import BatchCollector, BatchConfig
-from aether_sdk.streaming.partition import (KeyExtractor, PartitionConfig,
-                                            Partitioner, PartitionStrategy)
+from aether_sdk.streaming.partition import (
+    KeyExtractor,
+    PartitionConfig,
+    Partitioner,
+    PartitionStrategy,
+)
 from aether_sdk.streaming.zero_copy import MemoryPool, RingBuffer
 
 # ============================================

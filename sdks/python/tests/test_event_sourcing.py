@@ -7,10 +7,15 @@ from typing import Any, Dict
 import pytest
 
 # Import what's actually available
-from aether_sdk.event.event_sourcing import (Aggregate, ConcurrencyError,
-                                             EventEnvelope, EventVersion,
-                                             InMemoryEventStore, Snapshot,
-                                             apply_event)
+from aether_sdk.event.event_sourcing import (
+    Aggregate,
+    ConcurrencyError,
+    EventEnvelope,
+    EventVersion,
+    InMemoryEventStore,
+    Snapshot,
+    apply_event,
+)
 
 # ============================================
 # EventVersion Tests

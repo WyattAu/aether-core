@@ -9,10 +9,15 @@ from typing import Any, Dict, List
 
 import pytest
 
-from aether_sdk.event.event_sourcing import (Aggregate, ConcurrencyError,
-                                             EventEnvelope, EventSourcedActor,
-                                             EventVersion, InMemoryEventStore,
-                                             Snapshot)
+from aether_sdk.event.event_sourcing import (
+    Aggregate,
+    ConcurrencyError,
+    EventEnvelope,
+    EventSourcedActor,
+    EventVersion,
+    InMemoryEventStore,
+    Snapshot,
+)
 
 # ============================================
 # Test Aggregates

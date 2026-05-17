@@ -9,10 +9,14 @@ from typing import Any, Dict
 
 import pytest
 
-from aether_sdk.streaming.partition import (CompositePartitioner, KeyExtractor,
-                                            PartitionConfig, Partitioner,
-                                            PartitionProcessor,
-                                            PartitionStrategy)
+from aether_sdk.streaming.partition import (
+    CompositePartitioner,
+    KeyExtractor,
+    PartitionConfig,
+    Partitioner,
+    PartitionProcessor,
+    PartitionStrategy,
+)
 from aether_sdk.streaming.types import StreamEvent, Timestamp
 
 # ============================================

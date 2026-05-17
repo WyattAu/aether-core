@@ -43,31 +43,84 @@ Example:
 from __future__ import annotations
 
 # Backpressure
-from .backpressure import (BackpressureController, BackpressureError,
-                           BackpressureStats, BufferFullError,
-                           MultiLevelBackpressure, RateBasedBackpressure)
+from .backpressure import (
+    BackpressureController,
+    BackpressureError,
+    BackpressureStats,
+    BufferFullError,
+    MultiLevelBackpressure,
+    RateBasedBackpressure,
+)
+
 # Batch Processing (M4 Performance)
-from .batch import (BatchAggregator, BatchCollector, BatchConfig, BatchEmitter,
-                    BatchProcessor, BatchResult, BatchStats)
+from .batch import (
+    BatchAggregator,
+    BatchCollector,
+    BatchConfig,
+    BatchEmitter,
+    BatchProcessor,
+    BatchResult,
+    BatchStats,
+)
+
 # Partitioning (M4 Performance)
 from .partition import KeyExtractor  # noqa: F811
-from .partition import (CompositePartitioner, Partitioner, PartitionProcessor,
-                        PartitionStrategy)
+from .partition import (
+    CompositePartitioner,
+    Partitioner,
+    PartitionProcessor,
+    PartitionStrategy,
+)
+
 # Stream Actor
 from .stream_actor import StreamActor, StreamingStateHandle, StreamState
+
 # Core types
 from .types import (  # Enums; Value types; Event types; Configuration types; Handler types
-    BackpressureConfig, BackpressureStrategy, BatchHandler, DeliveryConfig,
-    DeliverySemantics, Duration, EventHandler, LateDataPolicy, PaneInfo,
-    PartitionConfig, StreamConfig, StreamEvent, Timestamp, Watermark,
-    WatermarkStrategy, WindowHandler, WindowInfo, WindowSpec, WindowType)
+    BackpressureConfig,
+    BackpressureStrategy,
+    BatchHandler,
+    DeliveryConfig,
+    DeliverySemantics,
+    Duration,
+    EventHandler,
+    LateDataPolicy,
+    PaneInfo,
+    PartitionConfig,
+    StreamConfig,
+    StreamEvent,
+    Timestamp,
+    Watermark,
+    WatermarkStrategy,
+    WindowHandler,
+    WindowInfo,
+    WindowSpec,
+    WindowType,
+)
+
 # Windowing
 from .window import (  # Core classes; Convenience classes; Decorators
-    SessionWindow, SlidingWindow, TumblingWindow, WindowAssigner, WindowState,
-    WindowTrigger, session, sliding, tumbling, window)
+    SessionWindow,
+    SlidingWindow,
+    TumblingWindow,
+    WindowAssigner,
+    WindowState,
+    WindowTrigger,
+    session,
+    sliding,
+    tumbling,
+    window,
+)
+
 # Zero-Copy Messaging (M4 Performance)
-from .zero_copy import (BufferStats, MemoryPool, PooledBuffer, RingBuffer,
-                        ZeroCopyBuffer, ZeroCopyEmitter)
+from .zero_copy import (
+    BufferStats,
+    MemoryPool,
+    PooledBuffer,
+    RingBuffer,
+    ZeroCopyBuffer,
+    ZeroCopyEmitter,
+)
 
 # ============================================
 # Module Exports

@@ -39,9 +39,13 @@ def _fmt_latency(total_ns: float, n: int) -> str:
 @pytest.mark.performance
 class TestStreamProcessing:
     def test_window_assigner_throughput(self):
-        from aether_sdk.streaming.types import (Duration, StreamEvent,
-                                                Timestamp, WindowSpec,
-                                                WindowType)
+        from aether_sdk.streaming.types import (
+            Duration,
+            StreamEvent,
+            Timestamp,
+            WindowSpec,
+            WindowType,
+        )
         from aether_sdk.streaming.window import WindowAssigner
 
         spec = WindowSpec(type=WindowType.TUMBLING, size=Duration.from_minutes(5))
@@ -101,9 +105,12 @@ class TestStreamProcessing:
 class TestBackpressure:
     def test_backpressure_push_throughput(self):
         from aether_sdk.streaming.backpressure import BackpressureController
-        from aether_sdk.streaming.types import (BackpressureConfig,
-                                                BackpressureStrategy,
-                                                StreamEvent, Timestamp)
+        from aether_sdk.streaming.types import (
+            BackpressureConfig,
+            BackpressureStrategy,
+            StreamEvent,
+            Timestamp,
+        )
 
         config = BackpressureConfig(
             strategy=BackpressureStrategy.BUFFER,
@@ -150,7 +157,9 @@ class TestBackpressure:
 class TestCircuitBreaker:
     def test_circuit_breaker_overhead(self):
         from aether_sdk.resilience.circuit_breaker import (
-            CircuitBreaker, CircuitBreakerConfig)
+            CircuitBreaker,
+            CircuitBreakerConfig,
+        )
 
         cb = CircuitBreaker(CircuitBreakerConfig(failure_threshold=1000))
 
@@ -175,7 +184,9 @@ class TestCircuitBreaker:
 
     def test_circuit_breaker_vs_direct(self):
         from aether_sdk.resilience.circuit_breaker import (
-            CircuitBreaker, CircuitBreakerConfig)
+            CircuitBreaker,
+            CircuitBreakerConfig,
+        )
 
         cb = CircuitBreaker(CircuitBreakerConfig(failure_threshold=1000))
 

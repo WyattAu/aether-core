@@ -8,6 +8,7 @@
         "build": "tsc",
         "test": "jest",
         "lint": "eslint src/**/*.ts",
+        "typecheck": "tsc --noEmit",
         "docs": "typedoc",
         "docs:serve": "typedoc --serve",
         "prepublishOnly": "npm run build"

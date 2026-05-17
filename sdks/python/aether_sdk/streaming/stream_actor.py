@@ -31,8 +31,16 @@ from ..actor import Actor
 from ..messaging import Message, MessageType
 from ..state import StateHandle
 from .backpressure import BackpressureController
-from .types import (BackpressureConfig, LateDataPolicy, StreamConfig,
-                    StreamEvent, Timestamp, Watermark, WindowInfo, WindowSpec)
+from .types import (
+    BackpressureConfig,
+    LateDataPolicy,
+    StreamConfig,
+    StreamEvent,
+    Timestamp,
+    Watermark,
+    WindowInfo,
+    WindowSpec,
+)
 from .window import WindowAssigner, WindowTrigger
 
 K = TypeVar("K")

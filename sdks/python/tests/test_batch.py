@@ -9,10 +9,15 @@ from typing import Any
 
 import pytest
 
-from aether_sdk.streaming.batch import (BatchAggregator, BatchCollector,
-                                        BatchConfig, BatchEmitter,
-                                        BatchProcessor, BatchResult,
-                                        BatchStats)
+from aether_sdk.streaming.batch import (
+    BatchAggregator,
+    BatchCollector,
+    BatchConfig,
+    BatchEmitter,
+    BatchProcessor,
+    BatchResult,
+    BatchStats,
+)
 from aether_sdk.streaming.types import StreamEvent, Timestamp
 
 # ============================================
