@@ -923,8 +923,7 @@ public final class Backpressure {
     }
 }
 
-extension BackpressureResult {
-    public <T> BackpressureResult<T> withDropped(T dropped, String reason) {
-        return new BackpressureResult<>(this.accepted, this.element, dropped, reason, this.waitTimeMs);
+    public static <T> BackpressureResult<T> withDropped(BackpressureResult<T> result, T dropped, String reason) {
+        return new BackpressureResult<>(result.accepted, result.element, dropped, reason, result.waitTimeMs);
     }
 }
