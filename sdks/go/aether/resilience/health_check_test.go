@@ -136,13 +136,20 @@ func TestHealthChecker_CacheResult(t *testing.T) {
 	hc.RegisterCheck("cached", func(ctx context.Context) HealthCheckResult {
 		atomic.AddInt32(&calls, 1)
 		return HealthCheckResult{Status: StatusHealthy, Time: time.Now().UTC().Format(time.RFC3339)}
-	}, &HealthCheckOptions{CacheDuration: 5 * time.Second})
+	}, &HealthCheckOptions{CacheDuration: 5 * time.Second, Timeout: 5 * time.Second})
 
-	hc.RunCheck(context.Background(), "cached")
-	hc.RunCheck(context.Background(), "cached")
+	result1 := hc.RunCheck(context.Background(), "cached")
+	if result1.Status != StatusHealthy {
+		t.Errorf("expected healthy, got %v", result1.Status)
+	}
 
-	if atomic.LoadInt32(&calls) != 1 {
-		t.Errorf("expected 1 call with caching, got %d", atomic.LoadInt32(&calls))
+	result2 := hc.RunCheck(context.Background(), "cached")
+	if result2.Status != StatusHealthy {
+		t.Errorf("expected healthy from cache, got %v", result2.Status)
+	}
+
+	if c := atomic.LoadInt32(&calls); c != 1 {
+		t.Errorf("expected 1 call with caching, got %d", c)
 	}
 }
 

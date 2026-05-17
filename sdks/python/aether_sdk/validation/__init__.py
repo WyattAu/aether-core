@@ -77,8 +77,8 @@ class SchemaValidationError(ValidationError):
 # Sanitization Functions (re-exported from sanitize module)
 # ============================================
 
-from aether_sdk.validation.sanitize import (
-    escape_regex,  # noqa: E402
+from aether_sdk.validation.sanitize import (  # noqa: E402
+    escape_regex,
     escape_shell,
     normalize_line_endings,
     redact_sensitive,

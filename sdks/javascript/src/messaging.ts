@@ -24,6 +24,8 @@ export enum MessageType {
     RPC_REQUEST = 'rpc_request',
     /** An RPC response correlated to a prior request. */
     RPC_RESPONSE = 'rpc_response',
+    /** An error response. */
+    ERROR = 'error',
     /** Application-specific custom message. */
     CUSTOM = 'custom',
 }
@@ -129,6 +131,11 @@ export class Message {
      */
     static rpcRequest(payload: MessagePayload, correlationId: string): Message {
         return new Message(MessageType.RPC_REQUEST, payload, undefined, correlationId);
+    }
+
+    /** Alias for rpcRequest. */
+    static rpc(payload: MessagePayload, correlationId: string): Message {
+        return Message.rpcRequest(payload, correlationId);
     }
 
     /**

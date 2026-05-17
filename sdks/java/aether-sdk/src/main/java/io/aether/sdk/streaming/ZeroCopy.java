@@ -8,7 +8,7 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * Statistics for buffer usage.
  */
-public class BufferStats {
+class BufferStats {
     public final AtomicLong totalBuffers = new AtomicLong(0);
     public final AtomicLong activeBuffers = new AtomicLong(0);
     public final AtomicLong freeBuffers = new AtomicLong(0);
@@ -33,7 +33,7 @@ public class BufferStats {
 /**
  * Memory pool for reusable byte buffers.
  */
-public class MemoryPool {
+class MemoryPool {
     private final int bufferSize;
     private final int initialSize;
     private final ConcurrentLinkedQueue<ByteBuffer> freeList = new ConcurrentLinkedQueue<>();
@@ -120,7 +120,7 @@ public class MemoryPool {
 /**
  * Pooled buffer with reference counting.
  */
-public class PooledBuffer {
+class PooledBuffer {
     private ByteBuffer data;
     private final MemoryPool pool;
     private final AtomicInteger refCount;
@@ -175,7 +175,7 @@ public class PooledBuffer {
 /**
  * Ring buffer for circular data storage.
  */
-public class RingBuffer {
+class RingBuffer {
     private final byte[] data;
     private final int size;
     private final int mask;
@@ -268,7 +268,7 @@ public class RingBuffer {
 /**
  * Zero-copy emitter for high-throughput event emission.
  */
-public class ZeroCopyEmitter<T> {
+class ZeroCopyEmitter<T> {
     private final MemoryPool pool;
     private final java.util.List<Handler<T>> handlers = new java.util.concurrent.CopyOnWriteArrayList<>();
 
