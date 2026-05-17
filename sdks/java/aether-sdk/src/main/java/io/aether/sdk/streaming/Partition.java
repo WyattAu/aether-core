@@ -24,7 +24,7 @@ public enum PartitionStrategy {
 /**
  * Configuration for partitioning.
  */
-public class PartitionConfig {
+class PartitionConfig {
     public PartitionStrategy strategy = PartitionStrategy.KEY;
     public int partitions = 10;
     public Function<Object, String> keyExtractor;
@@ -38,7 +38,7 @@ public class PartitionConfig {
 /**
  * Statistics for partition distribution.
  */
-public class PartitionStats {
+class PartitionStats {
     public final AtomicLong totalEvents = new AtomicLong(0);
     public final AtomicLong[] partitionCount;
     public final AtomicLong rebalances = new AtomicLong(0);
@@ -66,7 +66,7 @@ public class PartitionStats {
 /**
  * Partitions events across multiple consumers.
  */
-public class Partitioner {
+class Partitioner {
     private PartitionConfig config;
     private final AtomicInteger currentIndex = new AtomicInteger(0);
     private PartitionStats stats;
@@ -198,7 +198,7 @@ public class Partitioner {
 /**
  * Extracts partition keys from events.
  */
-public class KeyExtractor<T> {
+class KeyExtractor<T> {
     private final Function<T, String> extractor;
     private String fallback = "default";
     private final AtomicLong count = new AtomicLong(0);
@@ -245,7 +245,7 @@ public class KeyExtractor<T> {
 /**
  * Processes events for a specific partition.
  */
-public class PartitionProcessor<T> {
+class PartitionProcessor<T> {
     private final int partitionId;
     private final Function<StreamEvent<T>, Void> handler;
     private final AtomicLong eventCount = new AtomicLong(0);
@@ -288,7 +288,7 @@ public class PartitionProcessor<T> {
 /**
  * Strategy weight tuple for composite partitioning.
  */
-public class StrategyWeight<T> {
+class StrategyWeight<T> {
     public final PartitionStrategy strategy;
     public final double weight;
     public final Function<T, String> extractor;
@@ -303,7 +303,7 @@ public class StrategyWeight<T> {
 /**
  * Combines multiple partitioning strategies.
  */
-public class CompositePartitioner<T> {
+class CompositePartitioner<T> {
     private final List<StrategyWeight<T>> strategies;
     private final List<Partitioner> partitioners;
     private final int numPartitions;

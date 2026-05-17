@@ -20,21 +20,12 @@ Usage:
 import asyncio
 from datetime import datetime, timezone
 
-from aether_sdk.event import (
-    Aggregate,
-    InMemoryEventStore,
-    InMemorySchemaRegistry,
-    Schema,
-)
+from aether_sdk.event import (Aggregate, InMemoryEventStore,
+                              InMemorySchemaRegistry, Schema)
 from aether_sdk.event.schema import SchemaError
 from aether_sdk.workflow.saga import Saga, SagaExecutor
-from aether_sdk.workflow.types import (
-    Duration,
-    RetryConfig,
-    RetryPolicy,
-    SagaContext,
-    SagaResult,
-)
+from aether_sdk.workflow.types import (Duration, RetryConfig, RetryPolicy,
+                                       SagaContext, SagaResult)
 
 # -------------------------------------------------------------------
 # Event schemas (for validation)

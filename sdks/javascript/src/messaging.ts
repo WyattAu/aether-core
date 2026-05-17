@@ -133,9 +133,12 @@ export class Message {
         return new Message(MessageType.RPC_REQUEST, payload, undefined, correlationId);
     }
 
-    /** Alias for rpcRequest. */
-    static rpc(payload: MessagePayload, correlationId: string): Message {
-        return Message.rpcRequest(payload, correlationId);
+    /** Alias for rpcRequest. Accepts either (payload, correlationId) or (opts). */
+    static rpc(payloadOrOpts: MessagePayload | { target?: string; payload: any; correlationId: string }, correlationId?: string): Message {
+        if (typeof payloadOrOpts === 'object' && 'correlationId' in payloadOrOpts && !('type' in payloadOrOpts)) {
+            return Message.rpcRequest(payloadOrOpts.payload, payloadOrOpts.correlationId);
+        }
+        return Message.rpcRequest(payloadOrOpts as MessagePayload, correlationId!);
     }
 
     /**

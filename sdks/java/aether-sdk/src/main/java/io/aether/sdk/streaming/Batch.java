@@ -40,7 +40,7 @@ public class BatchConfig {
 /**
  * Result of batch processing.
  */
-public class BatchResult<T> {
+class BatchResult<T> {
     public final List<T> items;
     public final long sizeBytes;
     public final Duration processingTime;
@@ -62,7 +62,7 @@ public class BatchResult<T> {
 /**
  * Statistics for batch processing.
  */
-public class BatchStats {
+class BatchStats {
     public final AtomicLong totalItems = new AtomicLong(0);
     public final AtomicLong totalBatches = new AtomicLong(0);
     public final AtomicLong totalBytes = new AtomicLong(0);
@@ -96,7 +96,7 @@ public class BatchStats {
 /**
  * Collects items into batches based on size, time, or byte limits.
  */
-public class BatchCollector<T> {
+class BatchCollector<T> {
     private final BatchConfig config;
     private final List<T> items = new ArrayList<>();
     private long currentBytes = 0;
@@ -219,7 +219,7 @@ public class BatchCollector<T> {
 /**
  * Aggregates batch items into a single result.
  */
-public class BatchAggregator<T, R> {
+class BatchAggregator<T, R> {
     private final Function<List<T>, R> aggregateFunc;
     private final Function<T, String> keyExtractor;
     private int batchCount = 0;
@@ -268,7 +268,7 @@ public class BatchAggregator<T, R> {
 /**
  * Emits batch results to downstream consumers.
  */
-public class BatchEmitter<T> {
+class BatchEmitter<T> {
     private final List<Consumer<BatchResult<T>>> handlers = new java.util.concurrent.CopyOnWriteArrayList<>();
 
     /**
@@ -291,7 +291,7 @@ public class BatchEmitter<T> {
 /**
  * Processes events in batches with configurable size and timing.
  */
-public class BatchProcessor<T> {
+class BatchProcessor<T> {
     private final BatchConfig config;
     private final BatchCollector<T> collector;
     private final ConcurrentLinkedQueue<BatchResult<T>> queue = new ConcurrentLinkedQueue<>();

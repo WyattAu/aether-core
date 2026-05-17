@@ -195,7 +195,7 @@ export abstract class Actor extends EventEmitter {
             this.once(`rpc-response-${correlationId}`, (response: Message) => {
                 if (timer) clearTimeout(timer);
                 if (response.type === MessageType.ERROR) {
-                    reject(new Error(response.payload as string));
+                    reject(new Error(response.payload as unknown as string));
                     return;
                 }
                 resolve(response.payload as T);
