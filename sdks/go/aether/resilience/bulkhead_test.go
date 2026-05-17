@@ -84,7 +84,7 @@ func TestBulkhead_TryExecute_Rejected(t *testing.T) {
 func TestBulkhead_Execute_QueueTimeout(t *testing.T) {
 	bh := NewBulkhead(BulkheadConfig{
 		MaxConcurrent: 1,
-		MaxQueued:     1,
+		MaxQueued:     2,
 		Timeout:       20 * time.Millisecond,
 	})
 

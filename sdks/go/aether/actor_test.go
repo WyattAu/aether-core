@@ -231,12 +231,13 @@ func TestBaseActor_Run_ProcessesMessages(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	actor.Deliver("sender", &Message{Type: MessageTypeEvent, Payload: "data"})
+	go actor.Run(ctx)
+	time.Sleep(50 * time.Millisecond)
 
+	actor.Deliver("sender", &Message{Type: MessageTypeEvent, Payload: "data"})
 	time.Sleep(50 * time.Millisecond)
 	cancel()
 
-	actor.Run(ctx)
 	if !received {
 		t.Error("message should have been processed")
 	}

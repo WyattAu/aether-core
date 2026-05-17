@@ -207,6 +207,7 @@ func (r *RetryPolicy) isRetryableDefault(err error) bool {
 		"connection reset",
 		"timeout",
 		"temporary",
+		"transient",
 		"unavailable",
 		"network",
 		"eof",

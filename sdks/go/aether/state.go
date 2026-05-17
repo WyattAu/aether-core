@@ -39,6 +39,11 @@ func (s *StateHandle) Write(ctx context.Context, key string, value []byte) error
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	if value == nil {
+		delete(s.store, key)
+		return nil
+	}
+
 	// Store a copy to prevent mutation
 	stored := make([]byte, len(value))
 	copy(stored, value)

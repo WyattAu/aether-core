@@ -132,7 +132,7 @@ func TestCircuitBreaker_GetStats(t *testing.T) {
 	if stats.TotalCalls != 1 {
 		t.Errorf("expected 1 total call, got %d", stats.TotalCalls)
 	}
-	if stats.LastFailure.IsZero() {
+	if !stats.LastFailure.IsZero() {
 		t.Error("last failure should be zero time for no failures")
 	}
 }
@@ -278,8 +278,8 @@ func TestCircuitBreaker_ContextCanceled(t *testing.T) {
 	cancel()
 
 	_, err := cb.Execute(ctx, func(ctx context.Context) (any, error) {
-		time.Sleep(time.Second)
-		return "done", nil
+		<-ctx.Done()
+		return "done", ctx.Err()
 	})
 	if err == nil {
 		t.Error("expected error when context is canceled")

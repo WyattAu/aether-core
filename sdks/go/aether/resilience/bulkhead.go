@@ -60,11 +60,8 @@ type Bulkhead struct {
 
 // NewBulkhead creates a new bulkhead.
 func NewBulkhead(config BulkheadConfig) *Bulkhead {
-	if config.MaxConcurrent == 0 {
+	if config.MaxConcurrent <= 0 {
 		config.MaxConcurrent = 10
-	}
-	if config.MaxQueued == 0 {
-		config.MaxQueued = 100
 	}
 
 	return &Bulkhead{

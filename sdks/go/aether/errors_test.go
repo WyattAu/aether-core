@@ -168,8 +168,9 @@ func TestError_ImplementsError(t *testing.T) {
 }
 
 func TestError_ImplementsUnwrap(t *testing.T) {
-	err := NewError("CODE", "msg", errors.New("cause"))
-	if !errors.Is(err, errors.New("cause")) {
+	cause := errors.New("cause")
+	err := NewError("CODE", "msg", cause)
+	if !errors.Is(err, cause) {
 		t.Error("should support errors.Is via Unwrap")
 	}
 }

@@ -210,6 +210,7 @@ func (cb *CircuitBreaker) Execute(ctx context.Context, fn func(ctx context.Conte
 func (cb *CircuitBreaker) ForceOpen() {
 	cb.mu.Lock()
 	defer cb.mu.Unlock()
+	cb.lastFailure = time.Now()
 	cb.transitionToLocked(StateOpen)
 }
 
