@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aether Dashboard</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0d1117; --surface: #161b22; --border: #30363d;
+  --text: #e6edf3; --text-secondary: #8b949e; --text-muted: #484f58;
+  --accent: #58a6ff; --green: #3fb950; --red: #f85149; --yellow: #d29922;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --mono: "SF Mono", "Cascadia Code", Consolas, monospace;
+}
+body { font-family: var(--font); background: var(--bg); color: var(--text); line-height: 1.5; }
+header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; }
+header h1 { font-size: 16px; font-weight: 600; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+.badge-healthy { background: rgba(63,185,80,0.15); color: var(--green); }
+.badge-degraded { background: rgba(210,153,34,0.15); color: var(--yellow); }
+.badge-unhealthy { background: rgba(248,81,73,0.15); color: var(--red); }
+.badge-running { background: rgba(63,185,80,0.15); color: var(--green); }
+main { max-width: 1200px; margin: 0 auto; padding: 24px; }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin-bottom: 32px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+.card .label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+.card .value { font-size: 28px; font-weight: 700; font-family: var(--mono); }
+.card .sub { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+.section-title { font-size: 16px; font-weight: 600; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 24px; }
+thead { background: #1c2129; }
+th { text-align: left; padding: 10px 14px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); font-weight: 600; }
+td { padding: 10px 14px; border-top: 1px solid var(--border); font-size: 14px; }
+tbody tr:hover { background: rgba(88,166,255,0.04); }
+.mono { font-family: var(--mono); font-size: 13px; }
+.spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.6s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.empty { text-align: center; padding: 32px; color: var(--text-muted); }
+.error-banner { display: none; padding: 10px 16px; margin-bottom: 16px; background: rgba(248,81,73,0.1); border: 1px solid rgba(248,81,73,0.3); border-radius: 8px; color: var(--red); font-size: 13px; }
+.error-banner.visible { display: flex; align-items: center; justify-content: space-between; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Aether Dashboard</h1>
+  <div id="status-badge"><span class="badge badge-healthy">Loading</span></div>
+</header>
+
+<main>
+  <div id="error" class="error-banner">
+    <span id="error-text"></span>
+    <button onclick="document.getElementById('error').classList.remove('visible')" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:12px">Dismiss</button>
+  </div>
+
+  <section>
+    <h2 class="section-title">Cluster Overview</h2>
+    <div class="cards" id="overview-cards">
+      <div class="card"><div class="label">Status</div><div class="value" id="ov-status"><span class="spinner"></span></div></div>
+      <div class="card"><div class="label">Version</div><div class="value" id="ov-version">--</div></div>
+      <div class="card"><div class="label">Uptime</div><div class="value" id="ov-uptime">--</div><div class="sub" id="ov-uptime-sub"></div></div>
+      <div class="card"><div class="label">Actors Running</div><div class="value" id="ov-actors">--</div></div>
+      <div class="card"><div class="label">Messages Total</div><div class="value" id="ov-messages">--</div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="section-title">Actors</h2>
+    <table>
+      <thead><tr><th>Name</th><th>ID</th><th>Status</th><th>Messages</th><th>Errors</th><th>Cold Starts</th><th>Last Cold Start</th></tr></thead>
+      <tbody id="actors-body">
+        <tr><td colspan="7" class="empty"><span class="spinner"></span> Loading actors...</td></tr>
+      </tbody>
+    </table>
+  </section>
+</main>
+
+<script>
+(function() {
+  'use strict';
+  var API_BASE = '/api/dashboard';
+
+  function esc(s) {
+    if (s == null) return '';
+    var d = document.createElement('div');
+    d.appendChild(document.createTextNode(String(s)));
+    return d.innerHTML;
+  }
+
+  function formatUptime(secs) {
+    if (secs == null) return '--';
+    var d = Math.floor(secs / 86400);
+    var h = Math.floor((secs % 86400) / 3600);
+    var m = Math.floor((secs % 3600) / 60);
+    var s = Math.floor(secs % 60);
+    if (d > 0) return d + 'd ' + h + 'h ' + m + 'm';
+    if (h > 0) return h + 'h ' + m + 'm ' + s + 's';
+    return m + 'm ' + s + 's';
+  }
+
+  function formatUs(us) {
+    if (us == null) return '--';
+    if (us < 1000) return us + ' us';
+    return (us / 1000).toFixed(1) + ' ms';
+  }
+
+  function badgeClass(s) {
+    var v = (s || '').toLowerCase();
+    if (v === 'running' || v === 'healthy') return 'badge-' + v;
+    if (v === 'degraded') return 'badge-' + v;
+    if (v === 'unhealthy') return 'badge-unhealthy';
+    return 'badge-healthy';
+  }
+
+  function showError(msg) {
+    document.getElementById('error-text').textContent = msg;
+    document.getElementById('error').classList.add('visible');
+  }
+
+  function fetchJSON(path) {
+    return fetch(API_BASE + path).then(function(r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    });
+  }
+
+  function renderOverview(data) {
+    document.getElementById('ov-status').innerHTML = '<span class="badge ' + badgeClass(data.status) + '">' + esc(data.status) + '</span>';
+    document.getElementById('ov-version').textContent = 'v' + esc(data.version);
+    document.getElementById('ov-uptime').textContent = formatUptime(data.uptime_secs);
+    document.getElementById('ov-uptime-sub').textContent = data.uptime_secs + 's';
+    document.getElementById('ov-actors').textContent = data.actors_running || 0;
+    document.getElementById('ov-messages').textContent = data.messages_total || 0;
+
+    var badge = document.getElementById('status-badge');
+    badge.innerHTML = '<span class="badge ' + badgeClass(data.status) + '">' + esc(data.status) + '</span>';
+  }
+
+  function renderActors(actors) {
+    var body = document.getElementById('actors-body');
+    if (!actors || actors.length === 0) {
+      body.innerHTML = '<tr><td colspan="7" class="empty">No actors found</td></tr>';
+      return;
+    }
+    var html = '';
+    for (var i = 0; i < actors.length; i++) {
+      var a = actors[i];
+      html += '<tr>' +
+        '<td style="font-weight:600">' + esc(a.name) + '</td>' +
+        '<td class="mono" style="color:var(--text-secondary)">' + esc(a.id) + '</td>' +
+        '<td><span class="badge ' + badgeClass(a.state) + '">' + esc(a.state) + '</span></td>' +
+        '<td class="mono">' + (a.messages || 0) + '</td>' +
+        '<td class="mono" style="color:' + (a.errors > 0 ? 'var(--red)' : 'var(--text-secondary)') + '">' + (a.errors || 0) + '</td>' +
+        '<td class="mono">' + (a.cold_starts || 0) + '</td>' +
+        '<td class="mono">' + formatUs(a.last_cold_start_us) + '</td>' +
+        '</tr>';
+    }
+    body.innerHTML = html;
+  }
+
+  function loadAll() {
+    Promise.all([
+      fetchJSON('/overview').catch(function() { return null; }),
+      fetchJSON('/actors').catch(function() { return []; })
+    ]).then(function(results) {
+      var overview = results[0];
+      var actors = results[1] || [];
+      if (overview) renderOverview(overview);
+      renderActors(actors);
+      document.getElementById('error').classList.remove('visible');
+    }).catch(function(err) {
+      showError('Failed to fetch dashboard data: ' + err.message);
+    });
+  }
+
+  loadAll();
+  setInterval(loadAll, 5000);
+})();
+</script>
+</body>
+</html>

@@ -12,6 +12,8 @@ pub mod config;
 pub mod engine;
 /// Error types for the API.
 pub mod error;
+/// API gateway middleware (rate limiting, request ID, logging, CORS).
+pub mod gateway;
 /// Data models for requests and responses.
 pub mod models;
 /// HTTP route handlers.

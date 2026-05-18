@@ -55,6 +55,7 @@ pub struct DashboardState {
 ///
 /// Routes include:
 /// - `/api/v1/*` - REST API endpoints
+/// - `/api/dashboard/*` - Dashboard skeleton API endpoints
 /// - `/ws` - WebSocket endpoint
 /// - `/healthz`, `/readyz` - Health check endpoints
 pub fn create_router(state: Arc<DashboardState>) -> Router {
@@ -68,8 +69,11 @@ pub fn create_router(state: Arc<DashboardState>) -> Router {
         .route("/traces", get(get_traces))
         .route("/openapi.json", get(get_openapi));
 
+    let dashboard_api = super::api::dashboard_router();
+
     Router::new()
         .nest("/api/v1", api_routes)
+        .nest("/api/dashboard", dashboard_api)
         .route("/ws", axum::routing::get(super::ws::ws_handler))
         .route("/healthz", get(healthz))
         .route("/readyz", get(readyz))

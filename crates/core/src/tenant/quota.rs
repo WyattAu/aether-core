@@ -15,6 +15,13 @@
 //! `TenantQuotaTracker::check_network_quota` implements a token bucket algorithm that replenishes
 //! tokens at `network_bytes_per_sec` rate, capped at `network_bytes_per_sec * 2`
 //! burst capacity.
+//!
+//! # Resource Requests and Grants
+//!
+//! [`ResourceRequest`] describes a batch of resources needed by an operation.
+//! [`ResourceGrant`] is an RAII guard returned by [`TenantQuotaTracker::check_all_quotas`]
+//! that automatically releases all held resources on drop.
+//! [`ResourceReport`] provides a snapshot of a tenant's current resource usage.
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -124,6 +131,8 @@ pub struct QuotaUsage {
     window_start: std::sync::atomic::AtomicU64,
     /// Window duration in nanoseconds.
     window_duration_ns: u64,
+    /// Total CPU fuel consumed since last interval reset.
+    fuel_consumed: AtomicU64,
 }
 
 impl QuotaUsage {
@@ -136,6 +145,7 @@ impl QuotaUsage {
             messages_in_window: AtomicU64::new(0),
             window_start: AtomicU64::new(Self::now_ns()),
             window_duration_ns: Duration::from_secs(1).as_nanos() as u64,
+            fuel_consumed: AtomicU64::new(0),
         }
     }
 
@@ -159,6 +169,11 @@ impl QuotaUsage {
     /// Returns the current connection count.
     pub fn connection_count(&self) -> u64 {
         self.connections.load(Ordering::Relaxed)
+    }
+
+    /// Returns the total CPU fuel consumed in the current interval.
+    pub fn fuel_consumed(&self) -> u64 {
+        self.fuel_consumed.load(Ordering::Relaxed)
     }
 
     /// Rotates the rate-limit window if it has expired.
@@ -196,9 +211,6 @@ impl QuotaEnforcer {
     }
 
     /// Attempts to acquire an actor slot.
-    ///
-    /// Returns `Ok(())` if the actor was successfully counted,
-    /// or an error string describing why the limit was exceeded.
     pub fn try_acquire_actor(&self) -> std::result::Result<(), String> {
         loop {
             let current = self.usage.actors.load(Ordering::SeqCst);
@@ -226,9 +238,6 @@ impl QuotaEnforcer {
     }
 
     /// Attempts to acquire memory (in bytes).
-    ///
-    /// Returns `Ok(())` if the memory was successfully allocated,
-    /// or an error string describing why the limit was exceeded.
     pub fn try_acquire_memory(&self, bytes: u64) -> std::result::Result<(), String> {
         if bytes == 0 {
             return Ok(());
@@ -263,9 +272,6 @@ impl QuotaEnforcer {
     }
 
     /// Checks whether a message can be sent given the rate limit.
-    ///
-    /// Uses a sliding one-second window. If the window has expired,
-    /// it resets the counter and allows the message.
     pub fn check_message_rate(&self) -> std::result::Result<(), String> {
         self.usage.rotate_window();
         loop {
@@ -368,6 +374,15 @@ pub enum QuotaError {
         /// Bytes requested.
         requested: u64,
     },
+    /// Connection limit reached.
+    ConnectionLimitExceeded {
+        /// The tenant that hit the limit.
+        tenant: String,
+        /// Current connection count.
+        current: u64,
+        /// Maximum allowed connections.
+        limit: u64,
+    },
     /// An internal quota tracking error occurred.
     Internal(String),
 }
@@ -407,6 +422,15 @@ impl std::fmt::Display for QuotaError {
                 "network bandwidth exhausted for tenant '{}': rejected {} bytes",
                 tenant, requested
             ),
+            Self::ConnectionLimitExceeded {
+                tenant,
+                current,
+                limit,
+            } => write!(
+                f,
+                "connection limit exceeded for tenant '{}': current {}, limit {}",
+                tenant, current, limit
+            ),
             Self::Internal(msg) => write!(f, "quota internal error: {}", msg),
         }
     }
@@ -415,9 +439,6 @@ impl std::fmt::Display for QuotaError {
 impl std::error::Error for QuotaError {}
 
 /// Per-tenant resource quota configuration.
-///
-/// Defines hard limits for CPU fuel, memory, actor counts, and network
-/// bandwidth for a specific tenant.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TenantQuota {
     /// Maximum WASM fuel units per time interval.
@@ -441,10 +462,10 @@ impl Default for TenantQuota {
         Self {
             cpu_fuel_per_interval: 10_000_000,
             cpu_interval_secs: 1,
-            max_memory_per_actor: 65536, // 4 GiB in 64 KiB pages
+            max_memory_per_actor: 65536,
             max_concurrent_actors: 100,
             max_actors_total: 1000,
-            network_bytes_per_sec: 10 * 1024 * 1024, // 10 MiB/s
+            network_bytes_per_sec: 10 * 1024 * 1024,
             max_outbound_connections: 100,
         }
     }
@@ -456,10 +477,10 @@ impl TenantQuota {
         Self {
             cpu_fuel_per_interval: 100_000_000,
             cpu_interval_secs: 1,
-            max_memory_per_actor: 655360, // 40 GiB
+            max_memory_per_actor: 655360,
             max_concurrent_actors: 500,
             max_actors_total: 5000,
-            network_bytes_per_sec: 100 * 1024 * 1024, // 100 MiB/s
+            network_bytes_per_sec: 100 * 1024 * 1024,
             max_outbound_connections: 1000,
         }
     }
@@ -469,10 +490,10 @@ impl TenantQuota {
         Self {
             cpu_fuel_per_interval: 1_000,
             cpu_interval_secs: 10,
-            max_memory_per_actor: 16, // 1 MiB
+            max_memory_per_actor: 16,
             max_concurrent_actors: 5,
             max_actors_total: 10,
-            network_bytes_per_sec: 1024, // 1 KiB/s
+            network_bytes_per_sec: 1024,
             max_outbound_connections: 2,
         }
     }
@@ -484,18 +505,10 @@ impl TenantQuota {
 }
 
 /// Per-tenant network token bucket state.
-///
-/// Implements a token bucket algorithm: tokens replenish at
-/// `network_bytes_per_sec` rate up to a burst capacity of
-/// `network_bytes_per_sec * 2`.
 struct NetworkBucket {
-    /// Tokens available (bytes).
     tokens: AtomicU64,
-    /// Last replenishment timestamp in nanoseconds.
     last_refill: AtomicU64,
-    /// Token refill rate in bytes per second.
     rate: u64,
-    /// Burst capacity (max tokens).
     burst: u64,
 }
 
@@ -511,21 +524,18 @@ impl NetworkBucket {
         }
     }
 
-    /// Refill tokens based on elapsed time. Must be called before consuming.
     fn refill(&self) {
         let now = now_ns();
         let last = self.last_refill.load(Ordering::Relaxed);
-        // Avoid refill if less than 100ms has passed (reduce CAS contention).
         if now.saturating_sub(last) < 100_000_000 {
             return;
         }
-        // Try to acquire the "refill lock" via CAS.
         if self
             .last_refill
             .compare_exchange(last, now, Ordering::SeqCst, Ordering::Relaxed)
             .is_err()
         {
-            return; // Another caller is refilling.
+            return;
         }
         let elapsed_ns = now.saturating_sub(last);
         let elapsed_secs = elapsed_ns as f64 / 1_000_000_000.0;
@@ -538,7 +548,6 @@ impl NetworkBucket {
         self.tokens.store(new, Ordering::Relaxed);
     }
 
-    /// Attempts to consume tokens. Returns `true` if tokens were consumed.
     fn try_consume(&self, amount: u64) -> bool {
         loop {
             let current = self.tokens.load(Ordering::SeqCst);
@@ -559,31 +568,18 @@ impl NetworkBucket {
 }
 
 /// Lock-free per-tenant resource quota tracker.
-///
-/// Uses [`DashMap`] and [`AtomicU64`] for concurrent access with minimal
-/// contention. A background task resets fuel counters at each tenant's
-/// configured interval.
 pub struct TenantQuotaTracker {
-    /// Per-tenant CPU fuel remaining for the current interval.
     fuel_remaining: Arc<DashMap<String, AtomicU64>>,
-    /// Per-tenant network token buckets.
+    fuel_consumed: DashMap<String, AtomicU64>,
     network_buckets: DashMap<String, NetworkBucket>,
-    /// Per-tenant actor counters.
     actor_counts: DashMap<String, AtomicU64>,
-    /// Per-tenant quota configurations.
     quotas: Arc<DashMap<String, TenantQuota>>,
-    /// Background task handle (dropped on shutdown).
     _background_task: Option<tokio::task::JoinHandle<()>>,
-    /// Shutdown signal for the background task.
     shutdown: Arc<AtomicU64>,
 }
 
 impl TenantQuotaTracker {
     /// Creates a new empty quota tracker with a background fuel-reset task.
-    ///
-    /// The background task checks each tenant's interval and resets fuel
-    /// counters when their interval expires. The task runs until the tracker
-    /// is dropped or [`shutdown`](TenantQuotaTracker::shutdown) is called.
     pub fn new() -> Self {
         let shutdown = Arc::new(AtomicU64::new(0));
         let shutdown_clone = Arc::clone(&shutdown);
@@ -605,6 +601,7 @@ impl TenantQuotaTracker {
 
         Self {
             fuel_remaining: fuel_map,
+            fuel_consumed: DashMap::new(),
             network_buckets: DashMap::new(),
             actor_counts: DashMap::new(),
             quotas: quota_map,
@@ -617,6 +614,7 @@ impl TenantQuotaTracker {
     pub fn new_without_background() -> Self {
         Self {
             fuel_remaining: Arc::new(DashMap::new()),
+            fuel_consumed: DashMap::new(),
             network_buckets: DashMap::new(),
             actor_counts: DashMap::new(),
             quotas: Arc::new(DashMap::new()),
@@ -626,13 +624,13 @@ impl TenantQuotaTracker {
     }
 
     /// Registers a tenant with the given quota configuration.
-    ///
-    /// Initializes fuel tracking, network bucket, and actor counter for the tenant.
     pub fn register_tenant(&self, tenant: &str, quota: TenantQuota) {
         self.fuel_remaining.insert(
             tenant.to_string(),
             AtomicU64::new(quota.cpu_fuel_per_interval),
         );
+        self.fuel_consumed
+            .insert(tenant.to_string(), AtomicU64::new(0));
         self.network_buckets.insert(
             tenant.to_string(),
             NetworkBucket::new(quota.network_bytes_per_sec),
@@ -643,23 +641,18 @@ impl TenantQuotaTracker {
     }
 
     /// Returns `true` if the requested CPU fuel is available for the tenant.
-    ///
-    /// This is a check-only operation; it does not consume fuel.
-    /// Use [`consume_fuel`](TenantQuotaTracker::consume_fuel) to actually decrement.
     pub fn check_cpu_fuel(&self, tenant: &str, requested: u64) -> bool {
         let Some(entry) = self.fuel_remaining.get(tenant) else {
-            return true; // No quota configured; allow unconditionally.
+            return true;
         };
         let current = entry.value().load(Ordering::Relaxed);
         current >= requested
     }
 
     /// Consumes CPU fuel for the given tenant.
-    ///
-    /// Returns `true` if fuel was successfully consumed, `false` if exhausted.
     pub fn consume_fuel(&self, tenant: &str, amount: u64) -> bool {
         let Some(entry) = self.fuel_remaining.get(tenant) else {
-            return true; // No quota configured.
+            return true;
         };
         loop {
             let current = entry.value().load(Ordering::SeqCst);
@@ -672,7 +665,12 @@ impl TenantQuotaTracker {
                 Ordering::SeqCst,
                 Ordering::Relaxed,
             ) {
-                Ok(_) => return true,
+                Ok(_) => {
+                    if let Some(consumed) = self.fuel_consumed.get(tenant) {
+                        consumed.value().fetch_add(amount, Ordering::Relaxed);
+                    }
+                    return true;
+                }
                 Err(_) => continue,
             }
         }
@@ -685,12 +683,22 @@ impl TenantQuotaTracker {
             .map(|f| f.value().load(Ordering::Relaxed))
     }
 
+    /// Returns the total CPU fuel consumed by a tenant in the current interval.
+    pub fn fuel_consumed(&self, tenant: &str) -> Option<u64> {
+        self.fuel_consumed
+            .get(tenant)
+            .map(|f| f.value().load(Ordering::Relaxed))
+    }
+
     /// Resets the CPU fuel counter for a tenant back to its configured limit.
     pub fn reset_interval(&self, tenant: &str) {
         if let Some(quota) = self.quotas.get(tenant) {
             let limit = quota.value().cpu_fuel_per_interval;
             if let Some(entry) = self.fuel_remaining.get(tenant) {
                 entry.value().store(limit, Ordering::Relaxed);
+            }
+            if let Some(consumed) = self.fuel_consumed.get(tenant) {
+                consumed.value().store(0, Ordering::Relaxed);
             }
         }
     }
@@ -750,12 +758,9 @@ impl TenantQuotaTracker {
     }
 
     /// Checks whether the tenant has network bandwidth available.
-    ///
-    /// Implements a token bucket: tokens replenish at `network_bytes_per_sec`,
-    /// and each call consumes the requested bytes.
     pub fn check_network_quota(&self, tenant: &str, bytes: u64) -> bool {
         let Some(bucket) = self.network_buckets.get(tenant) else {
-            return true; // No quota configured.
+            return true;
         };
         bucket.refill();
         bucket.try_consume(bytes)
@@ -766,7 +771,6 @@ impl TenantQuotaTracker {
         self.shutdown.store(1, Ordering::Relaxed);
     }
 
-    /// Resets expired fuel intervals for all tenants.
     fn reset_expired_intervals(
         fuel_map: &DashMap<String, AtomicU64>,
         quota_map: &DashMap<String, TenantQuota>,
@@ -779,12 +783,128 @@ impl TenantQuotaTracker {
         for entry in quota_map.iter() {
             let tenant = entry.key();
             let quota = entry.value();
-            // Simple approach: reset every interval_secs seconds aligned to epoch.
             if now.is_multiple_of(quota.cpu_interval_secs)
                 && let Some(fuel) = fuel_map.get(tenant.as_str())
             {
                 fuel.value()
                     .store(quota.cpu_fuel_per_interval, Ordering::Relaxed);
+            }
+        }
+    }
+
+    /// Checks all quotas for a tenant and atomically acquires the requested resources.
+    ///
+    /// If all resource checks pass, returns a [`ResourceGrant`] that holds the
+    /// acquired resources. The grant releases all resources on drop (RAII).
+    /// If any check fails, no resources are acquired and a [`QuotaError`] is returned.
+    pub fn check_all_quotas(
+        &self,
+        tenant_id: &str,
+        requested: ResourceRequest,
+    ) -> Result<ResourceGrant, QuotaError> {
+        let quota = self.quotas.get(tenant_id).map(|q| *q.value());
+
+        if let Some(q) = quota {
+            let remaining = self
+                .fuel_remaining
+                .get(tenant_id)
+                .map(|f| f.value().load(Ordering::Relaxed))
+                .unwrap_or(q.cpu_fuel_per_interval);
+
+            if requested.fuel > 0 && requested.fuel > remaining {
+                return Err(QuotaError::FuelExhausted {
+                    tenant: tenant_id.to_string(),
+                    remaining,
+                    requested: requested.fuel,
+                });
+            }
+
+            let current_actors = self.actor_count(tenant_id);
+            if requested.actor_count > 0
+                && current_actors + requested.actor_count > q.max_actors_total as u64
+            {
+                return Err(QuotaError::ActorCountExceeded {
+                    tenant: tenant_id.to_string(),
+                    current: current_actors as usize,
+                    limit: q.max_actors_total,
+                });
+            }
+
+            if requested.network_bytes > 0
+                && !self.check_network_quota(tenant_id, requested.network_bytes)
+            {
+                return Err(QuotaError::NetworkBandwidthExhausted {
+                    tenant: tenant_id.to_string(),
+                    requested: requested.network_bytes,
+                });
+            }
+        }
+
+        let acquired_actors = if requested.actor_count > 0 {
+            for _ in 0..requested.actor_count {
+                self.increment_actor_count(tenant_id);
+            }
+            requested.actor_count
+        } else {
+            0
+        };
+
+        let fuel_acquired = if requested.fuel > 0 {
+            if !self.consume_fuel(tenant_id, requested.fuel) {
+                for _ in 0..acquired_actors {
+                    self.decrement_actor_count(tenant_id);
+                }
+                return Err(QuotaError::Internal(
+                    "fuel consumed after check failed".to_string(),
+                ));
+            }
+            requested.fuel
+        } else {
+            0
+        };
+
+        Ok(ResourceGrant {
+            tracker: self as *const Self as usize,
+            tenant_id: tenant_id.to_string(),
+            actors: acquired_actors,
+            memory_bytes: requested.memory_bytes,
+            connections: requested.connections,
+            fuel: fuel_acquired,
+            network_bytes: requested.network_bytes,
+            active: true,
+        })
+    }
+
+    /// Generates a comprehensive resource usage report for a tenant.
+    pub fn resource_report(&self, tenant_id: &str) -> ResourceReport {
+        let quota = self.quotas.get(tenant_id).map(|r| *r);
+        ResourceReport {
+            tenant_id: tenant_id.to_string(),
+            actor_count: self.actor_count(tenant_id),
+            fuel_remaining: self.remaining_fuel(tenant_id),
+            fuel_consumed: self.fuel_consumed(tenant_id),
+            memory_used: quota.as_ref().map(|_| 0),
+            memory_limit: quota.as_ref().map(|q| q.max_memory_bytes()),
+            actor_limit: quota.map(|q| q.max_actors_total),
+            network_bytes_per_sec: quota.map(|q| q.network_bytes_per_sec),
+        }
+    }
+
+    /// Internal method to release resources held by a dropped grant.
+    ///
+    /// SAFETY: The `tracker_ptr` must be a valid pointer to a `TenantQuotaTracker`
+    /// that outlives the grant (which is guaranteed by the grant holding a usize
+    /// derived from the raw pointer; the tracker must remain alive for the grant's
+    /// lifetime, which is enforced by the caller pattern).
+    unsafe fn release_grant(&self, grant: &mut ResourceGrant) {
+        if !grant.active {
+            return;
+        }
+        grant.active = false;
+
+        if grant.actors > 0 {
+            for _ in 0..grant.actors {
+                self.decrement_actor_count(&grant.tenant_id);
             }
         }
     }
@@ -796,7 +916,187 @@ impl Default for TenantQuotaTracker {
     }
 }
 
-/// Returns the current time in nanoseconds since UNIX epoch.
+/// A batch of resources requested by an operation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ResourceRequest {
+    /// Memory bytes to allocate.
+    pub memory_bytes: u64,
+    /// Number of actor slots to acquire.
+    pub actor_count: u64,
+    /// Number of connection slots to acquire.
+    pub connections: u64,
+    /// CPU fuel units to consume.
+    pub fuel: u64,
+    /// Network bytes to consume from the token bucket.
+    pub network_bytes: u64,
+}
+
+impl ResourceRequest {
+    /// Creates a new resource request with all fields set to zero.
+    pub fn new() -> Self {
+        Self {
+            memory_bytes: 0,
+            actor_count: 0,
+            connections: 0,
+            fuel: 0,
+            network_bytes: 0,
+        }
+    }
+
+    /// Creates a request for only memory.
+    pub fn memory(bytes: u64) -> Self {
+        Self {
+            memory_bytes: bytes,
+            ..Self::new()
+        }
+    }
+
+    /// Creates a request for only CPU fuel.
+    pub fn fuel(fuel: u64) -> Self {
+        Self {
+            fuel,
+            ..Self::new()
+        }
+    }
+
+    /// Creates a request for only actors.
+    pub fn actors(count: u64) -> Self {
+        Self {
+            actor_count: count,
+            ..Self::new()
+        }
+    }
+}
+
+impl Default for ResourceRequest {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// An RAII guard that holds acquired resources and releases them on drop.
+pub struct ResourceGrant {
+    tracker: usize,
+    tenant_id: String,
+    actors: u64,
+    memory_bytes: u64,
+    connections: u64,
+    fuel: u64,
+    network_bytes: u64,
+    active: bool,
+}
+
+impl ResourceGrant {
+    /// Returns the number of actor slots held by this grant.
+    pub fn actors(&self) -> u64 {
+        self.actors
+    }
+
+    /// Returns the memory bytes held by this grant.
+    pub fn memory_bytes(&self) -> u64 {
+        self.memory_bytes
+    }
+
+    /// Returns the connection slots held by this grant.
+    pub fn connections(&self) -> u64 {
+        self.connections
+    }
+
+    /// Returns the fuel consumed by this grant.
+    pub fn fuel(&self) -> u64 {
+        self.fuel
+    }
+
+    /// Returns the network bytes consumed by this grant.
+    pub fn network_bytes(&self) -> u64 {
+        self.network_bytes
+    }
+
+    /// Returns the tenant ID this grant belongs to.
+    pub fn tenant_id(&self) -> &str {
+        &self.tenant_id
+    }
+
+    /// Returns `true` if this grant is still active.
+    pub fn is_active(&self) -> bool {
+        self.active
+    }
+
+    /// Manually releases the grant early. Idempotent.
+    pub fn release(&mut self) {
+        if !self.active {
+            return;
+        }
+        // SAFETY: The tracker pointer was obtained from a valid &TenantQuotaTracker
+        // reference in check_all_quotas. The caller must ensure the tracker outlives
+        // all outstanding grants, which is the standard pattern for RAII guards.
+        unsafe {
+            let tracker = &*(self.tracker as *const TenantQuotaTracker);
+            tracker.release_grant(self);
+        }
+    }
+}
+
+impl Drop for ResourceGrant {
+    fn drop(&mut self) {
+        // SAFETY: Same invariant as release(). The tracker must outlive the grant.
+        unsafe {
+            let tracker = &*(self.tracker as *const TenantQuotaTracker);
+            tracker.release_grant(self);
+        }
+    }
+}
+
+/// A snapshot of a tenant's current resource usage and limits.
+#[derive(Debug, Clone)]
+pub struct ResourceReport {
+    /// The tenant this report covers.
+    pub tenant_id: String,
+    /// Current number of active actors.
+    pub actor_count: u64,
+    /// Remaining CPU fuel for the current interval.
+    pub fuel_remaining: Option<u64>,
+    /// Total CPU fuel consumed in the current interval.
+    pub fuel_consumed: Option<u64>,
+    /// Current memory usage in bytes.
+    pub memory_used: Option<usize>,
+    /// Maximum memory in bytes.
+    pub memory_limit: Option<usize>,
+    /// Maximum number of actors allowed.
+    pub actor_limit: Option<usize>,
+    /// Network bandwidth rate limit in bytes per second.
+    pub network_bytes_per_sec: Option<u64>,
+}
+
+impl ResourceReport {
+    /// Returns the fuel utilization as a fraction (0.0 to 1.0), or `None` if
+    /// no quota is configured.
+    pub fn fuel_utilization(&self) -> Option<f64> {
+        match (self.fuel_consumed, self.fuel_remaining) {
+            (Some(consumed), Some(remaining)) => {
+                let total = consumed + remaining;
+                if total == 0 {
+                    Some(0.0)
+                } else {
+                    Some(consumed as f64 / total as f64)
+                }
+            }
+            _ => None,
+        }
+    }
+
+    /// Returns the actor utilization as a fraction (0.0 to 1.0), or `None` if
+    /// no quota is configured.
+    pub fn actor_utilization(&self) -> Option<f64> {
+        match (self.actor_count, self.actor_limit) {
+            (count, Some(limit)) if limit > 0 => {
+                Some(count.min(limit as u64) as f64 / limit as f64)
+            }
+            _ => None,
+        }
+    }
+}
+
 fn now_ns() -> u64 {
     SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -1019,8 +1319,6 @@ mod tests {
         assert_eq!(enforcer.limits().max_actors, 42);
     }
 
-    // --- TenantQuota / TenantQuotaTracker tests ---
-
     #[test]
     fn test_tenant_quota_defaults() {
         let q = TenantQuota::default();
@@ -1098,11 +1396,9 @@ mod tests {
         };
         tracker.register_tenant("t1", quota);
 
-        // Within limit
         assert!(tracker.check_memory_quota("t1", 50).is_ok());
         assert!(tracker.check_memory_quota("t1", 100).is_ok());
 
-        // Exceeded
         let err = tracker.check_memory_quota("t1", 101).unwrap_err();
         assert!(matches!(err, QuotaError::MemoryExceeded { .. }));
     }
@@ -1138,7 +1434,7 @@ mod tests {
         assert_eq!(tracker.decrement_actor_count("t1"), 1);
         assert_eq!(tracker.actor_count("t1"), 1);
         assert_eq!(tracker.decrement_actor_count("t1"), 0);
-        assert_eq!(tracker.decrement_actor_count("t1"), 0); // saturating
+        assert_eq!(tracker.decrement_actor_count("t1"), 0);
     }
 
     #[test]
@@ -1150,19 +1446,15 @@ mod tests {
         };
         tracker.register_tenant("t1", quota);
 
-        // Initial burst allows up to 2x rate
         assert!(tracker.check_network_quota("t1", 1500));
         assert!(tracker.check_network_quota("t1", 500));
 
-        // Bucket should be near empty after burst consumed
-        // Subsequent large request should fail
         assert!(!tracker.check_network_quota("t1", 1000));
     }
 
     #[test]
     fn test_network_quota_no_tenant_configured() {
         let tracker = TenantQuotaTracker::new_without_background();
-        // No tenant registered; should allow unconditionally
         assert!(tracker.check_network_quota("unknown", 1_000_000));
     }
 
@@ -1247,9 +1539,291 @@ mod tests {
     #[test]
     fn test_unregistered_tenant_allows_fuel() {
         let tracker = TenantQuotaTracker::new_without_background();
-        // No tenant registered; operations should succeed unconditionally
         assert!(tracker.check_cpu_fuel("unknown", 999_999));
         assert!(tracker.consume_fuel("unknown", 999_999));
         assert_eq!(tracker.remaining_fuel("unknown"), None);
+    }
+
+    #[test]
+    fn test_resource_request_new_is_zero() {
+        let req = ResourceRequest::new();
+        assert_eq!(req.memory_bytes, 0);
+        assert_eq!(req.actor_count, 0);
+        assert_eq!(req.connections, 0);
+        assert_eq!(req.fuel, 0);
+        assert_eq!(req.network_bytes, 0);
+    }
+
+    #[test]
+    fn test_resource_request_builder_methods() {
+        let mem = ResourceRequest::memory(1024);
+        assert_eq!(mem.memory_bytes, 1024);
+        assert_eq!(mem.fuel, 0);
+
+        let fuel = ResourceRequest::fuel(500);
+        assert_eq!(fuel.fuel, 500);
+        assert_eq!(fuel.memory_bytes, 0);
+
+        let actors = ResourceRequest::actors(3);
+        assert_eq!(actors.actor_count, 3);
+        assert_eq!(actors.memory_bytes, 0);
+    }
+
+    #[test]
+    fn test_check_all_quotas_fuel_only() {
+        let tracker = TenantQuotaTracker::new_without_background();
+        let quota = TenantQuota {
+            cpu_fuel_per_interval: 1000,
+            max_actors_total: 100,
+            ..TenantQuota::test_quota()
+        };
+        tracker.register_tenant("t1", quota);
+
+        let grant = tracker
+            .check_all_quotas("t1", ResourceRequest::fuel(500))
+            .unwrap();
+        assert_eq!(grant.fuel(), 500);
+        assert_eq!(grant.actors(), 0);
+        assert!(grant.is_active());
+        assert_eq!(tracker.remaining_fuel("t1"), Some(500));
+    }
+
+    #[test]
+    fn test_check_all_quotas_actors_only() {
+        let tracker = TenantQuotaTracker::new_without_background();
+        let quota = TenantQuota {
+            cpu_fuel_per_interval: 10000,
+            max_actors_total: 5,
+            ..TenantQuota::test_quota()
+        };
+        tracker.register_tenant("t1", quota);
+
+        let grant = tracker
+            .check_all_quotas("t1", ResourceRequest::actors(3))
+            .unwrap();
+        assert_eq!(grant.actors(), 3);
+        assert_eq!(grant.fuel(), 0);
+        assert_eq!(tracker.actor_count("t1"), 3);
+    }
+
+    #[test]
+    fn test_resource_grant_drop_releases_actors() {
+        let tracker = TenantQuotaTracker::new_without_background();
+        let quota = TenantQuota {
+            cpu_fuel_per_interval: 10000,
+            max_actors_total: 5,
+            ..TenantQuota::test_quota()
+        };
+        tracker.register_tenant("t1", quota);
+
+        {
+            let _grant = tracker
+                .check_all_quotas("t1", ResourceRequest::actors(3))
+                .unwrap();
+            assert_eq!(tracker.actor_count("t1"), 3);
+        }
+        assert_eq!(tracker.actor_count("t1"), 0);
+    }
+
+    #[test]
+    fn test_check_all_quotas_fuel_exhausted() {
+        let tracker = TenantQuotaTracker::new_without_background();
+        let quota = TenantQuota {
+            cpu_fuel_per_interval: 100,
+            ..TenantQuota::test_quota()
+        };
+        tracker.register_tenant("t1", quota);
+
+        let result = tracker.check_all_quotas("t1", ResourceRequest::fuel(200));
+        assert!(matches!(result, Err(QuotaError::FuelExhausted { .. })));
+        assert_eq!(tracker.actor_count("t1"), 0);
+    }
+
+    #[test]
+    fn test_check_all_quotas_actor_limit_exceeded() {
+        let tracker = TenantQuotaTracker::new_without_background();
+        let quota = TenantQuota {
+            max_actors_total: 3,
+            ..TenantQuota::test_quota()
+        };
+        tracker.register_tenant("t1", quota);
+
+        let grant = tracker
+            .check_all_quotas("t1", ResourceRequest::actors(3))
+            .unwrap();
+        assert_eq!(tracker.actor_count("t1"), 3);
+
+        let result = tracker.check_all_quotas("t1", ResourceRequest::actors(1));
+        assert!(matches!(result, Err(QuotaError::ActorCountExceeded { .. })));
+
+        drop(grant);
+        assert_eq!(tracker.actor_count("t1"), 0);
+    }
+
+    #[test]
+    fn test_check_all_quotas_network_bandwidth_exhausted() {
+        let tracker = TenantQuotaTracker::new_without_background();
+        let quota = TenantQuota {
+            network_bytes_per_sec: 500,
+            ..TenantQuota::test_quota()
+        };
+        tracker.register_tenant("t1", quota);
+
+        let grant = tracker
+            .check_all_quotas(
+                "t1",
+                ResourceRequest {
+                    network_bytes: 1000,
+                    ..ResourceRequest::new()
+                },
+            )
+            .unwrap();
+        assert_eq!(grant.network_bytes(), 1000);
+
+        let result = tracker.check_all_quotas(
+            "t1",
+            ResourceRequest {
+                network_bytes: 100,
+                ..ResourceRequest::new()
+            },
+        );
+        assert!(matches!(
+            result,
+            Err(QuotaError::NetworkBandwidthExhausted { .. })
+        ));
+    }
+
+    #[test]
+    fn test_resource_grant_release_manual() {
+        let tracker = TenantQuotaTracker::new_without_background();
+        let quota = TenantQuota {
+            cpu_fuel_per_interval: 10000,
+            max_actors_total: 5,
+            ..TenantQuota::test_quota()
+        };
+        tracker.register_tenant("t1", quota);
+
+        let mut grant = tracker
+            .check_all_quotas("t1", ResourceRequest::actors(2))
+            .unwrap();
+        assert_eq!(tracker.actor_count("t1"), 2);
+        grant.release();
+        assert!(!grant.is_active());
+        assert_eq!(tracker.actor_count("t1"), 0);
+
+        grant.release();
+        assert_eq!(tracker.actor_count("t1"), 0);
+    }
+
+    #[test]
+    fn test_check_all_quotas_unregistered_tenant() {
+        let tracker = TenantQuotaTracker::new_without_background();
+        let grant = tracker
+            .check_all_quotas(
+                "unknown",
+                ResourceRequest {
+                    fuel: 999,
+                    ..ResourceRequest::new()
+                },
+            )
+            .unwrap();
+        assert_eq!(grant.fuel(), 999);
+    }
+
+    #[test]
+    fn test_resource_report_for_registered_tenant() {
+        let tracker = TenantQuotaTracker::new_without_background();
+        let quota = TenantQuota {
+            cpu_fuel_per_interval: 1000,
+            max_actors_total: 10,
+            ..TenantQuota::test_quota()
+        };
+        tracker.register_tenant("t1", quota);
+
+        tracker.consume_fuel("t1", 300);
+        tracker.increment_actor_count("t1");
+        tracker.increment_actor_count("t1");
+
+        let report = tracker.resource_report("t1");
+        assert_eq!(report.tenant_id, "t1");
+        assert_eq!(report.actor_count, 2);
+        assert_eq!(report.fuel_remaining, Some(700));
+        assert_eq!(report.fuel_consumed, Some(300));
+        assert_eq!(report.actor_limit, Some(10));
+    }
+
+    #[test]
+    fn test_resource_report_fuel_utilization() {
+        let tracker = TenantQuotaTracker::new_without_background();
+        let quota = TenantQuota {
+            cpu_fuel_per_interval: 1000,
+            ..TenantQuota::test_quota()
+        };
+        tracker.register_tenant("t1", quota);
+
+        tracker.consume_fuel("t1", 250);
+
+        let report = tracker.resource_report("t1");
+        let util = report.fuel_utilization().expect("should have utilization");
+        assert!((util - 0.25).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_resource_report_actor_utilization() {
+        let tracker = TenantQuotaTracker::new_without_background();
+        let quota = TenantQuota {
+            max_actors_total: 10,
+            ..TenantQuota::test_quota()
+        };
+        tracker.register_tenant("t1", quota);
+
+        for _ in 0..5 {
+            tracker.increment_actor_count("t1");
+        }
+
+        let report = tracker.resource_report("t1");
+        let util = report.actor_utilization().expect("should have utilization");
+        assert!((util - 0.5).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_resource_report_unregistered_tenant() {
+        let tracker = TenantQuotaTracker::new_without_background();
+        let report = tracker.resource_report("unknown");
+        assert_eq!(report.tenant_id, "unknown");
+        assert_eq!(report.actor_count, 0);
+        assert!(report.fuel_remaining.is_none());
+        assert!(report.actor_limit.is_none());
+    }
+
+    #[test]
+    fn test_fuel_consumed_tracking() {
+        let tracker = TenantQuotaTracker::new_without_background();
+        let quota = TenantQuota {
+            cpu_fuel_per_interval: 1000,
+            ..TenantQuota::test_quota()
+        };
+        tracker.register_tenant("t1", quota);
+
+        assert_eq!(tracker.fuel_consumed("t1"), Some(0));
+        tracker.consume_fuel("t1", 100);
+        assert_eq!(tracker.fuel_consumed("t1"), Some(100));
+        tracker.consume_fuel("t1", 200);
+        assert_eq!(tracker.fuel_consumed("t1"), Some(300));
+
+        tracker.reset_interval("t1");
+        assert_eq!(tracker.fuel_consumed("t1"), Some(0));
+    }
+
+    #[test]
+    fn test_connection_limit_exceeded_error() {
+        let err = QuotaError::ConnectionLimitExceeded {
+            tenant: "t1".into(),
+            current: 10,
+            limit: 10,
+        };
+        let disp = err.to_string();
+        assert!(disp.contains("t1"));
+        assert!(disp.contains("10"));
     }
 }

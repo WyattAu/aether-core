@@ -1086,6 +1086,167 @@ impl SupervisorHandle {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Graceful Degradation
+// ---------------------------------------------------------------------------
+
+/// Resource pressure level reported by a [`ResourceMonitor`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+pub enum PressureLevel {
+    /// System is operating within normal resource bounds.
+    #[default]
+    Normal,
+    /// Resource usage is elevated; non-essential work should be throttled.
+    Elevated,
+    /// Resources are critically constrained; spawn new work is rejected.
+    Critical,
+}
+
+impl std::fmt::Display for PressureLevel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Normal => write!(f, "normal"),
+            Self::Elevated => write!(f, "elevated"),
+            Self::Critical => write!(f, "critical"),
+        }
+    }
+}
+
+/// Trait for monitoring system resource pressure.
+///
+/// Implementations report the current [`PressureLevel`] so that supervisors
+/// can make graceful degradation decisions.
+pub trait ResourceMonitor: Send + Sync {
+    /// Return the current resource pressure level.
+    fn current_pressure(&self) -> PressureLevel;
+}
+
+/// A static resource monitor that always reports the same pressure level.
+///
+/// Useful for testing and for nodes where resource monitoring is delegated
+/// to an external system.
+pub struct StaticResourceMonitor {
+    level: PressureLevel,
+}
+
+impl StaticResourceMonitor {
+    /// Create a monitor that always reports `level`.
+    pub fn new(level: PressureLevel) -> Self {
+        Self { level }
+    }
+}
+
+impl ResourceMonitor for StaticResourceMonitor {
+    fn current_pressure(&self) -> PressureLevel {
+        self.level
+    }
+}
+
+/// A resource monitor that reports `Elevated` when a closure returns `true`
+/// and `Critical` when a second closure returns `true`.
+pub struct FnResourceMonitor {
+    elevated_fn: Box<dyn Fn() -> bool + Send + Sync>,
+    critical_fn: Box<dyn Fn() -> bool + Send + Sync>,
+}
+
+impl FnResourceMonitor {
+    /// Create a function-based resource monitor.
+    pub fn new(
+        elevated_fn: Box<dyn Fn() -> bool + Send + Sync>,
+        critical_fn: Box<dyn Fn() -> bool + Send + Sync>,
+    ) -> Self {
+        Self {
+            elevated_fn,
+            critical_fn,
+        }
+    }
+}
+
+impl ResourceMonitor for FnResourceMonitor {
+    fn current_pressure(&self) -> PressureLevel {
+        if (self.critical_fn)() {
+            PressureLevel::Critical
+        } else if (self.elevated_fn)() {
+            PressureLevel::Elevated
+        } else {
+            PressureLevel::Normal
+        }
+    }
+}
+
+/// Result of a graceful degradation decision.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DegradationDecision {
+    /// Allow the operation to proceed normally.
+    Allow,
+    /// Throttle: reduce batch sizes or concurrency.
+    Throttle,
+    /// Reject: the operation cannot proceed under current pressure.
+    Reject,
+}
+
+impl DegradationDecision {
+    /// Returns `true` if the operation is allowed (possibly throttled).
+    pub fn is_allowed(self) -> bool {
+        matches!(self, Self::Allow | Self::Throttle)
+    }
+}
+
+/// Graceful degradation controller that wraps a [`ResourceMonitor`] and
+/// makes admission-control decisions.
+pub struct DegradationController<M: ResourceMonitor> {
+    monitor: M,
+    elevated_batch_factor: f64,
+}
+
+impl<M: ResourceMonitor> DegradationController<M> {
+    /// Create a new controller with the given resource monitor.
+    ///
+    /// `elevated_batch_factor` is multiplied by the normal batch size when
+    /// pressure is elevated (e.g. `0.5` halves the batch).
+    pub fn new(monitor: M, elevated_batch_factor: f64) -> Self {
+        Self {
+            monitor,
+            elevated_batch_factor: elevated_batch_factor.clamp(0.0, 1.0),
+        }
+    }
+
+    /// Return the current pressure level.
+    pub fn pressure(&self) -> PressureLevel {
+        self.monitor.current_pressure()
+    }
+
+    /// Decide whether a new child actor spawn should be admitted.
+    pub fn admit_spawn(&self) -> DegradationDecision {
+        match self.monitor.current_pressure() {
+            PressureLevel::Normal => DegradationDecision::Allow,
+            PressureLevel::Elevated => DegradationDecision::Throttle,
+            PressureLevel::Critical => DegradationDecision::Reject,
+        }
+    }
+
+    /// Compute the effective batch size given normal and current pressure.
+    pub fn effective_batch_size(&self, normal: usize) -> usize {
+        match self.monitor.current_pressure() {
+            PressureLevel::Normal => normal,
+            PressureLevel::Elevated => {
+                let scaled = (normal as f64 * self.elevated_batch_factor) as usize;
+                scaled.max(1)
+            }
+            PressureLevel::Critical => 1,
+        }
+    }
+
+    /// Decide whether a non-essential actor should be paused.
+    pub fn should_pause_non_essential(&self) -> bool {
+        match self.monitor.current_pressure() {
+            PressureLevel::Normal => false,
+            PressureLevel::Elevated => true,
+            PressureLevel::Critical => true,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1546,5 +1707,96 @@ mod tests {
             ChildState::Stopped { .. } => {}
             _ => panic!("Expected stopped state for simple_one_for_one"),
         }
+    }
+
+    // -----------------------------------------------------------------------
+    // Graceful Degradation tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_pressure_level_ordering() {
+        assert!(PressureLevel::Normal < PressureLevel::Elevated);
+        assert!(PressureLevel::Elevated < PressureLevel::Critical);
+    }
+
+    #[test]
+    fn test_pressure_level_display() {
+        assert_eq!(format!("{}", PressureLevel::Normal), "normal");
+        assert_eq!(format!("{}", PressureLevel::Elevated), "elevated");
+        assert_eq!(format!("{}", PressureLevel::Critical), "critical");
+    }
+
+    #[test]
+    fn test_static_resource_monitor() {
+        let normal = StaticResourceMonitor::new(PressureLevel::Normal);
+        assert_eq!(normal.current_pressure(), PressureLevel::Normal);
+
+        let critical = StaticResourceMonitor::new(PressureLevel::Critical);
+        assert_eq!(critical.current_pressure(), PressureLevel::Critical);
+    }
+
+    #[test]
+    fn test_fn_resource_monitor() {
+        let monitor = FnResourceMonitor::new(Box::new(|| true), Box::new(|| false));
+        assert_eq!(monitor.current_pressure(), PressureLevel::Elevated);
+
+        let monitor2 = FnResourceMonitor::new(Box::new(|| true), Box::new(|| true));
+        assert_eq!(monitor2.current_pressure(), PressureLevel::Critical);
+
+        let monitor3 = FnResourceMonitor::new(Box::new(|| false), Box::new(|| false));
+        assert_eq!(monitor3.current_pressure(), PressureLevel::Normal);
+    }
+
+    #[test]
+    fn test_degradation_controller_admit_spawn() {
+        let controller =
+            DegradationController::new(StaticResourceMonitor::new(PressureLevel::Normal), 0.5);
+        assert_eq!(controller.admit_spawn(), DegradationDecision::Allow);
+
+        let controller =
+            DegradationController::new(StaticResourceMonitor::new(PressureLevel::Elevated), 0.5);
+        assert_eq!(controller.admit_spawn(), DegradationDecision::Throttle);
+
+        let controller =
+            DegradationController::new(StaticResourceMonitor::new(PressureLevel::Critical), 0.5);
+        assert_eq!(controller.admit_spawn(), DegradationDecision::Reject);
+    }
+
+    #[test]
+    fn test_degradation_controller_batch_size() {
+        let controller =
+            DegradationController::new(StaticResourceMonitor::new(PressureLevel::Normal), 0.5);
+        assert_eq!(controller.effective_batch_size(100), 100);
+
+        let controller =
+            DegradationController::new(StaticResourceMonitor::new(PressureLevel::Elevated), 0.5);
+        assert_eq!(controller.effective_batch_size(100), 50);
+        assert_eq!(controller.effective_batch_size(1), 1);
+
+        let controller =
+            DegradationController::new(StaticResourceMonitor::new(PressureLevel::Critical), 0.5);
+        assert_eq!(controller.effective_batch_size(100), 1);
+    }
+
+    #[test]
+    fn test_degradation_controller_pause_non_essential() {
+        let controller =
+            DegradationController::new(StaticResourceMonitor::new(PressureLevel::Normal), 0.5);
+        assert!(!controller.should_pause_non_essential());
+
+        let controller =
+            DegradationController::new(StaticResourceMonitor::new(PressureLevel::Elevated), 0.5);
+        assert!(controller.should_pause_non_essential());
+
+        let controller =
+            DegradationController::new(StaticResourceMonitor::new(PressureLevel::Critical), 0.5);
+        assert!(controller.should_pause_non_essential());
+    }
+
+    #[test]
+    fn test_degradation_decision_is_allowed() {
+        assert!(DegradationDecision::Allow.is_allowed());
+        assert!(DegradationDecision::Throttle.is_allowed());
+        assert!(!DegradationDecision::Reject.is_allowed());
     }
 }

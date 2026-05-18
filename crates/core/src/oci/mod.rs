@@ -24,6 +24,37 @@
 //! let result = registry.pull_actor(&reference).await?;
 //! println!("Pulled actor: {} bytes", result.wasm_bytes.len());
 //! ```
+//!
+//! ## Content-Addressable Storage
+//!
+//! The [`ActorRegistry`] struct (in the [`registry`] submodule) wraps
+//! [`OciRegistry`] with a local in-memory CAS for caching WASM blobs by
+//! their SHA-256 digests.
+//!
+//! Implements a complete OCI-compliant registry client for pushing, pulling,
+//! and managing WASM actors stored as OCI Image Manifests (schema 2).
+//!
+//! # Registry Layout
+//!
+//! Each actor is stored as an OCI image with:
+//! - **Manifest**: OCI Image Manifest v1 pointing to a config blob and WASM layer
+//! - **Config blob**: JSON document describing actor metadata ([`ActorManifest`])
+//! - **WASM layer**: Raw WebAssembly bytes ([`WASM_LAYER_MEDIA_TYPE`])
+//!
+//! # Example
+//!
+//! ```ignore
+//! use aether_core::oci::{OciRegistry, OciCredentials, ActorReference, ActorManifest};
+//!
+//! let registry = OciRegistry::new(
+//!     "https://ghcr.io",
+//!     OciCredentials::Anonymous,
+//! )?;
+//!
+//! let reference = ActorReference::parse("ghcr.io/myorg/myactor:1.0.0")?;
+//! let result = registry.pull_actor(&reference).await?;
+//! println!("Pulled actor: {} bytes", result.wasm_bytes.len());
+//! ```
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -37,6 +68,10 @@ use reqwest::header::{
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use tracing::{debug, info, warn};
+
+pub mod registry;
+
+pub use registry::{ActorRegistry, ContentAddressableStorage, ModuleRef};
 
 use crate::error::{Error, Result};
 

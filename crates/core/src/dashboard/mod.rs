@@ -41,6 +41,7 @@
 //! | GET | /healthz | Kubernetes liveness probe |
 //! | GET | /readyz | Kubernetes readiness probe |
 
+pub mod api;
 pub mod handlers;
 pub mod server;
 pub mod static_files;
@@ -161,4 +162,53 @@ pub struct ComponentHealth {
 pub struct MetricsResponse {
     /// Prometheus-formatted metrics
     pub prometheus: String,
+}
+
+/// Cluster overview response for the dashboard.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DashboardOverview {
+    /// Overall cluster health status.
+    pub status: String,
+    /// Aether version.
+    pub version: String,
+    /// Uptime in seconds.
+    pub uptime_secs: u64,
+    /// Number of actors currently running.
+    pub actors_running: u64,
+    /// Total messages processed.
+    pub messages_total: u64,
+    /// Number of mesh nodes.
+    pub nodes_count: usize,
+    /// Number of active mesh connections.
+    pub connections_count: usize,
+}
+
+/// Actor list entry for the dashboard.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DashboardActor {
+    /// Actor ID.
+    pub id: String,
+    /// Actor name.
+    pub name: String,
+    /// Current state (running, stopped, etc.).
+    pub state: String,
+    /// Number of messages processed.
+    pub messages: u64,
+    /// Number of errors encountered.
+    pub errors: u64,
+    /// Number of cold starts.
+    pub cold_starts: u64,
+    /// Last cold start latency in microseconds.
+    pub last_cold_start_us: u64,
+}
+
+/// Mesh network graph response for the dashboard.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DashboardTopology {
+    /// Local node ID.
+    pub local_node_id: String,
+    /// All nodes in the mesh.
+    pub nodes: Vec<NodeInfo>,
+    /// Active connections between nodes.
+    pub connections: Vec<ConnectionInfo>,
 }

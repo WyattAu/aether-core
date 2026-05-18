@@ -221,9 +221,42 @@ jobs:
           name: license-report
           path: licenses.txt
 
+  sbom:
+    name: SBOM Generation
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: nightly-2026-03-01
+
+      - name: Generate SBOM with Syft
+        uses: anchore/sbom-action@v0
+        with:
+          format: cyclonedx-json
+          output-file: sbom.cdx.json
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-cyclonedx
+          path: sbom.cdx.json
+
+      - name: Upload SBOM for dependency tracking
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: sbom.cdx.json
+          category: sbom
+
   security-summary:
     name: Security Summary
-    needs: [audit, codeql, secrets-scan, license-check]
+    needs: [audit, codeql, secrets-scan, license-check, sbom]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -237,3 +270,4 @@ jobs:
           echo "| CodeQL Analysis | ${{ needs.codeql.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Secrets Scan | ${{ needs.secrets-scan.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| License Check | ${{ needs.license-check.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| SBOM Generation | ${{ needs.sbom.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY

@@ -52,7 +52,10 @@ pub use distributed::{
     Span as DistributedSpan, SpanBuilder, SpanEvent, SpanStatus, SpanValue,
     TraceContext as DistributedTraceContext, TraceContextError, TracePropagator,
 };
-pub use exporter::{ExporterError, TracingConfig, TracingExporter};
+pub use exporter::{
+    AutoInstrumented, BatchProcessorConfig, ExporterError, InstrumentedSpanGuard,
+    NoopInstrumentation, OtlpCompression, OtlpGrpcConfig, TracingConfig, TracingExporter,
+};
 pub use propagation::{TraceContext, extract_context, inject_context};
 pub use span::{ActorSpan, MeshSpan, SpanAttributes, SpanKind, StateSpan};
 

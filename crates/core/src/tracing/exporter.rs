@@ -290,6 +290,173 @@ pub async fn graceful_shutdown(timeout: Duration) {
     }
 }
 
+/// Trait for automatic span creation on actor lifecycle events.
+///
+/// Implementors wrap actor operations with OpenTelemetry spans,
+/// enabling cross-node trace correlation via W3C TraceContext propagation.
+pub trait AutoInstrumented: Send + Sync {
+    /// Create a span for actor spawning.
+    ///
+    /// Returns a guard that closes the span on drop.
+    fn actor_spawn_span(&self, actor_id: &str, actor_name: &str) -> InstrumentedSpanGuard;
+
+    /// Create a span for sending a message.
+    fn message_send_span(&self, actor_id: &str, message_type: &str) -> InstrumentedSpanGuard;
+
+    /// Create a span for receiving a message.
+    fn message_receive_span(&self, actor_id: &str, message_type: &str) -> InstrumentedSpanGuard;
+
+    /// Create a span for reading actor state.
+    fn state_read_span(&self, namespace: &str, key: &str) -> InstrumentedSpanGuard;
+
+    /// Create a span for writing actor state.
+    fn state_write_span(&self, namespace: &str, key: &str) -> InstrumentedSpanGuard;
+}
+
+/// RAII guard that closes a tracing span on drop.
+pub struct InstrumentedSpanGuard {
+    _span: tracing::Span,
+}
+
+impl Drop for InstrumentedSpanGuard {
+    fn drop(&mut self) {
+        self._span.in_scope(|| {
+            tracing::info_span!("span_close").in_scope(|| {});
+        });
+    }
+}
+
+/// Default auto-instrumentation that creates no-op spans.
+///
+/// Replace with a real implementation that uses [`ActorSpan`],
+/// [`MeshSpan`], and [`StateSpan`] when the tracing subsystem is
+/// initialized.
+pub struct NoopInstrumentation;
+
+impl AutoInstrumented for NoopInstrumentation {
+    fn actor_spawn_span(&self, actor_id: &str, _actor_name: &str) -> InstrumentedSpanGuard {
+        InstrumentedSpanGuard {
+            _span: tracing::info_span!(
+                target: crate::tracing::span::AETHER_NAMESPACE,
+                "actor_spawn",
+                actor_id = %actor_id,
+            ),
+        }
+    }
+
+    fn message_send_span(&self, actor_id: &str, message_type: &str) -> InstrumentedSpanGuard {
+        InstrumentedSpanGuard {
+            _span: tracing::info_span!(
+                target: crate::tracing::span::AETHER_NAMESPACE,
+                "message_send",
+                actor_id = %actor_id,
+                message_type = %message_type,
+            ),
+        }
+    }
+
+    fn message_receive_span(&self, actor_id: &str, message_type: &str) -> InstrumentedSpanGuard {
+        InstrumentedSpanGuard {
+            _span: tracing::info_span!(
+                target: crate::tracing::span::AETHER_NAMESPACE,
+                "message_receive",
+                actor_id = %actor_id,
+                message_type = %message_type,
+            ),
+        }
+    }
+
+    fn state_read_span(&self, namespace: &str, key: &str) -> InstrumentedSpanGuard {
+        InstrumentedSpanGuard {
+            _span: tracing::info_span!(
+                target: crate::tracing::span::AETHER_NAMESPACE,
+                "state_read",
+                namespace = %namespace,
+                key = %key,
+            ),
+        }
+    }
+
+    fn state_write_span(&self, namespace: &str, key: &str) -> InstrumentedSpanGuard {
+        InstrumentedSpanGuard {
+            _span: tracing::info_span!(
+                target: crate::tracing::span::AETHER_NAMESPACE,
+                "state_write",
+                namespace = %namespace,
+                key = %key,
+            ),
+        }
+    }
+}
+
+/// OTLP-specific exporter configuration for gRPC transport.
+#[derive(Debug, Clone)]
+pub struct OtlpGrpcConfig {
+    /// gRPC endpoint (e.g., `http://localhost:4317`).
+    pub endpoint: String,
+    /// TLS configuration.
+    pub use_tls: bool,
+    /// Metadata headers to include on every export request.
+    pub metadata: std::collections::HashMap<String, String>,
+    /// Per-request timeout.
+    pub timeout: Duration,
+    /// Compression to use on the gRPC channel.
+    pub compression: OtlpCompression,
+}
+
+/// Compression options for the OTLP gRPC exporter.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum OtlpCompression {
+    /// No compression.
+    #[default]
+    None,
+    /// Gzip compression.
+    Gzip,
+}
+
+impl OtlpGrpcConfig {
+    /// Create a new OTLP gRPC config with the given endpoint.
+    pub fn new(endpoint: impl Into<String>) -> Self {
+        Self {
+            endpoint: endpoint.into(),
+            use_tls: false,
+            metadata: std::collections::HashMap::new(),
+            timeout: Duration::from_secs(10),
+            compression: OtlpCompression::default(),
+        }
+    }
+
+    /// Enable TLS for the gRPC connection.
+    pub fn with_tls(mut self) -> Self {
+        self.use_tls = true;
+        self
+    }
+
+    /// Add a metadata header.
+    pub fn with_metadata(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
+        self.metadata.insert(key.into(), value.into());
+        self
+    }
+
+    /// Set the per-request timeout.
+    pub fn with_timeout(mut self, timeout: Duration) -> Self {
+        self.timeout = timeout;
+        self
+    }
+
+    /// Set the compression algorithm.
+    pub fn with_compression(mut self, compression: OtlpCompression) -> Self {
+        self.compression = compression;
+        self
+    }
+}
+
+impl Default for OtlpGrpcConfig {
+    fn default() -> Self {
+        Self::new("http://localhost:4317")
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -348,5 +515,69 @@ mod tests {
             }
             _ => panic!("Expected Jaeger variant"),
         }
+    }
+
+    #[test]
+    fn test_otlp_grpc_config_default() {
+        let config = OtlpGrpcConfig::default();
+        assert_eq!(config.endpoint, "http://localhost:4317");
+        assert!(!config.use_tls);
+        assert!(config.metadata.is_empty());
+        assert_eq!(config.timeout, Duration::from_secs(10));
+        assert_eq!(config.compression, OtlpCompression::None);
+    }
+
+    #[test]
+    fn test_otlp_grpc_config_builder() {
+        let config = OtlpGrpcConfig::new("http://otel:4317")
+            .with_tls()
+            .with_metadata("x-api-key", "secret")
+            .with_timeout(Duration::from_secs(30))
+            .with_compression(OtlpCompression::Gzip);
+
+        assert_eq!(config.endpoint, "http://otel:4317");
+        assert!(config.use_tls);
+        assert_eq!(
+            config.metadata.get("x-api-key").map(String::as_str),
+            Some("secret")
+        );
+        assert_eq!(config.timeout, Duration::from_secs(30));
+        assert_eq!(config.compression, OtlpCompression::Gzip);
+    }
+
+    #[test]
+    fn test_batch_processor_from_tracing_config() {
+        let config = TracingConfig::default().with_batch_config(2000, 256, 1024);
+        let batch = BatchProcessorConfig::from_tracing_config(&config);
+
+        assert_eq!(batch.max_queue_size, 1024);
+        assert_eq!(batch.max_export_batch_size, 256);
+        assert_eq!(batch.scheduled_delay, Duration::from_millis(2000));
+    }
+
+    #[tokio::test]
+    async fn test_noop_instrumentation_spans() {
+        let noop = NoopInstrumentation;
+
+        let _guard = noop.actor_spawn_span("actor-1", "test-actor");
+        let _guard2 = noop.message_send_span("actor-1", "Ping");
+        let _guard3 = noop.message_receive_span("actor-1", "Pong");
+        let _guard4 = noop.state_read_span("default", "user:1");
+        let _guard5 = noop.state_write_span("default", "user:1");
+    }
+
+    #[test]
+    fn test_otlp_compression_equality() {
+        assert_eq!(OtlpCompression::None, OtlpCompression::None);
+        assert_ne!(OtlpCompression::None, OtlpCompression::Gzip);
+        assert_eq!(OtlpCompression::Gzip, OtlpCompression::Gzip);
+    }
+
+    #[test]
+    fn test_instrumented_span_guard_drop() {
+        let guard = InstrumentedSpanGuard {
+            _span: tracing::info_span!("test_drop"),
+        };
+        drop(guard);
     }
 }

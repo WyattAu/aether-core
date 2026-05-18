@@ -29,6 +29,9 @@ jobs:
           - name: scheduler_work_stealing
             tla: scheduler_work_stealing.tla
             cfg: WorkStealingCfg.cfg
+          - name: leader_election
+            tla: tla_leader_election.tla
+            cfg: tla_leader_election.cfg
     container:
       image: ghcr.io/tlaplus/tlaplus:latest
     steps:

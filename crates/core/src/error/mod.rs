@@ -3,6 +3,11 @@
 //! This module provides comprehensive error handling following the
 //! Zero-Panic Policy (SOP-SAFE-01).
 //!
+//! # Submodules
+//!
+//! - [`taxonomy`] – Ten-level severity classification aligned with the
+//!   R&D mega prompt error taxonomy.
+//!
 //! # Error Codes
 //!
 //! Each error has a unique code for programmatic handling:
@@ -15,6 +20,10 @@
 //! - `0x0600-0x06FF`: Security errors
 //! - `0x0700-0x07FF`: Resource errors
 //! - `0xFF00-0xFFFF`: Internal errors
+
+pub mod taxonomy;
+
+pub use taxonomy::Severity;
 
 use std::borrow::Cow;
 use std::error::Error as StdError;

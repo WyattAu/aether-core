@@ -32,6 +32,7 @@ monoio = { workspace = true, optional = true, features = ["mkdirat", "renameat",
 [dev-dependencies]
 wat = "1.220"
 tempfile = "3"
+tower = "0.4"
 
 [features]
 default = ["wasm"]
