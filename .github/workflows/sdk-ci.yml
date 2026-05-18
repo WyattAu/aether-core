@@ -118,7 +118,7 @@ jobs:
         run: pnpm run typecheck
 
       - name: Run tests
-        run: pnpm test -- --coverage
+        run: pnpm exec jest --coverage
 
       - name: Upload coverage
         uses: codecov/codecov-action@v4
