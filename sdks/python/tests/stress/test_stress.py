@@ -16,7 +16,6 @@ import time
 import tracemalloc
 
 import pytest
-
 from aether_sdk.resilience.circuit_breaker import (
     CircuitBreaker,
     CircuitBreakerConfig,

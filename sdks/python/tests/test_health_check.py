@@ -7,7 +7,6 @@ Tests for health checking functionality compatible with Kubernetes probes.
 import asyncio
 
 import pytest
-
 from aether_sdk.resilience.health_check import (
     HealthChecker,
     HealthCheckOptions,

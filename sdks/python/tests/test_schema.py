@@ -7,7 +7,6 @@ Tests for schema registry, validation, and compatibility checking.
 import asyncio
 
 import pytest
-
 from aether_sdk.event.schema import (
     Compatibility,
     InMemorySchemaRegistry,

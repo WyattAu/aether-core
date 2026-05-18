@@ -9,7 +9,6 @@ import asyncio
 import os
 
 import pytest
-
 from aether_sdk.event.event_sourcing import Aggregate, InMemoryEventStore
 from aether_sdk.event.pubsub import InMemoryPubSub, PubSubMessage, Topic
 from aether_sdk.event.schema import InMemorySchemaRegistry, Schema, SchemaError

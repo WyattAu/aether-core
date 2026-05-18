@@ -12,7 +12,6 @@ import random
 from typing import Any, Dict, List, Optional
 
 import pytest
-
 from aether_sdk.streaming.backpressure import (
     BackpressureController,
     RateBasedBackpressure,

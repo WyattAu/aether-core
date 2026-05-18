@@ -3,7 +3,6 @@ import os
 import time
 
 import pytest
-
 from aether_sdk.resilience.bulkhead import (
     Bulkhead,
     BulkheadConfig,

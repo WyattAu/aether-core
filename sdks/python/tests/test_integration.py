@@ -14,7 +14,6 @@ import uuid
 
 import httpx
 import pytest
-
 from aether_sdk.client import AetherClient, AetherServerError
 
 BASE_URL = os.environ.get("AETHER_BASE_URL", "http://localhost:8080")

@@ -7,7 +7,6 @@ Comprehensive tests for rate limiting with multiple strategies.
 import asyncio
 
 import pytest
-
 from aether_sdk.resilience.rate_limiter import (
     FixedWindow,
     RateLimitConfig,

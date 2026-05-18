@@ -8,7 +8,6 @@ from dataclasses import dataclass
 from typing import Any, Dict
 
 import pytest
-
 from aether_sdk.streaming.partition import (
     CompositePartitioner,
     KeyExtractor,

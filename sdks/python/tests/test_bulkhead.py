@@ -7,7 +7,6 @@ Comprehensive tests for bulkhead pattern implementation.
 import asyncio
 
 import pytest
-
 from aether_sdk.resilience.bulkhead import (
     Bulkhead,
     BulkheadConfig,

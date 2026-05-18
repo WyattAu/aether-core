@@ -14,7 +14,6 @@ import pytest
 pytest.importorskip("grpc")
 
 import grpc
-
 from aether_sdk.client import (
     ActorInfo,
     DeliveryReceipt,

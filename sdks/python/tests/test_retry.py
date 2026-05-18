@@ -7,7 +7,6 @@ Tests for retry policy with exponential backoff strategies.
 import asyncio
 
 import pytest
-
 from aether_sdk.resilience.retry import (
     BackoffStrategy,
     RetryConfig,

@@ -12,7 +12,6 @@ import random
 from typing import Any, Dict, Optional
 
 import pytest
-
 from aether_sdk.actor import Actor
 from aether_sdk.messaging import Message, MessageType
 from aether_sdk.state import StateHandle

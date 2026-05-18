@@ -18,6 +18,7 @@ sys.modules["server"] = _server_mod
 _spec.loader.exec_module(_server_mod)
 
 import pytest  # noqa: E402
+
 import server.app as _app_mod  # noqa: E402
 from server.actor_manager import ActorManager  # noqa: E402
 from server.app import create_app  # noqa: E402
@@ -43,7 +44,6 @@ def app():
 async def client(app):
     """Create an AetherClient connected to the server via ASGI transport."""
     import httpx
-
     from aether_sdk.client import AetherClient
 
     transport = httpx.ASGITransport(app=app)

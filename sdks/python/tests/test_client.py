@@ -1,7 +1,6 @@
 """Tests for AetherClient against the reference server."""
 
 import pytest
-
 from aether_sdk.client import AetherServerError
 
 
