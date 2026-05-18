@@ -1,4 +1,8 @@
 name: GitOps Deploy
+
+permissions:
+  contents: read
+
 on:
   push:
     branches: [main]

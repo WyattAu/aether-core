@@ -36,7 +36,7 @@
 | Memory benchmarks | 4 | 0 | 0 | 4 |
 | WASM E2E | 10 | 0 | 0 | 10 |
 | Doc-tests | 27 | 0 | 47 | 74 |
-| **Total** | **1,532** | **0** | **92** | **1,623** |
+| **Total** | **1,532** | **0** | **92** | **1,624** |
 
 Ignored breakdown: 9 FDB (requires running instance), 7 Firecracker (requires KVM), 21 cluster E2E (requires 3-node cluster), 47 doc-tests (reference external state), 8 test fixtures.
 

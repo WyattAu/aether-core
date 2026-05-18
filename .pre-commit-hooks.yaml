@@ -1,0 +1,46 @@
+- id: cargo-fmt
+  name: cargo fmt
+  description: Check that Rust code is formatted with rustfmt
+  entry: cargo fmt --all -- --check
+  language: system
+  types: [rust]
+  pass_filenames: false
+
+- id: cargo-clippy
+  name: cargo clippy
+  description: Lint Rust code with clippy (deny warnings)
+  entry: cargo clippy --workspace --all-features -- -D warnings
+  language: system
+  types: [rust]
+  pass_filenames: false
+
+- id: cargo-test
+  name: cargo test
+  description: Run all workspace tests as a quality gate
+  entry: cargo test --workspace --all-features
+  language: system
+  types: [rust]
+  pass_filenames: false
+  verbose: true
+
+- id: no-stubs
+  name: no stubs or todo markers
+  description: Grep for todo!(), unimplemented!(), FIXME, HACK, XXX in crates/ (excluding test/fixture files)
+  entry: >
+    bash -c '
+    find crates/ -type f -name "*.rs" ! -name "*test*" ! -name "*fixture*" \
+      ! -path "*/tests/*" ! -path "*/test/*" \
+      -exec grep -Hn -E "(todo!\(\)|unimplemented!\(\)|FIXME|HACK|XXX)" {} + \
+      && exit 1 || exit 0
+    '
+  language: system
+  types: [rust]
+  pass_filenames: false
+
+- id: check-rust-version
+  name: check rust-toolchain.toml
+  description: Ensure rust-toolchain.toml exists at repo root
+  entry: test -f rust-toolchain.toml
+  language: system
+  pass_filenames: false
+  always_run: true

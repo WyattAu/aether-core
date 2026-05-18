@@ -31,9 +31,7 @@ pip install aether-sdk
 ### JavaScript SDK
 
 ```bash
-npm install @aether/sdk
-# or
-yarn add @aether/sdk
+pnpm add @aether/sdk
 ```
 
 ## Option 2: Full Installation

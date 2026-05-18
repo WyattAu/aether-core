@@ -104,8 +104,16 @@ jobs:
           sarif_file: audit.sarif
           category: cargo-audit
       
-      - name: Check for vulnerabilities (warn only)
-        run: cargo audit 2>&1 || true
+      - name: Check for critical/high vulnerabilities
+        run: |
+          if [ -f audit-results.json ]; then
+            CRITICAL=$(python3 -c "import json; d=json.load(open('audit-results.json')); vulns=d.get('vulnerabilities',{}).get('list',[]); print(sum(1 for v in vulns if v.get('advisory',{}).get('severity','') in ('Critical','High')))" 2>/dev/null || echo 0)
+            if [ "$CRITICAL" -gt 0 ]; then
+              echo "Found $CRITICAL critical/high severity vulnerabilities"
+              cat audit-results.json
+              exit 1
+            fi
+          fi
       
       - name: Upload audit results
         uses: actions/upload-artifact@v4

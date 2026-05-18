@@ -22,7 +22,7 @@ Complete the **v1.5.0 "Flow" release** for Project Aether, focused on **Stream P
 
 ### GitHub Repository
 - Remote: `https://github.com/WyattAu/aether-core.git`
-- Current version: **v1.4.0** (released)
+- Current version: **v2.0.0** (released)
 - Working on: **v1.5.0** (M1 implementation in progress)
 ### v1.5.0 Roadmap
 - Location: `.docs/ROADMAP_v1.5.md`
