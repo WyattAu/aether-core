@@ -5,6 +5,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 
+import io.aether.sdk.streaming.Types.StreamEvent;
+
 /**
  * Partitions events across multiple consumers.
  */
@@ -26,7 +28,7 @@ public class Partitioner {
      * Get partition for an event.
      */
     public int partition(StreamEvent<?> event) {
-        return partitionByKey(event.key);
+        return partitionByKey(event.getKey());
     }
 
     /**

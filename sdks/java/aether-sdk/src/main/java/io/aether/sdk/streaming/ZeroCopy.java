@@ -5,6 +5,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
+import io.aether.sdk.streaming.Types.StreamEvent;
+
 /**
  * Statistics for buffer usage.
  */

@@ -5,6 +5,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
+import io.aether.sdk.streaming.Types.StreamEvent;
+
 /**
  * Processes events in batches with configurable size and timing.
  */
@@ -63,13 +65,13 @@ public class BatchProcessor<T> {
 
         // Get event size
         int sizeBytes = 0;
-        if (event.value instanceof byte[]) {
-            sizeBytes = ((byte[]) event.value).length;
-        } else if (event.value instanceof String) {
-            sizeBytes = ((String) event.value).length();
+        if (event.getValue() instanceof byte[]) {
+            sizeBytes = ((byte[]) event.getValue()).length;
+        } else if (event.getValue() instanceof String) {
+            sizeBytes = ((String) event.getValue()).length();
         }
 
-        BatchResult<T> batchResult = collector.add(event.value, sizeBytes);
+        BatchResult<T> batchResult = collector.add(event.getValue(), sizeBytes);
         if (batchResult != null) {
             processBatch(batchResult);
             return true;

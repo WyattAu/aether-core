@@ -3,6 +3,8 @@ package io.aether.sdk.streaming;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 
+import io.aether.sdk.streaming.Types.StreamEvent;
+
 /**
  * Processes events for a specific partition.
  */

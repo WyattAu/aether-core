@@ -47,10 +47,15 @@ public class Bulkhead {
         totalAccepted.incrementAndGet();
         activeCalls.incrementAndGet();
         
-        return fn.call()
-            .whenComplete((result, error) -> {
-                release();
-            });
+        try {
+            return fn.call()
+                .whenComplete((result, error) -> {
+                    release();
+                });
+        } catch (Exception e) {
+            release();
+            return CompletableFuture.failedFuture(e);
+        }
     }
     
     /**

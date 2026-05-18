@@ -9,6 +9,11 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
+import io.aether.sdk.streaming.Backpressure.BackpressureController;
+import io.aether.sdk.streaming.Types.BackpressureConfig;
+import io.aether.sdk.streaming.Types.BackpressureStrategy;
+import io.aether.sdk.streaming.Types.StreamEvent;
+
 /**
  * Base class for stream processing actors.
  *
@@ -38,7 +43,7 @@ public abstract class StreamActor<K, V> extends Actor {
 
     protected final Types.StreamConfig streamConfig;
     protected final StreamState streamState;
-    protected final BackpressureController<V> backpressure;
+    protected final BackpressureController<StreamEvent<V>> backpressure;
 
     private final Map<String, Consumer<StreamEvent<?>>> outputHandlers = new ConcurrentHashMap<>();
     private Consumer<StreamEvent<V>> lateDataHandler;
@@ -56,6 +61,7 @@ public abstract class StreamActor<K, V> extends Actor {
      * @param streamConfig Stream processing configuration
      */
     protected StreamActor(Types.StreamConfig streamConfig) {
+        super("stream-actor");
         this.streamConfig = streamConfig;
         this.streamState = new StreamState();
         this.backpressure = new BackpressureController<>(
@@ -81,8 +87,8 @@ public abstract class StreamActor<K, V> extends Actor {
      * Handle incoming message.
      */
     @Override
-    protected void handleMessage(Message message) {
-        String type = message.getType();
+    public void handleMessage(Message message) {
+        String type = message.getType().getValue();
         
         if ("stream_event".equals(type)) {
             Object payload = message.getPayload();
@@ -105,7 +111,7 @@ public abstract class StreamActor<K, V> extends Actor {
                 @SuppressWarnings("unchecked")
                 Map<String, Object> map = (Map<String, Object>) payload;
                 Types.Watermark watermark = new Types.Watermark(
-                    new Types.Timestamp(((Number) map.get("timestamp")).longValue()),
+                    Types.Timestamp.fromMillis(((Number) map.get("timestamp")).longValue()),
                     (String) map.get("streamId"),
                     map.containsKey("partition") ? ((Number) map.get("partition")).intValue() : null
                 );
@@ -117,27 +123,27 @@ public abstract class StreamActor<K, V> extends Actor {
     @SuppressWarnings("unchecked")
     private StreamEvent<V> dictToEvent(Map<String, Object> data) {
         try {
-            return new StreamEvent<V>(
-                (String) data.get("key"),
-                (V) data.get("value"),
-                new Types.Timestamp(((Number) data.get("timestamp")).longValue()),
-                (Map<String, String>) data.getOrDefault("headers", Collections.emptyMap()),
-                data.containsKey("partition") ? ((Number) data.get("partition")).intValue() : null,
-                data.containsKey("offset") ? ((Number) data.get("offset")).longValue() : null,
-                (String) data.get("eventType")
-            );
+            return StreamEvent.<V>builder()
+                .key((String) data.get("key"))
+                .value((V) data.get("value"))
+                .timestamp(Types.Timestamp.fromMillis(((Number) data.get("timestamp")).longValue()))
+                .headers((Map<String, String>) data.getOrDefault("headers", Collections.emptyMap()))
+                .partition(data.containsKey("partition") ? ((Number) data.get("partition")).intValue() : null)
+                .offset(data.containsKey("offset") ? ((Number) data.get("offset")).longValue() : null)
+                .eventType((String) data.get("eventType"))
+                .build();
         } catch (Exception e) {
             return null;
         }
     }
 
     private void processWithBackpressure(StreamEvent<V> event) {
-        if (!backpressure.tryPush(event)) {
+        if (!backpressure.process(event).isAccepted()) {
             return;
         }
 
         while (true) {
-            StreamEvent<V> bufferedEvent = backpressure.pop();
+            StreamEvent<V> bufferedEvent = backpressure.poll().orElse(null);
             if (bufferedEvent == null) {
                 break;
             }
@@ -156,7 +162,7 @@ public abstract class StreamActor<K, V> extends Actor {
         // Check if event is late
         Types.Timestamp currentWatermark = streamState.watermarks.getOrDefault(
             event.getEventType() != null ? event.getEventType() : "default",
-            new Types.Timestamp(0)
+            Types.Timestamp.fromMillis(0)
         );
 
         if (event.getTimestamp().getMilliseconds() < currentWatermark.getMilliseconds()) {
@@ -190,7 +196,7 @@ public abstract class StreamActor<K, V> extends Actor {
                 if (lateDataHandler != null) {
                     lateDataHandler.accept(event);
                 } else if (streamConfig.getLateDataOutput() != null) {
-                    emit(streamConfig.getLateDataOutput(), event);
+                    emit(streamConfig.getLateDataOutput().orElse(null), event);
                 }
                 break;
 
@@ -224,12 +230,12 @@ public abstract class StreamActor<K, V> extends Actor {
      * Emit a value to an output stream.
      */
     protected void emit(String stream, Object value) {
-        StreamEvent<Object> event = new StreamEvent<>(
-            String.valueOf(hashCode()),
-            value,
-            Types.Timestamp.now(),
-            Collections.emptyMap()
-        );
+        StreamEvent<Object> event = StreamEvent.<Object>builder()
+            .key(String.valueOf(hashCode()))
+            .value(value)
+            .timestamp(Types.Timestamp.now())
+            .headers(Collections.emptyMap())
+            .build();
         doEmit(stream, event);
     }
 
@@ -237,12 +243,12 @@ public abstract class StreamActor<K, V> extends Actor {
      * Emit a value with specific timestamp.
      */
     protected void emitWithTimestamp(String stream, Object value, Types.Timestamp timestamp) {
-        StreamEvent<Object> event = new StreamEvent<>(
-            String.valueOf(hashCode()),
-            value,
-            timestamp,
-            Collections.emptyMap()
-        );
+        StreamEvent<Object> event = StreamEvent.<Object>builder()
+            .key(String.valueOf(hashCode()))
+            .value(value)
+            .timestamp(timestamp)
+            .headers(Collections.emptyMap())
+            .build();
         doEmit(stream, event);
     }
 

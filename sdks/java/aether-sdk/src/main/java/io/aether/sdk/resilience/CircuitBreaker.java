@@ -4,6 +4,7 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.*;
 import java.util.concurrent.locks.*;
 import java.time.Duration;
+import java.util.function.BiConsumer;
 
 /**
  * Circuit Breaker pattern implementation.
@@ -60,12 +61,12 @@ public class CircuitBreaker {
         
         return CompletableFuture.supplyAsync(() -> {
             try {
-                T result = fn.call();
+                T result = fn.call().join();
                 recordSuccess();
                 return result;
             } catch (Exception e) {
                 recordFailure();
-                throw e;
+                throw new RuntimeException(e);
             }
         });
     }
@@ -78,9 +79,13 @@ public class CircuitBreaker {
             Callable<CompletableFuture<T>> fallback) {
         return execute(fn).exceptionallyCompose(e -> {
             if (e instanceof CircuitBreakerException) {
-                return fallback.call();
+                try {
+                    return fallback.call();
+                } catch (Exception ex) {
+                    return CompletableFuture.failedFuture(ex);
+                }
             }
-            throw e;
+            return CompletableFuture.failedFuture(e);
         });
     }
     

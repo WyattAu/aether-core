@@ -31,29 +31,32 @@ public class RetryPolicy {
     private <T> CompletableFuture<T> executeWithRetry(
             Callable<CompletableFuture<T>> fn, int attempt) {
         
-        return fn.call().exceptionallyComposeAsync(
-            result -> CompletableFuture.completedFuture(result),
-            error -> {
-                if (attempt >= config.maxAttempts) {
-                    return CompletableFuture.failedFuture(
-                        new RetryExhaustedException(attempt, error)
-                    );
-                }
-                
-                if (!shouldRetry(error)) {
-                    return CompletableFuture.failedFuture(error);
-                }
-                
-                long delay = calculateDelay(attempt);
-                return CompletableFuture.runAsync(() -> {
-                    try {
-                        Thread.sleep(delay);
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
+        try {
+            return fn.call().exceptionallyComposeAsync(
+                error -> {
+                    if (attempt >= config.maxAttempts) {
+                        return CompletableFuture.failedFuture(
+                            new RetryExhaustedException(attempt, error)
+                        );
                     }
-                }).thenComposeAsync(v -> executeWithRetry(fn, attempt + 1));
-            }
-        );
+                    
+                    if (!shouldRetry(error)) {
+                        return CompletableFuture.failedFuture(error);
+                    }
+                    
+                    long delay = calculateDelay(attempt);
+                    return CompletableFuture.runAsync(() -> {
+                        try {
+                            Thread.sleep(delay);
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                        }
+                    }).thenComposeAsync(v -> executeWithRetry(fn, attempt + 1));
+                }
+            );
+        } catch (Exception e) {
+            return CompletableFuture.failedFuture(e);
+        }
     }
     
     /**

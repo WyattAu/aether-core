@@ -215,8 +215,8 @@ public final class Backpressure {
                                 buffer.offer(element);
                                 totalDropped.incrementAndGet();
                                 totalAccepted.incrementAndGet();
-                                return BackpressureResult.<T>accepted(element)
-                                    .withDropped(dropped, "replaced_by_newer");
+                                return Backpressure.withDropped(
+                                    BackpressureResult.accepted(element), dropped, "replaced_by_newer");
                             }
                             buffer.offer(element);
                             totalAccepted.incrementAndGet();
