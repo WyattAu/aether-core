@@ -3,6 +3,7 @@ from typing import Optional
 from uuid import uuid4
 
 import pytest
+
 from aether_sdk import Actor, Message, MessageType, actor
 from aether_sdk.capabilities import Capability
 from aether_sdk.exceptions import RpcError

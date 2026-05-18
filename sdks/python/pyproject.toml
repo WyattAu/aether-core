@@ -44,6 +44,10 @@ asyncio_mode = "auto"
 line-length = 88
 target-version = ["py39"]
 
+[tool.isort]
+profile = "black"
+line_length = 88
+
 [tool.mypy]
 python_version = "3.9"
 strict = true

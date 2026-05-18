@@ -8,6 +8,7 @@ import time
 from typing import Any
 
 import pytest
+
 from aether_sdk.streaming.batch import (
     BatchAggregator,
     BatchCollector,

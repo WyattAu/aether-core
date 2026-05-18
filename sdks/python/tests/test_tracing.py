@@ -7,6 +7,7 @@ Tests for OpenTelemetry tracing integration.
 from unittest.mock import MagicMock, patch
 
 import pytest
+
 from aether_sdk.resilience.tracing import (
     ResilienceInstrumentation,
     TracingContext,

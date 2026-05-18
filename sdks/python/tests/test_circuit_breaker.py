@@ -9,6 +9,7 @@ import asyncio
 import time
 
 import pytest
+
 from aether_sdk.resilience.circuit_breaker import (
     CircuitBreaker,
     CircuitBreakerConfig,

@@ -1,6 +1,7 @@
 from unittest.mock import AsyncMock, patch
 
 import pytest
+
 from aether_sdk.capabilities import Capability, CapabilitySet
 from aether_sdk.exceptions import CapabilityDenied
 from aether_sdk.http import HttpClient
