@@ -34,7 +34,7 @@ class CircuitBreakerTest {
     @DisplayName("transitions OPEN after failure threshold")
     void testTransitionsToOpen() {
         CircuitBreaker cb = new CircuitBreaker(
-            CircuitBreakerConfig.builder()
+            CircuitBreaker.CircuitBreakerConfig.builder()
                 .failureThreshold(3)
                 .successThreshold(2)
                 .resetTimeout(Duration.ofMillis(100))
@@ -59,7 +59,7 @@ class CircuitBreakerTest {
     @DisplayName("execute fails immediately when OPEN")
     void testExecuteWhenOpen() {
         CircuitBreaker cb = new CircuitBreaker(
-            CircuitBreakerConfig.builder()
+            CircuitBreaker.CircuitBreakerConfig.builder()
                 .failureThreshold(1)
                 .resetTimeout(Duration.ofSeconds(60))
                 .build()
@@ -77,7 +77,7 @@ class CircuitBreakerTest {
     @DisplayName("execute records failure on exception")
     void testExecuteRecordsFailure() {
         CircuitBreaker cb = new CircuitBreaker(
-            CircuitBreakerConfig.builder()
+            CircuitBreaker.CircuitBreakerConfig.builder()
                 .failureThreshold(1)
                 .resetTimeout(Duration.ofSeconds(60))
                 .build()
@@ -93,7 +93,7 @@ class CircuitBreakerTest {
     @DisplayName("reset returns to CLOSED")
     void testReset() {
         CircuitBreaker cb = new CircuitBreaker(
-            CircuitBreakerConfig.builder()
+            CircuitBreaker.CircuitBreakerConfig.builder()
                 .failureThreshold(1)
                 .resetTimeout(Duration.ofSeconds(60))
                 .build()
@@ -132,7 +132,7 @@ class CircuitBreakerTest {
         AtomicReference<CircuitState> toRef = new AtomicReference<>();
 
         CircuitBreaker cb = new CircuitBreaker(
-            CircuitBreakerConfig.builder()
+            CircuitBreaker.CircuitBreakerConfig.builder()
                 .failureThreshold(1)
                 .resetTimeout(Duration.ofSeconds(60))
                 .onStateChange((from, to) -> {
@@ -160,7 +160,7 @@ class CircuitBreakerTest {
     @DisplayName("half-open failure returns to OPEN")
     void testHalfOpenFailure() {
         CircuitBreaker cb = new CircuitBreaker(
-            CircuitBreakerConfig.builder()
+            CircuitBreaker.CircuitBreakerConfig.builder()
                 .failureThreshold(1)
                 .successThreshold(2)
                 .resetTimeout(Duration.ofSeconds(60))
@@ -176,7 +176,7 @@ class CircuitBreakerTest {
     @Test
     @DisplayName("default config values")
     void testDefaultConfig() {
-        CircuitBreakerConfig config = CircuitBreakerConfig.defaultConfig();
+        CircuitBreaker.CircuitBreakerConfig config = CircuitBreaker.CircuitBreakerConfig.defaultConfig();
         assertEquals("default", config.name);
         assertEquals(5, config.failureThreshold);
         assertEquals(3, config.successThreshold);

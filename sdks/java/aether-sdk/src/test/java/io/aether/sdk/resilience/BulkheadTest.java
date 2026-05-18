@@ -12,7 +12,7 @@ class BulkheadTest {
     @BeforeEach
     void setUp() {
         bulkhead = new Bulkhead(
-            BulkheadConfig.builder()
+            Bulkhead.BulkheadConfig.builder()
                 .maxConcurrent(2)
                 .maxQueued(0)
                 .name("test")
@@ -66,7 +66,7 @@ class BulkheadTest {
     @Test
     @DisplayName("default config values")
     void testDefaultConfig() {
-        BulkheadConfig config = BulkheadConfig.defaultConfig();
+        Bulkhead.BulkheadConfig config = Bulkhead.BulkheadConfig.defaultConfig();
         assertEquals("default", config.getName());
         assertEquals(10, config.getMaxConcurrent());
         assertEquals(0, config.getMaxQueued());
@@ -124,7 +124,7 @@ class BulkheadTest {
     @Test
     @DisplayName("builder sets all fields")
     void testBuilder() {
-        BulkheadConfig config = BulkheadConfig.builder()
+        Bulkhead.BulkheadConfig config = Bulkhead.BulkheadConfig.builder()
             .name("custom")
             .maxConcurrent(5)
             .maxQueued(10)

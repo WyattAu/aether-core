@@ -61,7 +61,7 @@ jobs:
         run: |
           ruff check aether_sdk/ tests/ examples/
           black --check aether_sdk/ tests/ examples/
-          isort --check-only aether_sdk/ tests/ examples/
+          isort --check-only --profile black aether_sdk/ tests/ examples/
 
       - name: Run type checking
         run: mypy aether_sdk/

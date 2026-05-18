@@ -171,6 +171,6 @@ class StateHandleTest {
 
         StateHandle s2 = new StateHandle("a", CapabilitySet.all(), backend);
         s2.load().join();
-        assertEquals(42, s2.get("x"));
+        assertEquals(42, (int) s2.get("x"));
     }
 }
