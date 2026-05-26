@@ -1,6 +1,6 @@
 # Getting Started with Aether
 
-**Time:** ~20 minutes | **Prerequisites:** Rust 1.75+
+**Time:** ~20 minutes | **Prerequisites:** Rust 1.88+
 
 ---
 

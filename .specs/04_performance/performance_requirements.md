@@ -356,7 +356,7 @@ Performance targets assume:
 ### Appendix C: Software Dependencies
 
 - Linux kernel 6.1+ with io_uring
-- Rust 1.75+ with optimizations
-- wasmtime 18+ with cranelift
+- Rust 1.88+ with optimizations
+- wasmtime 25+ with cranelift
 - Firecracker v1.5+
 - DPDK 23.11+ (optional fast path)

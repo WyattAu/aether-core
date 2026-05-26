@@ -5,16 +5,28 @@ This guide covers how to install Project Aether and set up your development envi
 ## Prerequisites
 
 - **OS**: Linux, macOS, or Windows (WSL2)
-- **Runtime**: One of the following:
-  - Go 1.21+
-  - Python 3.11+
-  - Node.js 18+
-  - Rust 1.70+
-- **Tools**: Git, Make (optional)
+- **Rust**: 1.88+ (MSRV), stable channel recommended
+- **Tools**: Git, cargo
+- **Optional**: FoundationDB 7.3+ (for persistent state), Docker (for containerized deployment)
 
-## Option 1: SDK Only
+## Option 1: Rust Actor SDK
 
-If you only need the SDK to connect to an existing Aether cluster:
+For building actors that run on the Aether runtime:
+
+```bash
+cargo add aether-actor
+```
+
+Or add to your `Cargo.toml`:
+
+```toml
+[dependencies]
+aether-actor = "2.0"
+```
+
+## Option 2: External SDKs
+
+Aether provides SDKs for connecting to clusters from other languages:
 
 ### Go SDK
 
@@ -34,7 +46,7 @@ pip install aether-sdk
 pnpm add @aether/sdk
 ```
 
-## Option 2: Full Installation
+## Option 3: Full Installation
 
 For running your own Aether cluster:
 
@@ -45,7 +57,7 @@ For running your own Aether cluster:
 git clone https://github.com/WyattAu/aether-core.git
 cd aether-core
 
-# Build (requires Rust)
+# Build (requires Rust nightly-2026-03-01 toolchain)
 cargo build --release
 
 # The binary will be at:
@@ -87,32 +99,11 @@ aether version
 # Output: aether 2.0.0
 ```
 
-### Check SDK
+### Check Rust SDK
 
-=== "Go"
-
-    ```bash
-    go run -v <<EOF
-    package main
-    import "fmt"
-    import "github.com/WyattAu/aether-core/sdks/go/aether"
-    func main() {
-        fmt.Println("Aether Go SDK:", aether.Version)
-    }
-    EOF
-    ```
-
-=== "Python"
-
-    ```bash
-    python -c "import aether_sdk; print('Aether Python SDK:', aether_sdk.__version__)"
-    ```
-
-=== "JavaScript"
-
-    ```bash
-    node -e "const aether = require('@aether/sdk'); console.log('Aether JS SDK:', aether.version)"
-    ```
+```bash
+cargo build && echo "Aether actor crate ready"
+```
 
 ## Configuration
 
@@ -178,9 +169,7 @@ Install recommended extensions:
 {
   "recommendations": [
     "rust-lang.rust-analyzer",
-    "golang.go",
-    "ms-python.python",
-    "esbenp.prettier-vscode"
+    "vadimcn.vscode-lldb"
   ]
 }
 ```
@@ -190,11 +179,8 @@ Install recommended extensions:
 Install plugins:
 
 - Rust
-- Go
-- Python
 
 ## Next Steps
 
 - [Quick Start Guide](quickstart.md) - Build your first actor
 - [Core Concepts](concepts.md) - Learn the fundamentals
-- [Examples](../examples/overview.md) - Explore example applications

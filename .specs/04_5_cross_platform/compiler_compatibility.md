@@ -497,7 +497,7 @@ export RUSTFLAGS="-C target-cpu=native -C linker=clang-19 -C link-arg=-fuse-ld=l
 
 ```toml
 # .clippy.toml
-msrv = "1.75.0"
+msrv = "1.88.0"
 
 # Cargo.toml
 [lints.clippy]

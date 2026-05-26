@@ -28,10 +28,10 @@ What actually happened.
 
 | Component | Version |
 |-----------|---------|
-| Aether | v1.x.x |
+| Aether | v2.x.x |
 | OS | (e.g., Ubuntu 22.04) |
-| Rust | (e.g., 1.75.0) |
-| FoundationDB | (e.g., 7.1.25) |
+| Rust | (e.g., 1.88.0) |
+| FoundationDB | (e.g., 7.3.25) |
 
 ## Logs
 

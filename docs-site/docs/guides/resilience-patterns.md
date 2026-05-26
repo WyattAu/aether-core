@@ -1,6 +1,8 @@
-# Aether SDK Resilience Patterns v1.4.0
+# Aether Resilience Patterns
 
-This guide covers the resilience patterns available in Aether SDK v1.4.0 "Resilience".
+This guide covers the resilience patterns available in Aether for building robust, fault-tolerant actor systems.
+
+> **NOTE**: The examples below use SDK syntax (Python, JavaScript, Go). In the Aether v2.0.0 Rust-native runtime, these patterns are built into `aether_actor::resilience`. See the [API Reference](../api-reference.md) for Rust usage.
 
 ## Overview
 
@@ -14,29 +16,30 @@ The resilience module provides production-ready patterns for building robust, fa
 | **Health Check** | Monitor system health | Kubernetes probes |
 | **Bulkhead** | Isolate resources | Critical operations |
 
-## Installation
-
-### Python
+## Installation (Rust)
 
 ```bash
+cargo add aether-actor
+```
+
+The resilience patterns are included in the `aether_actor` crate under the `resilience` module.
+
+### External SDKs
+
+```bash
+# Python
 pip install aether-sdk
-```
 
-### JavaScript/TypeScript
+# JavaScript/TypeScript
+pnpm add @aether/sdk
 
-```bash
-npm install @aether/sdk
-```
-
-### Go
-
-```bash
+# Go
 go get github.com/aether-core/sdk-go/aether/resilience
 ```
 
 ## Quick Start
 
-### Python
+### Rust
 
 ```python
 from aether_sdk.resilience import (

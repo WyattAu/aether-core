@@ -98,7 +98,7 @@ C4Context
 
 | Constraint ID | Constraint | Source | Impact |
 |---------------|------------|--------|--------|
-| DC-STATE-001 | FDB 7.1+ required | Versionstamps | Atomic operations need v710 API |
+| DC-STATE-001 | FDB 7.3+ required | Versionstamps | Atomic operations need v730 API |
 | DC-STATE-002 | rkyv 0.7 serialization | Zero-copy | Archive format compatibility |
 | DC-STATE-003 | <50ms hydration budget | Performance | Limits state size to ~1MB |
 | DC-STATE-004 | Cache coherency with FDB | Consistency | Watch-based invalidation |

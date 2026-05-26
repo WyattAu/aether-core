@@ -27,8 +27,8 @@ This directory contains minimal compile-ready prototypes to validate critical pa
 ## Build Instructions
 
 ### Prerequisites
-- Rust 1.75+ with nightly toolchain
-- wasmtime-cli 15.0+
+- Rust 1.88+ with nightly toolchain
+- wasmtime-cli 25.x+
 - cargo-fuzz
 
 ### Building All Prototypes

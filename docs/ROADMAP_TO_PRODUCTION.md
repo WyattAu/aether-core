@@ -70,12 +70,12 @@ Full monorepo audit completed. Findings and resolutions:
 
 | ID | Task | Priority | Effort | Status |
 |----|------|----------|--------|--------|
-| D1 | Fix Dockerfile to build Rust core (currently builds Python server) | P0 | 2d | Open |
+| D1 | Fix Dockerfile to build Rust core (currently builds Python server) | P0 | 2d | Done |
 | D2 | Add `--set image.repository` to Helm values | P0 | 0.5d | Open |
 | D3 | Update docs-site stale version refs to v2.0.0 | P1 | 0.5d | Done |
 | D5 | Add orphan docs-site pages to mkdocs.yml nav | P1 | 0.5d | Open |
 | D6 | Reconcile Go SDK API docs | P1 | 1d | Open |
-| D8 | Clean up VERSION.md (remove duplicate section) | P2 | 0.5d | Open |
+| D8 | Clean up VERSION.md (remove duplicate section) | P2 | 0.5d | Done |
 | D9 | Consolidate publish.yml and sdk-publish.yml | P2 | 0.5d | Open |
 | D11 | Add kubeconfig step to gitops.yml | P2 | 0.5d | Open |
 | D12 | Remove no-op jobs from CI workflows | P2 | 0.3d | Open |
@@ -244,13 +244,13 @@ Full monorepo audit completed. Findings and resolutions:
 
 | Priority | Item | Version | Status |
 |----------|------|---------|--------|
-| P0 | Dockerfile builds Python server, not Rust core | v2.1.0 | Open |
+| P0 | Dockerfile builds Python server, not Rust core | v2.1.0 | Done |
 | P0 | Non-Rust SDKs are gRPC clients, not native WASM | v3.0.0 | Architectural |
 | P1 | `actor/zero_copy/stubs.rs` (141 LOC stub) | v2.2.0 | Planned |
 | P1 | Pin third-party actions to SHA (supply-chain risk) | v2.1.0 | Open |
 | P1 | 47 ignored doc-tests reference external state | v2.2.0 | Planned |
 | P2 | Lean4 proofs contain `sorry` (5 theorems) | v3.0.0 | Planned |
-| P2 | `.docs/` stale files from v1.x era | v2.1.0 | Partially done |
+| P2 | `.docs/` stale files from v1.x era | v2.1.0 | Done |
 | P3 | Duplicate CI workflows (security in ci.yml + security.yml) | v2.1.0 | Open |
 | P3 | Unseeded RNG in mesh module (5 locations) | v2.2.0 | Tracked |
 | P3 | O(n) audit log eviction in secrets_legacy.rs | v2.2.0 | Tracked |

@@ -2,11 +2,13 @@
 
 This tutorial guides you through building a complete actor-based application from scratch.
 
+> **NOTE**: This tutorial uses SDK examples in Python, TypeScript, and Go. The Aether v2.0.0 runtime is Rust-native. For the Rust-first quick start, see the [Quick Start Guide](quickstart.md). The concepts described here apply to all SDKs. SDK-specific code examples will be updated in a future release.
+
 ## Prerequisites
 
-- Node.js 18+ (for JavaScript) or Python 3.9+ (for Python) or Go 1.21+
+- Rust 1.88+ (for native actor development) or one of the SDK languages below
 - Basic understanding of async programming
-- Aether CLI installed
+- Aether CLI installed (`cargo install aether-cli`)
 
 ## Part 1: Hello World Actor
 
