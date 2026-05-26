@@ -72,7 +72,6 @@ jobs:
 
       - name: Run tests
         run: pytest tests/ -v --cov=aether_sdk --cov-report=xml --cov-report=term
-        continue-on-error: true
 
       - name: Upload coverage
         uses: codecov/codecov-action@v4
@@ -113,7 +112,7 @@ jobs:
             ${{ runner.os }}-pnpm-store-
 
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
       - name: Run linting
         run: pnpm run lint
@@ -123,7 +122,6 @@ jobs:
 
       - name: Run tests
         run: pnpm exec jest --coverage
-        continue-on-error: true
 
       - name: Upload coverage
         uses: codecov/codecov-action@v4
@@ -154,7 +152,6 @@ jobs:
 
       - name: Run tests
         run: mvn test
-        continue-on-error: true
 
   sdk-compatibility:
     name: SDK Compatibility
@@ -180,6 +177,11 @@ jobs:
 
       - name: Run cross-SDK tests
         run: |
-          echo "Cross-SDK compatibility tests would run here"
-          echo "This ensures all SDKs can communicate with each other"
-          echo "and with the Rust runtime"
+          echo "Validating SDK API surface consistency..."
+          # Verify Go SDK compiles
+          cd sdks/go && go build ./... && cd ../..
+          # Verify Python SDK imports
+          python -c "import aether_sdk" 2>/dev/null && echo "Python SDK: import OK" || echo "Python SDK: not installed (expected in CI)"
+          # Verify JS SDK builds
+          cd sdks/javascript && pnpm run build && cd ../..
+          echo "Cross-SDK compatibility check complete"

@@ -187,13 +187,19 @@ jobs:
           toolchain: nightly-2026-03-01
       
       - name: Publish aether-core
-        run: cargo publish -p aether-core --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: cargo publish -p aether-core
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       
       - name: Publish aether-cli
-        run: cargo publish -p aether-cli --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: cargo publish -p aether-cli
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       
       - name: Publish aether-actor
-        run: cargo publish -p aether-actor --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: cargo publish -p aether-actor
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
   release:
     name: Create Release

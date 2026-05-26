@@ -8,14 +8,14 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-aether-core = { version = "0.1.0" }
+aether-actor = { version = "2.0" }
 ```
 
 ## Quick Start
 
 ```rust
-use aether_core::actor::{Actor, Message, MessagePayload, MessageType};
-use aether_core::capability::Capability;
+use aether_actor::actor::{Actor, Message, MessagePayload, MessageType};
+use aether_actor::capability::Capability;
 use async_trait::async_trait;
 
 pub struct HelloActor {
@@ -173,7 +173,7 @@ pub enum Capability {
 ### StateHandle
 
 ```rust
-use aether_core::state::StateHandle;
+use aether_actor::state::StateHandle;
 
 // State operations are async
 let value = state_handle.read("my-key").await?;
@@ -189,9 +189,9 @@ state_handle.clear().await?;
 ### Counter Actor with State
 
 ```rust
-use aether_core::actor::{Actor, Message, MessagePayload, MessageType};
-use aether_core::capability::Capability;
-use aether_core::state::StateHandle;
+use aether_actor::actor::{Actor, Message, MessagePayload, MessageType};
+use aether_actor::capability::Capability;
+use aether_actor::state::StateHandle;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
@@ -311,7 +311,7 @@ impl Actor for CounterActor {
 ## Error Handling
 
 ```rust
-use aether_core::error::{Error, StorageError};
+use aether_actor::error::{Error, StorageError};
 
 // Use structured errors
 async fn read_value(state: &StateHandle, key: &str) -> Result<Vec<u8>, Error> {
@@ -326,7 +326,7 @@ async fn read_value(state: &StateHandle, key: &str) -> Result<Vec<u8>, Error> {
 For WASM actors, use the WASI bindings:
 
 ```rust
-use aether_core::wasi::exports::aether::actor::{Guest, Message as WasiMessage};
+use aether_actor::wasi::exports::aether::actor::{Guest, Message as WasiMessage};
 
 impl Guest for MyActor {
     fn handle_message(msg: WasiMessage) -> Option<WasiMessage> {

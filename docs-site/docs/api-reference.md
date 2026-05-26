@@ -224,9 +224,9 @@ func Internal(message string) *Error
 
 ```go
 const (
-    Version   = "0.1.0"
-    VersionMajor = 0
-    VersionMinor = 1
+    Version   = "2.0.0"
+    VersionMajor = 2
+    VersionMinor = 0
     VersionPatch = 0
 )
 

@@ -112,9 +112,9 @@ describe('Actor - call', () => {
     test('call throws not implemented error', async () => {
         const actor = new TestActor({ name: 'test' });
         await expect(
-            actor.call('target', { request: 'data' })
-        ).rejects.toThrow('RPC not implemented');
-    });
+            actor.call('target', { request: 'data' }, 100)
+        ).rejects.toThrow('RPC timeout: target');
+    }, 10000);
 });
 
 describe('actor decorator', () => {

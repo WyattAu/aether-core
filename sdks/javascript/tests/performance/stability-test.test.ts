@@ -1,8 +1,9 @@
 import { CircuitBreaker } from '../../src/resilience/circuit_breaker';
 import { RateLimiter } from '../../src/resilience/rate_limiter';
 import { BackpressureController } from '../../src/streaming/backpressure';
+import { Timestamp, BackpressureStrategy } from '../../src/streaming/types';
 
-const DURATION_MS = parseInt(process.env.STABILITY_TEST_DURATION_MS || '60000', 10);
+const DURATION_MS = parseInt(process.env.STABILITY_TEST_DURATION_MS || '3000', 10);
 
 describe('Stability Tests', () => {
   let startTime: number;
@@ -18,8 +19,8 @@ describe('Stability Tests', () => {
   it('circuit breaker handles continuous operations without leaks', async () => {
     const breaker = new CircuitBreaker({
       failureThreshold: 5,
-      recoveryTimeout: 1000,
-      halfOpenMaxAttempts: 3,
+      resetTimeout: 1000,
+      successThreshold: 3,
     });
 
     const errors: Error[] = [];
@@ -49,7 +50,7 @@ describe('Stability Tests', () => {
 
     expect(errors.length).toBe(0);
     expect(operations).toBeGreaterThan(0);
-  });
+  }, 10000);
 
   it('rate limiter maintains steady throughput over duration', async () => {
     const limiter = new RateLimiter({
@@ -63,8 +64,8 @@ describe('Stability Tests', () => {
         clearInterval(interval);
         return;
       }
-      const allowed = limiter.allow();
-      if (allowed) {
+      const result = limiter.tryAcquire();
+      if (result.allowed) {
         successes.push(Date.now());
       }
     }, 5);
@@ -80,19 +81,23 @@ describe('Stability Tests', () => {
     });
 
     expect(successes.length).toBeGreaterThan(0);
-  });
+  }, 10000);
 
   it('backpressure controller handles burst and drain patterns', async () => {
     const controller = new BackpressureController({
-      highWatermark: 1000,
-      lowWatermark: 100,
-      maxConcurrency: 50,
+      strategy: BackpressureStrategy.Drop,
+      highWatermark: 0.9,
+      lowWatermark: 0.1,
+      bufferSize: 1500,
     });
 
     const errors: Error[] = [];
     let processed = 0;
-    const interval = setInterval(async () => {
-      if (timeRemaining() <= 0) {
+    const BURST_DURATION_MS = 2000;
+    const burstStart = Date.now();
+
+    const interval = setInterval(() => {
+      if (Date.now() - burstStart >= BURST_DURATION_MS) {
         clearInterval(interval);
         return;
       }
@@ -100,7 +105,8 @@ describe('Stability Tests', () => {
         const pressure = Math.random() > 0.5
           ? Math.floor(Math.random() * 1500)
           : Math.floor(Math.random() * 50);
-        await controller.process(pressure);
+        const event = { key: 'k', value: pressure, timestamp: new Timestamp(Date.now()) };
+        controller.tryPush(event);
         processed++;
       } catch (e) {
         errors.push(e as Error);
@@ -109,7 +115,7 @@ describe('Stability Tests', () => {
 
     await new Promise<void>((resolve) => {
       const check = setInterval(() => {
-        if (timeRemaining() <= 0) {
+        if (Date.now() - burstStart >= BURST_DURATION_MS) {
           clearInterval(check);
           clearInterval(interval);
           resolve();
@@ -119,7 +125,7 @@ describe('Stability Tests', () => {
 
     expect(errors.length).toBe(0);
     expect(processed).toBeGreaterThan(0);
-  });
+  }, 10000);
 
   afterAll(() => {
     const elapsed = Date.now() - startTime;

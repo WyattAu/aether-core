@@ -18,6 +18,7 @@ package main
 
 import (
     "fmt"
+    "strings"
     "time"
     "github.com/WyattAu/aether-core/sdks/go/aether"
 )
@@ -59,7 +60,7 @@ func (a *AIActor) HandleMessage(sender string, msg aether.Message) (aether.Messa
         model = a.defaultModel
     }
     
-    maxTokens, _ := payload["max_tokens"].(int)
+    maxTokens := int(payload["max_tokens"].(float64))
     if maxTokens == 0 {
         maxTokens = 256
     }

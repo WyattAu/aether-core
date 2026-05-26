@@ -199,8 +199,8 @@ import (
     "fmt"
     "time"
 
-    "github.com/aether-sdk/aether-go/aether"
-    "github.com/aether-sdk/aether-go/aether/resilience"
+    "github.com/WyattAu/aether-core/sdks/go/aether"
+    "github.com/WyattAu/aether-core/sdks/go/aether/resilience"
 )
 
 // ResilientApiActor demonstrates resilience patterns with observability

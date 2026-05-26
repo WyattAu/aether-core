@@ -34,12 +34,12 @@ pip install aether-sdk
 pnpm add @aether/sdk
 
 # Go
-go get github.com/aether-core/sdk-go/aether/resilience
+go get github.com/WyattAu/aether-core/sdks/go/aether/resilience
 ```
 
 ## Quick Start
 
-### Rust
+### Python
 
 ```python
 from aether_sdk.resilience import (
@@ -107,7 +107,7 @@ const result = await executor.execute(async () => {
 ### Go
 
 ```go
-import "github.com/aether-core/sdk-go/aether/resilience"
+import "github.com/WyattAu/aether-core/sdks/go/aether/resilience"
 
 func main() {
     // Create individual patterns
@@ -485,12 +485,12 @@ if open_breakers:
     alert(f"Circuits open: {open_breakers}")
 ```
 
-## Migration from v1.3.0
+## Migration from v1.x
 
 No breaking changes. Simply import the new resilience module:
 
 ```python
-# New in v1.4.0
+# New in v2.0.0
 from aether_sdk.resilience import (
     CircuitBreaker,
     RetryPolicy,

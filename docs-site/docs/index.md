@@ -74,8 +74,8 @@ aether deploy --replicas 3
 
 | Metric | Value | Notes |
 |--------|-------|-------|
-| WASM Cold Start P99 | < 50 us | Instance pooling + pre-compilation |
-| Message Throughput (local) | 10M+ msg/s/node | Zero-copy where possible |
+| WASM Cold Start P99 | < 100 us | Instance pooling + pre-compilation |
+| Message Throughput (local) | 100K+ msg/s/node | Zero-copy where possible |
 | Message Latency P99 (local) | < 10 us | Direct memory channels |
 | Message Latency P99 (mesh) | < 1 ms | QUIC with compression |
 | Actors per Node | 1,000,000+ | Work-stealing scheduler |

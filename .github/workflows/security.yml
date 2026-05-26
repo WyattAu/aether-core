@@ -9,6 +9,10 @@ on:
     - cron: '0 6 * * 1'
   workflow_dispatch:
 
+permissions:
+  contents: read
+  security-events: write
+
 env:
   CARGO_TERM_COLOR: always
 
@@ -197,6 +201,8 @@ jobs:
       
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: nightly-2026-03-01
       
       - name: Install cargo-license
         run: cargo install cargo-license

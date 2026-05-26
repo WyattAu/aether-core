@@ -9,6 +9,9 @@ on:
     paths:
       - '.specs/02_architecture/proofs/**'
 
+permissions:
+  contents: read
+
 jobs:
   model-check:
     name: TLC ${{ matrix.spec.name }}

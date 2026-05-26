@@ -198,11 +198,16 @@ describe('E2E: Real-Time Analytics Pipeline', () => {
       },
     );
 
+    // Place all 1500 purchase events in a single window by using offsets within one window period
+    // Use offsets that stay within the second tumbling window [BASE_TS-aligned + FIVE_MINUTES_MS, BASE_TS-aligned + 2*FIVE_MINUTES_MS)
+    const windowStartOffset = FIVE_MINUTES_MS - (BASE_TS % FIVE_MINUTES_MS);
     for (let i = 0; i < 1500; i++) {
-      tw.process(makeEvent('purchase', Math.floor(Math.random() * (FIVE_MINUTES_MS - 1))), 'alerts');
+      const offset = windowStartOffset + Math.floor(i * ((FIVE_MINUTES_MS - 2) / 1500));
+      tw.process(makeEvent('purchase', offset), 'alerts');
     }
 
-    tw.advanceWatermark(new Timestamp(BASE_TS + FIVE_MINUTES_MS - 1));
+    // Advance watermark to just before the window's end (trigger fires when end > watermark)
+    tw.advanceWatermark(new Timestamp(BASE_TS + windowStartOffset + FIVE_MINUTES_MS - 1));
 
     expect(alerts.length).toBeGreaterThan(0);
     for (const alert of alerts) {

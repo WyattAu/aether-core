@@ -1,5 +1,7 @@
 # Performance Tuning Guide
 
+> **Note:** Performance tuning examples are being migrated from Go to Rust as part of the v2.0.0 rewrite. The principles apply universally but code samples will be updated to Rust in a future release.
+
 Optimize Aether for maximum performance.
 
 ## Performance Targets
