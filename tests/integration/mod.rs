@@ -36,6 +36,7 @@ pub mod security;
 mod actor_lifecycle_test;
 mod firecracker_test;
 pub mod fixtures;
+mod load_test_simulation;
 mod mesh_cluster_test;
 mod state_replication_test;
 

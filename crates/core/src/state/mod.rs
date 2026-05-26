@@ -120,6 +120,7 @@ pub mod crdt;
 pub mod fdb;
 pub mod hydration;
 pub mod kv;
+pub mod multi_region;
 pub mod replication;
 pub mod transaction;
 
@@ -132,6 +133,10 @@ pub use fdb::{FdbConfig, FdbMetrics, HealthStatus, InMemoryFdb, InMemoryTransact
 pub use fdb::{WatchEvent as FdbWatchEvent, WatchEventType as FdbWatchEventType};
 pub use hydration::HydrationEngine;
 pub use kv::{BatchOp, InMemoryStore, KeyValueStore, ScopedStore, WatchEvent, WatchEventType};
+pub use multi_region::{
+    FailoverConfig, FailoverEvent, FailoverReason, MultiRegionManager, RegionHealth, RegionId,
+    RegionRole,
+};
 pub use replication::{
     ConflictResolver, ConsistencyLevel, CrdtCounter, CrdtRegister, InMemoryReplicator,
     ReplicationAck, ReplicationConfig, ReplicationEntry, ReplicationLog, ReplicationMode,

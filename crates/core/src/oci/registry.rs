@@ -8,6 +8,9 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
+use hmac::Mac;
+use sha2::{Digest, Sha256};
+
 use crate::error::{Error, Result};
 use crate::oci::{
     ActorManifest, ActorReference, Descriptor, OciCredentials, OciRegistry, compute_digest,
@@ -24,6 +27,144 @@ pub struct ModuleRef {
     pub digest: String,
     /// Size in bytes of the WASM module.
     pub size: u64,
+}
+
+/// SHA-256 digest string type (`sha256:` prefixed hex).
+pub type Sha256Digest = String;
+
+/// Cryptographic signature over an actor module.
+///
+/// Uses HMAC-SHA256 as a simulation of Ed25519 signing. In production,
+/// replace with a real Ed25519 implementation (`ed25519-dalek`).
+#[derive(Debug, Clone)]
+pub struct ContentSignature {
+    /// Ed25519 public key of the signer (simulated: SHA-256 of private key).
+    pub signer_public_key: [u8; 32],
+    /// Ed25519 signature bytes (simulated: HMAC-SHA256 || verification hash).
+    pub signature_bytes: [u8; 64],
+    /// SHA-256 digest of the signed content.
+    pub content_digest: Sha256Digest,
+    /// Timestamp of signing (Unix epoch seconds).
+    pub signed_at: u64,
+    /// Optional key ID for key rotation.
+    pub key_id: String,
+}
+
+impl ContentSignature {
+    /// Create a signature over `content` using the given `private_key`.
+    ///
+    /// The public key is derived as `SHA-256(private_key)`. The signature
+    /// is constructed from `HMAC-SHA256(private_key, content)` and a
+    /// verification hash binding the public key to the signing material.
+    pub fn sign(content: &[u8], private_key: &[u8; 64], key_id: String) -> Result<Self> {
+        let public_key: [u8; 32] = {
+            let mut hasher = Sha256::new();
+            hasher.update(private_key);
+            let mut arr = [0u8; 32];
+            arr.copy_from_slice(hasher.finalize().as_slice());
+            arr
+        };
+
+        let content_digest = compute_digest(content);
+
+        let signing_hash: [u8; 32] = {
+            let mut mac = hmac::Hmac::<Sha256>::new_from_slice(private_key)
+                .map_err(|_| Error::serialization("invalid HMAC key length"))?;
+            mac.update(content);
+            let mut arr = [0u8; 32];
+            arr.copy_from_slice(mac.finalize().into_bytes().as_slice());
+            arr
+        };
+
+        let verification: [u8; 32] = {
+            let mut hasher = Sha256::new();
+            hasher.update(public_key);
+            hasher.update(signing_hash);
+            let mut arr = [0u8; 32];
+            arr.copy_from_slice(hasher.finalize().as_slice());
+            arr
+        };
+
+        let mut signature_bytes = [0u8; 64];
+        signature_bytes[..32].copy_from_slice(&signing_hash);
+        signature_bytes[32..].copy_from_slice(&verification);
+
+        let signed_at = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+
+        Ok(Self {
+            signer_public_key: public_key,
+            signature_bytes,
+            content_digest,
+            signed_at,
+            key_id,
+        })
+    }
+
+    /// Verify this signature against the given `content`.
+    ///
+    /// Checks that the content digest matches and that the signature
+    /// binding between the public key and signing material is valid.
+    pub fn verify(&self, content: &[u8]) -> Result<bool> {
+        let computed_digest = compute_digest(content);
+        if computed_digest != self.content_digest {
+            return Ok(false);
+        }
+
+        let signing_part = &self.signature_bytes[..32];
+        let stored_verification = &self.signature_bytes[32..];
+
+        let expected_verification: [u8; 32] = {
+            let mut hasher = Sha256::new();
+            hasher.update(self.signer_public_key);
+            hasher.update(signing_part);
+            let mut arr = [0u8; 32];
+            arr.copy_from_slice(hasher.finalize().as_slice());
+            arr
+        };
+
+        if stored_verification != expected_verification.as_slice() {
+            return Ok(false);
+        }
+
+        Ok(true)
+    }
+}
+
+/// Trust policy for verifying actor modules.
+#[derive(Debug, Clone)]
+pub enum TrustPolicy {
+    /// Trust all modules (no verification).
+    TrustAll,
+    /// Trust modules signed by specific keys.
+    TrustKeys {
+        /// Set of allowed Ed25519 public keys.
+        allowed_keys: Vec<[u8; 32]>,
+    },
+    /// Trust modules signed by any key in a set, with threshold.
+    TrustThreshold {
+        /// Set of acceptable Ed25519 public keys.
+        keys: Vec<[u8; 32]>,
+        /// Minimum number of matching keys required.
+        threshold: usize,
+    },
+}
+
+/// Verification result from content trust checks.
+#[derive(Debug, Clone)]
+pub struct VerificationResult {
+    /// Whether the content is trusted under the given policy.
+    pub is_trusted: bool,
+    /// Key ID of the signer, if available.
+    pub signer_key_id: Option<String>,
+    /// Whether the content digest matches the signed digest.
+    pub digest_match: bool,
+    /// Whether the cryptographic signature is valid.
+    pub signature_valid: bool,
+    /// Errors encountered during verification.
+    pub errors: Vec<String>,
 }
 
 /// Local content-addressable storage backed by an in-memory map.
@@ -120,6 +261,10 @@ pub struct ActorRegistry {
     oci: OciRegistry,
     /// Local content-addressable cache.
     cas: ContentAddressableStorage,
+    /// Signed actor content stored by actor ID.
+    signed_content: Arc<std::sync::RwLock<HashMap<String, Vec<u8>>>>,
+    /// Signatures for signed actors stored by actor ID.
+    signatures: Arc<std::sync::RwLock<HashMap<String, ContentSignature>>>,
 }
 
 impl ActorRegistry {
@@ -136,7 +281,12 @@ impl ActorRegistry {
         cas: ContentAddressableStorage,
     ) -> Result<Self> {
         let oci = OciRegistry::new(registry_url, credentials)?;
-        Ok(Self { oci, cas })
+        Ok(Self {
+            oci,
+            cas,
+            signed_content: Arc::new(std::sync::RwLock::new(HashMap::new())),
+            signatures: Arc::new(std::sync::RwLock::new(HashMap::new())),
+        })
     }
 
     /// Push a WASM module to the registry.
@@ -256,6 +406,133 @@ impl ActorRegistry {
     /// Return a reference to the underlying OCI registry client.
     pub fn oci(&self) -> &OciRegistry {
         &self.oci
+    }
+
+    /// Push actor content with an associated cryptographic signature.
+    ///
+    /// Stores the content and signature locally, returning the SHA-256 digest.
+    pub fn push_signed(
+        &self,
+        id: &str,
+        content: Vec<u8>,
+        signature: ContentSignature,
+    ) -> Result<Sha256Digest> {
+        let digest = compute_digest(&content);
+        {
+            let mut store = self
+                .signed_content
+                .write()
+                .map_err(|_| Error::internal("signed_content lock poisoned"))?;
+            store.insert(id.to_string(), content);
+        }
+        {
+            let mut sigs = self
+                .signatures
+                .write()
+                .map_err(|_| Error::internal("signatures lock poisoned"))?;
+            sigs.insert(id.to_string(), signature);
+        }
+        Ok(digest)
+    }
+
+    /// Verify content trust for an actor against the given policy.
+    pub fn verify_content(&self, id: &str, policy: &TrustPolicy) -> Result<VerificationResult> {
+        let sigs = self
+            .signatures
+            .read()
+            .map_err(|_| Error::internal("signatures lock poisoned"))?;
+        let store = self
+            .signed_content
+            .read()
+            .map_err(|_| Error::internal("signed_content lock poisoned"))?;
+
+        let Some(signature) = sigs.get(id) else {
+            return Ok(VerificationResult {
+                is_trusted: false,
+                signer_key_id: None,
+                digest_match: false,
+                signature_valid: false,
+                errors: vec!["no signature found for actor".to_string()],
+            });
+        };
+
+        let Some(content) = store.get(id) else {
+            return Ok(VerificationResult {
+                is_trusted: false,
+                signer_key_id: Some(signature.key_id.clone()),
+                digest_match: false,
+                signature_valid: false,
+                errors: vec!["no content found for actor".to_string()],
+            });
+        };
+
+        let sig_valid = signature.verify(content)?;
+        let digest_valid = signature.content_digest == compute_digest(content);
+
+        let policy_allows = match policy {
+            TrustPolicy::TrustAll => true,
+            TrustPolicy::TrustKeys { allowed_keys } => {
+                allowed_keys.contains(&signature.signer_public_key)
+            }
+            TrustPolicy::TrustThreshold { keys, threshold } => {
+                let count = keys
+                    .iter()
+                    .filter(|k| **k == signature.signer_public_key)
+                    .count();
+                count >= *threshold
+            }
+        };
+
+        let mut errors = Vec::new();
+        if !sig_valid {
+            errors.push("signature verification failed".to_string());
+        }
+        if !digest_valid {
+            errors.push("content digest mismatch".to_string());
+        }
+        if !policy_allows {
+            errors.push("signer key not allowed by trust policy".to_string());
+        }
+
+        Ok(VerificationResult {
+            is_trusted: sig_valid && digest_valid && policy_allows,
+            signer_key_id: Some(signature.key_id.clone()),
+            digest_match: digest_valid,
+            signature_valid: sig_valid,
+            errors,
+        })
+    }
+
+    /// Get actor content only if it passes trust verification.
+    pub fn get_trusted(&self, id: &str, policy: &TrustPolicy) -> Result<Vec<u8>> {
+        let result = self.verify_content(id, policy)?;
+        if !result.is_trusted {
+            return Err(Error::security_access_denied(format!(
+                "actor '{}' failed trust verification",
+                id
+            )));
+        }
+        let store = self
+            .signed_content
+            .read()
+            .map_err(|_| Error::internal("signed_content lock poisoned"))?;
+        store
+            .get(id)
+            .cloned()
+            .ok_or_else(|| Error::actor_not_found(id))
+    }
+
+    /// List all signed actors with their associated signatures.
+    pub fn list_signed(&self) -> Vec<(String, Option<ContentSignature>)> {
+        let store = self
+            .signed_content
+            .read()
+            .unwrap_or_else(|e| e.into_inner());
+        let sigs = self.signatures.read().unwrap_or_else(|e| e.into_inner());
+        store
+            .keys()
+            .map(|k| (k.clone(), sigs.get(k).cloned()))
+            .collect()
     }
 }
 
@@ -488,5 +765,231 @@ mod tests {
                 .match_err("rt")
                 .block_on(cas.is_empty())
         );
+    }
+
+    fn test_key() -> [u8; 64] {
+        let mut key = [0u8; 64];
+        let half: [u8; 32] = [
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e,
+            0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c,
+            0x1d, 0x1e, 0x1f, 0x20,
+        ];
+        key[..32].copy_from_slice(&half);
+        key[32..].copy_from_slice(&half);
+        key
+    }
+
+    fn alt_key() -> [u8; 64] {
+        let mut key = [0u8; 64];
+        let half: [u8; 32] = [
+            0xAA, 0xBB, 0xCC, 0xDD, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a,
+            0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18,
+            0x19, 0x1a, 0x1b, 0x1c,
+        ];
+        key[..32].copy_from_slice(&half);
+        key[32..].copy_from_slice(&half);
+        key
+    }
+
+    fn make_registry() -> ActorRegistry {
+        ActorRegistry::new(
+            "https://localhost:0",
+            OciCredentials::Anonymous,
+            ContentAddressableStorage::new(),
+        )
+        .match_err("registry new")
+    }
+
+    fn derive_public_key(private_key: &[u8; 64]) -> [u8; 32] {
+        let mut hasher = Sha256::new();
+        hasher.update(private_key);
+        hasher.finalize().as_slice().try_into().unwrap()
+    }
+
+    #[test]
+    fn test_content_signature_sign_verify_roundtrip() {
+        let key = test_key();
+        let sig = ContentSignature::sign(b"hello world", &key, "test-key".into()).match_err("sign");
+        assert!(sig.verify(b"hello world").match_err("verify"));
+        assert_eq!(sig.key_id, "test-key");
+        assert!(sig.signed_at > 0);
+    }
+
+    #[test]
+    fn test_content_signature_wrong_content_fails() {
+        let key = test_key();
+        let sig = ContentSignature::sign(b"hello world", &key, "test-key".into()).match_err("sign");
+        assert!(!sig.verify(b"wrong content").match_err("verify"));
+    }
+
+    #[test]
+    fn test_content_signature_wrong_key_fails() {
+        let key = test_key();
+        let mut sig =
+            ContentSignature::sign(b"hello world", &key, "test-key".into()).match_err("sign");
+        sig.signer_public_key[0] ^= 0xFF;
+        assert!(!sig.verify(b"hello world").match_err("verify"));
+    }
+
+    #[test]
+    fn test_content_signature_tampered_content_fails() {
+        let key = test_key();
+        let sig = ContentSignature::sign(b"hello world", &key, "test-key".into()).match_err("sign");
+        let mut tampered = b"hello world".to_vec();
+        tampered[0] ^= 0x01;
+        assert!(!sig.verify(&tampered).match_err("verify"));
+    }
+
+    #[test]
+    fn test_trust_policy_trust_all() {
+        let reg = make_registry();
+        let key = test_key();
+        let sig = ContentSignature::sign(b"actor wasm", &key, "k1".into()).match_err("sign");
+        reg.push_signed("actor1", b"actor wasm".to_vec(), sig)
+            .match_err("push");
+        let result = reg
+            .verify_content("actor1", &TrustPolicy::TrustAll)
+            .match_err("verify");
+        assert!(result.is_trusted);
+        assert!(result.signature_valid);
+        assert!(result.digest_match);
+    }
+
+    #[test]
+    fn test_trust_policy_trust_keys_allowed() {
+        let reg = make_registry();
+        let key = test_key();
+        let pk = derive_public_key(&key);
+        let sig = ContentSignature::sign(b"actor wasm", &key, "k1".into()).match_err("sign");
+        reg.push_signed("actor1", b"actor wasm".to_vec(), sig)
+            .match_err("push");
+        let result = reg
+            .verify_content(
+                "actor1",
+                &TrustPolicy::TrustKeys {
+                    allowed_keys: vec![pk],
+                },
+            )
+            .match_err("verify");
+        assert!(result.is_trusted);
+    }
+
+    #[test]
+    fn test_trust_policy_trust_keys_rejected() {
+        let reg = make_registry();
+        let key = test_key();
+        let sig = ContentSignature::sign(b"actor wasm", &key, "k1".into()).match_err("sign");
+        reg.push_signed("actor1", b"actor wasm".to_vec(), sig)
+            .match_err("push");
+        let result = reg
+            .verify_content(
+                "actor1",
+                &TrustPolicy::TrustKeys {
+                    allowed_keys: vec![[0u8; 32]],
+                },
+            )
+            .match_err("verify");
+        assert!(!result.is_trusted);
+        assert!(result.errors.iter().any(|e| e.contains("trust policy")));
+    }
+
+    #[test]
+    fn test_trust_policy_trust_threshold_met() {
+        let reg = make_registry();
+        let key = test_key();
+        let pk = derive_public_key(&key);
+        let sig = ContentSignature::sign(b"actor wasm", &key, "k1".into()).match_err("sign");
+        reg.push_signed("actor1", b"actor wasm".to_vec(), sig)
+            .match_err("push");
+        let result = reg
+            .verify_content(
+                "actor1",
+                &TrustPolicy::TrustThreshold {
+                    keys: vec![pk],
+                    threshold: 1,
+                },
+            )
+            .match_err("verify");
+        assert!(result.is_trusted);
+    }
+
+    #[test]
+    fn test_trust_policy_trust_threshold_not_met() {
+        let reg = make_registry();
+        let key = test_key();
+        let pk = derive_public_key(&key);
+        let sig = ContentSignature::sign(b"actor wasm", &key, "k1".into()).match_err("sign");
+        reg.push_signed("actor1", b"actor wasm".to_vec(), sig)
+            .match_err("push");
+        let result = reg
+            .verify_content(
+                "actor1",
+                &TrustPolicy::TrustThreshold {
+                    keys: vec![pk],
+                    threshold: 2,
+                },
+            )
+            .match_err("verify");
+        assert!(!result.is_trusted);
+    }
+
+    #[test]
+    fn test_registry_push_signed_and_get_trusted() {
+        let reg = make_registry();
+        let key = test_key();
+        let pk = derive_public_key(&key);
+        let sig = ContentSignature::sign(b"wasm module bytes", &key, "k1".into()).match_err("sign");
+        let digest = reg
+            .push_signed("my-actor", b"wasm module bytes".to_vec(), sig)
+            .match_err("push");
+        assert!(digest.starts_with("sha256:"));
+
+        let content = reg
+            .get_trusted(
+                "my-actor",
+                &TrustPolicy::TrustKeys {
+                    allowed_keys: vec![pk],
+                },
+            )
+            .match_err("get_trusted");
+        assert_eq!(content, b"wasm module bytes".to_vec());
+    }
+
+    #[test]
+    fn test_registry_get_trusted_untrusted_rejected() {
+        let reg = make_registry();
+        let key = test_key();
+        let sig = ContentSignature::sign(b"wasm module bytes", &key, "k1".into()).match_err("sign");
+        reg.push_signed("bad-actor", b"wasm module bytes".to_vec(), sig)
+            .match_err("push");
+
+        let result = reg.get_trusted(
+            "bad-actor",
+            &TrustPolicy::TrustKeys {
+                allowed_keys: vec![[99u8; 32]],
+            },
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_registry_list_signed() {
+        let reg = make_registry();
+        let key = test_key();
+        let sig1 = ContentSignature::sign(b"wasm1", &key, "k1".into()).match_err("sign");
+        let sig2 = ContentSignature::sign(b"wasm2", &key, "k2".into()).match_err("sign");
+
+        reg.push_signed("actor-a", b"wasm1".to_vec(), sig1)
+            .match_err("push1");
+        reg.push_signed("actor-b", b"wasm2".to_vec(), sig2)
+            .match_err("push2");
+
+        let list = reg.list_signed();
+        assert_eq!(list.len(), 2);
+
+        let ids: Vec<&str> = list.iter().map(|(id, _)| id.as_str()).collect();
+        assert!(ids.contains(&"actor-a"));
+        assert!(ids.contains(&"actor-b"));
+        assert!(list.iter().all(|(_, sig)| sig.is_some()));
     }
 }

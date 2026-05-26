@@ -71,7 +71,10 @@ use tracing::{debug, info, warn};
 
 pub mod registry;
 
-pub use registry::{ActorRegistry, ContentAddressableStorage, ModuleRef};
+pub use registry::{
+    ActorRegistry, ContentAddressableStorage, ContentSignature, ModuleRef, Sha256Digest,
+    TrustPolicy, VerificationResult,
+};
 
 use crate::error::{Error, Result};
 

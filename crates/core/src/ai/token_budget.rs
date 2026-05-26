@@ -439,10 +439,12 @@ mod tests {
         let decision = e.check_budget("actor-1", "tenant-1", 5);
         assert!(matches!(decision, BudgetDecision::Deny { .. }));
 
-        let budget2 = TokenBudget::new(10, 100, 1000, Duration::from_millis(100));
+        // Use a short period so the remaining time falls below the 5s
+        // throttle threshold but the usage has NOT been reset yet.
+        let budget2 = TokenBudget::new(10, 100, 1000, Duration::from_millis(200));
         let e2 = TokenBudgetEnforcer::new(budget2);
         e2.record_usage("actor-1", "tenant-1", 8, 0);
-        std::thread::sleep(Duration::from_millis(96));
+        std::thread::sleep(Duration::from_millis(50));
         let decision2 = e2.check_budget("actor-1", "tenant-1", 5);
         assert!(matches!(decision2, BudgetDecision::Throttle { .. }));
     }

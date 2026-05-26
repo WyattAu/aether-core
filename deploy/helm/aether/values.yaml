@@ -137,3 +137,26 @@ monitoring:
 extraEnv: []
 extraVolumes: []
 extraVolumeMounts: []
+
+# Network Policy for pod-to-pod communication isolation
+networkPolicy:
+  enabled: false
+  ingressFrom:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+  egressTo: []
+
+# Vertical Pod Autoscaler (requires VPA installed in cluster)
+verticalPodAutoscaler:
+  enabled: false
+  updateMode: Auto
+  minAllowed:
+    cpu: 100m
+    memory: 128Mi
+  maxAllowed:
+    cpu: "4"
+    memory: 4Gi
