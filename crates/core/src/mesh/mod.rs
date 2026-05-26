@@ -124,6 +124,7 @@ pub mod quic;
 #[cfg(feature = "mesh-region")]
 pub mod region;
 pub mod resolver;
+pub mod service_mesh;
 
 pub use backpressure::{
     BackpressureController, BufferPool, BufferStats, CreditAccount, FlowState, WindowUpdate,

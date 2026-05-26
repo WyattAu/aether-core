@@ -114,6 +114,7 @@
 //! let cold_p99 = metrics.cold_start_p99();
 //! ```
 
+pub mod built_in;
 pub mod health;
 pub mod loki;
 pub mod metrics;

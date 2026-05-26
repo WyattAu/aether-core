@@ -3,6 +3,7 @@
 //! Manages OCI containers in secure MicroVMs (REQ-EXEC-02).
 
 pub mod api;
+pub mod compat;
 pub mod config;
 pub mod firecracker;
 pub mod jailer;

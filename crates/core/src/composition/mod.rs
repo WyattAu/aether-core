@@ -5,6 +5,8 @@
 //! sort.  Graph algorithms are implemented on a custom adjacency list -- no
 //! external graph crate is required.
 
+pub mod component_model;
+
 use std::collections::{HashMap, HashSet, VecDeque};
 
 use serde::{Deserialize, Serialize};

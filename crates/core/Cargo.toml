@@ -19,6 +19,7 @@ firecracker = []
 chaos = ["num_cpus"]
 instance-pool = []
 rkyv = []
+wasi-preview2 = []
 
 [dependencies]
 tokio = { workspace = true, features = ["fs", "sync", "time", "macros", "rt", "rt-multi-thread", "io-util", "net", "process", "signal"] }
@@ -84,6 +85,7 @@ regex = "1.11"
 glob = "0.3"
 tokio-stream = "0.1"
 tokio-util = { version = "0.7", features = ["io", "rt"] }
+semver = { version = "1", features = ["serde"] }
 
 [dev-dependencies]
 proptest = { workspace = true }

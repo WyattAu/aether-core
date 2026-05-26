@@ -116,9 +116,11 @@
 
 pub mod cache;
 pub mod checkpoint;
+pub mod crdt;
 pub mod fdb;
 pub mod hydration;
 pub mod kv;
+pub mod replication;
 pub mod transaction;
 
 pub use cache::StateCache;
@@ -130,6 +132,11 @@ pub use fdb::{FdbConfig, FdbMetrics, HealthStatus, InMemoryFdb, InMemoryTransact
 pub use fdb::{WatchEvent as FdbWatchEvent, WatchEventType as FdbWatchEventType};
 pub use hydration::HydrationEngine;
 pub use kv::{BatchOp, InMemoryStore, KeyValueStore, ScopedStore, WatchEvent, WatchEventType};
+pub use replication::{
+    ConflictResolver, ConsistencyLevel, CrdtCounter, CrdtRegister, InMemoryReplicator,
+    ReplicationAck, ReplicationConfig, ReplicationEntry, ReplicationLog, ReplicationMode,
+    Replicator,
+};
 pub use transaction::{
     AtomicOps, IsolationLevel, Transaction, TransactionId, TransactionManager, TransactionState,
 };

@@ -30,10 +30,20 @@
 //! }
 //! ```
 
+pub mod autonomous;
+pub mod content_policy;
 pub mod delegation;
+pub mod model_serving;
 pub mod providers;
+pub mod semantic_routing;
 pub mod streaming;
+pub mod token_budget;
 
+pub use autonomous::*;
+pub use content_policy::*;
 pub use delegation::*;
+pub use model_serving::*;
 pub use providers::*;
+pub use semantic_routing::*;
 pub use streaming::*;
+pub use token_budget::*;

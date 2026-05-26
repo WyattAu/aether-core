@@ -9,7 +9,7 @@
 
 ## 1. Executive Summary
 
-Aether Core v2.0.0 is a functionally complete distributed actor runtime with 1,532 passing tests, zero clippy warnings, and a full security stack (mTLS, RBAC, OPA policy, capability-based deny-by-default). The codebase spans ~97K LOC across 5 workspace crates, 5 SDKs, and 17 CLI commands.
+Aether Core v2.0.0 is a functionally complete distributed actor runtime with 1,513+ passing tests (1,465 core + 17 fuzz + 20 security + 1 server + 10 CLI), zero clippy warnings, and a full security stack (mTLS, RBAC, OPA policy, capability-based deny-by-default). The codebase spans ~97K LOC across 5 workspace crates, 5 SDKs, and 17 CLI commands.
 
 The path to production follows four phases: hardening (v2.1.0), performance validation (v2.2.0), operational maturity (v2.3.0), and the production release (v3.0.0). The primary blockers are ops/deployment issues (Dockerfile builds wrong target), CI/CD audit findings (32 issues identified), and SDK version drift across languages.
 
@@ -23,7 +23,7 @@ The long-term vision targets v4.0.0 "Universal Runtime" with formal verification
 
 | Category | Status |
 |----------|--------|
-| Core runtime | Production-quality (1,532 tests, zero failures) |
+| Core runtime | Production-quality (1,513+ tests, zero failures) |
 | CI/CD | 13 workflows, multiple audit findings |
 | Documentation | Mixed: README current, .docs stale (last updated 2026-03-12) |
 | SDKs | Rust native WASM; Go/Python/JS/Java are gRPC clients only |
@@ -34,19 +34,14 @@ The long-term vision targets v4.0.0 "Universal Runtime" with formal verification
 
 | Suite | Passed | Failed | Ignored | Total |
 |-------|--------|--------|---------|-------|
-| Unit (core) | 1,072 | 0 | 9 | 1,081 |
-| Unit (cli) | 33 | 0 | 0 | 33 |
-| Unit (server) | 59 | 0 | 0 | 59 |
-| Integration | 266 | 0 | 21 | 287 |
-| Property (proptest) | 16 | 0 | 0 | 16 |
+| Unit (core) | 1,465 | 0 | 9 | 1,474 |
+| Unit (cli) | 10 | 0 | 0 | 10 |
+| Unit (server) | 1 | 0 | 0 | 1 |
 | Fuzz targets | 17 | 0 | 0 | 17 |
 | Security | 20 | 0 | 0 | 20 |
-| WASM E2E | 10 | 0 | 0 | 10 |
-| Doc-tests | 27 | 0 | 47 | 74 |
-| Memory benchmarks | 4 | 0 | 0 | 4 |
-| **Total** | **1,532** | **0** | **92** | **1,624** |
+| **Total (verified)** | **1,513** | **0** | **9** | **1,522** |
 
-Ignored breakdown: 9 FDB (requires running instance), 7 Firecracker (requires KVM), 21 cluster E2E (requires 3-node cluster), 47 doc-tests (reference external state), 8 test fixtures.
+Ignored breakdown: 9 FDB (requires running instance).
 
 ### Quality Gates (All Passing)
 
@@ -54,7 +49,7 @@ Ignored breakdown: 9 FDB (requires running instance), 7 Firecracker (requires KV
 |------|--------|
 | `cargo fmt --all -- --check` | Zero violations |
 | `cargo clippy --workspace --all-features -- -D warnings` | Zero warnings |
-| `cargo test --workspace --all-features` | 1,532 passed |
+| `cargo test --workspace --all-features` | 1,513+ passed |
 | `cargo doc --workspace --no-deps` | Zero warnings |
 | Forbidden patterns (todo!, unimplemented!, stubs) | Zero found |
 | `unsafe` blocks with SAFETY comments | All 28 documented |

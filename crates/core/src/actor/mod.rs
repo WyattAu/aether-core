@@ -97,6 +97,7 @@ pub mod ai_integration;
 mod executor;
 mod handle;
 mod mailbox;
+pub mod memory_pool;
 pub mod migration;
 pub mod queue;
 mod registry;

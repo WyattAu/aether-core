@@ -141,7 +141,10 @@ use std::time::{Duration, Instant};
 pub mod clocks;
 pub mod file_descriptor;
 pub mod filesystem;
+pub mod hardware;
 pub mod http;
+#[cfg(feature = "wasi-preview2")]
+pub mod preview2;
 pub mod random;
 pub mod sockets;
 pub mod sockets_tcp;

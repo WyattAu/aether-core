@@ -3,6 +3,8 @@
 //! Provides zero-downtime deployment strategies for WASM actors including
 //! blue-green switching, canary analysis, and rolling deployment support.
 
+pub mod pipeline;
+
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};

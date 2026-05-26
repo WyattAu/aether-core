@@ -25,11 +25,15 @@
 //! [`TenantResolver`] maps actor addresses, JWT tokens, or API keys to tenant
 //! configurations, with a built-in default tenant for backward compatibility.
 
+pub mod isolation;
 pub mod namespace;
 pub mod quota;
 pub mod resolver;
 pub mod secrets;
 
+pub use isolation::{
+    IsolationEnforcer, TenantIsolationConfig, TenantIsolationLevel, TenantResourceLimits,
+};
 pub use namespace::{NamespaceError, NamespaceIsolation, TenantNamespace};
 pub use quota::{
     QuotaEnforcer, QuotaError, QuotaLimits, QuotaUsage, ResourceQuota, TenantQuota,

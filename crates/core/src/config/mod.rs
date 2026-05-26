@@ -2,6 +2,7 @@
 //!
 //! Implements REQ-ORCH-01: Declarative configuration via aether.toml
 
+pub mod offline;
 pub mod reload;
 
 use crate::capability::{CapabilitySet, NetworkAccess};

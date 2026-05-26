@@ -151,6 +151,7 @@ pub mod authorizer;
 pub mod cert_rotation;
 /// Submodule for certificate management and signing.
 pub mod certs;
+pub mod federation;
 /// Submodule for security hardening checks and compliance reporting.
 pub mod hardening;
 /// Submodule for actor and node identity management.
@@ -183,6 +184,10 @@ pub use authorizer::{
 };
 pub use cert_rotation::{CertInfo, CertRotationConfig, CertRotator, CertStatus};
 pub use certs::{CertificateAuthority, CertificateRevocationList, CertificateValidator};
+pub use federation::{
+    FederatedTrustDomain, FederationClient, IdentityVerification, TrustConfig, TrustRelationship,
+    TrustStatus,
+};
 pub use hardening::{
     CategorySummary, CheckCategory, CheckSeverity, CheckStatus, HardeningCheck, HardeningConfig,
     HardeningReport, SecurityGrade, SecurityHardening,
