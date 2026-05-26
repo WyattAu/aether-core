@@ -1,5 +1,7 @@
 # Project Board Setup Guide
 
+> **HISTORICAL**: This document describes the v1.3.0 project board setup and is preserved for reference only. The current version is v2.0.0 (Rust-native). See `docs/ROADMAP_TO_PRODUCTION.md` for the active roadmap.
+
 ## GitHub Project Board: Aether v1.3.0 Roadmap
 
 ### Board Structure

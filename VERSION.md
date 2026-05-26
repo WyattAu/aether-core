@@ -466,44 +466,6 @@ All benchmarks compile and run successfully using Criterion:
 - test_audit_tampering.rs: Audit log integrity
 - test_privilege_escalation.rs: Role escalation prevention
 
-## Security Audit Preparation (Completed 2026-03-12)
-
-### Security Infrastructure
-- 21 source files in `crates/core/src/security/`
-- 89 unit tests for security components
-- 12 integration tests for security scenarios
-- Hardening checks: 22 tests covering 8 categories
-- Penetration tests: 27 tests across 5 categories
-- Vulnerability scanner with CVE database integration
-
-- Tamper-evident audit logging with cryptographic chains
-
-- WASI fuzzer for input validation
-
-### Test Results
-- Hardening tests: 8 passing [PASS]
-- Penetration tests: 19 passing [PASS]
-- All security tests pass
-
-### Security Checklist Created
-- [x] `SECURITY_AUDIT_CHECKLIST.md` - Comprehensive audit guide
-- [x] STRIDE threat model documented
-- [x] OWASP Top 10 compliance verified
-- [x] No secrets in environment variables
-- [x] mTLS mandatory for mesh connections
-- [x] RBAC with default-deny policy
-- [x] Audit logging with chain verification
-
-### Key Security Controls
-| Control | Implementation | Status |
-|--------|----------------|--------|
-| mTLS | Ed25519 certificates, TLS 1.3 | [PASS] |
-| RBAC | Role-based access control | [PASS] |
-| Capabilities | Deny-by-default | [PASS] |
-| Audit | Tamper-evident chain | [PASS] |
-| Secrets | Secure memory injection | [PASS] |
-| Sandboxing | WASM with WASI | [PASS] |
-
 ## Documentation Completion (Completed 2026-03-12)
 
 ### Documentation Files Updated
