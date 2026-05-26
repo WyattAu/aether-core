@@ -1,3 +1,5 @@
+> **NOTE**: This tutorial uses SDK examples in Python and TypeScript. The Aether v2.0.0 runtime is Rust-native. The concepts described here (state management, event sourcing, pub/sub) are fully supported in the Rust runtime via `aether_actor`. SDK-specific code examples will be updated in a future release. See the Rust API reference for current usage patterns.
+
 # Stateful Actors
 
 **Time:** ~25 minutes | **Prerequisites:** [Getting Started](./01_getting_started.md)

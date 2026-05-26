@@ -1,3 +1,5 @@
+> **NOTE**: This tutorial uses SDK examples in Python and TypeScript. The Aether v2.0.0 runtime is Rust-native. The workflow patterns described here (saga, orchestration, distributed transactions) are supported via the mesh networking layer. SDK-specific code examples will be updated in a future release.
+
 # Distributed Workflows
 
 **Time:** ~1 hour | **Prerequisites:** [Getting Started](./01_getting_started.md), [Event-Driven Systems](./03_event_driven.md)

@@ -1,3 +1,5 @@
+> **HISTORICAL**: This migration guide covers the transition from the v1.x Python FastAPI server to the v2.0.0 Rust-native runtime. The Python server is deprecated. See `docs/ROADMAP_TO_PRODUCTION.md` for the active roadmap.
+
 # Migrating from Python Server to Rust Server
 
 ## Status

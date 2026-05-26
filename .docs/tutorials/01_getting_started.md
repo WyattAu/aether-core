@@ -1,6 +1,6 @@
 # Getting Started with Aether
 
-**Time:** ~20 minutes | **Prerequisites:** None
+**Time:** ~20 minutes | **Prerequisites:** Rust 1.75+
 
 ---
 
@@ -22,52 +22,23 @@ Aether adds distributed capabilities on top: location-transparent messaging acro
 
 ## Installation
 
-Aether provides SDKs for Python, JavaScript, and Go. Install the one that matches your stack.
+Add the Aether actor crate to your project:
 
-=== "Python"
-
-    ```bash
-    pip install aether-sdk
-    ```
-
-=== "JavaScript / TypeScript"
-
-    ```bash
-    npm install @aether/sdk
-    ```
-
-=== "Go"
-
-    ```bash
-    go get github.com/aether/aether-core/sdks/go
-    ```
+```bash
+cargo add aether-actor
+```
 
 ### Verify
 
-=== "Python"
+```bash
+cargo build && echo "Aether actor crate ready"
+```
 
-    ```bash
-    python -c "import aether_sdk; print(aether_sdk.__version__)"
-    ```
+Or check the version programmatically:
 
-=== "JavaScript / TypeScript"
-
-    ```bash
-    node -e "const aether = require('@aether/sdk'); console.log(aether.version)"
-    ```
-
-=== "Go"
-
-    ```bash
-    go run -v <<EOF
-    package main
-    import (
-        "fmt"
-        "github.com/aether/aether-core/sdks/go/aether"
-    )
-    func main() { fmt.Println("Aether Go SDK:", aether.Version) }
-    EOF
-    ```
+```rust
+println!("Aether version: {}", aether_actor::version());
+```
 
 ---
 
@@ -75,105 +46,67 @@ Aether provides SDKs for Python, JavaScript, and Go. Install the one that matche
 
 Let's build a `CounterActor` that receives messages and tracks a count in persistent state.
 
-=== "Python"
+```rust
+use aether_actor::{Actor, ActorContext, CapabilitySet, Handler, Message, Result};
 
-    ```python
-    import asyncio
-    from aether_sdk import Actor, Message
+struct CounterActor;
 
-    class CounterActor(Actor):
-        def __init__(self):
-            super().__init__("counter")
-            self.require("STATE_READ", "STATE_WRITE", "ACTOR_MESSAGING", "LOG")
+#[async_trait]
+impl Handler for CounterActor {
+    type Msg = Message;
 
-        async def on_start(self):
-            raw = await self.state.read("count")
-            self.count = int(raw) if raw else 0
-            self.log.info(f"CounterActor started, count={self.count}")
+    fn capabilities() -> CapabilitySet {
+        CapabilitySet::builder()
+            .with_state_read()
+            .with_state_write()
+            .with_actor_messaging()
+            .with_log()
+            .build()
+    }
 
-        async def handle_message(self, sender: str, msg: Message) -> Message:
-            match msg.type:
-                case "increment":
-                    self.count += 1
-                    await self.state.write("count", str(self.count))
-                    return Message.response({"count": self.count})
-                case "get":
-                    return Message.response({"count": self.count})
-                case _:
-                    return Message.error("unknown message type")
+    async fn on_start(&mut self, ctx: &ActorContext) -> Result<()> {
+        let raw = ctx.state().read("count").await?;
+        let count: u64 = raw.parse().unwrap_or(0);
+        ctx.log().info(format!("CounterActor started, count={count}"));
+        Ok(())
+    }
 
-    async def main():
-        actor = CounterActor()
-        await actor.start()
-        await actor.run()
-
-    if __name__ == "__main__":
-        asyncio.run(main())
-    ```
-
-=== "TypeScript"
-
-    ```typescript
-    import { Actor, Message, MessageType } from '@aether/sdk';
-
-    class CounterActor extends Actor {
-      private count: number = 0;
-
-      constructor() {
-        super('counter');
-        this.require('STATE_READ', 'STATE_WRITE', 'ACTOR_MESSAGING', 'LOG');
-      }
-
-      async onStart(): Promise<void> {
-        const raw = await this.state.read('count');
-        this.count = raw ? parseInt(raw, 10) : 0;
-        this.log.info(`CounterActor started, count=${this.count}`);
-      }
-
-      async handleMessage(sender: string, msg: Message): Promise<Message> {
-        switch (msg.type) {
-          case 'increment':
-            this.count += 1;
-            await this.state.write('count', String(this.count));
-            return Message.response({ count: this.count });
-          case 'get':
-            return Message.response({ count: this.count });
-          default:
-            return Message.error('unknown message type');
+    async fn handle(&mut self, ctx: &ActorContext, msg: Message) -> Result<Message> {
+        match msg.msg_type() {
+            "increment" => {
+                let raw = ctx.state().read("count").await?;
+                let mut count: u64 = raw.parse().unwrap_or(0);
+                count += 1;
+                ctx.state().write("count", count.to_string()).await?;
+                Ok(Message::response(&[("count", count)]))
+            }
+            "get" => {
+                let raw = ctx.state().read("count").await?;
+                let count: u64 = raw.parse().unwrap_or(0);
+                Ok(Message::response(&[("count", count)]))
+            }
+            _ => Err(aether_actor::Error::unknown_message(msg.msg_type())),
         }
-      }
     }
+}
 
-    async function main() {
-      const actor = new CounterActor();
-      await actor.start();
-      await actor.run();
-    }
-
-    main().catch(console.error);
-    ```
+#[tokio::main]
+async fn main() -> Result<()> {
+    let actor = CounterActor;
+    let ctx = ActorContext::new("counter").await?;
+    actor.run(ctx).await
+}
+```
 
 ### Send a Message
 
-=== "Python"
+```rust
+let response = ctx.call("counter", Message::new("increment")).await?;
+println!("{:?}", response.payload()); // {"count": 1}
 
-    ```python
-    response = await actor.call("counter", Message("increment"))
-    print(response.payload)  # {'count': 1}
-
-    response = await actor.call("counter", Message("increment"))
-    print(response.payload)  # {'count': 2}
-    ```
-
-=== "TypeScript"
-
-    ```typescript
-    const response = await actor.call('counter', new Message('increment'));
-    console.log(response.payload); // { count: 1 }
-
-    const response2 = await actor.call('counter', new Message('increment'));
-    console.log(response2.payload); // { count: 2 }
-    ```
+let response = ctx.call("counter", Message::new("increment")).await?;
+println!("{:?}", response.payload()); // {"count": 2}
+```
 
 ---
 
@@ -183,84 +116,48 @@ Let's build a `CounterActor` that receives messages and tracks a count in persis
 
 Messages are the only way actors interact. Every message has a type, a payload, and optional metadata.
 
-=== "Python"
+```rust
+use aether_actor::Message;
 
-    ```python
-    from aether_sdk import Message
+let msg = Message::new("greet").with_payload("name", "Alice");
 
-    msg = Message("greet", payload={"name": "Alice"})
+let response = ctx.call("greeter", msg).await?;
+```
 
-    response = await actor.call("greeter", msg)
-    ```
-
-=== "TypeScript"
-
-    ```typescript
-    import { Message } from '@aether/sdk';
-
-    const msg = new Message('greet', { name: 'Alice' });
-
-    const response = await actor.call('greeter', msg);
-    ```
-
-Use `actor.call()` for request-response (waits for a reply) or `actor.send()` for fire-and-forget.
+Use `ctx.call()` for request-response (waits for a reply) or `ctx.send()` for fire-and-forget.
 
 ### State
 
 Each actor gets an isolated key-value store. State persists across restarts.
 
-=== "Python"
-
-    ```python
-    await self.state.write("last_seen", "2026-03-26")
-    value = await self.state.read("last_seen")
-    exists = await self.state.exists("last_seen")
-    keys = await self.state.list_keys("session_")
-    await self.state.delete("last_seen")
-    ```
-
-=== "TypeScript"
-
-    ```typescript
-    await this.state.write('last_seen', '2026-03-26');
-    const value = await this.state.read('last_seen');
-    const exists = await this.state.exists('last_seen');
-    const keys = await this.state.listKeys('session_');
-    await this.state.delete('last_seen');
-    ```
+```rust
+ctx.state().write("last_seen", "2026-03-26").await?;
+let value = ctx.state().read("last_seen").await?;
+let exists = ctx.state().exists("last_seen").await?;
+let keys = ctx.state().list_keys("session_").await?;
+ctx.state().delete("last_seen").await?;
+```
 
 ### Capabilities
 
 Capabilities define what an actor is allowed to do. Declare them up front — the runtime enforces them.
 
-=== "Python"
-
-    ```python
-    class MyActor(Actor):
-        def __init__(self):
-            super().__init__("my-actor")
-            self.require("STATE_READ", "STATE_WRITE")
-            self.require("NET_OUTBOUND")
-    ```
-
-=== "TypeScript"
-
-    ```typescript
-    class MyActor extends Actor {
-      constructor() {
-        super('my-actor');
-        this.require('STATE_READ', 'STATE_WRITE');
-        this.require('NET_OUTBOUND');
-      }
-    }
-    ```
+```rust
+fn capabilities() -> CapabilitySet {
+    CapabilitySet::builder()
+        .with_state_read()
+        .with_state_write()
+        .with_network_outbound()
+        .build()
+}
+```
 
 | Capability | What it allows |
 |---|---|
-| `STATE_READ` / `STATE_WRITE` | Read/write persistent state |
-| `ACTOR_MESSAGING` | Send messages to other actors |
-| `NET_OUTBOUND` | Make outbound network calls |
-| `LOG` | Write to logs |
+| `with_state_read()` / `with_state_write()` | Read/write persistent state |
+| `with_actor_messaging()` | Send messages to other actors |
+| `with_network_outbound()` | Make outbound network calls |
+| `with_log()` | Write to logs |
 
 ---
 
@@ -270,65 +167,28 @@ Capabilities define what an actor is allowed to do. Declare them up front — th
 
 Wrap calls to external services with a circuit breaker so failures don't cascade.
 
-=== "Python"
+```rust
+use aether_actor::resilience::CircuitBreaker;
 
-    ```python
-    from aether_sdk.resilience import CircuitBreaker
+let breaker = CircuitBreaker::new("payment-service", 5, Duration::from_secs(30));
 
-    breaker = CircuitBreaker(
-        name="payment-service",
-        failure_threshold=5,
-        recovery_timeout=30.0,
-    )
-
-    async def charge_card(amount: float):
-        return await breaker.call(lambda: call_payment_gateway(amount))
-    ```
-
-=== "TypeScript"
-
-    ```typescript
-    import { CircuitBreaker } from '@aether/sdk/resilience';
-
-    const breaker = new CircuitBreaker({
-      name: 'payment-service',
-      failureThreshold: 5,
-      recoveryTimeout: 30_000,
-    });
-
-    async function chargeCard(amount: number) {
-      return breaker.call(() => callPaymentGateway(amount));
-    }
-    ```
+async fn charge_card(amount: f64) -> Result<PaymentResponse> {
+    breaker.call(|| call_payment_gateway(amount)).await
+}
+```
 
 ### Retry Policy
 
-=== "Python"
+```rust
+use aether_actor::resilience::RetryPolicy;
+use std::time::Duration;
 
-    ```python
-    from aether_sdk.resilience import RetryPolicy
+let retry = RetryPolicy::new(3, Backoff::Exponential, Duration::from_millis(100));
 
-    retry = RetryPolicy(max_attempts=3, backoff="exponential", base_delay=0.1)
-
-    async def fetch_data(url: str):
-        return await retry.call(lambda: http_get(url))
-    ```
-
-=== "TypeScript"
-
-    ```typescript
-    import { RetryPolicy } from '@aether/sdk/resilience';
-
-    const retry = new RetryPolicy({
-      maxAttempts: 3,
-      backoff: 'exponential',
-      baseDelay: 100,
-    });
-
-    async function fetchData(url: string) {
-      return retry.call(() => httpGet(url));
-    }
-    ```
+async fn fetch_data(url: &str) -> Result<Data> {
+    retry.call(|| http_get(url)).await
+}
+```
 
 ---
 

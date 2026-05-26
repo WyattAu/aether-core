@@ -1,3 +1,5 @@
+> **NOTE**: This tutorial uses SDK examples in Python and TypeScript. The Aether v2.0.0 runtime is Rust-native. The concepts described here (event-driven architecture, pub/sub, backpressure) are fully supported in the Rust runtime via `aether_actor`. SDK-specific code examples will be updated in a future release.
+
 # Building Event-Driven Systems
 
 **Time:** ~1 hour | **Prerequisites:** [Getting Started](./01_getting_started.md), [Stateful Actors](./02_stateful_actors.md)

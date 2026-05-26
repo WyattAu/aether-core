@@ -21,11 +21,12 @@ This document outlines the security audit procedures and findings for Project Ae
 **Control:** Actors must declare required capabilities at creation time.
 
 **Implementation:**
-```go
-actor.Require(
-    aether.CapabilityStateRead,
-    aether.CapabilityNetworkOutbound,
-)
+```rust
+use aether_actor::CapabilitySet;
+
+let caps = CapabilitySet::new()
+    .with_state_read()
+    .with_network_outbound();
 ```
 
 **Verification:**

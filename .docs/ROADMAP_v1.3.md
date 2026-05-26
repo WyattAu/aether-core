@@ -1,3 +1,5 @@
+> **HISTORICAL**: This document describes a pre-v2.0.0 release plan and is preserved for reference only. The current version is v2.0.0 (Rust-native architecture). See `docs/ROADMAP_TO_PRODUCTION.md` for the active roadmap.
+
 # Project Aether Roadmap v1.3.0 and Beyond
 
 **Version:** 1.3.0-planning  

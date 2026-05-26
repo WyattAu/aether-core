@@ -1,3 +1,5 @@
+> **HISTORICAL**: This document describes a pre-v2.0.0 release plan and is preserved for reference only. The current version is v2.0.0 (Rust-native architecture). See `docs/ROADMAP_TO_PRODUCTION.md` for the active roadmap.
+
 # Migrating from Aether v1.4.0 to v1.5.0
 
 **Version:** 1.5.0  
