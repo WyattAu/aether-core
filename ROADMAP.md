@@ -1,6 +1,6 @@
 # ROADMAP
 
-**Date:** 2026-05-16
+**Date:** 2026-05-26 (updated)
 **Current Version:** 2.0.0 (released)
 **MSRV:** 1.88 (darling 0.23 requirement)
 **Consolidated from:** ROADMAP.md, PRODUCTION_ROADMAP.md, ROADMAP_FORWARD.md
@@ -66,21 +66,35 @@ All code tasks are DONE. TOCTOU race fixed, Actor SDK complete (1,358 LOC), serv
 
 **Code tasks complete.** Remaining ops tasks:
 
-| ID | Task | Priority | Effort |
-|----|------|----------|--------|
-| D1 | Fix Dockerfile to build Rust core (currently builds Python server) | P0 | 2d |
-| D2 | Add `--set image.repository` to Helm values | P0 | 0.5d |
-| D3 | Update docs-site stale version refs (1.3.0/1.4.0 to 2.0.0) | P1 | 0.5d |
-| D4 | Fix broken link in tutorial.md | P1 | 0.1d |
-| D5 | Add 6 orphan docs-site pages to mkdocs.yml nav | P1 | 0.5d |
-| D6 | Reconcile Go SDK API docs (pick BaseActor+ctx style) | P1 | 1d |
-| D7 | Fix Rust SDK status contradiction in sdks/overview.md | P2 | 0.1d |
-| D8 | Clean up VERSION.md (remove duplicate section) | P2 | 0.5d |
-| D9 | Consolidate publish.yml and sdk-publish.yml | P2 | 0.5d |
-| D10 | Standardize Go 1.22 and pnpm 9 across workflows | P2 | 0.3d |
-| D11 | Add kubeconfig step to gitops.yml | P2 | 0.5d |
-| D12 | Remove no-op jobs (sdk-compatibility, update-homebrew, publish-java) | P2 | 0.3d |
-| D13 | Gate sdk-publish version step on tag push | P2 | 0.1d |
+| ID | Task | Priority | Effort | Status |
+|----|------|----------|--------|--------|
+| D1 | Fix Dockerfile to build Rust core (currently builds Python server) | P0 | 2d | Open |
+| D2 | Add `--set image.repository` to Helm values | P0 | 0.5d | Open |
+| D3 | Update docs-site stale version refs (1.3.0/1.4.0 to 2.0.0) | P1 | 0.5d | **DONE** |
+| D4 | Fix broken link in tutorial.md | P1 | 0.1d | Open |
+| D5 | Add 6 orphan docs-site pages to mkdocs.yml nav | P1 | 0.5d | Open |
+| D6 | Reconcile Go SDK API docs (pick BaseActor+ctx style) | P1 | 1d | Open |
+| D7 | Fix Rust SDK status contradiction in sdks/overview.md | P2 | 0.1d | **DONE** |
+| D8 | Clean up VERSION.md (remove duplicate section) | P2 | 0.5d | Open |
+| D9 | Consolidate publish.yml and sdk-publish.yml | P2 | 0.5d | Open |
+| D10 | Standardize Go 1.22 and pnpm 9 across workflows | P2 | 0.3d | Open |
+| D11 | Add kubeconfig step to gitops.yml | P2 | 0.5d | Open |
+| D12 | Remove no-op jobs (sdk-compatibility, update-homebrew, publish-java) | P2 | 0.3d | Open |
+| D13 | Gate sdk-publish version step on tag push | P2 | 0.1d | Open |
+| D14 | Pin all GitHub Actions to SHA hashes (supply-chain security) | P1 | 1d | Open |
+| D15 | Add Dependabot config for automated dependency updates | P2 | 0.2d | Open |
+| D16 | Fix aether.dev DNS to point to GitHub Pages | P1 | 0.1d | Open |
+| D17 | Add CLI unit tests (currently 0 coverage on 18 commands) | P1 | 5d | Open |
+| D18 | Add server route unit tests (currently 0 coverage on 7 routes) | P1 | 3d | Open |
+| D19 | Add Go SDK linting (gofmt, go vet, staticcheck) to sdk-ci.yml | P2 | 0.2d | **DONE** (CI fixed) |
+| D20 | Add Codecov token for SDK coverage uploads | P2 | 0.1d | Open |
+
+**Completed 2026-05-26 session:**
+- CI/CD critical fixes: removed continue-on-error from SDK tests, added permissions, fixed secret leak
+- Documentation accuracy: fixed 10 critical inaccuracies (versions, import paths, performance claims, API shapes)
+- JS SDK test fixes: corrected API mismatches, timing issues, 1065/1065 tests now pass
+- Go import paths unified across all documentation
+- Performance claims updated to match measured baselines
 
 ### v2.2.0 -- Performance and Parity [PLANNED, 1-3 months]
 
@@ -227,6 +241,13 @@ All code tasks are DONE. TOCTOU race fixed, Actor SDK complete (1,358 LOC), serv
 | P3 | Consolidate duplicate CI workflows | v2.1.0 | Open |
 | P3 | Remove remaining `|| true` in chaos/stress tests | v2.2.0 | Deferred |
 | P3 | Unify Rust toolchain via rust-toolchain.toml | v2.1.0 | Open |
+| -- | ~~SDK test failures masked by continue-on-error~~ | -- | **FIXED** |
+| -- | ~~CARGO_REGISTRY_TOKEN leaked via CLI args~~ | -- | **FIXED** |
+| -- | ~~Documentation version inaccuracies (10 issues)~~ | -- | **FIXED** |
+| -- | ~~JS SDK test API mismatches (3 suites)~~ | -- | **FIXED** |
+| -- | ~~CI coverage PR comment missing permissions~~ | -- | **FIXED** |
+| -- | ~~Security.yml license-check wrong toolchain~~ | -- | **FIXED** |
+| -- | ~~Missing permissions on 3 workflow files~~ | -- | **FIXED** |
 
 ---
 
@@ -293,4 +314,4 @@ All code tasks are DONE. TOCTOU race fixed, Actor SDK complete (1,358 LOC), serv
 
 ---
 
-*Consolidated: 2026-05-16. Next review: 2026-05-30.*
+*Consolidated: 2026-05-16. Updated: 2026-05-26. Next review: 2026-06-09.*
