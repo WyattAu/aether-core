@@ -75,6 +75,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed RELEASE_NOTES.md: test count updated, clarified 0 failures (not 94.3% pass rate)
 - Fixed CHANGELOG.md: Unreleased v3.x features relabeled from "Added" to "Planned"
 
+### Fixed (Audit 2026-05-26 Round 2)
+- Fixed O(n) audit log eviction: SecretAuditLog.records changed from Vec to VecDeque, pop_front() for O(1)
+- Fixed thread-safety violation: EnvironmentSecretStore no longer uses std::env::set_var/remove_var in async
+  - Replaced with in-memory HashMap overrides + HashSet deletions, falls back to real env for reads
+- Fixed non-deterministic load balancing: LoadBalancerType::Random uses golden-ratio hash instead of unseeded RNG
+- Fixed non-deterministic WeightedBalancer: replaced rand::rng() with deterministic atomic counter hash
+- Added MeshMessage::with_trace_id() and with_timestamp_ns() for deterministic replay injection
+- Documented that Dockerfile already builds Rust core (not Python) -- ROADMAP technical debt item was stale
+
 ## [2.0.1] - 2026-05-09
 
 ### Added

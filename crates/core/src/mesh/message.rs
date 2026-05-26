@@ -296,6 +296,10 @@ bitflags::bitflags! {
 
 impl MeshMessage {
     /// Creates a new request message.
+    ///
+    /// Note: `trace_id` and `timestamp_ns` are generated from system sources.
+    /// For deterministic replay, use `with_trace_id()` and `with_timestamp_ns()`
+    /// after construction to inject values from the host context.
     pub fn request(source: ActorAddress, target: ActorAddress, payload: Vec<u8>) -> Self {
         Self {
             id: MessageId::new(),
@@ -374,6 +378,24 @@ impl MeshMessage {
     /// Sets the message time-to-live in milliseconds (builder pattern).
     pub fn with_ttl(mut self, ttl_ms: u32) -> Self {
         self.ttl_ms = ttl_ms;
+        self
+    }
+
+    /// Sets the trace ID for deterministic replay (builder pattern).
+    ///
+    /// Use this to inject a deterministic trace ID from the host context
+    /// rather than relying on the default random generation.
+    pub fn with_trace_id(mut self, trace_id: u64) -> Self {
+        self.trace_id = trace_id;
+        self
+    }
+
+    /// Sets the timestamp in nanoseconds for deterministic replay (builder pattern).
+    ///
+    /// Use this to inject a deterministic timestamp from the host context's
+    /// clock rather than relying on `SystemTime::now()`.
+    pub fn with_timestamp_ns(mut self, timestamp_ns: u64) -> Self {
+        self.timestamp_ns = timestamp_ns;
         self
     }
 

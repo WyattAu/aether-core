@@ -4,7 +4,7 @@
 //! across mesh nodes based on resource availability, affinity hints, and capacity.
 
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 
 use rand::Rng;
 
@@ -303,15 +303,23 @@ impl LoadBalancerStrategy for AffinityBalancer {
 }
 
 /// Weighted random load balancer that distributes based on node capacity.
+///
+/// Uses a deterministic hash-based selection for reproducible distribution.
+/// The `_seed` field is reserved for future seeded RNG injection.
 pub struct WeightedBalancer {
     /// Seed for deterministic testing when needed.
     _seed: u64,
+    /// Counter for deterministic weighted selection.
+    counter: AtomicU64,
 }
 
 impl WeightedBalancer {
-    /// Creates a new weighted balancer.
+    /// Creates a new weighted balancer with deterministic selection.
     pub fn new() -> Self {
-        Self { _seed: 0 }
+        Self {
+            _seed: 0,
+            counter: AtomicU64::new(0),
+        }
     }
 }
 
@@ -354,8 +362,12 @@ impl LoadBalancerStrategy for WeightedBalancer {
             return Some(pool[0].id.clone());
         }
 
-        let mut rng = rand::rng();
-        let mut threshold = rng.random_range(0.0..total_weight);
+        let mut threshold = {
+            // Deterministic weighted selection using golden ratio hash
+            let idx = self.counter.fetch_add(1, Ordering::Relaxed);
+            let hash = idx.wrapping_mul(2654435761u64);
+            (hash as f64 / u64::MAX as f64) * total_weight
+        };
         for (i, w) in weights.iter().enumerate() {
             threshold -= w;
             if threshold <= 0.0 {

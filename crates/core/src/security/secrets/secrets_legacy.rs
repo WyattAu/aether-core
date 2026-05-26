@@ -8,7 +8,7 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 use std::time::SystemTime;
 use tracing::{debug, info};
@@ -157,7 +157,7 @@ pub enum SecretAction {
 
 /// Audit log that records secret access events.
 pub struct SecretAuditLog {
-    records: Arc<RwLock<Vec<SecretAccessRecord>>>,
+    records: Arc<RwLock<VecDeque<SecretAccessRecord>>>,
     max_records: usize,
     enabled: bool,
 }
@@ -166,7 +166,7 @@ impl SecretAuditLog {
     /// Creates a new audit log with the given maximum record capacity.
     pub fn new(max_records: usize) -> Self {
         Self {
-            records: Arc::new(RwLock::new(Vec::with_capacity(max_records))),
+            records: Arc::new(RwLock::new(VecDeque::with_capacity(max_records))),
             max_records,
             enabled: true,
         }
@@ -175,7 +175,7 @@ impl SecretAuditLog {
     /// Creates a disabled audit log that discards all events.
     pub fn disabled() -> Self {
         Self {
-            records: Arc::new(RwLock::new(Vec::new())),
+            records: Arc::new(RwLock::new(VecDeque::new())),
             max_records: 0,
             enabled: false,
         }
@@ -204,9 +204,9 @@ impl SecretAuditLog {
 
         let mut records = self.records.write();
         if records.len() >= self.max_records {
-            records.remove(0);
+            records.pop_front();
         }
-        records.push(record);
+        records.push_back(record);
     }
 
     /// Returns the most recent audit records, up to `limit`.
@@ -343,8 +343,14 @@ impl SecretStore for MemorySecretStore {
 }
 
 /// Secret store backed by environment variables.
+///
+/// Reads fall back to actual process environment variables, but all mutations
+/// (set, delete, rotate) are stored in an in-memory override map. This avoids
+/// the thread-safety issues of `std::env::set_var`/`remove_var` in async code.
 pub struct EnvironmentSecretStore {
     audit_log: Arc<SecretAuditLog>,
+    overrides: RwLock<HashMap<String, String>>,
+    deletions: RwLock<std::collections::HashSet<String>>,
 }
 
 impl EnvironmentSecretStore {
@@ -352,6 +358,8 @@ impl EnvironmentSecretStore {
     pub fn new() -> Self {
         Self {
             audit_log: Arc::new(SecretAuditLog::new(10000)),
+            overrides: RwLock::new(HashMap::new()),
+            deletions: RwLock::new(std::collections::HashSet::new()),
         }
     }
 
@@ -373,8 +381,26 @@ impl SecretStore for EnvironmentSecretStore {
     async fn get(&self, reference: &SecretReference) -> Result<SecretValue> {
         let key = reference.key();
 
-        let value = std::env::var(key)
-            .map_err(|_| Error::security(format!("Environment variable not found: {}", key)))?;
+        {
+            let deletions = self.deletions.read();
+            if deletions.contains(key) {
+                return Err(Error::security(format!(
+                    "Environment variable not found: {}",
+                    key
+                )));
+            }
+        }
+
+        let value = {
+            let overrides = self.overrides.read();
+            if let Some(v) = overrides.get(key) {
+                v.clone()
+            } else {
+                std::env::var(key).map_err(|_| {
+                    Error::security(format!("Environment variable not found: {}", key))
+                })?
+            }
+        };
 
         self.audit_log
             .log(reference.clone(), "system", SecretAction::Read);
@@ -386,10 +412,13 @@ impl SecretStore for EnvironmentSecretStore {
         let key = reference.key();
         let value_str = value.as_str()?;
 
-        // SAFETY: set_var modifies the process environment; this is safe when called
-        // from the single-threaded test context or during initialization.
-        unsafe {
-            std::env::set_var(key, value_str);
+        {
+            let mut overrides = self.overrides.write();
+            overrides.insert(key.to_string(), value_str.to_string());
+        }
+        {
+            let mut deletions = self.deletions.write();
+            deletions.remove(key);
         }
 
         self.audit_log
@@ -402,11 +431,21 @@ impl SecretStore for EnvironmentSecretStore {
     async fn delete(&self, reference: &SecretReference) -> Result<bool> {
         let key = reference.key();
 
-        if std::env::var(key).is_ok() {
-            // SAFETY: remove_var modifies the process environment; this is safe when called
-            // from the single-threaded test context or during initialization.
-            unsafe {
-                std::env::remove_var(key);
+        let existed = {
+            let overrides = self.overrides.read();
+            let in_overrides = overrides.contains_key(key);
+            let in_env = std::env::var(key).is_ok();
+            in_overrides || in_env
+        };
+
+        if existed {
+            {
+                let mut overrides = self.overrides.write();
+                overrides.remove(key);
+            }
+            {
+                let mut deletions = self.deletions.write();
+                deletions.insert(key.to_string());
             }
             self.audit_log
                 .log(reference.clone(), "system", SecretAction::Delete);
@@ -417,14 +456,42 @@ impl SecretStore for EnvironmentSecretStore {
     }
 
     async fn exists(&self, reference: &SecretReference) -> bool {
-        std::env::var(reference.key()).is_ok()
+        let key = reference.key();
+        {
+            let deletions = self.deletions.read();
+            if deletions.contains(key) {
+                return false;
+            }
+        }
+        {
+            let overrides = self.overrides.read();
+            if overrides.contains_key(key) {
+                return true;
+            }
+        }
+        std::env::var(key).is_ok()
     }
 
     async fn list(&self, path_prefix: &str) -> Result<Vec<SecretReference>> {
-        let refs: Vec<SecretReference> = std::env::vars()
-            .filter(|(k, _)| k.starts_with(path_prefix))
-            .map(|(k, _)| SecretReference::env(&k))
-            .collect();
+        let mut keys = std::collections::HashSet::new();
+        {
+            let overrides = self.overrides.read();
+            for k in overrides.keys() {
+                if k.starts_with(path_prefix) {
+                    keys.insert(k.clone());
+                }
+            }
+        }
+        {
+            let deletions = self.deletions.read();
+            for (k, _) in std::env::vars() {
+                if k.starts_with(path_prefix) && !deletions.contains(&k) {
+                    keys.insert(k);
+                }
+            }
+        }
+        let refs: Vec<SecretReference> =
+            keys.into_iter().map(|k| SecretReference::env(&k)).collect();
         Ok(refs)
     }
 
@@ -435,13 +502,16 @@ impl SecretStore for EnvironmentSecretStore {
         self.audit_log
             .log(reference.clone(), "system", SecretAction::Rotate);
 
-        // SAFETY: set_var modifies the process environment; this is safe when called
-        // from the single-threaded test context or during initialization.
-        unsafe {
-            std::env::set_var(
-                reference.key(),
+        {
+            let mut overrides = self.overrides.write();
+            overrides.insert(
+                reference.key().to_string(),
                 String::from_utf8_lossy(&new_value).to_string(),
             );
+        }
+        {
+            let mut deletions = self.deletions.write();
+            deletions.remove(reference.key());
         }
 
         info!("Environment secret rotated: {}", reference.key());

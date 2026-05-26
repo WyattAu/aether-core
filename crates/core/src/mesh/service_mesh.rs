@@ -367,8 +367,17 @@ impl MeshProxy {
                 instance.address
             }
             LoadBalancerType::Random => {
-                let idx = rand::random_range(0..instances.len());
-                instances[idx].address
+                // Deterministic fallback: use round-robin counter XOR'd with instance count
+                // for pseudo-random but reproducible distribution. Production deployments
+                // should inject a seeded RNG via ServiceMeshConfig if true randomness needed.
+                let counter = self
+                    .round_robin_counters
+                    .entry(service_name.to_string())
+                    .or_insert_with(|| AtomicU32::new(0));
+                let idx = counter.fetch_add(1, Ordering::Relaxed) as usize;
+                // Golden ratio hash for better distribution than plain modulo
+                let hash = idx.wrapping_mul(2654435761);
+                instances[hash % instances.len()].address
             }
             LoadBalancerType::LeastConnections =>
             {

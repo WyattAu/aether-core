@@ -7,6 +7,8 @@ status: Active Development
   - Workspace: 5 crates (core, cli, actor-sdk, server, tests) -- Rust 2024 edition, MSRV 1.88
   - Tests: 1,912 passing, 0 failed, 97 ignored (require FDB/Firecracker/KVM/cluster)
   - Quality: Zero clippy warnings, zero doc warnings, zero todo!/unimplemented! stubs
+  - Determinism: Mesh load balancing uses golden-ratio hash (no unseeded RNG), MeshMessage supports injectable trace_id/timestamp
+  - Performance: SecretAuditLog uses VecDeque for O(1) eviction, EnvironmentSecretStore uses in-memory HashMap (no env var mutation)
   - Build: LTO + strip + codegen-units=1, panic=abort
   - Pre-commit: 6-gate hook active (fmt, clippy, check, test, no-stubs, forbidden patterns)
   - Pre-push: 5-gate hook active (fmt, clippy, test, doc, forbidden patterns)
