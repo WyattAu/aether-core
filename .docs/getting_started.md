@@ -19,8 +19,8 @@ In this guide, you'll:
 | Requirement | Version | How to Check |
 |-------------|---------|--------------|
 | Linux | 5.15+ | `uname -r` |
-| Rust | 1.75+ | `rustc --version` |
-| FoundationDB | 7.1+ | `fdbcli --version` |
+| Rust | 1.88+ (MSRV) | `rustc --version` |
+| FoundationDB | 7.3+ | `fdbcli --version` |
 | Docker (optional) | 24+ | `docker --version` |
 
 ---

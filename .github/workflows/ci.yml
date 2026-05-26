@@ -3,6 +3,7 @@ name: Aether CI
 on:
   push:
     branches: [main, develop]
+    tags: ['v*']
   pull_request:
     branches: [main]
   schedule:
@@ -178,7 +179,7 @@ jobs:
           toolchain: nightly-2026-03-01
 
       - name: Install cargo-audit
-        run: cargo install cargo-audit
+        run: cargo install cargo-audit --locked
 
       - name: Security audit
         run: cargo audit --json > audit-results.json 2>&1 || true
@@ -244,15 +245,15 @@ jobs:
       - name: Build release
         run: cargo build --release --target ${{ matrix.target }}
 
-      - name: Strip binary
+      - name: Strip binary (belt-and-suspenders, Cargo.toml already strips)
         if: matrix.os == 'ubuntu-latest'
-        run: strip target/release/aether-cli
+        run: strip target/${{ matrix.target }}/release/aether-cli || true
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
-          path: target/release/aether-cli
+          path: target/${{ matrix.target }}/release/aether-cli
 
   release:
     name: Release

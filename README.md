@@ -41,7 +41,7 @@ Aether is a distributed runtime that deprecates the Kubernetes/Docker stack by t
 ### Prerequisites
 
 - Rust stable 1.88+ (MSRV); nightly-2026-03-01 for development
-- Linux kernel 5.19+ (for io_uring and KVM)
+- Linux kernel 5.15+ (for io_uring and KVM)
 
 ### Install
 
@@ -169,7 +169,7 @@ New to the project? Look for [`good first issue`](https://github.com/WyattAu/aet
 - WASM (wasmtime 25), QUIC mesh, mTLS, RBAC, secrets management (Vault/AWS/GCP)
 - Multi-tenancy, chaos testing, OTLP tracing, MCP, AI integration
 - Firecracker VM, FDB state, OPA policy engine, distributed tracing
-- 1,532 tests, zero clippy warnings, deny-all safety lints
+- 1,912 tests passing (0 failed, 97 ignored -- require external infrastructure), zero clippy warnings, deny-all safety lints
 
 See [CHANGELOG.md](CHANGELOG.md) for full release history.
 

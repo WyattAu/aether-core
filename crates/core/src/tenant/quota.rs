@@ -893,9 +893,7 @@ impl TenantQuotaTracker {
     /// Internal method to release resources held by a dropped grant.
     ///
     /// SAFETY: The `tracker_ptr` must be a valid pointer to a `TenantQuotaTracker`
-    /// that outlives the grant (which is guaranteed by the grant holding a usize
-    /// derived from the raw pointer; the tracker must remain alive for the grant's
-    /// lifetime, which is enforced by the caller pattern).
+    /// that outlives the grant. This invariant is documented on [`ResourceGrant`].
     unsafe fn release_grant(&self, grant: &mut ResourceGrant) {
         if !grant.active {
             return;
@@ -975,6 +973,18 @@ impl Default for ResourceRequest {
 }
 
 /// An RAII guard that holds acquired resources and releases them on drop.
+///
+/// # Safety Invariant
+///
+/// The `tracker` field holds a raw pointer to the [`TenantQuotaTracker`] that
+/// created this grant. **The tracker MUST outlive all outstanding grants.**
+/// This is enforced by the standard RAII pattern: callers should hold the
+/// tracker in a long-lived structure (e.g., `Arc<TenantQuotaTracker>`) and
+/// grants will be dropped before the tracker.
+///
+/// If the tracker is dropped before a grant, the grant's `Drop` impl will
+/// execute undefined behavior (use-after-free). This is a soundness obligation
+/// on the caller, similar to `std::sync::MutexGuard`.
 pub struct ResourceGrant {
     tracker: usize,
     tenant_id: String,
@@ -1027,9 +1037,9 @@ impl ResourceGrant {
         if !self.active {
             return;
         }
-        // SAFETY: The tracker pointer was obtained from a valid &TenantQuotaTracker
-        // reference in check_all_quotas. The caller must ensure the tracker outlives
-        // all outstanding grants, which is the standard pattern for RAII guards.
+        // SAFETY: The caller guarantees the tracker outlives this grant.
+        // The tracker pointer was obtained from a valid &TenantQuotaTracker
+        // reference in check_all_quotas. See struct-level safety invariant.
         unsafe {
             let tracker = &*(self.tracker as *const TenantQuotaTracker);
             tracker.release_grant(self);
@@ -1039,7 +1049,12 @@ impl ResourceGrant {
 
 impl Drop for ResourceGrant {
     fn drop(&mut self) {
-        // SAFETY: Same invariant as release(). The tracker must outlive the grant.
+        if !self.active {
+            return;
+        }
+        // SAFETY: The caller guarantees the tracker outlives this grant.
+        // The tracker pointer was obtained from a valid &TenantQuotaTracker
+        // reference in check_all_quotas. See struct-level safety invariant.
         unsafe {
             let tracker = &*(self.tracker as *const TenantQuotaTracker);
             tracker.release_grant(self);

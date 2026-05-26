@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-> Items below are in active development for v3.0.0.
+> Items below are planned for v3.0.0. They are NOT yet released.
 
-### Added
+### Planned
 
 #### Phase 4: Ecosystem Growth (v3.x modules)
 
@@ -52,9 +52,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated test counts in ROADMAP to reflect actual verified totals
 
 ### Changed
-- Updated ROADMAP test matrix: 1,912 passed, 0 failed, 86 ignored
+- Updated ROADMAP test matrix: 1,912 passed, 0 failed, 97 ignored
 - Updated VERSION.md with Phase 4/5 module listings
 - MSRV updated from 1.85 to 1.88 (darling 0.23 requirement)
+
+### Fixed (Audit 2026-05-26)
+- Fixed use-after-free risk in ResourceGrant: documented lifetime invariant on Drop impl
+- Fixed incorrect pointer arithmetic in engine/executor.rs invoke_bytes(): validated offsets against memory bounds
+- Fixed ci.yml: binary path now uses target/${{ matrix.target }}/release/ for cross-target builds
+- Fixed ci.yml: added tag trigger for release job (was unreachable before)
+- Fixed ci.yml: cargo-audit now uses --locked for reproducible installs
+- Fixed security.yml: SBOM upload marked continue-on-error (CycloneDX is not SARIF format)
+- Fixed publish.yml: added release trigger so publish steps actually execute
+- Fixed publish.yml: standardized pnpm version to 10
+- Fixed integration.yml: macOS now excludes fdb feature (no FDB client available)
+- Fixed integration.yml: chaos/stress tests no longer silently swallow failures (removed || true)
+- Fixed api_reference.md: CapabilitySet example uses correct bitflags API (| operator, not .add())
+- Fixed api_reference.md: MemoryEntry example uses correct constructor (no .with_tag() builder)
+- Fixed user_guide.md: version output updated from v0.4.5-alpha to v2.0.0, wasmtime 18.x to 25.x
+- Fixed getting_started.md: MSRV updated from 1.75 to 1.88, FDB version from 7.1 to 7.3
+- Fixed README.md: kernel version aligned to 5.15+, test count updated to 1,912
+- Fixed RELEASE_NOTES.md: test count updated, clarified 0 failures (not 94.3% pass rate)
+- Fixed CHANGELOG.md: Unreleased v3.x features relabeled from "Added" to "Planned"
 
 ## [2.0.1] - 2026-05-09
 

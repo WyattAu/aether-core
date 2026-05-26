@@ -83,44 +83,66 @@ impl Executor {
     ) -> Result<Vec<u8>> {
         let Some(func) = self.func.as_ref() else {
             return Err(Error::wasm("No function loaded"));
-        }
-        
+        };
+
         // Set up fuel
         store.set_fuel(DEFAULT_FUEL).map_err(|e| {
             Error::wasm(format!("Failed to set fuel: {}", e))
         })?;
-        
-        // Allocate memory for input
-        let memory = memory.data_mut(&store);
-        let input_ptr = memory
-            .data_ptr() as *const u8;
-        let input_offset = input.len() as u32;
-        
-        // Write input to memory
-        let input_slice = unsafe {
-            // SAFETY: The offset is within the WASM linear memory bounds; input_ptr was obtained from
-            // wasmtime Memory::data_ptr which is valid for the full memory region.
-            std::slice::from_raw_parts_mut(input_ptr.add(input_offset as usize), input.len())
-        };
-        input_slice.copy_from_slice(input);
-        
-        // Allocate output buffer
-        let output_offset = input_offset + input.len() as u32;
-        let output_len = self.memory_limit - output_offset as usize;
-        
+
+        // Validate input fits within memory
+        let mem_size = memory.data_size(&store);
+        let input_offset: u32 = 0;
+        let input_end = input_offset as usize + input.len();
+        if input_end > mem_size {
+            return Err(Error::wasm(format!(
+                "Input ({} bytes) exceeds WASM memory size ({} bytes)",
+                input.len(),
+                mem_size
+            )));
+        }
+
+        // Write input to start of WASM linear memory
+        let mem_data = memory.data_mut(&store);
+        let base_ptr = mem_data.data_ptr();
+        unsafe {
+            // SAFETY: input_offset + input.len() validated against memory size above.
+            std::ptr::copy_nonoverlapping(input.as_ptr(), base_ptr, input.len());
+        }
+
+        // Output region starts after input, with capacity validation
+        let output_offset: u32 = input.len() as u32;
+        let output_capacity = self.memory_limit.saturating_sub(output_offset as usize);
+        if output_capacity == 0 {
+            return Err(Error::wasm("No remaining memory for output buffer"));
+        }
+
         // Invoke function with memory pointers
         let results = func
-            .call(store, &[input_offset.into(), output_offset.into(), (output_len as u32).into()])
+            .call(
+                store,
+                &[
+                    input_offset.into(),
+                    output_offset.into(),
+                    (output_capacity.min(u32::MAX as usize) as u32).into(),
+                ],
+            )
             .map_err(|e| Error::wasm(format!("Invocation failed: {}", e)))?;
-        
-        // Extract output from memory
-        let output_len = results[2].unwrap_or() as u32;
+
+        // Extract output from memory using the WASM function's reported output length
+        let actual_output_len = results[2].unwrap_or() as u32;
+        if actual_output_len as usize > output_capacity {
+            return Err(Error::wasm(format!(
+                "WASM function returned {} bytes but only {} bytes available",
+                actual_output_len, output_capacity
+            )));
+        }
         let output_slice = unsafe {
-            // SAFETY: output_offset and output_len are derived from the WASM function return value;
-            // the memory region is valid for the full wasmtime Memory extent.
-            std::slice::from_raw_parts(input_ptr.add(output_offset as usize), output_len as usize)
+            // SAFETY: output_offset + actual_output_len validated against output_capacity
+            // which is bounded by memory_limit and WASM memory size.
+            std::slice::from_raw_parts(base_ptr.add(output_offset as usize), actual_output_len as usize)
         };
-        
+
         Ok(output_slice.to_vec())
     }
     

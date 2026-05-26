@@ -5,7 +5,7 @@ current_phase: post-v2.0.0-ecosystem-growth
 current_version: 2.0.0
 status: Active Development
   - Workspace: 5 crates (core, cli, actor-sdk, server, tests) -- Rust 2024 edition, MSRV 1.88
-  - Tests: 1,912 passing, 0 failed, 86 ignored (require FDB/Firecracker/KVM/cluster)
+  - Tests: 1,912 passing, 0 failed, 97 ignored (require FDB/Firecracker/KVM/cluster)
   - Quality: Zero clippy warnings, zero doc warnings, zero todo!/unimplemented! stubs
   - Build: LTO + strip + codegen-units=1, panic=abort
   - Pre-commit: 6-gate hook active (fmt, clippy, check, test, no-stubs, forbidden patterns)

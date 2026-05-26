@@ -250,6 +250,7 @@ jobs:
       - name: Upload SBOM for dependency tracking
         uses: github/codeql-action/upload-sarif@v3
         if: always()
+        continue-on-error: true
         with:
           sarif_file: sbom.cdx.json
           category: sbom

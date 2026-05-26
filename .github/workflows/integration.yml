@@ -47,11 +47,21 @@ jobs:
           sudo ldconfig
           echo "LIBRARY_PATH=/usr/lib/x86_64-linux-gnu" >> "$GITHUB_ENV"
 
-      - name: Run all tests
+      - name: Run all tests (Linux -- all features)
+        if: runner.os == 'Linux'
         run: cargo test --workspace --all-features
 
-      - name: Run doc tests
+      - name: Run all tests (macOS -- exclude FDB)
+        if: runner.os == 'macOS'
+        run: cargo test --workspace --features "wasm mesh rkyv"
+
+      - name: Run doc tests (Linux)
+        if: runner.os == 'Linux'
         run: cargo test --workspace --doc --all-features
+
+      - name: Run doc tests (macOS)
+        if: runner.os == 'macOS'
+        run: cargo test --workspace --doc --features "wasm mesh rkyv"
 
   e2e:
     name: End-to-End Tests
@@ -131,13 +141,16 @@ jobs:
           echo "## Chaos Test Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          cargo test -p aether-tests --features chaos -- --nocapture 2>&1 | tee chaos-output.txt || true
+          cargo test -p aether-tests --features chaos -- --nocapture 2>&1 | tee chaos-output.txt
+          CHAOS_EXIT=$?
 
           if [ -f chaos-output.txt ]; then
             echo '```' >> $GITHUB_STEP_SUMMARY
             tail -100 chaos-output.txt >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
           fi
+
+          exit $CHAOS_EXIT
 
       - name: Upload chaos results
         uses: actions/upload-artifact@v4
@@ -171,7 +184,9 @@ jobs:
         run: cargo build --release
 
       - name: Run stress tests
-        run: cargo test -p aether-tests --features chaos --release -- --nocapture --test-threads=1 2>&1 | tee stress-output.txt || true
+        run: |
+          cargo test -p aether-tests --features chaos --release -- --nocapture --test-threads=1 2>&1 | tee stress-output.txt
+          exit ${PIPESTATUS[0]}
 
       - name: Upload stress results
         uses: actions/upload-artifact@v4

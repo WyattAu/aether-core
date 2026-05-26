@@ -5,7 +5,7 @@
 
 ## Summary
 
-Aether v2.0.0 is a complete rewrite from the original multi-language SDK framework to a Rust-native runtime. This release replaces the Python/JavaScript/Go/Java SDK architecture with a high-performance Rust core featuring WASM execution via wasmtime 25, QUIC-based mesh networking, mTLS security, RBAC authorization, and secrets management (Vault/AWS/GCP). Additional capabilities include multi-tenancy, chaos testing, OTLP tracing, MCP integration, AI integration, Firecracker VM isolation, FoundationDB state backend, and OPA policy engine. The test suite comprises 1,532 tests (94.3% of 1,624 total, remainder ignored) with zero clippy warnings and deny-all safety lints.
+Aether v2.0.0 is a complete rewrite from the original multi-language SDK framework to a Rust-native runtime. This release replaces the Python/JavaScript/Go/Java SDK architecture with a high-performance Rust core featuring WASM execution via wasmtime 25, QUIC-based mesh networking, mTLS security, RBAC authorization, and secrets management (Vault/AWS/GCP). Additional capabilities include multi-tenancy, chaos testing, OTLP tracing, MCP integration, AI integration, Firecracker VM isolation, FoundationDB state backend, and OPA policy engine. The test suite comprises 1,912 tests passing, 0 failed, 97 ignored (requiring external infrastructure: FDB, Firecracker, KVM, cluster), with zero clippy warnings and deny-all safety lints.
 
 ## Breaking Changes
 

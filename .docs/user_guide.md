@@ -148,8 +148,8 @@ sudo systemctl start aether
 aether version
 
 # Expected output:
-# Aether v0.4.5-alpha
-# Runtime: wasmtime 18.x
+# Aether v2.0.0
+# Runtime: wasmtime 25.x
 # Protocol: QUIC (RFC 9000)
 
 # Check daemon status

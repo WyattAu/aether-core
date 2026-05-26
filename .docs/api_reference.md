@@ -1213,10 +1213,9 @@ use aether::context::{PersistentMemoryStore, MemoryEntry};
 
 let store = PersistentMemoryStore::new("./memory.json");
 
-// Add entry
-let entry = MemoryEntry::new("id-1", "user", "Hello world")
-    .with_tag("greeting")
-    .with_ttl(Duration::from_secs(3600));
+// Add entry -- construct with (id, role, content), then set fields directly
+let mut entry = MemoryEntry::new("id-1", "user", "Hello world");
+entry.tags.push("greeting".to_string());
 store.add(entry);
 
 // Search
@@ -1262,9 +1261,8 @@ let stats = store.stats();
 ```rust
 use aether::capability::CapabilitySet;
 
-let caps = CapabilitySet::new();
-caps.add(CapabilitySet::AI_USE);
-caps.add(CapabilitySet::SESSION_ACCESS);
+// CapabilitySet is a bitflags type -- use bitwise OR to combine
+let caps = CapabilitySet::AI_USE | CapabilitySet::SESSION_ACCESS;
 
 if caps.contains(CapabilitySet::AI_USE) {
     // Allow AI operations
