@@ -99,11 +99,15 @@ macro_rules! export_actor {
                         RESPONSE_LEN = write_len;
                     }
                 }
-                Err(_) => unsafe {
-                    RESPONSE_LEN = 0;
-                },
+                Err(_) => {
+                    // SAFETY: RESPONSE_LEN is a static mut accessed only in single-threaded WASM execution
+                    unsafe {
+                        RESPONSE_LEN = 0;
+                    }
+                }
             }
 
+            // SAFETY: RESPONSE_BUFFER is a static mut accessed only in single-threaded WASM execution
             unsafe { RESPONSE_BUFFER.as_ptr() }
         }
 
@@ -111,6 +115,7 @@ macro_rules! export_actor {
         /// Called by the host after `handle_request` returns.
         #[no_mangle]
         pub extern "C" fn response_len() -> usize {
+            // SAFETY: RESPONSE_LEN is a static mut accessed only in single-threaded WASM execution
             unsafe { RESPONSE_LEN }
         }
     };

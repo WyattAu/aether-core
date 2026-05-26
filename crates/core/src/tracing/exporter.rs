@@ -328,8 +328,8 @@ impl Drop for InstrumentedSpanGuard {
 
 /// Default auto-instrumentation that creates no-op spans.
 ///
-/// Replace with a real implementation that uses [`ActorSpan`],
-/// [`MeshSpan`], and [`StateSpan`] when the tracing subsystem is
+/// Replace with a real implementation that uses [`crate::tracing::span::ActorSpan`],
+/// [`crate::tracing::span::MeshSpan`], and [`crate::tracing::span::StateSpan`] when the tracing subsystem is
 /// initialized.
 pub struct NoopInstrumentation;
 

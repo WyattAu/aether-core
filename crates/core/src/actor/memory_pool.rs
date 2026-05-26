@@ -234,6 +234,7 @@ impl BumpAllocatorInner {
                     unsafe { (*prev).next = block.next };
                 }
                 let ptr = current as *mut u8;
+                // SAFETY: ptr was derived from `current` which points to a valid FreeBlock in this pool's freed list
                 return Some(unsafe { NonNull::new_unchecked(ptr) });
             }
             prev = current;
@@ -253,6 +254,7 @@ impl BumpAllocatorInner {
         // and bump_offset + aligned_size <= arena_size
         let ptr = unsafe { arena_ptr.as_ptr().add(self.bump_offset) };
         self.bump_offset = new_offset;
+        // SAFETY: ptr was computed from arena_ptr.as_ptr().add(bump_offset) which is within the valid arena allocation
         Some(unsafe { NonNull::new_unchecked(ptr) })
     }
 

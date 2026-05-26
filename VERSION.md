@@ -1,19 +1,27 @@
 # Project Aether Version Tracking
 
-# v2.0.0 - Current (2026-05-09)
-current_phase: post-v2.0.0-hardening
+# v2.0.0 - Current (2026-05-26)
+current_phase: post-v2.0.0-ecosystem-growth
 current_version: 2.0.0
 status: Active Development
-  - Workspace: 5 crates (core, cli, actor-sdk, server, tests) — Rust 2024 edition, MSRV 1.85
-  - Tests: 1,532 passing, 0 failed, 92 ignored (require FDB/Firecracker/KVM/cluster)
-  - Quality: Zero clippy warnings, zero todo!/unimplemented! stubs, deny-all safety lints (unwrap, expect, panic)
+  - Workspace: 5 crates (core, cli, actor-sdk, server, tests) -- Rust 2024 edition, MSRV 1.88
+  - Tests: 1,912 passing, 0 failed, 86 ignored (require FDB/Firecracker/KVM/cluster)
+  - Quality: Zero clippy warnings, zero doc warnings, zero todo!/unimplemented! stubs
   - Build: LTO + strip + codegen-units=1, panic=abort
+  - Pre-commit: 6-gate hook active (fmt, clippy, check, test, no-stubs, forbidden patterns)
+  - Pre-push: 5-gate hook active (fmt, clippy, test, doc, forbidden patterns)
   - Features: WASM (wasmtime 25), QUIC mesh, mTLS, RBAC, secrets (Vault/AWS/GCP), multi-tenancy,
     chaos testing, OTLP tracing, MCP, AI integration, Firecracker VM, FDB state, OPA policy engine,
     distributed tracing, VictoriaMetrics/VictoriaLogs
-last_updated: 2026-05-09
+  - Phase 4 Modules (v3.x roadmap, implemented):
+    - v3.1 Edge/IoT: memory pooling, CRDTs, air-gapped deploy, hardware ABI, WASI preview 2
+    - v3.2 AI-Native: model serving, content policy, token budgets, semantic routing, autonomous agents
+    - v3.3 Multi-Cloud: cross-cloud replication, global load balancing, tenant isolation, federated identity
+  - Phase 5 Modules (v4.0 roadmap, implemented):
+    - WASM Component Model, built-in service mesh, built-in observability, CI/CD pipeline, universal compat
+last_updated: 2026-05-26
 error_level: null
-rollback_checkpoint: v1.8.0
+rollback_checkpoint: v2.0.0
 recovery_time_estimate: null
 actual_recovery_time: null
 capability_matrix_status: complete

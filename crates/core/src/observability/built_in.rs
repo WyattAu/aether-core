@@ -279,8 +279,8 @@ impl HealthAggregator {
     /// Computes the composite health status.
     ///
     /// Rules:
-    /// - If any subsystem is [`HealthStatus::Unhealthy`], result is `Unhealthy`.
-    /// - If any subsystem is [`HealthStatus::Degraded`], result is `Degraded`.
+    /// - If any subsystem is [`crate::observability::health::HealthStatus::Unhealthy`], result is `Unhealthy`.
+    /// - If any subsystem is [`crate::observability::health::HealthStatus::Degraded`], result is `Degraded`.
     /// - Otherwise `Healthy`.
     /// - Empty aggregator yields `Healthy`.
     pub fn composite_health(&self) -> crate::observability::health::HealthStatus {

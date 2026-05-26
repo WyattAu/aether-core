@@ -9,29 +9,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-> Items below are in active development for v2.1.0.
-
-### Fixed
-- Removed failure-masking `|| true` from CI workflows: benchmarks.yml, ci.yml, security.yml
-- Fixed `npm ci` to `pnpm install` in sdk-ci.yml and sdk-publish.yml (no package-lock.json exists)
-- Removed `continue-on-error: true` from JS SDK lint/typecheck/build steps
-- Removed duplicate `javascript-sdk-benchmark` job from sdk-ci.yml (already in benchmarks.yml)
-- Fixed `--workspace --features fdb` to `--package aether-core --features fdb` in docker-integration.yml
-- Replaced Sphinx+TypeDoc docs deployment with MkDocs build for docs-site
-- Removed emoji from CI summary outputs (security.yml, benchmarks.yml)
-- Fixed missing `requirements-dev.txt` reference in benchmarks.yml
-- Corrected test counts in RELEASE_NOTES.md and TRACEABILITY_MATRIX.md (1532 passed, 1624 total, 92 ignored)
+> Items below are in active development for v3.0.0.
 
 ### Added
-- TLA+ formal specification for work-stealing scheduler (no-task-loss, priority ordering, fair stealing, state machine integrity invariants)
-- TLA+ formal specification for actor migration two-phase protocol (state machine, at-most-one-active, source ownership, checkpoint consistency, no-orphan invariants)
-- Lean 4 proof sketch for capability safety (deny-by-default, grant monotonicity, revoke safety, idempotent operations, subset preservation, permission lattice)
-- Continued `aether-server` development: expanding REST endpoint implementations and integration with core engine APIs
-- Docker CI workflow (`docker-integration.yml`) for FDB and 3-node mesh cluster integration tests
-- Deterministic replay architecture design document (event log, scheduler recording, non-deterministic source mediation, divergence detection)
+
+#### Phase 4: Ecosystem Growth (v3.x modules)
+
+**v3.1 Edge and IoT**
+- Memory pooling for actor allocation with arena and free-list strategies (`actor::memory_pool`)
+- CRDT data types for offline-first state (G-Counter, PN-Counter, G-Set, OR-Set, LWW-Register) (`state::crdt`)
+- Air-gapped/offline deployment configuration (`config::offline`)
+- Hardware abstraction layer for GPIO, I2C, SPI access from WASM actors (`wasi::hardware`)
+- WASI preview 2 preparation: resource table, stream types, error handling (`wasi::preview2`)
+
+**v3.2 AI-Native Runtime**
+- Model serving actor with auto-batching inference queue (`ai::model_serving`)
+- Content policy enforcement with pattern matching, severity levels, and sanitization (`ai::content_policy`)
+- Token budget enforcement per-actor and per-tenant with priority preemption (`ai::token_budget`)
+- Semantic routing based on workload characteristics and device capabilities (`ai::semantic_routing`)
+- Autonomous agent patterns: multi-step reasoning with tool-use actors (`ai::autonomous`)
+
+**v3.3 Multi-Cloud Federation**
+- Cross-cloud state replication with CRDT conflict resolution and configurable consistency (`state::replication`)
+- Global load balancing with 4 strategies: RoundRobin, LeastLoaded, Affinity, Weighted (`mesh::load_balancer`)
+- Multi-tenant isolation levels: Shared, Process, Container, Hardware (`tenant::isolation`)
+- Federated identity and trust with cross-cluster mTLS and shared CA (`security::federation`)
+
+#### Phase 5: Enterprise Features (v4.0 modules)
+
+- WASM Component Model with interface types and instance composition (`composition::component_model`)
+- Built-in service mesh replacing external Istio/Linkerd dependency (`mesh::service_mesh`)
+- Built-in observability with health aggregation and metrics pipeline (`observability::built_in`)
+- CI/CD pipeline as runtime service for actor build/test/deploy (`deploy::pipeline`)
+- Universal compatibility layer: WASM for new code, Firecracker VMs for legacy (`vm::compat`)
+
+### Fixed
+- Fixed model_serving test hang: `infer()` now flushes synchronously for sub-batch-size requests
+- Fixed content_policy severity ordering: Allow < Log < Warn < Block enum variant order
+- Fixed 32 clippy errors across all new Phase 4/5 modules
+- Added SAFETY comments to all unsafe blocks in memory_pool.rs and actor-sdk
+- Fixed 5 broken intra-doc links in observability and tracing modules
+- Updated test counts in ROADMAP to reflect actual verified totals
 
 ### Changed
-- Added `aether-server` to workspace members in root `Cargo.toml`
+- Updated ROADMAP test matrix: 1,912 passed, 0 failed, 86 ignored
+- Updated VERSION.md with Phase 4/5 module listings
+- MSRV updated from 1.85 to 1.88 (darling 0.23 requirement)
 
 ## [2.0.1] - 2026-05-09
 
