@@ -1,37 +1,44 @@
 site_name: Project Aether Documentation
-site_description: Distributed actor framework for building scalable, resilient applications
+site_description: Post-Container Application OS -- WASM actor runtime with QUIC mesh, zero-trust security, and distributed state
 site_url: https://aether.dev
 repo_url: https://github.com/WyattAu/aether-core
 repo_name: WyattAu/aether-core
 
 theme:
   name: material
+  custom_dir: overrides
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
-      primary: indigo
-      accent: indigo
+      primary: black
+      accent: amber
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
-      primary: indigo
-      accent: indigo
+      primary: black
+      accent: amber
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
+  font:
+    code: JetBrains Mono
+    text: Space Grotesk
   features:
     - navigation.instant
     - navigation.tracking
+    - navigation.indexes
     - navigation.tabs
     - navigation.sections
     - navigation.expand
     - navigation.top
+    - navigation.footer
     - search.suggest
     - search.highlight
     - content.code.copy
     - content.code.annotate
+    - toc.follow
 
 nav:
   - Home: index.md
@@ -42,6 +49,11 @@ nav:
     - Tutorial: getting-started/tutorial.md
     - Core Concepts: getting-started/concepts.md
     - Best Practices: getting-started/best-practices.md
+  - Architecture:
+    - Overview: architecture/overview.md
+    - Actor Model: architecture/actor-model.md
+    - Mesh Network: architecture/mesh.md
+    - Security: architecture/security.md
   - SDKs:
     - Overview: sdks/overview.md
     - Go SDK: sdks/go.md
@@ -58,11 +70,6 @@ nav:
     - Resilient Actor: examples/resilient-actor.md
   - Guides:
     - Resilience Patterns: guides/resilience-patterns.md
-  - Architecture:
-    - Overview: architecture/overview.md
-    - Actor Model: architecture/actor-model.md
-    - Mesh Network: architecture/mesh.md
-    - Security: architecture/security.md
   - Performance:
     - Overview: performance/overview.md
   - Operations:
@@ -74,23 +81,21 @@ markdown_extensions:
       anchor_linenums: true
   - pymdownx.inlinehilite
   - pymdownx.snippets
-  - pymdownx.superfences
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_div_format
   - pymdownx.tabbed:
       alternate_style: true
   - pymdownx.tasklist:
       custom_checkbox: true
   - admonition
-  - codehilite
   - toc:
       permalink: true
   - attr_list
   - def_list
   - meta
-
-plugins:
-  - search
-  - git-revision-date-localized:
-      enable_creation_date: true
 
 extra:
   social:
@@ -99,4 +104,7 @@ extra:
   version:
     provider: mike
 
-copyright: Copyright &copy; 2026 Project Aether
+extra_css:
+  - styles.css
+
+copyright: Copyright 2026 Project Aether. Apache-2.0 License.

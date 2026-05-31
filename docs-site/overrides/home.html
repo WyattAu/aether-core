@@ -1,0 +1,709 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% set nav = nav %}
+<style>
+  .ae-home { --ae-mono: 'JetBrains Mono','Fira Code','Cascadia Code','SF Mono',Consolas,'Liberation Mono',monospace; --ae-amber: #f0a030; --ae-amber-dim: #c8842a; --ae-amber-glow: rgba(240,160,48,0.15); --ae-bg: #0a0a0a; --ae-black: #000; --ae-raised: #111; --ae-surface: #1a1a1a; --ae-offwhite: #e8e5e0; --ae-white: #f5f2ed; --ae-border-lt: #333; --ae-text: #e8e5e0; --ae-text-muted: #888; --ae-t: .25s cubic-bezier(.4,0,.2,1); --ae-shadow-stack: 0 1px 0 #1a1a1a,0 2px 0 #161616,0 3px 0 #121212,0 4px 0 #0e0e0e,0 5px 8px rgba(0,0,0,.6); --ae-shadow-deep: 0 2px 0 #1a1a1a,0 4px 0 #161616,0 6px 0 #121212,0 8px 0 #0e0e0e,0 10px 20px rgba(0,0,0,.7); --ae-amoeba: 255px 15px 225px 15px / 15px 225px 15px 255px; --ae-amoeba-alt: 15px 225px 15px 255px / 225px 15px 255px 15px; }
+
+  .ae-home { background: var(--ae-bg); color: var(--ae-text); font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Oxygen,Ubuntu,Cantarell,sans-serif; margin: 0; padding: 0; overflow-x: hidden; }
+
+  .ae-home *, .ae-home *::before, .ae-home *::after { box-sizing: border-box; }
+
+  .ae-home ::selection { background: var(--ae-amber); color: var(--ae-black); }
+
+  .ae-home a { color: var(--ae-amber); text-decoration: none; border-bottom: 1px solid transparent; transition: border-color var(--ae-t); }
+  .ae-home a:hover { border-bottom-color: var(--ae-amber); }
+
+  .ae-hero {
+    position: relative;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: clamp(2rem,5vw,4rem) 2rem;
+    overflow: hidden;
+  }
+
+  .ae-mesh {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  .ae-mesh-grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      repeating-linear-gradient(0deg, transparent 0 79px, rgba(240,160,48,0.045) 79px 80px),
+      repeating-linear-gradient(90deg, transparent 0 79px, rgba(240,160,48,0.045) 79px 80px);
+  }
+
+  .ae-mesh-grid::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      repeating-linear-gradient(45deg, transparent 0 79px, rgba(240,160,48,0.02) 79px 80px),
+      repeating-linear-gradient(-45deg, transparent 0 79px, rgba(240,160,48,0.02) 79px 80px);
+  }
+
+  .ae-mesh-glow {
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 60% 50% at 50% 45%, rgba(240,160,48,0.08) 0%, transparent 100%),
+      radial-gradient(circle 300px at 25% 30%, rgba(240,160,48,0.04) 0%, transparent 100%),
+      radial-gradient(circle 200px at 75% 60%, rgba(240,160,48,0.03) 0%, transparent 100%);
+  }
+
+  .ae-mesh-nodes {
+    position: absolute;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--ae-amber);
+    box-shadow:
+      12vw 18vh 0 1px rgba(240,160,48,0.35),
+      23vw 8vh 0 1px rgba(240,160,48,0.25),
+      35vw 22vh 0 2px rgba(240,160,48,0.3),
+      48vw 12vh 0 1px rgba(240,160,48,0.2),
+      62vw 6vh 0 1px rgba(240,160,48,0.3),
+      78vw 15vh 0 2px rgba(240,160,48,0.25),
+      88vw 28vh 0 1px rgba(240,160,48,0.2),
+      8vw 42vh 0 1px rgba(240,160,48,0.25),
+      18vw 55vh 0 2px rgba(240,160,48,0.3),
+      32vw 48vh 0 1px rgba(240,160,48,0.2),
+      45vw 38vh 0 1px rgba(240,160,48,0.15),
+      55vw 52vh 0 2px rgba(240,160,48,0.35),
+      68vw 45vh 0 1px rgba(240,160,48,0.25),
+      82vw 55vh 0 1px rgba(240,160,48,0.2),
+      92vw 40vh 0 2px rgba(240,160,48,0.3),
+      5vw 72vh 0 1px rgba(240,160,48,0.2),
+      15vw 80vh 0 2px rgba(240,160,48,0.25),
+      28vw 68vh 0 1px rgba(240,160,48,0.15),
+      42vw 75vh 0 1px rgba(240,160,48,0.3),
+      58vw 70vh 0 2px rgba(240,160,48,0.2),
+      72vw 78vh 0 1px rgba(240,160,48,0.25),
+      85vw 72vh 0 1px rgba(240,160,48,0.3),
+      95vw 85vh 0 2px rgba(240,160,48,0.2);
+    animation: ae-node-drift 20s ease-in-out infinite alternate;
+  }
+
+  .ae-mesh-nodes::after {
+    content: '';
+    position: absolute;
+    inset: -40px;
+    border-radius: 50%;
+    background: var(--ae-amber);
+    box-shadow:
+      14vw 25vh 0 3px rgba(240,160,48,0.12),
+      38vw 35vh 0 4px rgba(240,160,48,0.08),
+      65vw 28vh 0 3px rgba(240,160,48,0.1),
+      85vw 48vh 0 4px rgba(240,160,48,0.06),
+      20vw 65vh 0 3px rgba(240,160,48,0.1),
+      50vw 58vh 0 5px rgba(240,160,48,0.08),
+      75vw 68vh 0 3px rgba(240,160,48,0.12);
+    animation: ae-node-pulse 4s ease-in-out infinite alternate;
+  }
+
+  @keyframes ae-node-drift {
+    0% { transform: translate(0, 0); }
+    100% { transform: translate(8px, -6px); }
+  }
+  @keyframes ae-node-pulse {
+    0% { opacity: 0.5; }
+    100% { opacity: 1; }
+  }
+
+  .ae-mesh-lines {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+  }
+
+  .ae-mesh-lines span {
+    position: absolute;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(240,160,48,0.08), transparent);
+    transform-origin: left center;
+    animation: ae-line-fade 6s ease-in-out infinite alternate;
+  }
+
+  .ae-mesh-lines span:nth-child(1) { width: 18vw; top: 22vh; left: 12vw; transform: rotate(-12deg); animation-delay: 0s; }
+  .ae-mesh-lines span:nth-child(2) { width: 25vw; top: 15vh; left: 35vw; transform: rotate(8deg); animation-delay: -1.5s; }
+  .ae-mesh-lines span:nth-child(3) { width: 15vw; top: 38vh; left: 22vw; transform: rotate(-5deg); animation-delay: -3s; }
+  .ae-mesh-lines span:nth-child(4) { width: 22vw; top: 28vh; left: 55vw; transform: rotate(15deg); animation-delay: -4.5s; }
+  .ae-mesh-lines span:nth-child(5) { width: 20vw; top: 52vh; left: 10vw; transform: rotate(-8deg); animation-delay: -2s; }
+  .ae-mesh-lines span:nth-child(6) { width: 16vw; top: 45vh; left: 48vw; transform: rotate(12deg); animation-delay: -1s; }
+  .ae-mesh-lines span:nth-child(7) { width: 24vw; top: 62vh; left: 30vw; transform: rotate(-15deg); animation-delay: -5s; }
+  .ae-mesh-lines span:nth-child(8) { width: 18vw; top: 58vh; left: 70vw; transform: rotate(6deg); animation-delay: -3.5s; }
+  .ae-mesh-lines span:nth-child(9) { width: 14vw; top: 75vh; left: 15vw; transform: rotate(10deg); animation-delay: -0.5s; }
+  .ae-mesh-lines span:nth-child(10) { width: 20vw; top: 80vh; left: 55vw; transform: rotate(-18deg); animation-delay: -2.5s; }
+
+  @keyframes ae-line-fade {
+    0% { opacity: 0.3; }
+    50% { opacity: 0.8; }
+    100% { opacity: 0.3; }
+  }
+
+  .ae-hero-content {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    max-width: 900px;
+  }
+
+  .ae-hero-badge {
+    display: inline-block;
+    font-family: var(--ae-mono);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--ae-amber);
+    border: 2px solid var(--ae-amber);
+    padding: 0.25em 0.8em;
+    margin-bottom: 2rem;
+  }
+
+  .ae-hero-title {
+    font-family: var(--ae-mono);
+    font-size: clamp(3.5rem, 10vw, 9rem);
+    font-weight: 900;
+    line-height: 0.95;
+    color: var(--ae-white);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin: 0 0 0.4em;
+    text-shadow: 0 4px 0 rgba(0,0,0,0.4), 0 8px 0 rgba(0,0,0,0.2);
+  }
+
+  .ae-hero-title span {
+    display: block;
+    color: var(--ae-amber);
+    font-size: clamp(1rem, 2.5vw, 1.6rem);
+    font-weight: 400;
+    letter-spacing: 0.2em;
+    margin-top: 0.3em;
+    text-shadow: none;
+  }
+
+  .ae-hero-tagline {
+    font-family: var(--ae-mono);
+    font-size: clamp(0.8rem, 1.4vw, 1.05rem);
+    color: var(--ae-text-muted);
+    margin-top: 1.5rem;
+    line-height: 1.8;
+    letter-spacing: 0.03em;
+  }
+
+  .ae-hero-tagline code {
+    font-family: var(--ae-mono);
+    font-size: 0.9em;
+    background: var(--ae-surface);
+    border: 1px solid var(--ae-border-lt);
+    padding: 0.1em 0.4em;
+    color: var(--ae-amber);
+  }
+
+  .ae-scroll-hint {
+    position: absolute;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1;
+    font-family: var(--ae-mono);
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--ae-text-muted);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    animation: ae-bounce 2s ease-in-out infinite;
+  }
+
+  .ae-scroll-hint::after {
+    content: '';
+    width: 1px;
+    height: 24px;
+    background: linear-gradient(to bottom, var(--ae-amber), transparent);
+  }
+
+  @keyframes ae-bounce {
+    0%, 100% { transform: translateX(-50%) translateY(0); }
+    50% { transform: translateX(-50%) translateY(8px); }
+  }
+
+  .ae-section {
+    position: relative;
+    padding: clamp(4rem,8vw,7rem) clamp(1.5rem,4vw,4rem);
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .ae-section-label {
+    font-family: var(--ae-mono);
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    color: var(--ae-amber-dim);
+    margin-bottom: 0.5rem;
+    display: block;
+  }
+
+  .ae-section-title {
+    font-family: var(--ae-mono);
+    font-size: clamp(1.5rem, 3vw, 2.2rem);
+    font-weight: 800;
+    text-transform: uppercase;
+    color: var(--ae-offwhite);
+    letter-spacing: 0.03em;
+    margin: 0 0 0.5em;
+  }
+
+  .ae-section-title::after {
+    content: '';
+    display: block;
+    width: 60px;
+    height: 3px;
+    background: var(--ae-amber);
+    margin-top: 0.6em;
+  }
+
+  .ae-features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
+    gap: 1.5rem;
+    margin-top: 2.5rem;
+  }
+
+  .ae-feature-card {
+    background: var(--ae-raised);
+    border: 3px solid var(--ae-black);
+    border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
+    box-shadow: var(--ae-shadow-deep);
+    padding: clamp(1.5rem,3vw,2.2rem);
+    position: relative;
+    overflow: hidden;
+    transition: transform var(--ae-t), box-shadow var(--ae-t), border-color var(--ae-t);
+  }
+
+  .ae-feature-card:nth-child(2) {
+    border-radius: 15px 225px 15px 255px / 225px 15px 255px 15px;
+    animation: ae-blob-card-morph 12s ease-in-out infinite;
+  }
+
+  .ae-feature-card:nth-child(3) {
+    border-radius: 225px 15px 255px 15px / 15px 255px 225px 15px;
+    animation: ae-blob-card-morph 10s ease-in-out infinite reverse;
+  }
+
+  .ae-feature-card:nth-child(4) {
+    border-radius: 15px 255px 225px 15px / 255px 15px 15px 225px;
+    animation: ae-blob-card-morph 14s ease-in-out infinite;
+  }
+
+  .ae-feature-card:nth-child(1) {
+    animation: ae-blob-card-morph 11s ease-in-out infinite reverse;
+  }
+
+  @keyframes ae-blob-card-morph {
+    0%, 100% { border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px; }
+    25% { border-radius: 15px 255px 15px 225px / 225px 15px 255px 15px; }
+    50% { border-radius: 225px 15px 255px 15px / 15px 255px 225px 15px; }
+    75% { border-radius: 15px 225px 15px 255px / 255px 15px 15px 225px; }
+  }
+
+  .ae-feature-card::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(ellipse at center, var(--ae-amber-glow), transparent 70%);
+    opacity: 0;
+    transition: opacity 0.5s ease;
+    pointer-events: none;
+  }
+
+  .ae-feature-card:hover {
+    transform: translateY(-3px);
+    border-color: var(--ae-amber-dim);
+    box-shadow: var(--ae-shadow-deep), 0 0 30px var(--ae-amber-glow);
+  }
+
+  .ae-feature-card:hover::after { opacity: 1; }
+
+  .ae-feature-card > * { position: relative; z-index: 1; }
+
+  .ae-feature-icon {
+    font-size: 2rem;
+    margin-bottom: 0.8rem;
+    display: block;
+    width: 48px;
+    height: 48px;
+    background: var(--ae-surface);
+    border: 2px solid var(--ae-border-lt);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--ae-mono);
+    font-weight: 700;
+    color: var(--ae-amber);
+    font-size: 1.1rem;
+  }
+
+  .ae-feature-name {
+    font-family: var(--ae-mono);
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 1rem;
+    color: var(--ae-amber);
+    margin: 0.6rem 0 0.4rem;
+    letter-spacing: 0.03em;
+  }
+
+  .ae-feature-desc {
+    font-size: 0.9rem;
+    color: var(--ae-text);
+    line-height: 1.6;
+    margin: 0;
+  }
+
+  .ae-divider {
+    border: none;
+    border-top: 2px solid var(--ae-border-lt);
+    margin: 0;
+    max-width: 1200px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .ae-stats {
+    padding: clamp(3rem,6vw,5rem) clamp(1.5rem,4vw,4rem);
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .ae-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
+    gap: 1.2rem;
+  }
+
+  .ae-stat-block {
+    background: var(--ae-black);
+    border: 3px solid var(--ae-black);
+    box-shadow: var(--ae-shadow-deep);
+    padding: clamp(1.2rem,3vw,2rem);
+    text-align: center;
+    transition: border-color var(--ae-t), transform var(--ae-t);
+  }
+
+  .ae-stat-block:hover {
+    border-color: var(--ae-amber-dim);
+    transform: translateY(-2px);
+  }
+
+  .ae-stat-value {
+    font-family: var(--ae-mono);
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    font-weight: 900;
+    color: var(--ae-amber);
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+  }
+
+  .ae-stat-label {
+    font-family: var(--ae-mono);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ae-text-muted);
+    margin-top: 0.5rem;
+  }
+
+  .ae-stat-note {
+    font-family: var(--ae-mono);
+    font-size: 0.65rem;
+    color: var(--ae-text-muted);
+    margin-top: 0.3rem;
+    opacity: 0.7;
+  }
+
+  .ae-cta {
+    padding: clamp(3rem,6vw,5rem) clamp(1.5rem,4vw,4rem);
+    text-align: center;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .ae-cta-text {
+    font-size: clamp(1rem,1.5vw,1.2rem);
+    color: var(--ae-text);
+    margin-bottom: 2rem;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+    line-height: 1.7;
+  }
+
+  .ae-btn-primary {
+    display: inline-block;
+    background: var(--ae-black);
+    border: 3px solid var(--ae-amber);
+    color: var(--ae-amber);
+    font-family: var(--ae-mono);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-size: 0.9rem;
+    padding: 0.8em 2.2em;
+    cursor: pointer;
+    transition: background var(--ae-t), color var(--ae-t), box-shadow var(--ae-t);
+    box-shadow: var(--ae-shadow-deep);
+    text-decoration: none;
+    border-bottom: none;
+  }
+
+  .ae-btn-primary:hover {
+    background: var(--ae-amber);
+    color: var(--ae-black);
+    box-shadow: var(--ae-shadow-deep), 0 0 20px var(--ae-amber-glow);
+    border-bottom: none;
+  }
+
+  .ae-btn-secondary {
+    display: inline-block;
+    background: transparent;
+    border: 2px solid var(--ae-border-lt);
+    color: var(--ae-text-muted);
+    font-family: var(--ae-mono);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.85rem;
+    padding: 0.7em 1.8em;
+    cursor: pointer;
+    transition: border-color var(--ae-t), color var(--ae-t);
+    text-decoration: none;
+    margin-left: 1rem;
+    border-bottom: none;
+  }
+
+  .ae-btn-secondary:hover {
+    border-color: var(--ae-amber);
+    color: var(--ae-amber);
+    border-bottom: none;
+  }
+
+  .ae-arch {
+    padding: clamp(3rem,6vw,5rem) clamp(1.5rem,4vw,4rem);
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .ae-arch-diagram {
+    background: var(--ae-raised);
+    border: 3px solid var(--ae-black);
+    border-radius: 0;
+    box-shadow: var(--ae-shadow-deep);
+    padding: clamp(1.5rem,3vw,2.5rem);
+    margin-top: 2rem;
+    overflow-x: auto;
+    font-family: var(--ae-mono);
+    font-size: 0.85rem;
+    color: var(--ae-text);
+    line-height: 1.5;
+    white-space: pre;
+  }
+
+  .ae-arch-diagram .ae-arch-comment {
+    color: var(--ae-text-muted);
+  }
+
+  .ae-arch-diagram .ae-arch-keyword {
+    color: var(--ae-amber);
+    font-weight: 700;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ae-mesh-nodes, .ae-mesh-nodes::after, .ae-feature-card,
+    .ae-scroll-hint, .ae-mesh-lines span {
+      animation: none !important;
+    }
+    .ae-feature-card:nth-child(1) { border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px; }
+    .ae-feature-card:nth-child(2) { border-radius: 15px 225px 15px 255px / 225px 15px 255px 15px; }
+    .ae-feature-card:nth-child(3) { border-radius: 225px 15px 255px 15px / 15px 255px 225px 15px; }
+    .ae-feature-card:nth-child(4) { border-radius: 15px 255px 225px 15px / 255px 15px 15px 225px; }
+  }
+
+  @media (max-width: 640px) {
+    .ae-hero-title { letter-spacing: 0.04em; }
+    .ae-stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .ae-mesh-lines { display: none; }
+  }
+</style>
+
+<div class="ae-home">
+
+  <section class="ae-hero">
+    <div class="ae-mesh">
+      <div class="ae-mesh-grid"></div>
+      <div class="ae-mesh-glow"></div>
+      <div class="ae-mesh-nodes"></div>
+      <div class="ae-mesh-lines">
+        <span></span><span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span><span></span>
+      </div>
+    </div>
+
+    <div class="ae-hero-content">
+      <div class="ae-hero-badge">v2.0 &mdash; Rust-Native Runtime</div>
+      <h1 class="ae-hero-title">
+        AETHER
+        <span>The Post-Container Application OS</span>
+      </h1>
+      <p class="ae-hero-tagline">
+        <code>WASM</code> actor runtime&ensp;&middot;&ensp;<code>QUIC</code> mesh networking&ensp;&middot;&ensp;Zero-trust security
+      </p>
+    </div>
+
+    <div class="ae-scroll-hint" aria-hidden="true">
+      scroll
+    </div>
+  </section>
+
+  <hr class="ae-divider">
+
+  <section class="ae-section">
+    <span class="ae-section-label">// core primitives</span>
+    <h2 class="ae-section-title">Built for the Edge-Native Era</h2>
+
+    <div class="ae-features-grid">
+      <div class="ae-feature-card">
+        <div class="ae-feature-icon" aria-hidden="true">W</div>
+        <h3 class="ae-feature-name">WASM Actors</h3>
+        <p class="ae-feature-desc">Lightweight sandboxed compute via wasmtime 25. Capability-based security, sub-100&micro;s cold starts, and 1M+ actors per node.</p>
+      </div>
+
+      <div class="ae-feature-card">
+        <div class="ae-feature-icon" aria-hidden="true">Q</div>
+        <h3 class="ae-feature-name">QUIC Mesh</h3>
+        <p class="ae-feature-desc">Ultra-low-latency networking with backpressure, circuit breakers, and automatic load balancing. &lt;1ms P99 mesh latency.</p>
+      </div>
+
+      <div class="ae-feature-card">
+        <div class="ae-feature-icon" aria-hidden="true">Z</div>
+        <h3 class="ae-feature-name">Zero Trust</h3>
+        <p class="ae-feature-desc">mTLS with Ed25519 certificates, RBAC authorization, deny-by-default policy, and secrets management via Vault &amp; cloud providers.</p>
+      </div>
+
+      <div class="ae-feature-card">
+        <div class="ae-feature-icon" aria-hidden="true">O</div>
+        <h3 class="ae-feature-name">Observability</h3>
+        <p class="ae-feature-desc">OTLP distributed tracing, Prometheus metrics, structured logging, and health aggregation. Full insight into every actor and message.</p>
+      </div>
+    </div>
+  </section>
+
+  <hr class="ae-divider">
+
+  <section class="ae-stats">
+    <span class="ae-section-label">// by the numbers</span>
+    <h2 class="ae-section-title">Performance at Scale</h2>
+
+    <div class="ae-stats-grid">
+      <div class="ae-stat-block">
+        <div class="ae-stat-value">&lt;100&micro;s</div>
+        <div class="ae-stat-label">Cold Start P99</div>
+        <div class="ae-stat-note">instance pooling + pre-compilation</div>
+      </div>
+
+      <div class="ae-stat-block">
+        <div class="ae-stat-value">2M+</div>
+        <div class="ae-stat-label">msg/sec throughput</div>
+        <div class="ae-stat-note">mesh with QUIC compression</div>
+      </div>
+
+      <div class="ae-stat-block">
+        <div class="ae-stat-value">2208</div>
+        <div class="ae-stat-label">tests passing</div>
+        <div class="ae-stat-note">unit, integration, property, fuzz, e2e</div>
+      </div>
+
+      <div class="ae-stat-block">
+        <div class="ae-stat-value">99.97%</div>
+        <div class="ae-stat-label">test success rate</div>
+        <div class="ae-stat-note">zero failures in CI</div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="ae-divider">
+
+  <section class="ae-cta">
+    <span class="ae-section-label">// get started</span>
+    <h2 class="ae-section-title">Ship Actors in Minutes</h2>
+    <p class="ae-cta-text">
+      Install the CLI, write your first actor in Rust, Go, Python, or JavaScript,
+      and deploy to a distributed cluster with a single command.
+    </p>
+    <div>
+      <a href="{{ 'getting-started/quickstart/' | url }}" class="ae-btn-primary">Quick Start &rarr;</a>
+      <a href="{{ 'architecture/overview/' | url }}" class="ae-btn-secondary">Architecture</a>
+    </div>
+  </section>
+
+  <hr class="ae-divider">
+
+  <section class="ae-arch">
+    <span class="ae-section-label">// system architecture</span>
+    <h2 class="ae-section-title">How Aether Works</h2>
+
+    <div class="mermaid">
+graph TB
+    subgraph Host["Rust Host Process"]
+        WASM["WASM Engine<br/>(wasmtime 25)"]
+        QUIC["QUIC Mesh<br/>Network"]
+        OPA["OPA Policy<br/>Engine"]
+        Scheduler["Actor<br/>Scheduler"]
+        Security["Security Layer<br/>(mTLS + RBAC)"]
+        State["State Store<br/>(FoundationDB)"]
+    end
+
+    subgraph Actors["WASM Actors"]
+        A1["Actor A"]
+        A2["Actor B"]
+        A3["Actor C"]
+    end
+
+    WASM --> Scheduler
+    Scheduler --> Actors
+    Actors -->|messages| QUIC
+    QUIC -->|mTLS| Security
+    Security --> OPA
+    A1 -->|invoke| A2
+    A2 -->|invoke| A3
+    Actors -->|state ops| State
+
+    style Host fill:#111,stroke:#f0a030,stroke-width:3px,color:#e8e5e0
+    style Actors fill:#1a1a1a,stroke:#333,stroke-width:2px,color:#e8e5e0
+    style WASM fill:#0a0a0a,stroke:#f0a030,stroke-width:2px,color:#f0a030
+    style QUIC fill:#0a0a0a,stroke:#f0a030,stroke-width:2px,color:#f0a030
+    style OPA fill:#0a0a0a,stroke:#f0a030,stroke-width:2px,color:#f0a030
+    style Security fill:#0a0a0a,stroke:#f0a030,stroke-width:2px,color:#f0a030
+    style State fill:#0a0a0a,stroke:#f0a030,stroke-width:2px,color:#f0a030
+    style Scheduler fill:#0a0a0a,stroke:#333,stroke-width:2px,color:#e8e5e0
+    style A1 fill:#0a0a0a,stroke:#333,stroke-width:1px,color:#e8e5e0
+    style A2 fill:#0a0a0a,stroke:#333,stroke-width:1px,color:#e8e5e0
+    style A3 fill:#0a0a0a,stroke:#333,stroke-width:1px,color:#e8e5e0
+    </div>
+  </section>
+
+</div>
+{% endblock %}
