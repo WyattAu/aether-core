@@ -92,7 +92,7 @@ proptest = { workspace = true }
 tokio-test = "0.4"
 wat = "1.220"
 criterion = { version = "0.5", features = ["html_reports"] }
-tempfile = "3.14"
+tempfile = "3.27"
 postcard = "1"
 
 [[bench]]
