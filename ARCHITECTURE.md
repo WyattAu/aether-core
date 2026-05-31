@@ -37,7 +37,7 @@ Aether is a next-generation runtime for distributed applications that replaces t
 
 | Metric | Target | Current |
 |--------|--------|---------|
-| Cold start (instantiate-only) | < 100us | ~61us |
+| Cold start (module pre-compiled, instantiation only) | < 100us | ~61us |
 | Actors per node | 100,000+ | Tested @ 100K |
 | Actor spawn throughput | > 100K/sec | ~378K/sec |
 | Intra-node latency | < 1ms | ~0.5ms |
@@ -452,7 +452,7 @@ bitflags! {
 5. Capability injection            ~2µs
 6. Ready signal                    ~1µs
 ────────────────────────────────────────
-Total:                            ~24µs (target: <50µs)
+Total:                            ~24us (target: <50us)
 ```
 
 ### Message Latency
@@ -563,13 +563,7 @@ See `crates/core/src/config/mod.rs` for all options.
 
 ## Contributing
 
-When adding new code:
-
-1. **No panics**: Use `Result<T>` everywhere
-2. **Document public APIs**: `#![warn(missing_docs)]`
-3. **Add capabilities**: For any privileged operation
-4. **Make it observable**: Add metrics and traces
-5. **Test it**: Unit tests + integration tests
+See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines.
 
 ---
 

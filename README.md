@@ -76,7 +76,7 @@ aether deploy
 
 ## Documentation
 
-[API Documentation](https://wyattau.github.io/aether-core/) -- Rust core (cargo doc), Python SDK (Sphinx), JavaScript SDK (TypeDoc)
+- [API Documentation](https://wyattau.github.io/aether-core/) (Rust core via `cargo doc`)
 
 - [Architecture Guide](.docs/architecture_overview.md)
 - [User Guide](.docs/user_guide.md)
@@ -158,7 +158,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md)
 
 ### Good First Issues
 
-New to the project? Look for [`good first issue`](https://github.com/WyattAu/aether-core/issues?q=is%3Aopen+label%3A%22good+first+issue%22) labels to get started.
+Contributors new to the project should review issues labeled [`good first issue`](https://github.com/WyattAu/aether-core/issues?q=is%3Aopen+label%3A%22good+first+issue%22) to get started.
 
 ---
 
@@ -169,7 +169,7 @@ New to the project? Look for [`good first issue`](https://github.com/WyattAu/aet
 - WASM (wasmtime 25), QUIC mesh, mTLS, RBAC, secrets management (Vault/AWS/GCP)
 - Multi-tenancy, chaos testing, OTLP tracing, MCP, AI integration
 - Firecracker VM, FDB state, OPA policy engine, distributed tracing
-- 1,912 tests passing (0 failed, 97 ignored -- require external infrastructure), zero clippy warnings, deny-all safety lints
+- All tests pass in CI (see [workflow](https://github.com/WyattAu/aether-core/actions/workflows/ci.yml)), zero clippy warnings, deny-all safety lints
 
 See [CHANGELOG.md](CHANGELOG.md) for full release history.
 

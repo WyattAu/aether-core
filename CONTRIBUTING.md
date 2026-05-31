@@ -1,6 +1,6 @@
 # Contributing to Aether
 
-Thank you for your interest in contributing to Project Aether! This document provides guidelines and instructions for contributing.
+This document describes the contribution workflow for Project Aether.
 
 ## Table of Contents
 
@@ -17,7 +17,7 @@ Thank you for your interest in contributing to Project Aether! This document pro
 
 ## Code of Conduct
 
-Please read and follow our [Code of Conduct](CODE_OF_CONDUCT.md). Be respectful, inclusive, and constructive in all interactions.
+Please read and follow our [Code of Conduct](CODE_OF_CONDUCT.md). All contributors must adhere to the Code of Conduct.
 
 ---
 
@@ -411,16 +411,16 @@ All major architectural decisions are documented as Architecture Decision Record
 Proposed | Accepted | Deprecated | Superseded
 
 ## Context
-What is the issue we're addressing?
+What is the issue being addressed?
 
 ## Decision
-What is the change we're proposing?
+What change is proposed?
 
 ## Consequences
 What are the positive and negative outcomes?
 
 ## Alternatives Considered
-What other options did we consider?
+What alternatives were considered?
 ```
 
 ---
@@ -451,4 +451,4 @@ Look for issues labeled `good first issue` or `help wanted` on GitHub.
 
 ## License
 
-By contributing to Aether, you agree that your contributions will be licensed under the project's license (see LICENSE file).
+By contributing to Aether, you agree that your contributions will be licensed under the Apache License 2.0 (see [LICENSE](LICENSE))..

@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-We release patches for security vulnerabilities for the following versions:
+Security patches are released for the following versions:
 
 | Version | Supported |
 | ------- | --------- |
@@ -34,7 +34,7 @@ When reporting a vulnerability, include:
 - **Initial Response**: Within 48 hours
 - **Triage and Assessment**: Within 5 business days
 - **Status Updates**: Every 7 days until resolution
-- **Fix Release**: Depends on severity and complexity
+- **Fix Release**: Severity-dependent (critical: 24h, high: 72h, medium: 7d, low: 14d)
 
 ### Disclosure Policy
 
