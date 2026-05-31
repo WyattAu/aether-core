@@ -57,7 +57,7 @@ getrandom = "0.3"
 bitflags = { version = "2.6", features = ["serde"] }
 blake3 = "1.5"
 uuid = { workspace = true }
-rand = "0.9"
+rand = "0.10"
 async-trait = "0.1"
 chrono = { version = "0.4", features = ["serde"] }
 time = "0.3"
