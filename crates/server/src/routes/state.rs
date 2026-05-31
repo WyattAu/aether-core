@@ -13,10 +13,10 @@ use std::sync::Arc;
 pub fn routes() -> Router<Arc<AppState>> {
     Router::new()
         .route(
-            "/api/v1/state/{actor_id}/{key}",
+            "/api/v1/state/:actor_id/:key",
             get(get_state).put(put_state).delete(delete_state),
         )
-        .route("/api/v1/state/{actor_id}", get(get_all_state))
+        .route("/api/v1/state/:actor_id", get(get_all_state))
 }
 
 async fn get_state(

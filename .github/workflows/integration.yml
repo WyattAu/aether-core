@@ -29,15 +29,15 @@ jobs:
           - os: macos-latest
             rust: stable
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@148c24f4344b6c4e29093d3e8b84be6a28897f5b
         with:
           toolchain: ${{ matrix.rust }}
           targets: wasm32-wasip1
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@923806f6a5b9ac6d707a178f02738743342a1789
 
       - name: Install FoundationDB client (Linux)
         if: runner.os == 'Linux'
@@ -67,15 +67,15 @@ jobs:
     name: End-to-End Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@148c24f4344b6c4e29093d3e8b84be6a28897f5b
         with:
           toolchain: nightly-2026-03-01
           targets: wasm32-wasip1
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@923806f6a5b9ac6d707a178f02738743342a1789
 
       - name: Install FoundationDB client
         run: |
@@ -100,7 +100,7 @@ jobs:
 
       - name: Upload e2e logs
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@654c28fbec712ddbf170266f20aa82b4a8e84e26
         with:
           name: e2e-logs
           path: |
@@ -112,14 +112,14 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@148c24f4344b6c4e29093d3e8b84be6a28897f5b
         with:
           toolchain: nightly-2026-03-01
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@923806f6a5b9ac6d707a178f02738743342a1789
 
       - name: Install FoundationDB client
         run: |
@@ -153,7 +153,7 @@ jobs:
           exit $CHAOS_EXIT
 
       - name: Upload chaos results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@654c28fbec712ddbf170266f20aa82b4a8e84e26
         if: always()
         with:
           name: chaos-results
@@ -164,14 +164,14 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@148c24f4344b6c4e29093d3e8b84be6a28897f5b
         with:
           toolchain: nightly-2026-03-01
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@923806f6a5b9ac6d707a178f02738743342a1789
 
       - name: Install FoundationDB client
         run: |
@@ -189,7 +189,7 @@ jobs:
           exit ${PIPESTATUS[0]}
 
       - name: Upload stress results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@654c28fbec712ddbf170266f20aa82b4a8e84e26
         if: always()
         with:
           name: stress-results

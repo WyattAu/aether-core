@@ -13,12 +13,12 @@ use std::sync::Arc;
 pub fn routes() -> Router<Arc<AppState>> {
     Router::new()
         .route(
-            "/api/v1/events/{actor_id}",
+            "/api/v1/events/:actor_id",
             get(get_events).post(publish_event),
         )
-        .route("/api/v1/pubsub/{topic}/subscribe", post(subscribe_topic))
-        .route("/api/v1/pubsub/{topic}/publish", post(publish_message))
-        .route("/api/v1/pubsub/{topic}", get(get_topic_messages))
+        .route("/api/v1/pubsub/:topic/subscribe", post(subscribe_topic))
+        .route("/api/v1/pubsub/:topic/publish", post(publish_message))
+        .route("/api/v1/pubsub/:topic", get(get_topic_messages))
 }
 
 async fn get_events(

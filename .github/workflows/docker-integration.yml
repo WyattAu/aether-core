@@ -24,10 +24,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@148c24f4344b6c4e29093d3e8b84be6a28897f5b
         with:
           toolchain: nightly-2026-03-01
           targets: wasm32-wasip1
@@ -104,7 +104,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@654c28fbec712ddbf170266f20aa82b4a8e84e26
         with:
           name: fdb-integration-results
           path: target/test-results/
@@ -115,10 +115,10 @@ jobs:
     needs: docker-integration
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@148c24f4344b6c4e29093d3e8b84be6a28897f5b
         with:
           toolchain: nightly-2026-03-01
 
@@ -239,7 +239,7 @@ jobs:
 
       - name: Upload cluster logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@654c28fbec712ddbf170266f20aa82b4a8e84e26
         with:
           name: docker-cluster-logs
           path: docker-cluster-logs.txt
@@ -267,13 +267,13 @@ jobs:
 
       - name: Download all test artifacts
         if: always()
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@65a9adbc1b9e016452a3365e6d87a636e8e2291f
         with:
           path: all-test-results
 
       - name: Upload combined test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@654c28fbec712ddbf170266f20aa82b4a8e84e26
         with:
           name: docker-integration-combined-results
           path: all-test-results/

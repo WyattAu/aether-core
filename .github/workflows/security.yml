@@ -24,10 +24,10 @@ jobs:
       security-events: write
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@148c24f4344b6c4e29093d3e8b84be6a28897f5b
         with:
           toolchain: nightly-2026-03-01
 
@@ -103,7 +103,7 @@ jobs:
           fi
       
       - name: Upload SARIF results
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@382eb82952427676a27a9c07b9e80514daa2d83c
         with:
           sarif_file: audit.sarif
           category: cargo-audit
@@ -120,7 +120,7 @@ jobs:
           fi
       
       - name: Upload audit results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@654c28fbec712ddbf170266f20aa82b4a8e84e26
         if: always()
         with:
           name: security-audit
@@ -133,10 +133,10 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       
       - name: Dependency Review
-        uses: actions/dependency-review-action@v4
+        uses: actions/dependency-review-action@91221dab0253ba3b2331b6e9db7f6058be18a8e6
         with:
           fail-on-severity: high
           allow-licenses: Apache-2.0, MIT, BSD-2-Clause, BSD-3-Clause, ISC, MPL-2.0, Unicode-DFS-2016, Zlib
@@ -148,16 +148,16 @@ jobs:
       security-events: write
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@382eb82952427676a27a9c07b9e80514daa2d83c
         with:
           languages: rust
           queries: security-and-quality
       
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@148c24f4344b6c4e29093d3e8b84be6a28897f5b
         with:
           toolchain: nightly-2026-03-01
 
@@ -176,7 +176,7 @@ jobs:
         run: cargo build --workspace --all-features
       
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@382eb82952427676a27a9c07b9e80514daa2d83c
         with:
           category: rust-security
 
@@ -184,12 +184,12 @@ jobs:
     name: Secrets Scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           fetch-depth: 0
       
       - name: Run Gitleaks
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@e7752d4e6638922a58cc2e0c65f45155ea86cfb8
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -197,10 +197,10 @@ jobs:
     name: License Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@148c24f4344b6c4e29093d3e8b84be6a28897f5b
         with:
           toolchain: nightly-2026-03-01
       
@@ -222,7 +222,7 @@ jobs:
           echo "License check passed!"
       
       - name: Upload license report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@654c28fbec712ddbf170266f20aa82b4a8e84e26
         with:
           name: license-report
           path: licenses.txt
@@ -234,27 +234,27 @@ jobs:
       security-events: write
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@148c24f4344b6c4e29093d3e8b84be6a28897f5b
         with:
           toolchain: nightly-2026-03-01
 
       - name: Generate SBOM with Syft
-        uses: anchore/sbom-action@v0
+        uses: anchore/sbom-action@517a82f3e0c4e2e167f3be615b76fb3070a5df57
         with:
           format: cyclonedx-json
           output-file: sbom.cdx.json
 
       - name: Upload SBOM artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@654c28fbec712ddbf170266f20aa82b4a8e84e26
         with:
           name: sbom-cyclonedx
           path: sbom.cdx.json
 
       - name: Upload SBOM for dependency tracking
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@382eb82952427676a27a9c07b9e80514daa2d83c
         if: always()
         continue-on-error: true
         with:

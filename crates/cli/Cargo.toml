@@ -33,5 +33,10 @@ tokio-tungstenite = { version = "0.26", features = ["rustls-tls-webpki-roots"] }
 notify = "6.1"
 reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
 
+[dev-dependencies]
+assert_cmd = "2"
+trycmd = "0.15"
+predicates = "3"
+
 [lints]
 workspace = true

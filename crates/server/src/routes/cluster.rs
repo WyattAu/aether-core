@@ -14,7 +14,7 @@ pub fn routes() -> Router<Arc<AppState>> {
     Router::new()
         .route("/api/v1/cluster/nodes", get(list_nodes))
         .route(
-            "/api/v1/cluster/nodes/{node_id}",
+            "/api/v1/cluster/nodes/:node_id",
             get(get_node).delete(remove_node),
         )
         .route("/api/v1/cluster/join", post(join_cluster))

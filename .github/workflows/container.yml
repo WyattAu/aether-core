@@ -29,17 +29,17 @@ jobs:
       digest: ${{ steps.build.outputs.digest }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@49b3bc8e6bdd4a60e6116a5414239cba5943d3cf
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@d70bba9e6dc7d6a82ae3ac99f96f9f5b0ea8f369
 
       - name: Log in to Container Registry
         if: github.event_name != 'pull_request'
-        uses: docker/login-action@v3
+        uses: docker/login-action@e9d90e5f6e9f1e260c9cdeb2e29d4dbe11b8e3b3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -47,7 +47,7 @@ jobs:
 
       - name: Extract metadata
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@db97c247a8063ddb20004acedaa4c014d5a41495
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
@@ -61,7 +61,7 @@ jobs:
 
       - name: Build and push
         id: build
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@471d14dc28dbda73b6b29e5a4b6a4a870b2b07a3
         with:
           context: .
           file: ./Dockerfile
@@ -76,7 +76,7 @@ jobs:
 
       - name: Generate artifact attestation
         if: github.event_name != 'pull_request'
-        uses: actions/attest-build-provenance@v1
+        uses: actions/attest-build-provenance@1c4988873b77425d94b6cb5c6ac09e52f909d10a
         with:
           subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           subject-digest: ${{ steps.build.outputs.digest }}
@@ -89,13 +89,13 @@ jobs:
     if: github.event_name != 'pull_request'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Build image locally for scanning
         run: docker build -t aether-core:scan -f ./Dockerfile .
 
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@v0.28.0
+        uses: aquasecurity/trivy-action@8854e74eb5317046bdf8d4a4d37a387affa15d41
         with:
           image-ref: 'aether-core:scan'
           format: 'sarif'
@@ -103,13 +103,13 @@ jobs:
           severity: 'CRITICAL,HIGH'
 
       - name: Upload Trivy scan results
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@382eb82952427676a27a9c07b9e80514daa2d83c
         with:
           sarif_file: 'trivy-results.sarif'
           category: 'container-vulnerabilities'
 
       - name: Run Trivy for exit code
-        uses: aquasecurity/trivy-action@v0.28.0
+        uses: aquasecurity/trivy-action@8854e74eb5317046bdf8d4a4d37a387affa15d41
         with:
           image-ref: 'aether-core:scan'
           format: 'table'
@@ -123,10 +123,10 @@ jobs:
     needs: build
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Log in to Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@e9d90e5f6e9f1e260c9cdeb2e29d4dbe11b8e3b3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}

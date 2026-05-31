@@ -38,7 +38,7 @@ jobs:
     container:
       image: ghcr.io/tlaplus/tlaplus:latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Run TLC — ${{ matrix.spec.name }}
         working-directory: .specs/02_architecture/proofs
@@ -52,7 +52,7 @@ jobs:
 
       - name: Upload TLC output
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@654c28fbec712ddbf170266f20aa82b4a8e84e26
         with:
           name: tlc-${{ matrix.spec.name }}
           path: .specs/02_architecture/proofs/${{ matrix.spec.tla }}.*

@@ -26,12 +26,12 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@42375524e23c591e6cc1a578853edd1d6c9435e2
         with:
-          python-version: '3.12'
+          python-version: '3.11'
 
       - name: Install MkDocs and dependencies
         run: |
@@ -46,10 +46,10 @@ jobs:
         run: cp docs-site/.nojekyll docs-site/site/.nojekyll
 
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@56afc6097d775178f52524783378180af0d1f8
         with:
           path: docs-site/site
 
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@1f7e34d2a9c03e4aa291a14df5e6e792c0a23673

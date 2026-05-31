@@ -24,9 +24,14 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ github.event.inputs.environment || 'staging' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - name: Setup Helm
-        uses: azure/setup-helm@v4
+        uses: azure/setup-helm@b5b0e9765b9e647c2a659bf28a2dc0b242e5a616
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBECONFIG }}" | base64 -d > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
       - name: Deploy with Helm
         run: |
           helm upgrade --install aether deploy/helm/aether/ \

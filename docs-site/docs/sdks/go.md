@@ -1,6 +1,6 @@
 # Go SDK
 
-The Go SDK provides a idiomatic Go interface for building Aether actors.
+The Go SDK provides an idiomatic Go interface for building Aether actors using the `BaseActor` embedding pattern with `context.Context` throughout.
 
 ## Installation
 
@@ -14,119 +14,146 @@ go get github.com/WyattAu/aether-core/sdks/go
 package main
 
 import (
+    "context"
     "fmt"
     "github.com/WyattAu/aether-core/sdks/go/aether"
 )
 
 type HelloActor struct {
-    aether.Actor
+    *aether.BaseActor
 }
 
-func (a *HelloActor) HandleMessage(sender string, msg aether.Message) (aether.Message, error) {
+func (a *HelloActor) HandleMessage(ctx context.Context, sender string, msg *aether.Message) (*aether.Message, error) {
     payload, ok := msg.Payload.(string)
     if !ok {
-        return aether.Message{}, fmt.Errorf("invalid payload")
+        return nil, aether.InvalidMessage("expected string payload", nil)
     }
-    
-    return aether.Message{
-        Type:    aether.MessageTypeResponse,
-        Payload: fmt.Sprintf("Hello, %s!", payload),
-    }, nil
+
+    return aether.NewResponse(msg, fmt.Sprintf("Hello, %s!", payload)), nil
 }
 
 func main() {
-    actor := &HelloActor{}
-    actor.Name = "hello-actor"
-    actor.Require("ACTOR_MESSAGING", "LOG")
-    
-    if err := actor.Start(); err != nil {
-        panic(err)
+    actor := aether.NewBaseActor("hello-actor")
+    hello := &HelloActor{BaseActor: actor}
+    hello.Require(aether.CapabilityNetworkOutbound, aether.CapabilityLog)
+
+    ctx := context.Background()
+    if err := hello.Run(ctx); err != nil {
+        fmt.Printf("actor error: %v\n", err)
     }
-    defer actor.Stop()
-    
-    actor.Run()
 }
 ```
 
 ## Core Types
 
-### Actor
+### BaseActor
 
-The `Actor` struct is the base for all Aether actors:
+`BaseActor` is the embeddable base struct implementing the `Actor` interface. Override methods by defining them on your embedding struct:
 
 ```go
-type Actor struct {
-    Name        string
-    Capabilities CapabilitySet
-    State       *State
+// Actor is the interface all actors implement.
+type Actor interface {
+    Name() string
+    HandleMessage(ctx context.Context, sender string, message *Message) (*Message, error)
+    OnStart(ctx context.Context) error
+    OnStop(ctx context.Context) error
 }
 
-// Lifecycle methods
-func (a *Actor) Start() error
-func (a *Actor) Stop() error
-func (a *Actor) Run()
+// BaseActor provides default no-op implementations.
+type BaseActor struct {
+    // Function hooks for optional override without full struct embedding.
+    OnStartFunc        func(ctx context.Context) error
+    OnStopFunc         func(ctx context.Context) error
+    HandleMessageFunc  func(ctx context.Context, sender string, msg *Message) (*Message, error)
+}
 
-// Capability management
-func (a *Actor) Require(caps ...string)
-func (a *Actor) Has(cap string) bool
+func NewBaseActor(name string) *BaseActor
+func (a *BaseActor) Require(caps ...Capability)
+func (a *BaseActor) Capabilities() *CapabilitySet
+func (a *BaseActor) State() *StateHandle
+func (a *BaseActor) Send(ctx context.Context, target string, msg *Message) error
+func (a *BaseActor) Call(ctx context.Context, target string, request *Message, timeout time.Duration) (any, error)
+func (a *BaseActor) Run(ctx context.Context) error
+func (a *BaseActor) Stop()
+func (a *BaseActor) IsRunning() bool
 ```
 
 ### Message
 
-Messages are the primary communication mechanism:
+Messages are passed as pointers. Use constructor functions for creation:
 
 ```go
 type Message struct {
-    ID        string
-    Type      MessageType
-    Sender    string
-    Target    string
-    Payload   interface{}
-    Timestamp time.Time
+    Type         MessageType
+    Payload      any
+    Sender       string
+    CorrelationID string
+    Priority     Priority
+    Timestamp    time.Time
+    Metadata     map[string]string
 }
 
-type MessageType int
+type MessageType string
 
 const (
-    MessageTypeRequest    MessageType = iota
-    MessageTypeResponse
-    MessageTypeEvent
-    MessageTypeRPCRequest
-    MessageTypeRPCResponse
+    MessageTypeRequest     MessageType = "request"
+    MessageTypeResponse    MessageType = "response"
+    MessageTypeEvent      MessageType = "event"
+    MessageTypeRPCRequest  MessageType = "rpc_request"
+    MessageTypeRPCResponse MessageType = "rpc_response"
+    MessageTypeError      MessageType = "error"
 )
+
+// Constructors
+func NewMessage(msgType MessageType, payload any) *Message
+func NewResponse(request *Message, payload any) *Message
+func NewRPCRequest(sender string, payload any, correlationID string) *Message
+func NewRPCResponse(request *Message, payload any) *Message
 ```
 
 ### Capability
 
-Capabilities control what an actor can do:
+Capabilities are typed constants, not strings:
 
 ```go
-// Standard capabilities
+type Capability int
+
 const (
-    CapStateRead      = "STATE_READ"
-    CapStateWrite     = "STATE_WRITE"
-    CapNetworkOutbound = "NETWORK_OUTBOUND"
-    CapActorMessaging = "ACTOR_MESSAGING"
-    CapLog           = "LOG"
-    CapTime          = "TIME"
-    CapRandom        = "RANDOM"
-    CapAIUse         = "AI_USE"
+    CapabilityNetworkOutbound Capability = iota
+    CapabilityNetworkInbound
+    CapabilityActorMessaging
+    CapabilityStateRead
+    CapabilityStateWrite
+    CapabilityLog
+    CapabilityTime
+    CapabilityRandom
+    CapabilityFSRead
+    CapabilityFSWrite
+    CapabilityEnvironment
+    CapabilityHTTPClient
+    CapabilityHTTPServer
+    CapabilityProcessSpawn
 )
+
+func NewCapabilitySet(caps ...Capability) *CapabilitySet
+func (cs *CapabilitySet) Has(cap Capability) bool
+func (cs *CapabilitySet) HasNetwork() bool
+func (cs *CapabilitySet) HasState() bool
 ```
 
-### State
+### StateHandle
 
-State provides persistent storage:
+All state methods require `context.Context`:
 
 ```go
-type State struct {}
+type StateHandle struct{}
 
-func (s *State) Read(key string) ([]byte, error)
-func (s *State) Write(key string, value []byte) error
-func (s *State) Delete(key string) error
-func (s *State) ListKeys(prefix string) ([]string, error)
-func (s *State) Exists(key string) (bool, error)
-func (s *State) Clear() error
+func (s *StateHandle) Read(ctx context.Context, key string) ([]byte, error)
+func (s *StateHandle) Write(ctx context.Context, key string, value []byte) error
+func (s *StateHandle) Delete(ctx context.Context, key string) error
+func (s *StateHandle) ListKeys(ctx context.Context, prefix string) ([]string, error)
+func (s *StateHandle) Exists(ctx context.Context, key string) (bool, error)
+func (s *StateHandle) Clear(ctx context.Context) error
 ```
 
 ## Examples
@@ -135,46 +162,41 @@ func (s *State) Clear() error
 
 ```go
 type CounterActor struct {
-    aether.Actor
-    count int
+    *aether.BaseActor
+    count    int
     stateKey string
 }
 
-func (a *CounterActor) OnStart() error {
-    a.stateKey = fmt.Sprintf("counter_%s", a.Name)
-    
-    // Load persisted count
-    data, err := a.State.Read(a.stateKey)
+func (a *CounterActor) OnStart(ctx context.Context) error {
+    a.stateKey = fmt.Sprintf("counter_%s", a.Name())
+
+    data, err := a.State().Read(ctx, a.stateKey)
     if err == nil {
-        a.count = bytesToInt(data)
+        a.count = int(binary.BigEndian.Uint64(data))
     }
     return nil
 }
 
-func (a *CounterActor) HandleMessage(sender string, msg aether.Message) (aether.Message, error) {
-    payload, _ := msg.Payload.(map[string]interface{})
-    action := payload["action"].(string)
-    
+func (a *CounterActor) HandleMessage(ctx context.Context, sender string, msg *aether.Message) (*aether.Message, error) {
+    payload, _ := msg.Payload.(map[string]any)
+    action, _ := payload["action"].(string)
+
     switch action {
     case "increment":
         a.count++
-        a.saveState()
-        return aether.Message{
-            Type: aether.MessageTypeResponse,
-            Payload: map[string]interface{}{"count": a.count},
-        }, nil
+        a.saveState(ctx)
+        return aether.NewResponse(msg, map[string]any{"count": a.count}), nil
     case "get":
-        return aether.Message{
-            Type: aether.MessageTypeResponse,
-            Payload: map[string]interface{}{"count": a.count},
-        }, nil
+        return aether.NewResponse(msg, map[string]any{"count": a.count}), nil
+    default:
+        return nil, fmt.Errorf("unknown action: %s", action)
     }
-    
-    return aether.Message{}, fmt.Errorf("unknown action: %s", action)
 }
 
-func (a *CounterActor) saveState() {
-    a.State.Write(a.stateKey, intToBytes(a.count))
+func (a *CounterActor) saveState(ctx context.Context) {
+    buf := make([]byte, 8)
+    binary.BigEndian.PutUint64(buf, uint64(a.count))
+    a.State().Write(ctx, a.stateKey, buf)
 }
 ```
 
@@ -183,19 +205,36 @@ func (a *CounterActor) saveState() {
 ```go
 import "github.com/WyattAu/aether-core/sdks/go/aether"
 
-// Use structured errors
-return aether.Message{}, aether.ErrorInternal("something went wrong")
-return aether.Message{}, aether.ErrorStorageRead("failed to read state")
-return aether.Message{}, aether.ErrorStorageWrite("failed to write state")
+// Structured errors with code, message, and optional cause
+return nil, aether.InternalError("something went wrong", err)
+return nil, aether.StateError("read", err)
+
+// Error type checking
+var e *aether.Error
+if errors.As(err, &e) && e.IsCapabilityDenied() {
+    // handle missing capability
+}
 ```
+
+## Sub-Packages
+
+| Package | Description |
+|---------|-------------|
+| `aether/streaming` | Stream processing, tumbling/sliding/session windows, backpressure, batching, zero-copy buffers |
+| `aether/resilience` | Circuit breaker, retry with backoff, rate limiter, bulkhead, health checks, resilient executor |
+| `aether/validation` | Fluent validators, sanitization, schema validation |
+| `aether/workflow` | Saga orchestration, state machines, human tasks |
+| `aether.Client` | HTTP client for the Aether server REST API with functional options |
 
 ## Best Practices
 
-1. **Always declare capabilities**: Use `Require()` before `Start()`
-2. **Handle errors gracefully**: Return errors, don't panic
-3. **Persist state**: Save state changes immediately after modification
-4. **Use typed payloads**: Define structs for message payloads
-5. **Clean shutdown**: Always call `Stop()` when done
+1. **Embed `*aether.BaseActor`**: Override only the methods you need; default implementations are no-op
+2. **Always declare capabilities**: Call `Require()` before `Run()`
+3. **Pass `context.Context`**: All methods accept context as the first parameter
+4. **Use message constructors**: `NewResponse`, `NewMessage` instead of struct literals
+5. **Persist state immediately**: Call `State().Write()` after state mutations
+6. **Use typed payloads**: Define structs for message payloads instead of `map[string]any`
+7. **Clean shutdown**: The `Run()` method blocks; call `Stop()` from a signal handler
 
 ## API Reference
 

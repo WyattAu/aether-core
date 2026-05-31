@@ -15,14 +15,14 @@ pub fn routes() -> Router<Arc<AppState>> {
     Router::new()
         .route("/api/v1/actors", post(register_actor).get(list_actors))
         .route(
-            "/api/v1/actors/{actor_id}",
+            "/api/v1/actors/:actor_id",
             get(get_actor).delete(deregister_actor),
         )
         .route(
-            "/api/v1/actors/{actor_id}/messages",
+            "/api/v1/actors/:actor_id/messages",
             post(send_message).get(get_inbox),
         )
-        .route("/api/v1/actors/{actor_id}/heartbeat", post(heartbeat))
+        .route("/api/v1/actors/:actor_id/heartbeat", post(heartbeat))
 }
 
 async fn register_actor(

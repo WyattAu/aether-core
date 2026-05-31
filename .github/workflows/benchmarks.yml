@@ -23,12 +23,12 @@ jobs:
       contents: write
       deployments: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           fetch-depth: 0
       
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@148c24f4344b6c4e29093d3e8b84be6a28897f5b
         with:
           toolchain: nightly-2026-03-01
 
@@ -61,7 +61,7 @@ jobs:
       
       - name: Download previous baseline
         continue-on-error: true
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@65a9adbc1b9e016452a3365e6d87a636e8e2291f
         with:
           name: benchmark-baseline
           path: target/criterion
@@ -95,7 +95,7 @@ jobs:
       - name: Store benchmark result
         if: hashFiles('benchmark-results.txt') != ''
         continue-on-error: true
-        uses: benchmark-action/github-action-benchmark@v1
+        uses: benchmark-action/github-action-benchmark@d3d8078116f4c36475c95bfaf9a84236b93f5494
         with:
           tool: 'cargo'
           output-file-path: benchmark-results.txt
@@ -107,7 +107,7 @@ jobs:
           alert-comment-cc-users: '@${{ github.actor }}'
       
       - name: Upload benchmark results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@654c28fbec712ddbf170266f20aa82b4a8e84e26
         with:
           name: benchmark-results
           path: |
@@ -116,7 +116,7 @@ jobs:
       
       - name: Update baseline on main
         if: github.ref == 'refs/heads/main'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@654c28fbec712ddbf170266f20aa82b4a8e84e26
         with:
           name: benchmark-baseline
           path: target/criterion
@@ -127,12 +127,12 @@ jobs:
     needs: benchmark
     if: always() && needs.benchmark.result == 'success'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           fetch-depth: 0
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@148c24f4344b6c4e29093d3e8b84be6a28897f5b
         with:
           toolchain: nightly-2026-03-01
 
@@ -159,7 +159,7 @@ jobs:
 
       - name: Download previous baseline
         continue-on-error: true
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@65a9adbc1b9e016452a3365e6d87a636e8e2291f
         with:
           name: benchmark-baseline
           path: target/criterion
@@ -201,7 +201,7 @@ jobs:
           echo '```' >> $GITHUB_STEP_SUMMARY
 
       - name: Upload regression results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@654c28fbec712ddbf170266f20aa82b4a8e84e26
         if: always()
         with:
           name: regression-results
@@ -213,10 +213,10 @@ jobs:
     name: Memory Usage Benchmark
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@148c24f4344b6c4e29093d3e8b84be6a28897f5b
         with:
           toolchain: nightly-2026-03-01
 
@@ -249,7 +249,7 @@ jobs:
           fi
       
       - name: Upload memory report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@654c28fbec712ddbf170266f20aa82b4a8e84e26
         if: always()
         with:
           name: memory-benchmark
@@ -261,10 +261,10 @@ jobs:
     name: Startup Time Benchmark
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@148c24f4344b6c4e29093d3e8b84be6a28897f5b
         with:
           toolchain: nightly-2026-03-01
 
@@ -308,10 +308,10 @@ jobs:
         working-directory: sdks/python
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@42375524e23c591e6cc1a578853edd1d6c9435e2
         with:
           python-version: '3.11'
           cache: 'pip'
@@ -329,7 +329,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload benchmark results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@654c28fbec712ddbf170266f20aa82b4a8e84e26
         if: always()
         with:
           name: python-sdk-benchmark-results
@@ -343,15 +343,15 @@ jobs:
         working-directory: sdks/javascript
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8
         with:
           node-version: '20'
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@d6b3bfb0e4eaf29a4930e0d4e1dc905c2cc51f33
         with:
           version: 10
 
@@ -363,7 +363,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload benchmark results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@654c28fbec712ddbf170266f20aa82b4a8e84e26
         if: always()
         with:
           name: js-sdk-benchmark-results

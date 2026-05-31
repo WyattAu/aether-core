@@ -510,7 +510,7 @@ All priority tasks have been completed:
 3. [PASS] Documentation completion (8 documents, 4,000+ lines)
 4. [PASS] Chaos testing infrastructure (5 test files, comprehensive coverage)
 
-**Project Status:** v2.0.0 released (2026-05-08)
+**Project Status:** v2.0.0 released (2026-05-26)
 
 ---
 

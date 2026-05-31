@@ -23,7 +23,7 @@ jobs:
       version: ${{ steps.version.outputs.version }}
       prerelease: ${{ steps.version.outputs.prerelease }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       
       - name: Extract version
         id: version
@@ -66,10 +66,10 @@ jobs:
             os: macos-latest
             artifact: aether-darwin-arm64
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@148c24f4344b6c4e29093d3e8b84be6a28897f5b
         with:
           toolchain: nightly-2026-03-01
           targets: ${{ matrix.target }}
@@ -103,7 +103,7 @@ jobs:
           tar -czf ../../../${{ matrix.artifact }}.tar.gz aether-cli
       
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@654c28fbec712ddbf170266f20aa82b4a8e84e26
         with:
           name: ${{ matrix.artifact }}
           path: ${{ matrix.artifact }}.tar.gz
@@ -113,10 +113,10 @@ jobs:
     needs: validate
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@148c24f4344b6c4e29093d3e8b84be6a28897f5b
         with:
           toolchain: nightly-2026-03-01
           targets: wasm32-wasip1
@@ -136,7 +136,7 @@ jobs:
         run: tar -czf wasm-examples.tar.gz -C wasm-artifacts .
       
       - name: Upload WASM artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@654c28fbec712ddbf170266f20aa82b4a8e84e26
         with:
           name: wasm-examples
           path: wasm-examples.tar.gz
@@ -148,7 +148,7 @@ jobs:
     outputs:
       changelog: ${{ steps.changelog.outputs.changelog }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           fetch-depth: 0
       
@@ -179,10 +179,10 @@ jobs:
     needs: [validate, build]
     if: needs.validate.outputs.prerelease == 'false'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@148c24f4344b6c4e29093d3e8b84be6a28897f5b
         with:
           toolchain: nightly-2026-03-01
       
@@ -206,10 +206,10 @@ jobs:
     needs: [validate, build, build-wasm, generate-changelog]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@65a9adbc1b9e016452a3365e6d87a636e8e2291f
         with:
           path: artifacts
       
@@ -221,7 +221,7 @@ jobs:
           sha256sum * > checksums.sha256
       
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@da7382e855376088d6f6869c57c57e3a2cf99519
         with:
           name: Release ${{ github.ref_name }}
           body: |
@@ -254,17 +254,6 @@ jobs:
           draft: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  update-homebrew:
-    name: Update Homebrew Formula
-    runs-on: ubuntu-latest
-    needs: release
-    if: needs.validate.outputs.prerelease == 'false'
-    steps:
-      - name: Update tap
-        run: |
-          echo "TODO: Update homebrew-aether tap with version ${{ needs.validate.outputs.version }}"
-          echo "This would trigger a PR to the homebrew tap repository"
 
   notify:
     name: Notify
