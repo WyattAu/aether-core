@@ -31,7 +31,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup Python
-        uses: actions/setup-python@42375524e23c591e6cc1a578853edd1d6c9435e2
+        uses: actions/setup-python@0a5c615913e4abef308c4d70791a5a2a3eb62383
         with:
           python-version: '3.11'
 
@@ -48,10 +48,10 @@ jobs:
         run: cp docs-site/.nojekyll docs-site/site/.nojekyll
 
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@56afc6097d775178f52524783378180af0d1f8
+        uses: actions/upload-pages-artifact@56afc6097d7530ff81ddaa5e9282828b55a8a1d9
         with:
           path: docs-site/site
 
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@1f7e34d2a9c03e4aa291a14df5e6e792c0a23673
+        uses: actions/deploy-pages@d6db901f6cf9298efe76f48639015af9d534997d
