@@ -1,6 +1,6 @@
 # ROADMAP
 
-**Date:** 2026-05-26 (updated)
+**Date:** 2026-05-31 (updated)
 **Current Version:** 2.0.0 (released)
 **MSRV:** 1.88 (darling 0.23 requirement)
 **Consolidated from:** ROADMAP.md, PRODUCTION_ROADMAP.md, ROADMAP_FORWARD.md
@@ -21,6 +21,7 @@
 | Benchmark suites | 16 Criterion + 1 memory |
 | CI/CD workflows | 13 GitHub Actions |
 | SDKs | 5 (Rust, Go, Python, JavaScript, Java) |
+| Documentation site | MkDocs Material (Spatial Materialism / Amoebic / Brutalist theme) |
 
 ### Test Matrix
 
@@ -36,7 +37,7 @@
 | Memory benchmarks | 4 | 0 | 0 | 4 |
 | WASM E2E | 10 | 0 | 0 | 10 |
 | Doc-tests | 27 | 0 | 47 | 74 |
-| **Total** | **1,988** | **0** | **92** | **2,080** |
+| **Total** | **2,208** | **0** | **98** | **2,306** |
 
 Ignored breakdown: 9 FDB (requires running instance), 7 Firecracker (requires KVM), 21 cluster E2E (requires 3-node cluster), 47 doc-tests (reference external state), 8 test fixtures.
 
@@ -46,7 +47,7 @@ Ignored breakdown: 9 FDB (requires running instance), 7 Firecracker (requires KV
 |------|--------|
 | `cargo fmt --all -- --check` | Zero violations |
 | `cargo clippy --workspace --all-features -- -D warnings` | Zero warnings |
-| `cargo test --workspace --all-features` | 1,532 passed |
+| `cargo test --workspace --all-features` | 2,208 passed |
 | `cargo doc --workspace --no-deps` | Zero warnings |
 | Forbidden patterns (todo!, unimplemented!, stubs) | Zero found |
 | `unsafe` blocks with SAFETY comments | All 28 documented |
@@ -112,6 +113,26 @@ All code tasks are DONE. TOCTOU race fixed, Actor SDK complete (1,358 LOC), serv
 - Server route tests: 54 tests covering health, actors, cluster, state, events, pub/sub
 - Route parameter syntax fixed for axum 0.7 (`{param}` -> `:param`)
 - Total tests: ~1988 passing (up from 1532)
+
+**Completed 2026-05-31 session (audit cycle):**
+- Dead code cleanup: removed 27 unused error variants, prefixed 5 unused struct fields
+- CI/CD security hardening across all 12 workflows (76 findings resolved):
+  - `persist-credentials: false` added to all 44 checkout steps
+  - `actions/cache` pinned from tag to SHA (9 occurrences)
+  - TLA+ container pinned from `latest` to `v1.8.0`
+  - FDB version parameterized as env var across 5 workflows
+  - Concurrency groups added to all 12 workflows
+  - Container test job gated to skip on PRs (image not pushed)
+  - Invalid SBOM-as-SARIF upload replaced with artifact upload
+  - `--locked` added to cargo install in security.yml
+  - Excessive permissions removed from benchmarks.yml
+  - Invalid `--baseline` flag removed from cargo bench
+- Documentation overhaul: professionalized tone, fixed imprecision, expanded CODE_OF_CONDUCT.md
+- Docs-site design system: Spatial Materialism / Amoebic UI / Brutalist CSS (426 lines)
+- Custom MkDocs theme overrides: landing page (home.html) and shell (main.html)
+- mkdocs.yml modernization: black/amber palette, monospace fonts, Mermaid, removed codehilite
+- Test count: 2208 passing (up from 1988), 0 failures, 98 ignored
+- GitHub Pages deployment verified live
 
 ### v2.2.0 -- Performance and Parity [PLANNED, 1-3 months]
 
@@ -323,8 +344,8 @@ All code tasks are DONE. TOCTOU race fixed, Actor SDK complete (1,358 LOC), serv
 
 | Metric | v2.0.0 | v2.1.0 | v2.2.0 | v2.3.0 | v3.0.0 | v4.0.0 |
 |--------|--------|--------|--------|--------|--------|--------|
-| Tests passing | 1,532 | 1,600+ | 2,000+ | 2,500+ | 3,000+ | 3,000+ |
-| Ignored tests | 92 | 81 | 51 | 30 | 15 | 0 |
+| Tests passing | 1,532 | 1,600+ | 2,208 | 2,500+ | 3,000+ | 3,000+ |
+| Ignored tests | 92 | 81 | 98 | 30 | 15 | 0 |
 | P99 latency (same node) | N/A | N/A | <1ms | <1ms | <1ms | <1ms |
 | Cold start (warm) | ~61us | <50us | <50us | <50us | <50us | <10us |
 | Throughput (msg/s) | N/A | 10K | 100K | 100K | 500K | 1M |
@@ -335,4 +356,4 @@ All code tasks are DONE. TOCTOU race fixed, Actor SDK complete (1,358 LOC), serv
 
 ---
 
-*Consolidated: 2026-05-16. Updated: 2026-05-26. Next review: 2026-06-09.*
+*Consolidated: 2026-05-16. Updated: 2026-05-31. Next review: 2026-06-14.*
