@@ -33,23 +33,11 @@ pub struct ExecArgs {
 
 #[derive(Error, Debug)]
 pub enum Error {
-    #[error("Actor not found: {0}")]
-    #[allow(dead_code)]
-    ActorNotFound(String),
-
-    #[error("Actor not running: {0}")]
-    #[allow(dead_code)]
-    ActorNotRunning(String),
-
     #[error("Failed to execute command: {0}")]
     ExecutionFailed(String),
 
     #[error("TTY not available: {0}")]
     TtyNotAvailable(String),
-
-    #[error("Connection failed: {0}")]
-    #[allow(dead_code)]
-    ConnectionFailed(String),
 
     #[error("API request failed: {0}")]
     Api(#[from] reqwest::Error),

@@ -31,14 +31,6 @@ pub enum Error {
 
     #[error("Log shipping failed: {0}")]
     PushLogs(String),
-
-    #[error("Connectivity check failed: {0}")]
-    #[allow(dead_code)]
-    Connectivity(String),
-
-    #[error("Config not found: {0}")]
-    #[allow(dead_code)]
-    ConfigNotFound(String),
 }
 
 /// Execute the observability command

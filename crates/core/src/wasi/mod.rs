@@ -305,9 +305,7 @@ pub struct StateHandle {
     /// State name
     name: String,
 
-    /// Capability set for this handle
-    #[allow(dead_code)]
-    capabilities: CapabilitySet,
+    _capabilities: CapabilitySet,
 
     /// In-memory storage (used when FDB is not available)
     store: Arc<parking_lot::RwLock<std::collections::HashMap<String, Vec<u8>>>>,
@@ -327,7 +325,7 @@ impl StateHandle {
 
         Ok(Self {
             name: name.to_string(),
-            capabilities: *capabilities,
+            _capabilities: *capabilities,
             store: Arc::new(parking_lot::RwLock::new(std::collections::HashMap::new())),
         })
     }

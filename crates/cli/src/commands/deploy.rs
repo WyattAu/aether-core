@@ -52,16 +52,10 @@ pub enum Error {
     ConfigNotFound(String),
     #[error("Configuration parse error: {0}")]
     ConfigParse(String),
-    #[error("Build failed: {0}")]
-    #[allow(dead_code)]
-    BuildFailed(String),
     #[error("Deployment failed: {0}")]
     DeployFailed(String),
     #[error("Invalid environment: {0}")]
     InvalidEnvironment(String),
-    #[error("Registry push failed: {0}")]
-    #[allow(dead_code)]
-    PushFailed(String),
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
     #[error("API request failed: {0}")]

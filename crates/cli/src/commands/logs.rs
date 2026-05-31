@@ -142,30 +142,14 @@ impl LogLevel {
 #[derive(Error, Debug)]
 #[allow(clippy::enum_variant_names)]
 pub enum Error {
-    #[error("Failed to stream logs: {0}")]
-    #[allow(dead_code)]
-    StreamFailed(String),
-
-    #[error("Actor not found: {0}")]
-    #[allow(dead_code)]
-    ActorNotFound(String),
-
     #[error("Invalid log level: {0}")]
     InvalidLevel(String),
-
-    #[error("File error: {0}")]
-    #[allow(dead_code)]
-    FileError(String),
 
     #[error("WebSocket error: {0}")]
     WebSocketError(String),
 
     #[error("IO error: {0}")]
     IoError(#[from] std::io::Error),
-
-    #[error("Channel error: {0}")]
-    #[allow(dead_code)]
-    ChannelError(String),
 
     #[error("No running Aether host found. Start one with: aether run")]
     HostNotFound,

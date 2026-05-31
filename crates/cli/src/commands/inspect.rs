@@ -87,20 +87,8 @@ pub enum Error {
     #[error("Actor not found: {0}")]
     ActorNotFound(String),
 
-    #[error("Actor not running: {0}")]
-    #[allow(dead_code)]
-    ActorNotRunning(String),
-
     #[error("Failed to inspect actor: {0}")]
     InspectFailed(String),
-
-    #[error("Invalid memory range: {0}")]
-    #[allow(dead_code)]
-    InvalidMemoryRange(String),
-
-    #[error("State key not found: {0}")]
-    #[allow(dead_code)]
-    StateKeyNotFound(String),
 
     #[error("API request failed: {0}")]
     Api(#[from] reqwest::Error),

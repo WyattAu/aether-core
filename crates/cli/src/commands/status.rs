@@ -34,10 +34,6 @@ pub enum Error {
     #[error("Failed to get status: {0}")]
     GetStatus(String),
 
-    #[error("Actor not found: {0}")]
-    #[allow(dead_code)]
-    ActorNotFound(String),
-
     #[error("API request failed: {0}")]
     Api(#[from] reqwest::Error),
 }

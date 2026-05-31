@@ -79,32 +79,11 @@ pub struct TopologyArgs {
 #[derive(Error, Debug)]
 #[allow(clippy::enum_variant_names)]
 pub enum Error {
-    #[error("Mesh not initialized")]
-    #[allow(dead_code)]
-    MeshNotInitialized,
-
-    #[error("Peer not found: {0}")]
-    #[allow(dead_code)]
-    PeerNotFound(String),
-
     #[error("Connection failed: {0}")]
     ConnectionFailed(String),
 
     #[error("Disconnection failed: {0}")]
-    #[allow(dead_code)]
     DisconnectionFailed(String),
-
-    #[error("Invalid peer address: {0}")]
-    #[allow(dead_code)]
-    InvalidPeerAddress(String),
-
-    #[error("Timeout connecting to peer: {0}")]
-    #[allow(dead_code)]
-    ConnectionTimeout(String),
-
-    #[error("Topology error: {0}")]
-    #[allow(dead_code)]
-    TopologyError(String),
 
     #[error("API request failed: {0}")]
     Api(#[from] reqwest::Error),

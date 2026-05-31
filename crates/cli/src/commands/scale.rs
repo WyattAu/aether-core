@@ -37,7 +37,6 @@ pub struct ScaleArgs {
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("Failed to scale actor: {0}")]
-    #[allow(dead_code)]
     ScaleFailed(String),
 
     #[error("Actor not found: {0}")]

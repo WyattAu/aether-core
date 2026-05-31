@@ -45,10 +45,6 @@ pub struct RollbackArgs {
 #[derive(Error, Debug)]
 #[allow(clippy::enum_variant_names)]
 pub enum Error {
-    #[error("Actor not found: {0}")]
-    #[allow(dead_code)]
-    ActorNotFound(String),
-
     #[error("No previous revision found")]
     NoPreviousRevision,
 

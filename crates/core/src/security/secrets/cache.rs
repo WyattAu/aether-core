@@ -11,8 +11,7 @@ use super::providers::{ExternalSecretValue, SecretsProvider};
 struct CachedEntry {
     value: ExternalSecretValue,
     cached_at: Instant,
-    #[allow(dead_code)] // Secret path for cache key tracking
-    path: String,
+    _path: String,
 }
 
 /// A cached secret with its value, timestamp, and age.
@@ -142,7 +141,7 @@ impl SecretsProvider for CachedSecretProvider {
                 CachedEntry {
                     value: value.clone(),
                     cached_at: Instant::now(),
-                    path: path.to_string(),
+                    _path: path.to_string(),
                 },
             );
         }
@@ -190,7 +189,7 @@ impl SecretsProvider for CachedSecretProvider {
                 CachedEntry {
                     value: ExternalSecretValue::from_json(&json_value)?,
                     cached_at: Instant::now(),
-                    path: path.to_string(),
+                    _path: path.to_string(),
                 },
             );
         }

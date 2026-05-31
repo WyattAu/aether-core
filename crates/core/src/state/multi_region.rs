@@ -137,8 +137,7 @@ pub struct FailoverEvent {
 /// automatic failover when the active region becomes unhealthy.
 pub struct MultiRegionManager {
     /// The region this manager instance belongs to.
-    #[allow(dead_code)]
-    local_region: RegionId,
+    _local_region: RegionId,
     /// Health snapshots keyed by region.
     regions: HashMap<RegionId, RegionHealth>,
     /// Failover configuration.
@@ -155,7 +154,7 @@ impl MultiRegionManager {
     /// Creates a new multi-region manager for the given local region.
     pub fn new(local_region: RegionId, config: FailoverConfig) -> Self {
         Self {
-            local_region,
+            _local_region: local_region,
             regions: HashMap::new(),
             config,
             failure_counts: HashMap::new(),

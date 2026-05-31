@@ -73,27 +73,11 @@ pub enum Error {
     #[error("Configuration not found: {0}")]
     ConfigNotFound(String),
 
-    #[error("Configuration parse error: {0}")]
-    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
-    ParseError(String),
-
     #[error("Validation error: {0}")]
     ValidationError(String),
 
-    #[error("Schema error: {0}")]
-    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
-    SchemaError(String),
-
     #[error("File already exists: {0}")]
     FileExists(String),
-
-    #[error("IO error: {0}")]
-    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
-    IoError(String),
-
-    #[error("Invalid template: {0}")]
-    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
-    InvalidTemplate(String),
 }
 
 pub async fn execute(args: ConfigArgs) -> Result<(), Error> {

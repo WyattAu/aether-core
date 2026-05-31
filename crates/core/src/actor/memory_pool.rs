@@ -174,8 +174,7 @@ struct BumpAllocatorInner {
     total_allocated: AtomicU64,
     total_freed: AtomicU64,
     active_pools: AtomicU64,
-    #[allow(dead_code)]
-    config: MemoryPoolConfig,
+    _config: MemoryPoolConfig,
 }
 
 impl BumpAllocatorInner {
@@ -196,7 +195,7 @@ impl BumpAllocatorInner {
                     total_allocated: AtomicU64::new(0),
                     total_freed: AtomicU64::new(0),
                     active_pools: AtomicU64::new(1),
-                    config,
+                    _config: config,
                 },
                 None => Self::no_arena(),
             }
@@ -214,7 +213,7 @@ impl BumpAllocatorInner {
             total_allocated: AtomicU64::new(0),
             total_freed: AtomicU64::new(0),
             active_pools: AtomicU64::new(1),
-            config: MemoryPoolConfig::default(),
+            _config: MemoryPoolConfig::default(),
         }
     }
 

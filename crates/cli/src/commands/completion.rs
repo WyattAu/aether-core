@@ -20,10 +20,6 @@ pub struct CompletionArgs {
 
 #[derive(Error, Debug)]
 pub enum Error {
-    #[error("Failed to generate completion: {0}")]
-    #[allow(dead_code)] // Reserved for future CLI subcommand expansion
-    GenerationFailed(String),
-
     #[error("IO error: {0}")]
     IoError(String),
 }
