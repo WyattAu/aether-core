@@ -1,5 +1,9 @@
 name: Release
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 on:
   push:
     tags:
@@ -24,6 +28,8 @@ jobs:
       prerelease: ${{ steps.version.outputs.prerelease }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
       
       - name: Extract version
         id: version
@@ -67,6 +73,8 @@ jobs:
             artifact: aether-darwin-arm64
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
       
       - name: Install Rust
         uses: dtolnay/rust-toolchain@148c24f4344b6c4e29093d3e8b84be6a28897f5b
@@ -75,7 +83,7 @@ jobs:
           targets: ${{ matrix.target }}
       
       - name: Cache cargo registry
-        uses: actions/cache@v4
+        uses: actions/cache@0c45771bba31387f4ced96233aaca9a577e5f339
         with:
           path: |
             ~/.cargo/registry
@@ -114,6 +122,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
       
       - name: Install Rust
         uses: dtolnay/rust-toolchain@148c24f4344b6c4e29093d3e8b84be6a28897f5b
@@ -150,6 +160,7 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
+          persist-credentials: false
           fetch-depth: 0
       
       - name: Generate changelog
@@ -180,6 +191,8 @@ jobs:
     if: needs.validate.outputs.prerelease == 'false'
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
       
       - name: Install Rust
         uses: dtolnay/rust-toolchain@148c24f4344b6c4e29093d3e8b84be6a28897f5b
@@ -207,6 +220,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
       
       - name: Download all artifacts
         uses: actions/download-artifact@65a9adbc1b9e016452a3365e6d87a636e8e2291f

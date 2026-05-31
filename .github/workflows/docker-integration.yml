@@ -1,5 +1,9 @@
 name: Docker Integration Tests
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -25,6 +29,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@148c24f4344b6c4e29093d3e8b84be6a28897f5b
@@ -33,7 +39,7 @@ jobs:
           targets: wasm32-wasip1
 
       - name: Cache cargo registry
-        uses: actions/cache@v4
+        uses: actions/cache@0c45771bba31387f4ced96233aaca9a577e5f339
         with:
           path: |
             ~/.cargo/registry
@@ -47,7 +53,7 @@ jobs:
       - name: Start FDB container
         run: |
           # Install FDB client library (needed by foundationdb-sys crate for linking)
-          curl -sSL https://github.com/apple/foundationdb/releases/download/7.3.27/foundationdb-clients_7.3.27-1_amd64.deb -o /tmp/fdb-client.deb
+          curl -sSL https://github.com/apple/foundationdb/releases/download/${{ env.FDB_VERSION }}/foundationdb-clients_${{ env.FDB_VERSION }}-1_amd64.deb -o /tmp/fdb-client.deb
           sudo dpkg -i /tmp/fdb-client.deb || true
           sudo ldconfig
           echo "LIBRARY_PATH=/usr/lib/x86_64-linux-gnu" >> "$GITHUB_ENV"
@@ -116,6 +122,8 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@148c24f4344b6c4e29093d3e8b84be6a28897f5b
@@ -124,7 +132,7 @@ jobs:
 
       - name: Install FoundationDB client
         run: |
-          curl -sSL https://github.com/apple/foundationdb/releases/download/7.3.27/foundationdb-clients_7.3.27-1_amd64.deb -o /tmp/fdb-client.deb
+          curl -sSL https://github.com/apple/foundationdb/releases/download/${{ env.FDB_VERSION }}/foundationdb-clients_${{ env.FDB_VERSION }}-1_amd64.deb -o /tmp/fdb-client.deb
           sudo dpkg -i /tmp/fdb-client.deb || true
           sudo ldconfig
           echo "LIBRARY_PATH=/usr/lib/x86_64-linux-gnu" >> "$GITHUB_ENV"

@@ -1,5 +1,9 @@
 name: GitOps Deploy
 
+concurrency:
+  group: gitops-${{ github.event.inputs.environment || 'staging' }}
+  cancel-in-progress: false
+
 permissions:
   contents: read
 
@@ -25,6 +29,8 @@ jobs:
     environment: ${{ github.event.inputs.environment || 'staging' }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
       - name: Setup Helm
         uses: azure/setup-helm@b5b0e9765b9e647c2a659bf28a2dc0b242e5a616
       - name: Configure kubeconfig

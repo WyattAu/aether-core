@@ -1,5 +1,9 @@
 name: Security
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
     branches: [main, develop]
@@ -15,6 +19,7 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
+  FDB_VERSION: "7.3.27"
 
 jobs:
   audit:
@@ -25,6 +30,8 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@148c24f4344b6c4e29093d3e8b84be6a28897f5b
@@ -32,7 +39,7 @@ jobs:
           toolchain: nightly-2026-03-01
 
       - name: Install cargo-audit
-        run: cargo install cargo-audit
+        run: cargo install cargo-audit --locked
       
       - name: Run security audit
         run: cargo audit --json > audit-results.json 2>&1 || true
@@ -134,6 +141,8 @@ jobs:
     if: github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
       
       - name: Dependency Review
         uses: actions/dependency-review-action@91221dab0253ba3b2331b6e9db7f6058be18a8e6
@@ -149,6 +158,8 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
       
       - name: Initialize CodeQL
         uses: github/codeql-action/init@382eb82952427676a27a9c07b9e80514daa2d83c
@@ -163,7 +174,7 @@ jobs:
 
       - name: Install FoundationDB client
         run: |
-          curl -sSL https://github.com/apple/foundationdb/releases/download/7.3.27/foundationdb-clients_7.3.27-1_amd64.deb -o /tmp/fdb.deb
+          curl -sSL https://github.com/apple/foundationdb/releases/download/${{ env.FDB_VERSION }}/foundationdb-clients_${{ env.FDB_VERSION }}-1_amd64.deb -o /tmp/fdb.deb
           sudo dpkg -i /tmp/fdb.deb || true
           sudo ldconfig
           # Verify libfdb_c is findable by the linker
@@ -186,6 +197,7 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
+          persist-credentials: false
           fetch-depth: 0
       
       - name: Run Gitleaks
@@ -198,6 +210,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
       
       - name: Install Rust
         uses: dtolnay/rust-toolchain@148c24f4344b6c4e29093d3e8b84be6a28897f5b
@@ -205,7 +219,7 @@ jobs:
           toolchain: nightly-2026-03-01
       
       - name: Install cargo-license
-        run: cargo install cargo-license
+        run: cargo install cargo-license --locked
       
       - name: Check licenses
         run: |
@@ -235,6 +249,8 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@148c24f4344b6c4e29093d3e8b84be6a28897f5b
@@ -253,13 +269,13 @@ jobs:
           name: sbom-cyclonedx
           path: sbom.cdx.json
 
-      - name: Upload SBOM for dependency tracking
-        uses: github/codeql-action/upload-sarif@382eb82952427676a27a9c07b9e80514daa2d83c
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f59865d7d3a283a5ee3f81ae
         if: always()
-        continue-on-error: true
         with:
-          sarif_file: sbom.cdx.json
-          category: sbom
+          name: sbom-cyclonedx
+          path: sbom.cdx.json
+          retention-days: 90
 
   security-summary:
     name: Security Summary

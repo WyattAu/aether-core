@@ -1,5 +1,9 @@
 name: TLA+ Model Checking
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
     branches: [main, develop]
@@ -36,9 +40,11 @@ jobs:
             tla: tla_leader_election.tla
             cfg: tla_leader_election.cfg
     container:
-      image: ghcr.io/tlaplus/tlaplus:latest
+      image: ghcr.io/tlaplus/tlaplus:1.8.0
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
 
       - name: Run TLC — ${{ matrix.spec.name }}
         working-directory: .specs/02_architecture/proofs

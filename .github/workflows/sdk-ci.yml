@@ -1,5 +1,9 @@
 name: SDK CI
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -27,6 +31,8 @@ jobs:
         working-directory: sdks/go
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
 
       - name: Setup Go
         uses: actions/setup-go@41dfa10bad2bb2ae58a36e4b2e447ee5c8612c8f
@@ -45,6 +51,8 @@ jobs:
         working-directory: sdks/python
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
 
       - name: Setup Python
         uses: actions/setup-python@42375524e23c591e6cc1a578853edd1d6c9435e2
@@ -89,6 +97,8 @@ jobs:
         working-directory: sdks/javascript
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8
@@ -105,7 +115,7 @@ jobs:
         run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
 
       - name: Setup pnpm cache
-        uses: actions/cache@v4
+        uses: actions/cache@0c45771bba31387f4ced96233aaca9a577e5f339
         with:
           path: ${{ env.STORE_PATH }}
           key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
@@ -143,6 +153,8 @@ jobs:
         working-directory: sdks/java
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
 
       - name: Setup Java
         uses: actions/setup-java@99b8673ff64fbf99af8a0b6bd1bd48316c2e4888

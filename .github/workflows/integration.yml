@@ -1,5 +1,9 @@
 name: Integration Tests
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -15,6 +19,7 @@ on:
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
+  FDB_VERSION: "7.3.27"
 
 jobs:
   test:
@@ -30,6 +35,8 @@ jobs:
             rust: stable
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@148c24f4344b6c4e29093d3e8b84be6a28897f5b
@@ -42,7 +49,7 @@ jobs:
       - name: Install FoundationDB client (Linux)
         if: runner.os == 'Linux'
         run: |
-          curl -sSL https://github.com/apple/foundationdb/releases/download/7.3.27/foundationdb-clients_7.3.27-1_amd64.deb -o /tmp/fdb-client.deb
+          curl -sSL https://github.com/apple/foundationdb/releases/download/${{ env.FDB_VERSION }}/foundationdb-clients_${{ env.FDB_VERSION }}-1_amd64.deb -o /tmp/fdb-client.deb
           sudo dpkg -i /tmp/fdb-client.deb || true
           sudo ldconfig
           echo "LIBRARY_PATH=/usr/lib/x86_64-linux-gnu" >> "$GITHUB_ENV"
@@ -68,6 +75,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@148c24f4344b6c4e29093d3e8b84be6a28897f5b
@@ -79,7 +88,7 @@ jobs:
 
       - name: Install FoundationDB client
         run: |
-          curl -sSL https://github.com/apple/foundationdb/releases/download/7.3.27/foundationdb-clients_7.3.27-1_amd64.deb -o /tmp/fdb-client.deb
+          curl -sSL https://github.com/apple/foundationdb/releases/download/${{ env.FDB_VERSION }}/foundationdb-clients_${{ env.FDB_VERSION }}-1_amd64.deb -o /tmp/fdb-client.deb
           sudo dpkg -i /tmp/fdb-client.deb || true
           sudo ldconfig
           echo "LIBRARY_PATH=/usr/lib/x86_64-linux-gnu" >> "$GITHUB_ENV"
@@ -113,6 +122,8 @@ jobs:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@148c24f4344b6c4e29093d3e8b84be6a28897f5b
@@ -123,7 +134,7 @@ jobs:
 
       - name: Install FoundationDB client
         run: |
-          curl -sSL https://github.com/apple/foundationdb/releases/download/7.3.27/foundationdb-clients_7.3.27-1_amd64.deb -o /tmp/fdb-client.deb
+          curl -sSL https://github.com/apple/foundationdb/releases/download/${{ env.FDB_VERSION }}/foundationdb-clients_${{ env.FDB_VERSION }}-1_amd64.deb -o /tmp/fdb-client.deb
           sudo dpkg -i /tmp/fdb-client.deb || true
           sudo ldconfig
           echo "LIBRARY_PATH=/usr/lib/x86_64-linux-gnu" >> "$GITHUB_ENV"
@@ -165,6 +176,8 @@ jobs:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@148c24f4344b6c4e29093d3e8b84be6a28897f5b
@@ -175,7 +188,7 @@ jobs:
 
       - name: Install FoundationDB client
         run: |
-          curl -sSL https://github.com/apple/foundationdb/releases/download/7.3.27/foundationdb-clients_7.3.27-1_amd64.deb -o /tmp/fdb-client.deb
+          curl -sSL https://github.com/apple/foundationdb/releases/download/${{ env.FDB_VERSION }}/foundationdb-clients_${{ env.FDB_VERSION }}-1_amd64.deb -o /tmp/fdb-client.deb
           sudo dpkg -i /tmp/fdb-client.deb || true
           sudo ldconfig
           echo "LIBRARY_PATH=/usr/lib/x86_64-linux-gnu" >> "$GITHUB_ENV"
