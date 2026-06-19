@@ -21,7 +21,7 @@ Repository = "https://github.com/WyattAu/aether-core"
 
 [project.optional-dependencies]
 grpc = [
-    "grpcio>=1.60.0",
+    "grpcio>=1.80.0",
 ]
 dev = [
     "pytest>=7.0",
