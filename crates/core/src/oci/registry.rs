@@ -8,9 +8,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use hmac::Mac;
-use sha2::{Digest, Sha256};
-
 use crate::error::{Error, Result};
 use crate::oci::{
     ActorManifest, ActorReference, Descriptor, OciCredentials, OciRegistry, compute_digest,
@@ -57,32 +54,17 @@ impl ContentSignature {
     /// is constructed from `HMAC-SHA256(private_key, content)` and a
     /// verification hash binding the public key to the signing material.
     pub fn sign(content: &[u8], private_key: &[u8; 64], key_id: String) -> Result<Self> {
-        let public_key: [u8; 32] = {
-            let mut hasher = Sha256::new();
-            hasher.update(private_key);
-            let mut arr = [0u8; 32];
-            arr.copy_from_slice(hasher.finalize().as_slice());
-            arr
-        };
+        let public_key = cryptkit::hash::sha256(private_key);
 
         let content_digest = compute_digest(content);
 
-        let signing_hash: [u8; 32] = {
-            let mut mac = hmac::Hmac::<Sha256>::new_from_slice(private_key)
-                .map_err(|_| Error::serialization("invalid HMAC key length"))?;
-            mac.update(content);
-            let mut arr = [0u8; 32];
-            arr.copy_from_slice(mac.finalize().into_bytes().as_slice());
-            arr
-        };
+        let signing_hash = cryptkit::hmac::hmac_sign(private_key, content);
 
-        let verification: [u8; 32] = {
-            let mut hasher = Sha256::new();
-            hasher.update(public_key);
-            hasher.update(signing_hash);
-            let mut arr = [0u8; 32];
-            arr.copy_from_slice(hasher.finalize().as_slice());
-            arr
+        let verification = {
+            let mut combined = Vec::with_capacity(64);
+            combined.extend_from_slice(&public_key);
+            combined.extend_from_slice(&signing_hash);
+            cryptkit::hash::sha256(&combined)
         };
 
         let mut signature_bytes = [0u8; 64];
@@ -117,12 +99,10 @@ impl ContentSignature {
         let stored_verification = &self.signature_bytes[32..];
 
         let expected_verification: [u8; 32] = {
-            let mut hasher = Sha256::new();
-            hasher.update(self.signer_public_key);
-            hasher.update(signing_part);
-            let mut arr = [0u8; 32];
-            arr.copy_from_slice(hasher.finalize().as_slice());
-            arr
+            let mut combined = Vec::with_capacity(64);
+            combined.extend_from_slice(&self.signer_public_key);
+            combined.extend_from_slice(signing_part);
+            cryptkit::hash::sha256(&combined)
         };
 
         if stored_verification != expected_verification.as_slice() {
@@ -801,9 +781,7 @@ mod tests {
     }
 
     fn derive_public_key(private_key: &[u8; 64]) -> [u8; 32] {
-        let mut hasher = Sha256::new();
-        hasher.update(private_key);
-        hasher.finalize().as_slice().try_into().unwrap()
+        cryptkit::hash::sha256(private_key)
     }
 
     #[test]

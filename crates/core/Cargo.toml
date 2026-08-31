@@ -8,7 +8,7 @@ license.workspace = true
 description = "Aether Core Runtime - The Post-Container Application OS"
 
 [features]
-default = ["wasm", "mesh", "rkyv"]
+default = ["wasm", "mesh"]
 wasm = ["wasmtime", "wasmtime-wasi"]
 mesh = ["quinn", "rustls"]
 mesh-circuit-breaker = []
@@ -18,14 +18,16 @@ fdb = ["foundationdb"]
 firecracker = []
 chaos = ["num_cpus"]
 instance-pool = []
-rkyv = []
+io_uring = ["monoio"]
+
 wasi-preview2 = []
 
 [dependencies]
 tokio = { workspace = true, features = ["fs", "sync", "time", "macros", "rt", "rt-multi-thread", "io-util", "net", "process", "signal"] }
 crossbeam-deque = "0.8"
+crossbeam-queue = "0.3"
 crossbeam-utils = "0.8"
-monoio = { workspace = true, optional = true }
+monoio = { workspace = true, optional = true, features = ["mkdirat", "renameat", "unlinkat"] }
 wasmtime = { workspace = true, optional = true, features = ["component-model"] }
 wasmtime-wasi = { workspace = true, optional = true }
 quinn = { workspace = true, optional = true }
@@ -79,8 +81,7 @@ mime_guess = "2.0"
 num_cpus = { version = "1.16", optional = true }
 utoipa = "5"
 reqwest = { version = "0.12", features = ["json", "rustls-tls", "stream"], default-features = false }
-hmac = "0.12"
-sha2 = "0.10"
+cryptkit = { workspace = true }
 regex = "1.11"
 glob = "0.3"
 tokio-stream = "0.1"
@@ -110,7 +111,6 @@ harness = false
 [[bench]]
 name = "rkyv_bench"
 harness = false
-required-features = ["rkyv"]
 
 [[bench]]
 name = "dispatch_bench"

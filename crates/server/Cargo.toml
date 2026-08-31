@@ -26,7 +26,8 @@ chrono = { version = "0.4", features = ["serde"] }
 clap = { workspace = true }
 async-trait = "0.1"
 thiserror = { workspace = true }
-jsonwebtoken = { version = "9", optional = true }
+tokenkit = { workspace = true, optional = true }
+zeroize = "1"
 monoio = { workspace = true, optional = true, features = ["mkdirat", "renameat", "unlinkat"] }
 
 [dev-dependencies]
@@ -39,7 +40,7 @@ http-body-util = "0.1"
 default = ["wasm"]
 wasm = ["aether-core/wasm"]
 sqlite = ["dep:rusqlite"]
-jwt = ["dep:jsonwebtoken"]
+jwt = ["dep:tokenkit"]
 io_uring = ["dep:monoio"]
 
 [lints]

@@ -394,25 +394,18 @@ fn authenticate_token(config: &AuthConfig, token: &str) -> Option<AuthContext> {
 /// Validate a JWT token and extract claims.
 #[cfg(feature = "jwt")]
 fn validate_jwt(config: &JwtConfig, token: &str) -> Option<JwtClaims> {
-    use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode};
+    use tokenkit::service::{JwtConfig as TokenkitJwtConfig, JwtService};
 
-    let mut validation = Validation::new(Algorithm::HS256);
-    // Leeway is useful for clock skew but we also need to allow tokens
-    // without an expiration claim (e.g., long-lived service tokens).
-    validation.leeway = 60;
-    if let Some(ref issuer) = config.issuer {
-        validation.set_issuer(&[issuer]);
-    }
-    if let Some(ref audience) = config.audience {
-        validation.set_audience(&[audience]);
-    }
+    let service_config = TokenkitJwtConfig {
+        algorithm: tokenkit::service::JwtAlgorithm::HS256,
+        secret: zeroize::Zeroizing::new(config.secret.clone()),
+        issuer: config.issuer.clone(),
+        audience: config.audience.clone(),
+        ..Default::default()
+    };
 
-    let decoding_key = DecodingKey::from_secret(config.secret.as_bytes());
-
-    match decode::<JwtClaims>(token, &decoding_key, &validation) {
-        Ok(data) => Some(data.claims),
-        Err(_) => None,
-    }
+    let service = JwtService::new(service_config);
+    service.decode::<JwtClaims>(token).ok()
 }
 
 /// Generate a JWT token for testing purposes.
@@ -422,8 +415,17 @@ fn validate_jwt(config: &JwtConfig, token: &str) -> Option<JwtClaims> {
 pub fn generate_test_token(
     secret: &str,
     subject: &str,
-) -> Result<String, jsonwebtoken::errors::Error> {
-    use jsonwebtoken::{EncodingKey, Header, encode};
+) -> Result<String, tokenkit::error::JwtError> {
+    use tokenkit::service::{JwtConfig as TokenkitJwtConfig, JwtService};
+
+    let service_config = TokenkitJwtConfig {
+        algorithm: tokenkit::service::JwtAlgorithm::HS256,
+        secret: zeroize::Zeroizing::new(secret.to_string()),
+        issuer: Some("aether-test".to_string()),
+        ..Default::default()
+    };
+
+    let service = JwtService::new(service_config);
 
     let claims = JwtClaims {
         sub: subject.to_string(),
@@ -439,8 +441,7 @@ pub fn generate_test_token(
         extra: std::collections::HashMap::new(),
     };
 
-    let encoding_key = EncodingKey::from_secret(secret.as_bytes());
-    encode(&Header::default(), &claims, &encoding_key)
+    service.encode(&claims)
 }
 
 /// Stateless optional authentication middleware.
@@ -605,6 +606,15 @@ mod tests {
             .build();
 
         // Generate token with matching issuer
+        use tokenkit::service::{JwtConfig as TokenkitJwtConfig, JwtService};
+        let service_config = TokenkitJwtConfig {
+            algorithm: tokenkit::service::JwtAlgorithm::HS256,
+            secret: zeroize::Zeroizing::new("test-secret".to_string()),
+            issuer: Some("aether-prod".to_string()),
+            ..Default::default()
+        };
+        let service = JwtService::new(service_config);
+
         let far_future = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_secs() + 3600)
@@ -617,12 +627,7 @@ mod tests {
             iat: None,
             extra: std::collections::HashMap::new(),
         };
-        let token = jsonwebtoken::encode(
-            &jsonwebtoken::Header::default(),
-            &claims,
-            &jsonwebtoken::EncodingKey::from_secret("test-secret".as_bytes()),
-        )
-        .expect("encode failed");
+        let token = service.encode(&claims).expect("encode failed");
 
         let ctx = authenticate_token(&config, &token);
         assert!(ctx.is_some());

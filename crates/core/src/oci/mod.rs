@@ -66,7 +66,6 @@ use reqwest::header::{
     ACCEPT, AUTHORIZATION, CONTENT_LENGTH, CONTENT_TYPE, HeaderMap, HeaderValue,
 };
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 use tracing::{debug, info, warn};
 
 pub mod registry;
@@ -399,10 +398,9 @@ struct TagsResponse {
 
 /// Compute the `sha256:` digest for arbitrary bytes.
 pub fn compute_digest(data: &[u8]) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(data);
-    let result = hasher.finalize();
-    format!("sha256:{:x}", result)
+    let hash = cryptkit::hash::sha256(data);
+    let hex: String = hash.iter().map(|b| format!("{b:02x}")).collect();
+    format!("sha256:{hex}")
 }
 
 // ---------------------------------------------------------------------------

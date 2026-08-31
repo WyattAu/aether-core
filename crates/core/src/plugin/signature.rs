@@ -1,6 +1,5 @@
 //! Cryptographic signature verification for plugins.
 
-use sha2::{Digest, Sha256};
 use thiserror::Error;
 
 /// Errors produced during signature verification.
@@ -54,17 +53,17 @@ pub struct SignatureVerifier;
 impl SignatureVerifier {
     /// Computes a SHA-256 hex digest of the given bytes.
     pub fn sha256_hex(data: &[u8]) -> String {
-        let mut hasher = Sha256::new();
-        hasher.update(data);
-        hex_encode(hasher.finalize().as_slice())
+        let hash = cryptkit::hash::sha256(data);
+        hex_encode(&hash)
     }
 
     /// Computes the SHA-256 hex digest of `wasm_bytes ++ manifest_json`.
     pub fn combined_hash(wasm_bytes: &[u8], manifest_json: &[u8]) -> String {
-        let mut hasher = Sha256::new();
-        hasher.update(wasm_bytes);
-        hasher.update(manifest_json);
-        hex_encode(hasher.finalize().as_slice())
+        let mut combined = Vec::with_capacity(wasm_bytes.len() + manifest_json.len());
+        combined.extend_from_slice(wasm_bytes);
+        combined.extend_from_slice(manifest_json);
+        let hash = cryptkit::hash::sha256(&combined);
+        hex_encode(&hash)
     }
 
     /// Verifies that `wasm_bytes` matches the expected SHA-256 hex hash.

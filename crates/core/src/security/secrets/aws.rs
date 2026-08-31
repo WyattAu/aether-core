@@ -6,7 +6,6 @@ use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
 use chrono::{DateTime, Utc};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::time::Duration;
 use tracing::{debug, info};
@@ -216,7 +215,7 @@ impl AwsSecretsProvider {
         let amz_date = now.format("%Y%m%dT%H%M%SZ").to_string();
         let date_stamp = now.format("%Y%m%d").to_string();
 
-        let content_hash = hex_encode(Sha256::digest(payload.as_bytes()));
+        let content_hash = hex_encode(cryptkit::hash::sha256(payload.as_bytes()));
 
         let host = self.config.service_endpoint();
 
@@ -254,7 +253,7 @@ impl AwsSecretsProvider {
             content_hash
         );
 
-        let canonical_request_hash = hex_encode(Sha256::digest(canonical_request.as_bytes()));
+        let canonical_request_hash = hex_encode(cryptkit::hash::sha256(canonical_request.as_bytes()));
         let string_to_sign = format!(
             "AWS4-HMAC-SHA256\n{}\n{}/{}/{}/aws4_request\n{}",
             amz_date, date_stamp, region, service, canonical_request_hash
@@ -556,13 +555,8 @@ fn hex_encode(bytes: impl AsRef<[u8]>) -> String {
 }
 
 fn hmac_sha256(key: &[u8], msg: &str) -> crate::error::Result<Vec<u8>> {
-    use hmac::{Hmac, Mac};
-    type HmacSha256 = Hmac<Sha256>;
-
-    let mut mac = HmacSha256::new_from_slice(key)
-        .map_err(|e| Error::internal(format!("HMAC initialization failed: {}", e)))?;
-    mac.update(msg.as_bytes());
-    Ok(mac.finalize().into_bytes().to_vec())
+    let tag = cryptkit::hmac::hmac_sign(key, msg.as_bytes());
+    Ok(tag.to_vec())
 }
 
 fn get_signature_key(
