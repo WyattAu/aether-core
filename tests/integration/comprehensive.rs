@@ -140,7 +140,9 @@ async fn test_instance_pool_performance() {
     let pool = InstancePool::new(100);
 
     // Pre-warm 10 instances for "test-module"
-    let added = pool.prewarm("test-module", 10).expect("Failed to prewarm");
+    let added = pool
+        .prewarm_sync("test-module", 10)
+        .expect("Failed to prewarm");
     assert_eq!(added, 10, "Should have added 10 instances");
 
     // Verify stats show available instances

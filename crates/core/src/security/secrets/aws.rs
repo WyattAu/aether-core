@@ -253,7 +253,8 @@ impl AwsSecretsProvider {
             content_hash
         );
 
-        let canonical_request_hash = hex_encode(cryptkit::hash::sha256(canonical_request.as_bytes()));
+        let canonical_request_hash =
+            hex_encode(cryptkit::hash::sha256(canonical_request.as_bytes()));
         let string_to_sign = format!(
             "AWS4-HMAC-SHA256\n{}\n{}/{}/{}/aws4_request\n{}",
             amz_date, date_stamp, region, service, canonical_request_hash

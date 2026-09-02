@@ -14,6 +14,7 @@ use crate::actor::executor::NullExecutor;
 use crate::actor::executor::{ActorExecutor, ExecutionResult};
 use crate::actor::queue::{PriorityQueue, Task, WorkQueue, WorkStealer, create_local_queue};
 use crate::actor::rpc::RpcClient;
+use crate::actor::supervisor::ResourceMonitor;
 use crate::actor::{
     ActorId, ActorRegistry, ActorState, MailboxConfig, Message, MessagePayload, Priority,
 };
@@ -118,6 +119,8 @@ struct WorkerStats {
     processed: AtomicU64,
     /// Tasks stolen by this worker
     stolen: AtomicU64,
+    /// Number of batch tasks processed by this worker
+    batches_processed: AtomicU64,
 }
 
 /// Work-stealing actor scheduler.
@@ -146,6 +149,10 @@ pub struct ActorScheduler {
     executor: Option<Arc<dyn ActorExecutor>>,
     /// Optional quota enforcer for resource limits
     quota_enforcer: Option<Arc<QuotaEnforcer>>,
+    /// Optional degradation controller for graceful admission control.
+    /// `Arc<dyn ResourceMonitor>` is the monitor; the `f64` is the
+    /// `elevated_batch_factor` passed to `DegradationController`.
+    degradation: Option<(Arc<dyn ResourceMonitor>, f64)>,
 }
 
 impl ActorScheduler {
@@ -192,12 +199,26 @@ impl ActorScheduler {
             worker_stats,
             executor,
             quota_enforcer,
+            degradation: None,
         }
     }
 
     /// Set the executor for WASM execution.
     pub fn set_executor(&mut self, executor: Arc<dyn ActorExecutor>) {
         self.executor = Some(executor);
+    }
+
+    /// Set the degradation controller for OS-level admission control.
+    ///
+    /// When set, `spawn_named` will check resource pressure before creating a
+    /// new actor. `Critical` pressure returns an error; `Elevated` logs a
+    /// debug message but allows the spawn.
+    pub fn set_degradation_with_monitor(
+        &mut self,
+        monitor: Arc<dyn ResourceMonitor>,
+        elevated_batch_factor: f64,
+    ) {
+        self.degradation = Some((monitor, elevated_batch_factor));
     }
 
     /// Start the scheduler.
@@ -272,6 +293,8 @@ impl ActorScheduler {
 
     /// Spawn a new actor with a name.
     pub fn spawn_named(&self, name: Option<String>) -> crate::Result<ActorId> {
+        self.check_degradation()?;
+
         if let Some(ref enforcer) = self.quota_enforcer
             && let Err(reason) = enforcer.try_acquire_actor()
         {
@@ -281,6 +304,30 @@ impl ActorScheduler {
         self.registry.register_named(id, name)?;
         self.total_actors.fetch_add(1, Ordering::Relaxed);
         Ok(id)
+    }
+
+    /// Check the degradation controller before spawning.
+    ///
+    /// Returns `Err` on `Reject`; logs a warning on `Throttle` but allows the spawn.
+    fn check_degradation(&self) -> crate::Result<()> {
+        let (monitor, _) = match &self.degradation {
+            Some(d) => d,
+            None => return Ok(()),
+        };
+
+        match monitor.current_pressure() {
+            super::supervisor::PressureLevel::Normal => Ok(()),
+            super::supervisor::PressureLevel::Elevated => {
+                tracing::debug!("actor spawn throttled due to elevated resource pressure");
+                Ok(())
+            }
+            super::supervisor::PressureLevel::Critical => {
+                tracing::warn!("actor spawn rejected due to critical resource pressure");
+                Err(Error::resource_exhausted(
+                    "system resources critically low; actor spawn rejected",
+                ))
+            }
+        }
     }
 
     /// Kill an actor.
@@ -340,6 +387,70 @@ impl ActorScheduler {
             actor_id: target,
             message, // moved, not cloned
             priority,
+            additional_messages: Vec::new(),
+        };
+
+        if self.config.priority_scheduling && task.priority >= Priority::High {
+            self.priority_queue.push(task);
+        } else {
+            self.global_queue.push(task);
+        }
+
+        Ok(())
+    }
+
+    /// Send a batch of messages to an actor in a single queue operation.
+    ///
+    /// This is more efficient than calling `send` in a loop because it performs
+    /// one quota/rate-limit check and pushes a single `Task` to the work-stealing
+    /// queue for the entire batch.
+    pub async fn send_batch(&self, target: ActorId, messages: Vec<Message>) -> crate::Result<()> {
+        if messages.is_empty() {
+            return Ok(());
+        }
+
+        if let Some(ref enforcer) = self.quota_enforcer {
+            enforcer
+                .check_message_rate_batch(messages.len())
+                .map_err(Error::resource_exhausted)?;
+        }
+
+        let mailbox = self
+            .registry
+            .get_mailbox(&target)
+            .ok_or_else(|| Error::actor(format!("actor {:?} not found", target)))?;
+
+        let state = self.registry.get_state(&target);
+        match state {
+            Some(ActorState::Stopped) | Some(ActorState::Failed) => {
+                return Err(Error::actor(format!("actor {:?} is not running", target)));
+            }
+            Some(ActorState::Suspended) => {}
+            _ => {}
+        }
+
+        let max_priority = messages
+            .iter()
+            .map(|m| m.priority)
+            .max()
+            .unwrap_or(Priority::Normal);
+
+        for msg in &messages {
+            mailbox.send(msg.clone()).await?;
+        }
+
+        let mut messages_into_iter = messages.into_iter();
+        let first = match messages_into_iter.next() {
+            Some(msg) => msg,
+            None => return Ok(()),
+        };
+        let additional: Vec<Message> = messages_into_iter.collect();
+
+        let task = Task {
+            actor_id: target,
+            message: first,
+            priority: max_priority,
+            additional_messages: additional,
         };
 
         if self.config.priority_scheduling && task.priority >= Priority::High {
@@ -367,6 +478,7 @@ impl ActorScheduler {
             actor_id: target,
             message, // moved, not cloned
             priority,
+            additional_messages: Vec::new(),
         };
 
         if self.config.priority_scheduling && task.priority >= Priority::High {
@@ -388,18 +500,22 @@ impl ActorScheduler {
         let mut worker_stats = Vec::new();
         let mut total_processed = 0u64;
         let mut total_stolen = 0u64;
+        let mut total_batches = 0u64;
 
         for (id, stats) in self.worker_stats.iter().enumerate() {
             let processed = stats.processed.load(Ordering::Relaxed);
             let stolen = stats.stolen.load(Ordering::Relaxed);
+            let batches = stats.batches_processed.load(Ordering::Relaxed);
 
             total_processed += processed;
             total_stolen += stolen;
+            total_batches += batches;
 
             worker_stats.push(WorkerStatsInfo {
                 id,
                 processed,
                 stolen,
+                batches_processed: batches,
             });
         }
 
@@ -408,6 +524,7 @@ impl ActorScheduler {
             total_actors: self.total_actors.load(Ordering::Relaxed),
             active_actors: self.registry.stats().running,
             total_messages_processed: total_processed,
+            total_batches_processed: total_batches,
             total_stolen,
             worker_count: self.worker_stats.len(),
             workers: worker_stats,
@@ -511,22 +628,24 @@ impl ActorScheduler {
         executor: Option<&Arc<dyn ActorExecutor>>,
     ) {
         let actor_id = task.actor_id;
+        let batch_size = 1 + task.additional_messages.len();
         let result = std::panic::catch_unwind(AssertUnwindSafe(|| {
             Self::process_task(registry, task, total_processed, stats, executor);
         }));
 
         if let Err(panic_payload) = result {
+            if batch_size > 1 {
+                stats.batches_processed.fetch_add(1, Ordering::Relaxed);
+            }
             tracing::error!(
                 actor_id = ?actor_id,
+                batch_size,
                 "worker panicked while processing task; marking actor as Failed and draining mailbox"
             );
-            // Mark the actor as failed.
             let _ = registry.set_state(&actor_id, ActorState::Failed);
-            // Drain the mailbox so no further messages are processed by this actor.
             if let Some(mailbox) = registry.get_mailbox(&actor_id) {
                 mailbox.clear();
             }
-            // Log the panic payload for diagnostics.
             if let Some(s) = panic_payload.downcast_ref::<&str>() {
                 tracing::error!(panic_message = %s, "panic details");
             } else if let Some(s) = panic_payload.downcast_ref::<String>() {
@@ -537,89 +656,140 @@ impl ActorScheduler {
 
     fn process_task(
         registry: &ActorRegistry,
-        task: Task,
+        mut task: Task,
         total_processed: &AtomicU64,
         stats: &WorkerStats,
         executor: Option<&Arc<dyn ActorExecutor>>,
     ) {
-        let actor_state = registry.get_state(&task.actor_id);
+        if task.additional_messages.is_empty() {
+            // Fast path: single message
+            Self::process_single_message(
+                registry,
+                task.actor_id,
+                &task.message,
+                total_processed,
+                stats,
+                executor,
+            );
+        } else {
+            // Batch path: process primary message, then additional ones
+            stats.batches_processed.fetch_add(1, Ordering::Relaxed);
+
+            Self::process_single_message(
+                registry,
+                task.actor_id,
+                &task.message,
+                total_processed,
+                stats,
+                executor,
+            );
+
+            // Early exit if the actor failed during the first message
+            if matches!(
+                registry.get_state(&task.actor_id),
+                Some(ActorState::Failed) | Some(ActorState::Stopped)
+            ) {
+                return;
+            }
+
+            for message in task.additional_messages.drain(..) {
+                Self::process_single_message(
+                    registry,
+                    task.actor_id,
+                    &message,
+                    total_processed,
+                    stats,
+                    executor,
+                );
+
+                // Stop processing remaining batch if actor is no longer viable
+                if matches!(
+                    registry.get_state(&task.actor_id),
+                    Some(ActorState::Failed) | Some(ActorState::Stopped)
+                ) {
+                    break;
+                }
+            }
+        }
+    }
+
+    fn process_single_message(
+        registry: &ActorRegistry,
+        actor_id: ActorId,
+        message: &Message,
+        total_processed: &AtomicU64,
+        stats: &WorkerStats,
+        executor: Option<&Arc<dyn ActorExecutor>>,
+    ) {
+        let actor_state = registry.get_state(&actor_id);
 
         match actor_state {
             Some(ActorState::Running) | Some(ActorState::Creating) => {
                 let should_count = if let Some(exec) = executor {
-                    match exec.execute(&task.actor_id, &task.message) {
+                    match exec.execute(&actor_id, message) {
                         ExecutionResult::Success { .. } => {
-                            if matches!(task.message.payload, MessagePayload::Start) {
-                                let _ = registry.set_state(&task.actor_id, ActorState::Running);
-                            } else if matches!(task.message.payload, MessagePayload::Stop) {
-                                let _ = registry.set_state(&task.actor_id, ActorState::Stopped);
+                            if matches!(message.payload, MessagePayload::Start) {
+                                let _ = registry.set_state(&actor_id, ActorState::Running);
+                            } else if matches!(message.payload, MessagePayload::Stop) {
+                                let _ = registry.set_state(&actor_id, ActorState::Stopped);
                             }
                             true
                         }
                         ExecutionResult::FuelExhausted { .. } => {
-                            let _ = registry.set_state(&task.actor_id, ActorState::Failed);
-                            // Drain the mailbox so no further messages are processed
-                            // by this failed actor. Messages are intentionally dropped
-                            // (not re-queued) because the actor is in a terminal state.
-                            if let Some(mailbox) = registry.get_mailbox(&task.actor_id) {
+                            let _ = registry.set_state(&actor_id, ActorState::Failed);
+                            if let Some(mailbox) = registry.get_mailbox(&actor_id) {
                                 mailbox.clear();
                             }
                             false
                         }
                         ExecutionResult::Failed { error } => {
                             tracing::warn!("Actor execution failed: {}", error);
-                            // Mark the actor as failed and drain its mailbox.
-                            // Without this, the actor stays in Running state with
-                            // unprocessed messages accumulating indefinitely.
-                            let _ = registry.set_state(&task.actor_id, ActorState::Failed);
-                            if let Some(mailbox) = registry.get_mailbox(&task.actor_id) {
+                            let _ = registry.set_state(&actor_id, ActorState::Failed);
+                            if let Some(mailbox) = registry.get_mailbox(&actor_id) {
                                 mailbox.clear();
                             }
                             false
                         }
                         ExecutionResult::NotReady => {
-                            Self::handle_state_change(&task, registry);
+                            Self::handle_state_change_for(actor_id, message, registry);
                             true
                         }
                     }
                 } else {
-                    Self::handle_state_change(&task, registry);
+                    Self::handle_state_change_for(actor_id, message, registry);
                     true
                 };
 
                 if should_count {
                     stats.processed.fetch_add(1, Ordering::Relaxed);
                     total_processed.fetch_add(1, Ordering::Relaxed);
-                    registry.record_processed(&task.actor_id);
+                    registry.record_processed(&actor_id);
                 }
             }
             Some(ActorState::Suspended) => {
-                // Actor is paused, re-queue the message
-                if let Some(mailbox) = registry.get_mailbox(&task.actor_id) {
-                    let _ = mailbox.try_send(task.message);
+                if let Some(mailbox) = registry.get_mailbox(&actor_id) {
+                    let _ = mailbox.try_send(message.clone());
                 }
             }
-            _ => {
-                // Actor is stopped or doesn't exist, drop the message
-            }
+            _ => {}
         }
     }
 
-    fn handle_state_change(task: &Task, registry: &ActorRegistry) {
-        if matches!(task.message.payload, MessagePayload::Start) {
-            let _ = registry.set_state(&task.actor_id, ActorState::Running);
-        } else if matches!(task.message.payload, MessagePayload::Stop) {
-            let _ = registry.set_state(&task.actor_id, ActorState::Stopped);
-        } else if let Some(MessagePayload::Signal(signal)) = Some(&task.message.payload) {
+    fn handle_state_change_for(actor_id: ActorId, message: &Message, registry: &ActorRegistry) {
+        if matches!(message.payload, MessagePayload::Start) {
+            let _ = registry.set_state(&actor_id, ActorState::Running);
+        } else if matches!(message.payload, MessagePayload::Stop) {
+            let _ = registry.set_state(&actor_id, ActorState::Stopped);
+        } else if let Some(MessagePayload::Signal(signal)) = Some(&message.payload) {
             match signal {
                 crate::actor::Signal::Pause => {
-                    let _ = registry.set_state(&task.actor_id, ActorState::Suspended);
+                    let _ = registry.set_state(&actor_id, ActorState::Suspended);
                 }
                 crate::actor::Signal::Resume => {
-                    let _ = registry.set_state(&task.actor_id, ActorState::Running);
+                    let _ = registry.set_state(&actor_id, ActorState::Running);
                 }
                 crate::actor::Signal::Restart => {
-                    let _ = registry.set_state(&task.actor_id, ActorState::Creating);
+                    let _ = registry.set_state(&actor_id, ActorState::Creating);
                 }
             }
         }
@@ -643,6 +813,8 @@ pub struct SchedulerStats {
     pub active_actors: usize,
     /// Total messages processed
     pub total_messages_processed: u64,
+    /// Total batch tasks processed
+    pub total_batches_processed: u64,
     /// Total tasks stolen
     pub total_stolen: u64,
     /// Number of workers
@@ -660,6 +832,8 @@ pub struct WorkerStatsInfo {
     pub processed: u64,
     /// Tasks stolen from others
     pub stolen: u64,
+    /// Batch tasks processed
+    pub batches_processed: u64,
 }
 
 #[cfg(test)]

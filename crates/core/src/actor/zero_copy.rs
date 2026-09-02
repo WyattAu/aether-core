@@ -4,13 +4,6 @@
 //! on the same node, avoiding the allocation overhead of the postcard (CBOR)
 //! path.
 //!
-//! # Feature Gate
-//!
-//! This module is only available when the `rkyv` feature is enabled.
-//! When the feature is disabled, every public function returns an
-//! [`Error::serialization`](crate::error::Error::serialization) error
-//! indicating that the feature is not compiled in.
-//!
 //! # Usage
 //!
 //! ```ignore
@@ -21,20 +14,5 @@
 //! let restored: MyMessage = decode_rkyv(&bytes)?;
 //! ```
 
-#[cfg(feature = "rkyv")]
 mod rkyv_impl;
-
-#[cfg(feature = "rkyv")]
-pub use rkyv_impl::{
-    SerializationLatency, ZeroCopyMessage, decode_rkyv, decode_rkyv_ref, encode_rkyv,
-    measure_latency,
-};
-
-#[cfg(not(feature = "rkyv"))]
-mod stubs;
-
-#[cfg(not(feature = "rkyv"))]
-pub use stubs::{
-    SerializationLatency, ZeroCopyMessage, decode_rkyv, decode_rkyv_ref, encode_rkyv,
-    measure_latency,
-};
+pub use rkyv_impl::*;

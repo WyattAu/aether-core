@@ -294,6 +294,36 @@ impl QuotaEnforcer {
         }
     }
 
+    /// Checks whether a batch of messages can be sent given the rate limit.
+    ///
+    /// Performs a single atomic increment for the entire batch, making it more
+    /// efficient than calling [`check_message_rate`] in a loop.
+    pub fn check_message_rate_batch(&self, count: usize) -> std::result::Result<(), String> {
+        if count == 0 {
+            return Ok(());
+        }
+        self.usage.rotate_window();
+        loop {
+            let current = self.usage.messages_in_window.load(Ordering::SeqCst);
+            let new_count = current.saturating_add(count as u64);
+            if new_count > self.quota.limits.max_messages_per_sec {
+                return Err(format!(
+                    "message rate exceeded: would reach {}/{} per second (batch of {count})",
+                    new_count, self.quota.limits.max_messages_per_sec
+                ));
+            }
+            match self.usage.messages_in_window.compare_exchange(
+                current,
+                new_count,
+                Ordering::SeqCst,
+                Ordering::Relaxed,
+            ) {
+                Ok(_) => return Ok(()),
+                Err(_) => continue,
+            }
+        }
+    }
+
     /// Attempts to acquire a connection slot.
     pub fn try_acquire_connection(&self) -> std::result::Result<(), String> {
         loop {

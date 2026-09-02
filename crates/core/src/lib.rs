@@ -210,6 +210,7 @@ pub mod plugin;
 pub mod policy;
 pub mod security;
 pub mod state;
+pub mod storage;
 pub mod tenant;
 pub mod tracing;
 pub mod vm;

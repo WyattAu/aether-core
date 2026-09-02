@@ -14,7 +14,7 @@
 //! use aether_core::engine::WasmModule;
 //!
 //! let pool = InstancePool::new(64);
-//! pool.prewarm(&engine, &module, "my-actor", 4)?;
+//! pool.prewarm_sync(&engine, &module, "my-actor", 4)?;
 //!
 //! let instance = pool.acquire("my-actor").expect("instance available");
 //! // use instance...
@@ -27,6 +27,7 @@
 
 use std::collections::VecDeque;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use dashmap::DashMap;
 
@@ -124,6 +125,10 @@ struct ModuleSlot {
     available: parking_lot::Mutex<VecDeque<WasmInstance>>,
     /// Maximum instances allowed for this module.
     max_per_module: usize,
+    /// Number of instances currently checked out by callers.
+    in_use: AtomicUsize,
+    /// Total number of instances ever created for this module.
+    total_created: AtomicUsize,
 }
 
 /// Shared inner state of the instance pool.
@@ -132,11 +137,14 @@ struct PoolInner {
     slots: DashMap<String, ModuleSlot>,
     /// Global maximum pool size across all modules.
     max_pool_size: usize,
+    /// Per-module instance cap (None = max_pool_size/4).
+    max_per_module: Option<usize>,
 }
 
 impl PoolInner {
     fn release_inner(&self, name: &str, instance: WasmInstance) {
         if let Some(slot) = self.slots.get(name) {
+            slot.in_use.fetch_sub(1, Ordering::Relaxed);
             let mut queue = slot.available.lock();
             if queue.len() < slot.max_per_module {
                 queue.push_back(instance);
@@ -168,45 +176,138 @@ impl InstancePool {
             inner: Arc::new(PoolInner {
                 slots: DashMap::new(),
                 max_pool_size,
+                max_per_module: None,
             }),
         }
     }
 
-    /// Pre-instantiate `count` instances of the given module and add them to the pool.
+    /// Create a new empty instance pool with explicit per-module limit.
+    ///
+    /// `max_pool_size` is the global cap. `max_per_module` caps each
+    /// individual module's instance count.
+    pub fn with_per_module_limit(max_pool_size: usize, max_per_module: usize) -> Self {
+        Self {
+            inner: Arc::new(PoolInner {
+                slots: DashMap::new(),
+                max_pool_size,
+                max_per_module: Some(max_per_module),
+            }),
+        }
+    }
+
+    /// Pre-instantiate `count` instances of the given module asynchronously in parallel,
+    /// then batch-insert them into the pool.
     ///
     /// Returns the number of instances actually added (may be less than `count`
-    /// if the global or per-module cap is reached).
+    /// if the per-module cap is reached).
     ///
     /// # Errors
     ///
     /// Returns an error if instance creation fails.
-    pub fn prewarm(&self, name: &str, count: usize) -> Result<usize> {
+    pub async fn prewarm(&self, name: &str, count: usize) -> Result<usize> {
         if count == 0 {
             return Ok(0);
         }
 
-        let mut added = 0usize;
+        let max_per_module;
+        let current_count;
+        {
+            let slot = self.inner.slots.entry(name.to_string()).or_insert_with(|| {
+                let mpm = self
+                    .inner
+                    .max_per_module
+                    .unwrap_or_else(|| (self.inner.max_pool_size / 4).max(1));
+                ModuleSlot {
+                    available: parking_lot::Mutex::new(VecDeque::with_capacity(mpm)),
+                    max_per_module: mpm,
+                    in_use: AtomicUsize::new(0),
+                    total_created: AtomicUsize::new(0),
+                }
+            });
+            max_per_module = slot.max_per_module;
+            current_count = slot.available.lock().len();
+        }
+
+        let slots_remaining = max_per_module.saturating_sub(current_count);
+        let to_create = count.min(slots_remaining);
+
+        if to_create == 0 {
+            return Ok(0);
+        }
+
+        let name_owned = name.to_string();
+        let handles: Vec<_> = (0..to_create)
+            .map(|_| {
+                let name = name_owned.clone();
+                tokio::task::spawn_blocking(move || WasmInstance::builder(&name).build())
+            })
+            .collect();
+
+        let mut instances = Vec::with_capacity(to_create);
+        for handle in handles {
+            match handle.await {
+                Ok(instance) => instances.push(instance),
+                Err(e) if e.is_panic() => {
+                    return Err(crate::error::Error::internal(format!(
+                        "instance build panicked: {e}"
+                    )));
+                }
+                Err(e) => {
+                    return Err(crate::error::Error::internal(format!(
+                        "instance build task failed: {e}"
+                    )));
+                }
+            }
+        }
+
+        let added = instances.len();
+        let slot =
+            self.inner.slots.get(name).ok_or_else(|| {
+                crate::error::Error::internal("module slot removed during prewarm")
+            })?;
+        let mut queue = slot.available.lock();
+        for instance in instances {
+            queue.push_back(instance);
+        }
+        slot.total_created.fetch_add(added, Ordering::Relaxed);
+
+        Ok(added)
+    }
+
+    /// Synchronous prewarm (blocking wrapper around [`Self::prewarm`]).
+    ///
+    /// Creates instances sequentially. Kept for backward compatibility.
+    pub fn prewarm_sync(&self, name: &str, count: usize) -> Result<usize> {
+        if count == 0 {
+            return Ok(0);
+        }
 
         let slot = self.inner.slots.entry(name.to_string()).or_insert_with(|| {
-            let max_per_module = self.inner.max_pool_size;
+            let mpm = self
+                .inner
+                .max_per_module
+                .unwrap_or_else(|| (self.inner.max_pool_size / 4).max(1));
             ModuleSlot {
-                available: parking_lot::Mutex::new(VecDeque::with_capacity(max_per_module)),
-                max_per_module,
+                available: parking_lot::Mutex::new(VecDeque::with_capacity(mpm)),
+                max_per_module: mpm,
+                in_use: AtomicUsize::new(0),
+                total_created: AtomicUsize::new(0),
             }
         });
 
         let mut queue = slot.available.lock();
+        let mut added = 0usize;
 
         for _ in 0..count {
             if queue.len() >= slot.max_per_module {
                 break;
             }
-
             let instance = WasmInstance::builder(name).build();
             queue.push_back(instance);
             added += 1;
         }
 
+        slot.total_created.fetch_add(added, Ordering::Relaxed);
         Ok(added)
     }
 
@@ -219,6 +320,7 @@ impl InstancePool {
         let slot = self.inner.slots.get(name)?;
         let mut queue = slot.available.lock();
         let instance = queue.pop_front()?;
+        slot.in_use.fetch_add(1, Ordering::Relaxed);
         Some(PooledInstance {
             instance: std::mem::ManuallyDrop::new(instance),
             module_name: name.to_string(),
@@ -243,9 +345,12 @@ impl InstancePool {
         for entry in self.inner.slots.iter() {
             let queue = entry.available.lock();
             let available = queue.len();
+            let in_use = entry.in_use.load(Ordering::Relaxed);
+            let total = entry.total_created.load(Ordering::Relaxed);
             let mut module_stats = ModulePoolStats::new();
             module_stats.available = available;
-            module_stats.total = available;
+            module_stats.in_use = in_use;
+            module_stats.total = total;
             stats.modules.insert(entry.key().clone(), module_stats);
         }
         stats
@@ -259,6 +364,8 @@ impl InstancePool {
             let mut queue = slot.available.lock();
             let count = queue.len();
             queue.clear();
+            slot.in_use.store(0, Ordering::Relaxed);
+            slot.total_created.store(0, Ordering::Relaxed);
             count
         } else {
             0
@@ -304,26 +411,58 @@ mod tests {
     }
 
     #[test]
-    fn test_prewarm_fills_pool() {
+    fn test_prewarm_sync_fills_pool() {
         let pool = InstancePool::new(64);
-        let added = pool.prewarm("test-mod", 5).expect("prewarm should succeed");
+        let added = pool
+            .prewarm_sync("test-mod", 5)
+            .expect("prewarm should succeed");
         assert_eq!(added, 5);
         assert_eq!(pool.available_count("test-mod"), 5);
 
         let stats = pool.stats();
         assert_eq!(stats.total_instances(), 5);
         assert_eq!(stats.total_available(), 5);
+        assert_eq!(stats.total_in_use(), 0);
         assert_eq!(stats.module_count(), 1);
 
         let module_stats = stats.modules.get("test-mod").expect("module stats exist");
         assert_eq!(module_stats.available, 5);
         assert_eq!(module_stats.total, 5);
+        assert_eq!(module_stats.in_use, 0);
+    }
+
+    #[tokio::test]
+    async fn test_prewarm_async_parallel() {
+        let pool = InstancePool::new(64);
+        let added = pool
+            .prewarm("async-mod", 5)
+            .await
+            .expect("prewarm should succeed");
+        assert_eq!(added, 5);
+        assert_eq!(pool.available_count("async-mod"), 5);
+
+        let stats = pool.stats();
+        assert_eq!(stats.total_instances(), 5);
+        assert_eq!(stats.total_available(), 5);
+        assert_eq!(stats.total_in_use(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_prewarm_async_respects_cap() {
+        let pool = InstancePool::new(8);
+        let added = pool
+            .prewarm("cap-mod", 20)
+            .await
+            .expect("prewarm should succeed");
+        assert_eq!(added, 2); // 8/4 = 2
+        assert_eq!(pool.available_count("cap-mod"), 2);
     }
 
     #[test]
     fn test_acquire_decrements_available() {
         let pool = InstancePool::new(64);
-        pool.prewarm("mod-a", 3).expect("prewarm should succeed");
+        pool.prewarm_sync("mod-a", 3)
+            .expect("prewarm should succeed");
 
         let _inst1 = pool.acquire("mod-a").expect("should acquire");
         assert_eq!(pool.available_count("mod-a"), 2);
@@ -333,19 +472,29 @@ mod tests {
 
         let _inst3 = pool.acquire("mod-a").expect("should acquire");
         assert_eq!(pool.available_count("mod-a"), 0);
+
+        let stats = pool.stats();
+        let ms = stats.modules.get("mod-a").unwrap();
+        assert_eq!(ms.in_use, 3);
+        assert_eq!(ms.total, 3);
     }
 
     #[test]
     fn test_release_increments_available() {
         let pool = InstancePool::new(64);
-        pool.prewarm("mod-b", 2).expect("prewarm should succeed");
+        pool.prewarm_sync("mod-b", 2)
+            .expect("prewarm should succeed");
 
         {
             let _guard = pool.acquire("mod-b").expect("should acquire");
             assert_eq!(pool.available_count("mod-b"), 1);
+            let stats = pool.stats();
+            assert_eq!(stats.modules.get("mod-b").unwrap().in_use, 1);
         }
 
         assert_eq!(pool.available_count("mod-b"), 2);
+        let stats = pool.stats();
+        assert_eq!(stats.modules.get("mod-b").unwrap().in_use, 0);
     }
 
     #[test]
@@ -357,7 +506,8 @@ mod tests {
     #[test]
     fn test_acquire_drained_pool_returns_none() {
         let pool = InstancePool::new(64);
-        pool.prewarm("mod-c", 2).expect("prewarm should succeed");
+        pool.prewarm_sync("mod-c", 2)
+            .expect("prewarm should succeed");
 
         let _i1 = pool.acquire("mod-c").expect("first");
         let _i2 = pool.acquire("mod-c").expect("second");
@@ -367,7 +517,8 @@ mod tests {
     #[test]
     fn test_pooled_instance_auto_releases_on_drop() {
         let pool = InstancePool::new(64);
-        pool.prewarm("mod-d", 1).expect("prewarm should succeed");
+        pool.prewarm_sync("mod-d", 1)
+            .expect("prewarm should succeed");
         assert_eq!(pool.available_count("mod-d"), 1);
 
         {
@@ -379,17 +530,20 @@ mod tests {
     }
 
     #[test]
-    fn test_prewarm_respects_max_pool_size() {
-        let pool = InstancePool::new(4);
-        let added = pool.prewarm("mod-e", 10).expect("prewarm should succeed");
+    fn test_prewarm_sync_respects_max_per_module() {
+        let pool = InstancePool::with_per_module_limit(64, 4);
+        let added = pool
+            .prewarm_sync("mod-e", 10)
+            .expect("prewarm should succeed");
         assert_eq!(added, 4);
         assert_eq!(pool.available_count("mod-e"), 4);
     }
 
     #[test]
-    fn test_release_respects_max_pool_size() {
-        let pool = InstancePool::new(2);
-        pool.prewarm("mod-f", 2).expect("prewarm should succeed");
+    fn test_release_respects_max_per_module() {
+        let pool = InstancePool::with_per_module_limit(64, 2);
+        pool.prewarm_sync("mod-f", 2)
+            .expect("prewarm should succeed");
 
         let inst = WasmInstance::builder("mod-f").build();
         pool.release("mod-f", inst);
@@ -399,8 +553,8 @@ mod tests {
     #[test]
     fn test_multiple_modules() {
         let pool = InstancePool::new(64);
-        pool.prewarm("alpha", 2).expect("prewarm alpha");
-        pool.prewarm("beta", 3).expect("prewarm beta");
+        pool.prewarm_sync("alpha", 2).expect("prewarm alpha");
+        pool.prewarm_sync("beta", 3).expect("prewarm beta");
 
         assert_eq!(pool.available_count("alpha"), 2);
         assert_eq!(pool.available_count("beta"), 3);
@@ -415,12 +569,13 @@ mod tests {
         let stats = pool.stats();
         assert_eq!(stats.module_count(), 2);
         assert_eq!(stats.total_available(), 3);
+        assert_eq!(stats.total_in_use(), 2);
     }
 
     #[test]
     fn test_prewarm_zero_is_noop() {
         let pool = InstancePool::new(64);
-        let added = pool.prewarm("mod-g", 0).expect("prewarm zero");
+        let added = pool.prewarm_sync("mod-g", 0).expect("prewarm zero");
         assert_eq!(added, 0);
         assert_eq!(pool.available_count("mod-g"), 0);
     }
@@ -428,7 +583,8 @@ mod tests {
     #[test]
     fn test_clear_module() {
         let pool = InstancePool::new(64);
-        pool.prewarm("mod-h", 5).expect("prewarm should succeed");
+        pool.prewarm_sync("mod-h", 5)
+            .expect("prewarm should succeed");
         assert_eq!(pool.available_count("mod-h"), 5);
 
         let removed = pool.clear_module("mod-h");
@@ -439,8 +595,8 @@ mod tests {
     #[test]
     fn test_clear_all() {
         let pool = InstancePool::new(64);
-        pool.prewarm("x", 3).expect("prewarm x");
-        pool.prewarm("y", 4).expect("prewarm y");
+        pool.prewarm_sync("x", 3).expect("prewarm x");
+        pool.prewarm_sync("y", 4).expect("prewarm y");
 
         pool.clear();
         assert_eq!(pool.available_count("x"), 0);
@@ -457,7 +613,8 @@ mod tests {
     #[test]
     fn test_deref_and_deref_mut() {
         let pool = InstancePool::new(64);
-        pool.prewarm("mod-i", 1).expect("prewarm should succeed");
+        pool.prewarm_sync("mod-i", 1)
+            .expect("prewarm should succeed");
 
         let guard = pool.acquire("mod-i").expect("should acquire");
         let name: &str = guard.name();

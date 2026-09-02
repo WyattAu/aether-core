@@ -9,7 +9,7 @@ name = "aether_tests"
 path = "lib.rs"
 
 [dependencies]
-aether-core = { path = "../crates/core", features = ["mesh", "wasm", "chaos", "instance-pool", "rkyv", "mesh-circuit-breaker"] }
+aether-core = { path = "../crates/core", features = ["mesh", "wasm", "chaos", "instance-pool", "mesh-circuit-breaker"] }
 aether-server = { path = "../crates/server" }
 tokio = { workspace = true }
 wat = "1.220"

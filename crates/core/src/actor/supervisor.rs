@@ -1216,6 +1216,16 @@ impl<M: ResourceMonitor> DegradationController<M> {
         self.monitor.current_pressure()
     }
 
+    /// Return a reference to the underlying monitor.
+    pub fn monitor(&self) -> &M {
+        &self.monitor
+    }
+
+    /// Return the elevated batch factor.
+    pub fn elevated_batch_factor(&self) -> f64 {
+        self.elevated_batch_factor
+    }
+
     /// Decide whether a new child actor spawn should be admitted.
     pub fn admit_spawn(&self) -> DegradationDecision {
         match self.monitor.current_pressure() {

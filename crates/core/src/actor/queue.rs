@@ -7,6 +7,10 @@ use crossbeam_deque::{Injector, Steal, Stealer, Worker};
 use crate::actor::{ActorId, Message, Priority};
 
 /// A task to be executed by a worker.
+///
+/// When `additional_messages` is non-empty the task represents a batch: the
+/// worker processes `message` first, then each entry in `additional_messages`.
+/// This avoids pushing N separate `Task`s onto the work-stealing queue.
 #[derive(Debug)]
 pub struct Task {
     /// Target actor ID
@@ -15,6 +19,8 @@ pub struct Task {
     pub message: Message,
     /// Priority level
     pub priority: Priority,
+    /// Extra messages that belong to the same batch (processed after `message`).
+    pub additional_messages: Vec<Message>,
 }
 
 /// Global work queue for task injection.
@@ -237,6 +243,7 @@ mod tests {
                 priority: Priority::Normal,
             },
             priority: Priority::Normal,
+            additional_messages: Vec::new(),
         };
 
         queue.push(task);
@@ -255,6 +262,7 @@ mod tests {
                 priority: Priority::Normal,
             },
             priority: Priority::Normal,
+            additional_messages: Vec::new(),
         };
 
         worker.push(task);
@@ -276,6 +284,7 @@ mod tests {
                 priority: Priority::Low,
             },
             priority: Priority::Low,
+            additional_messages: Vec::new(),
         };
         let high_task = Task {
             actor_id: ActorId::new(),
@@ -285,6 +294,7 @@ mod tests {
                 priority: Priority::High,
             },
             priority: Priority::High,
+            additional_messages: Vec::new(),
         };
 
         queue.push(low_task);

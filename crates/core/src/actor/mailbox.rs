@@ -1,11 +1,13 @@
 //! MPSC mailbox for actors with bounded capacity and backpressure.
 //!
 //! Each actor has its own mailbox for receiving messages.
+//! Uses lock-free `crossbeam_queue::ArrayQueue` for the message queues
+//! and `tokio::sync::Notify` for efficient async waiting.
 
-use parking_lot::Mutex;
+use crossbeam_queue::ArrayQueue;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use tokio::sync::Semaphore;
+use tokio::sync::{Notify, Semaphore};
 
 use crate::Error;
 use crate::actor::{ActorId, Message, Priority};
@@ -47,21 +49,26 @@ impl MailboxConfig {
 }
 
 /// MPSC mailbox for an actor.
+///
+/// Uses lock-free bounded queues internally.
+/// Backpressure is coordinated via a semaphore; async wakeup via `Notify`.
 pub struct Mailbox {
     /// Actor ID this mailbox belongs to
     actor_id: ActorId,
     /// Configuration
     config: MailboxConfig,
-    /// Message queue (protected by mutex for simplicity, could use lock-free)
-    queue: Mutex<Vec<Message>>,
+    /// Lock-free message queue
+    queue: ArrayQueue<Message>,
     /// Current queue size
     size: AtomicUsize,
     /// Semaphore for bounded capacity
     semaphore: Arc<Semaphore>,
     /// Whether the mailbox is in backpressure state
     backpressure: AtomicBool,
-    /// Critical priority queue (if enabled)
-    critical_queue: Mutex<Vec<Message>>,
+    /// Lock-free critical priority queue
+    critical_queue: ArrayQueue<Message>,
+    /// Notify waiters when a message is enqueued
+    notify: Arc<Notify>,
 }
 
 impl Mailbox {
@@ -71,11 +78,12 @@ impl Mailbox {
         Self {
             actor_id,
             config,
-            queue: Mutex::new(Vec::with_capacity(capacity / 4)),
+            queue: ArrayQueue::new(capacity),
             size: AtomicUsize::new(0),
             semaphore: Arc::new(Semaphore::new(capacity)),
             backpressure: AtomicBool::new(false),
-            critical_queue: Mutex::new(Vec::new()),
+            critical_queue: ArrayQueue::new(capacity),
+            notify: Arc::new(Notify::new()),
         }
     }
 
@@ -100,15 +108,29 @@ impl Mailbox {
 
         let size = self.size.fetch_add(1, Ordering::Relaxed) + 1;
 
-        if self.config.priority_queue && message.priority == Priority::Critical {
-            self.critical_queue.lock().push(message);
-        } else {
-            self.queue.lock().push(message);
+        if let Err(rejected) =
+            if self.config.priority_queue && message.priority == Priority::Critical {
+                self.critical_queue.push(message)
+            } else {
+                self.queue.push(message)
+            }
+        {
+            self.size.fetch_sub(1, Ordering::Relaxed);
+            self.semaphore.add_permits(1);
+            return Err((
+                rejected,
+                Error::resource_exhausted(format!(
+                    "mailbox for actor {:?} internal queue is full",
+                    self.actor_id
+                )),
+            ));
         }
 
         if size >= self.config.backpressure_count() {
             self.backpressure.store(true, Ordering::Relaxed);
         }
+
+        self.notify.notify_waiters();
 
         Ok(())
     }
@@ -124,15 +146,26 @@ impl Mailbox {
 
         let size = self.size.fetch_add(1, Ordering::Relaxed) + 1;
 
-        if self.config.priority_queue && message.priority == Priority::Critical {
-            self.critical_queue.lock().push(message);
+        if if self.config.priority_queue && message.priority == Priority::Critical {
+            self.critical_queue.push(message)
         } else {
-            self.queue.lock().push(message);
+            self.queue.push(message)
+        }
+        .is_err()
+        {
+            self.size.fetch_sub(1, Ordering::Relaxed);
+            self.semaphore.add_permits(1);
+            return Err(Error::resource_exhausted(format!(
+                "mailbox for actor {:?} internal queue is full",
+                self.actor_id
+            )));
         }
 
         if size >= self.config.backpressure_count() {
             self.backpressure.store(true, Ordering::Relaxed);
         }
+
+        self.notify.notify_waiters();
 
         Ok(())
     }
@@ -140,7 +173,7 @@ impl Mailbox {
     /// Receive a message from the mailbox (non-blocking).
     pub fn try_recv(&self) -> Option<Message> {
         if self.config.priority_queue
-            && let Some(msg) = self.critical_queue.lock().pop()
+            && let Some(msg) = self.critical_queue.pop()
         {
             self.size.fetch_sub(1, Ordering::Relaxed);
             self.semaphore.add_permits(1);
@@ -148,22 +181,25 @@ impl Mailbox {
             return Some(msg);
         }
 
-        let msg = self.queue.lock().pop();
-        if msg.is_some() {
+        if let Some(msg) = self.queue.pop() {
             self.size.fetch_sub(1, Ordering::Relaxed);
             self.semaphore.add_permits(1);
             self.check_backpressure();
+            return Some(msg);
         }
-        msg
+
+        None
     }
 
     /// Receive a message from the mailbox (async, waits if empty).
+    ///
+    /// Uses `tokio::sync::Notify` for efficient wakeup instead of busy-polling.
     pub async fn recv(&self) -> Message {
         loop {
             if let Some(msg) = self.try_recv() {
                 return msg;
             }
-            tokio::task::yield_now().await;
+            self.notify.notified().await;
         }
     }
 
@@ -194,17 +230,17 @@ impl Mailbox {
 
     /// Clear all messages from the mailbox.
     pub fn clear(&self) {
-        let mut queue = self.queue.lock();
-        let count = queue.len();
-        queue.clear();
+        let mut total = 0;
 
-        let mut critical = self.critical_queue.lock();
-        let critical_count = critical.len();
-        critical.clear();
+        while self.critical_queue.pop().is_some() {
+            total += 1;
+        }
+        while self.queue.pop().is_some() {
+            total += 1;
+        }
 
-        let total = count + critical_count;
         if total > 0 {
-            self.size.store(0, Ordering::Relaxed);
+            self.size.fetch_sub(total, Ordering::Relaxed);
             self.semaphore.add_permits(total);
         }
         self.backpressure.store(false, Ordering::Relaxed);
@@ -301,5 +337,55 @@ mod tests {
         mailbox.send(msg).await.unwrap();
         let received = mailbox.recv().await;
         assert!(matches!(received.payload, MessagePayload::Start));
+    }
+
+    #[tokio::test]
+    async fn test_recv_waits_then_wakes() {
+        let mailbox = Arc::new(Mailbox::new(ActorId::new(), MailboxConfig::default()));
+        let mailbox2 = mailbox.clone();
+
+        let handle = tokio::spawn(async move { mailbox2.recv().await });
+
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+
+        let msg = Message {
+            sender: None,
+            payload: MessagePayload::Custom(vec![42]),
+            priority: Priority::Normal,
+        };
+        mailbox.try_send(msg).unwrap();
+
+        let received = handle.await.expect("recv task should not panic");
+        assert!(matches!(received.payload, MessagePayload::Custom(_)));
+    }
+
+    #[test]
+    fn test_mailbox_clear() {
+        let config = MailboxConfig {
+            capacity: 10,
+            priority_queue: true,
+            ..Default::default()
+        };
+        let mailbox = Mailbox::new(ActorId::new(), config);
+
+        for i in 0..5 {
+            let msg = Message {
+                sender: None,
+                payload: MessagePayload::Custom(vec![i]),
+                priority: Priority::Normal,
+            };
+            mailbox.try_send(msg).unwrap();
+        }
+        let critical_msg = Message {
+            sender: None,
+            payload: MessagePayload::Custom(vec![99]),
+            priority: Priority::Critical,
+        };
+        mailbox.try_send(critical_msg).unwrap();
+
+        assert_eq!(mailbox.len(), 6);
+        mailbox.clear();
+        assert!(mailbox.is_empty());
+        assert!(!mailbox.is_backpressured());
     }
 }

@@ -398,7 +398,7 @@ fn validate_jwt(config: &JwtConfig, token: &str) -> Option<JwtClaims> {
 
     let service_config = TokenkitJwtConfig {
         algorithm: tokenkit::service::JwtAlgorithm::HS256,
-        secret: zeroize::Zeroizing::new(config.secret.clone()),
+        secret: config.secret.clone(),
         issuer: config.issuer.clone(),
         audience: config.audience.clone(),
         ..Default::default()
@@ -420,7 +420,7 @@ pub fn generate_test_token(
 
     let service_config = TokenkitJwtConfig {
         algorithm: tokenkit::service::JwtAlgorithm::HS256,
-        secret: zeroize::Zeroizing::new(secret.to_string()),
+        secret: secret.to_string(),
         issuer: Some("aether-test".to_string()),
         ..Default::default()
     };

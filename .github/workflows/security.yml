@@ -257,24 +257,26 @@ jobs:
         with:
           toolchain: nightly-2026-03-01
 
-      - name: Generate SBOM with Syft
-        uses: anchore/sbom-action@517a82f3e0c4e2e167f3be615b76fb3070a5df57
-        with:
-          format: cyclonedx-json
-          output-file: sbom.cdx.json
+      - name: Install Syft
+        uses: anchore/sbom-action/download-syft@517a82f3e0c4e2e167f3be615b76fb3070a5df57
 
-      - name: Upload SBOM artifact
-        uses: actions/upload-artifact@654c28fbec712ddbf170266f20aa82b4a8e84e26
-        with:
-          name: sbom-cyclonedx
-          path: sbom.cdx.json
+      - name: Generate SBOM (source code)
+        run: syft packages dir:. --output cyclonedx-json=sbom.cdx.json
 
-      - name: Upload SBOM artifact
+      - name: Generate SBOM (Dockerfile)
+        run: |
+          syft packages dockerfile:Dockerfile --output cyclonedx-json=sbom-dockerfile.cdx.json
+          syft packages dockerfile:server/Dockerfile --output cyclonedx-json=sbom-server-dockerfile.cdx.json
+
+      - name: Upload SBOM artifacts
         uses: actions/upload-artifact@65c4c4a1ddee5b72f59865d7d3a283a5ee3f81ae
         if: always()
         with:
           name: sbom-cyclonedx
-          path: sbom.cdx.json
+          path: |
+            sbom.cdx.json
+            sbom-dockerfile.cdx.json
+            sbom-server-dockerfile.cdx.json
           retention-days: 90
 
   security-summary:

@@ -99,12 +99,12 @@ mod handle;
 mod mailbox;
 pub mod memory_pool;
 pub mod migration;
+pub mod os_resource_monitor;
 pub mod queue;
 mod registry;
 pub mod rpc;
 mod scheduler;
 pub mod supervisor;
-#[cfg(feature = "rkyv")]
 pub mod zero_copy;
 
 pub use ai_integration::{
@@ -120,6 +120,7 @@ pub use migration::{
     Checkpoint, CheckpointMetadata, MigrationCoordinator, MigrationError, MigrationHandle,
     MigrationMessage, MigrationRequest, MigrationState, NodeId, SerializableMessage,
 };
+pub use os_resource_monitor::OsResourceMonitor;
 pub use queue::{PriorityQueue, WorkQueue, WorkStealer, create_local_queue};
 pub use registry::{ActorRegistry, ActorState, RegistryStats};
 pub use rpc::{
@@ -128,9 +129,10 @@ pub use rpc::{
 };
 pub use scheduler::{ActorScheduler, SchedulerConfig, SchedulerStats};
 pub use supervisor::{
-    ActorConfig, ChildSpec, ChildState, EscalationAction, ExitReason, RestartPolicy,
-    SupervisedChild, SupervisionStrategy, Supervisor, SupervisorError, SupervisorHandle,
-    SupervisorStats, SupervisorTree, SupervisorTreeStats,
+    ActorConfig, ChildSpec, ChildState, DegradationController, DegradationDecision,
+    EscalationAction, ExitReason, FnResourceMonitor, PressureLevel, ResourceMonitor, RestartPolicy,
+    StaticResourceMonitor, SupervisedChild, SupervisionStrategy, Supervisor, SupervisorError,
+    SupervisorHandle, SupervisorStats, SupervisorTree, SupervisorTreeStats,
 };
 
 use std::sync::Arc;
