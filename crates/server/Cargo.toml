@@ -27,6 +27,8 @@ clap = { workspace = true }
 async-trait = "0.1"
 thiserror = { workspace = true }
 tokenkit = { workspace = true, optional = true }
+ws-barbican = { path = "../../../ws-barbican" }
+ws-kit = { path = "../../../ws-kit", default-features = false, features = ["std"] }
 zeroize = "1"
 monoio = { workspace = true, optional = true, features = ["mkdirat", "renameat", "unlinkat"] }
 
