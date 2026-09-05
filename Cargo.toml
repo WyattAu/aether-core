@@ -48,8 +48,8 @@ proptest = "1.6"
 uuid = { version = "1.11", features = ["v4", "serde"] }
 
 # Shared crates
-tokenkit = { path = "../tokenkit" }
-cryptkit = { path = "../cryptkit" }
+tokenkit = { version = "0.1" }
+cryptkit = { version = "0.1" }
 
 # Internal crates
 aether-core = { path = "crates/core" }

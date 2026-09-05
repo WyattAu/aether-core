@@ -168,7 +168,7 @@ dependencies = [
  "wasmtime-wasi",
  "wat",
  "ws-barbican",
- "ws-kit",
+ "ws-kit 0.3.0",
  "yaml_serde",
  "zstd",
 ]
@@ -198,7 +198,7 @@ dependencies = [
  "uuid",
  "wat",
  "ws-barbican",
- "ws-kit",
+ "ws-kit 0.3.0",
  "zeroize",
 ]
 
@@ -666,6 +666,8 @@ dependencies = [
 [[package]]
 name = "barbican"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c646d45108917ac2c56b44378e2ad7713488145110ab46ded81096cfb6f984ae"
 dependencies = [
  "axum 0.8.9",
  "axum-extra",
@@ -1482,6 +1484,8 @@ checksum = "460fbee9c2c2f33933d720630a6a0bac33ba7053db5344fac858d4b8952d77d5"
 [[package]]
 name = "cryptkit"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c06b2298ff21f74c9d1ed1f1468350edbd961175669295073d48becaf22d4738"
 dependencies = [
  "aes-gcm",
  "hmac",
@@ -2054,6 +2058,21 @@ dependencies = [
  "fxhash",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "generator"
+version = "0.8.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b3b854b0e584ead1a33f18b2fcad7cf7be18b3875c78816b753639aa501513ae"
+dependencies = [
+ "cc",
+ "cfg-if",
+ "libc",
+ "log",
+ "rustversion",
+ "windows-link",
+ "windows-result",
 ]
 
 [[package]]
@@ -2954,6 +2973,20 @@ name = "log"
 version = "0.4.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5e5032e24019045c762d3c0f28f5b6b8bbf38563a65908389bf7978758920897"
+
+[[package]]
+name = "loom"
+version = "0.7.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "419e0dc8046cb947daa77eb95ae174acfbddb7673b4151f56d1eed8e93fbfaca"
+dependencies = [
+ "cfg-if",
+ "generator",
+ "pin-utils",
+ "scoped-tls",
+ "tracing",
+ "tracing-subscriber",
+]
 
 [[package]]
 name = "lru"
@@ -4388,6 +4421,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "scoped-tls"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e1cf6437eb19a8f4a6cc0f7dca544973b0b78843adbfeb3683d1a94a0024a294"
+
+[[package]]
 name = "scopeguard"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5001,6 +5040,8 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 [[package]]
 name = "tokenkit"
 version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "420028108ec323158bc362a0ae53a5606b0f2c1fbd98fadd3e8e71034a120e4f"
 dependencies = [
  "chrono",
  "jsonwebtoken",
@@ -6864,6 +6905,8 @@ checksum = "9edde0db4769d2dc68579893f2306b26c6ecfbe0ef499b013d731b7b9247e0b9"
 [[package]]
 name = "ws-barbican"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "94434a42db751e8a1814a6d477482fb49e4e2f870869dc6391022956e4698991"
 dependencies = [
  "axum 0.8.9",
  "barbican",
@@ -6873,12 +6916,14 @@ dependencies = [
  "tokenkit",
  "tokio",
  "tracing",
- "ws-kit",
+ "ws-kit 0.1.0",
 ]
 
 [[package]]
 name = "ws-kit"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "41f4b57a4ca3307d44192e7b79f03592eea9fdf01c5345b6ce4673642a8398ce"
 dependencies = [
  "axum 0.8.9",
  "dashmap",
@@ -6889,6 +6934,22 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tower 0.5.3",
+ "uuid",
+]
+
+[[package]]
+name = "ws-kit"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "acc2480c9636f5b4a2622d7108fdfd022d727d669091363fd76b1eb2d6bde7d0"
+dependencies = [
+ "dashmap",
+ "futures",
+ "loom",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
  "uuid",
 ]
 
