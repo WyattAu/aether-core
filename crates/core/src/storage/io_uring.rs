@@ -455,11 +455,11 @@ mod tests {
         let backend = Arc::new(backend);
 
         let mut handles = Vec::new();
-        for i in 0..10 {
+        for i in 0..10u64 {
             let b = Arc::clone(&backend);
             handles.push(tokio::spawn(async move {
                 let key = format!("key-{i}");
-                b.write(&key, i.to_le_bytes()).await.expect("write failed");
+                b.write(&key, i.to_le_bytes().as_slice()).await.expect("write failed");
 
                 let val = b.read(&key).await.expect("read failed").expect("not found");
                 assert_eq!(val, i.to_le_bytes());

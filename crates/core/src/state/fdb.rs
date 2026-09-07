@@ -1225,7 +1225,7 @@ mod fdb_integration_tests {
         let config = FdbConfig::default();
         let client = FdbClient::new(config).await.unwrap();
 
-        let _prefix = b"test_range_";
+        let prefix = b"test_range_";
         for i in 0u32..10 {
             let key = format!("{:?}", (prefix, i));
             client.set(key.as_bytes(), b"value").await.unwrap();
