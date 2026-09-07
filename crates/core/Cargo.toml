@@ -59,6 +59,7 @@ uuid = { workspace = true }
 rand = "0.9"
 async-trait = "0.1"
 actor-kit = { version = "0.2", features = ["serde", "zero-copy", "unsafe-pool"] }
+uds-kit = "0.1"
 chrono = { version = "0.4", features = ["serde"] }
 time = "0.3"
 bincode = "1.3"

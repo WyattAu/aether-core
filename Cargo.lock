@@ -183,6 +183,7 @@ dependencies = [
  "tracing",
  "tracing-opentelemetry",
  "tracing-subscriber",
+ "uds-kit",
  "utoipa",
  "uuid",
  "wasmtime",
@@ -5567,6 +5568,16 @@ name = "typenum"
 version = "1.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "562d481066bde0658276a35467c4af00bdc6ee726305698a55b86e61d7ad82bb"
+
+[[package]]
+name = "uds-kit"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "34e27890848b2cb9e8be2a0f3a7655087de42fecbbc2016812f13d3e20f9cb1a"
+dependencies = [
+ "thiserror 2.0.18",
+ "tokio",
+]
 
 [[package]]
 name = "unarray"

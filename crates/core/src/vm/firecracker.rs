@@ -61,12 +61,13 @@ impl FirecrackerClient {
     }
 
     async fn connect(&self) -> Result<UnixStream> {
-        let timeout = Duration::from_millis(self.timeout_ms);
-
-        tokio::time::timeout(timeout, UnixStream::connect(&self.socket_path))
+        uds_kit::connect(&self.socket_path, Duration::from_millis(self.timeout_ms))
             .await
-            .map_err(|_| Error::actor("Connection timeout"))?
-            .map_err(Error::io)
+            .map_err(|e| match e {
+                uds_kit::UdsError::ConnectTimeout { .. } => Error::actor("Connection timeout"),
+                uds_kit::UdsError::Io(io) => Error::io(io),
+                other => Error::actor(other.to_string()),
+            })
     }
 
     async fn request(&self, method: &str, path: &str, body: Option<&str>) -> Result<String> {
