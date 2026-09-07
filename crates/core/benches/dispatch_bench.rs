@@ -30,7 +30,7 @@ impl EchoActor {
 }
 
 impl Actor for EchoActor {
-    async fn handle(&mut self, msg: Message, _ctx: &ActorContext) -> aether_core::Result<()> {
+    async fn handle(&mut self, msg: Message, _ctx: &ActorContext) -> actor_kit::Result<()> {
         match msg.payload {
             MessagePayload::Custom(_) => {
                 self.count.fetch_add(1, Ordering::Relaxed);
@@ -46,7 +46,7 @@ impl Actor for EchoActor {
 struct NoopActor;
 
 impl Actor for NoopActor {
-    async fn handle(&mut self, _msg: Message, _ctx: &ActorContext) -> aether_core::Result<()> {
+    async fn handle(&mut self, _msg: Message, _ctx: &ActorContext) -> actor_kit::Result<()> {
         Ok(())
     }
 }

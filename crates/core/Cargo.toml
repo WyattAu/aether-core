@@ -24,9 +24,6 @@ wasi-preview2 = []
 
 [dependencies]
 tokio = { workspace = true, features = ["fs", "sync", "time", "macros", "rt", "rt-multi-thread", "io-util", "net", "process", "signal"] }
-crossbeam-deque = "0.8"
-crossbeam-queue = "0.3"
-crossbeam-utils = "0.8"
 monoio = { workspace = true, optional = true, features = ["mkdirat", "renameat", "unlinkat"] }
 wasmtime = { workspace = true, optional = true, features = ["component-model"] }
 wasmtime-wasi = { workspace = true, optional = true }
@@ -61,6 +58,7 @@ blake3 = "1.5"
 uuid = { workspace = true }
 rand = "0.9"
 async-trait = "0.1"
+actor-kit = { version = "0.2", features = ["serde", "zero-copy", "unsafe-pool"] }
 chrono = { version = "0.4", features = ["serde"] }
 time = "0.3"
 bincode = "1.3"

@@ -1,133 +1,75 @@
-//! Actor System with Work-Stealing Scheduler
+//! Actor System backed by the [`actor-kit`](https://docs.rs/actor-kit) runtime.
 //!
-//! This module implements a high-performance actor system designed for
-//! 100,000+ actors per node with efficient load balancing.
+//! The work-stealing runtime — scheduler, queues, bounded mailboxes, actor
+//! registry, executor seam, typed RPC, zero-copy serialization, and the
+//! memory pool — is provided by the `actor-kit` crate and re-exported here
+//! under the historical `aether_core::actor::` paths. This module layers the
+//! Aether-specific pieces on top:
 //!
-//! # Overview
+//! - [`ai_integration`] — AI bridge and MCP tooling for actors
+//! - [`migration`] — live actor migration between nodes
+//! - [`supervisor`] — supervision and degradation policies
+//! - [`os_resource_monitor`] — OS pressure sampling feeding the supervisor
+//! - [`executor`] — WASM executor backend for the `actor-kit` executor seam
 //!
-//! The actor system provides:
+//! # Admission Control
 //!
-//! - **[`ActorScheduler`]**: Multi-worker scheduler with work stealing
-//! - **[`ActorBuilder`]**: Builder pattern for creating actors
-//! - **[`ActorHandle`]**: Handle for sending messages to actors
-//! - **[`Mailbox`]**: Bounded MPSC mailbox with backpressure
-//! - [`ActorRegistry`]: Registry for tracking actors and state
-//!
-//! # Architecture
-//!
-//! ```text
-//! ┌─────────────────────────────────────────────────────────┐
-//! │                     ActorScheduler                       │
-//! │  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐    │
-//! │  │ Worker  │  │ Worker  │  │ Worker  │  │ Worker  │    │
-//! │  │   #0    │  │   #1    │  │   #2    │  │   #3    │    │
-//! │  └────┬────┘  └────┬────┘  └────┬────┘  └────┬────┘    │
-//! │       │            │            │            │          │
-//! │       └────────────┴─────┬──────┴────────────┘          │
-//! │                           │ work steal                   │
-//! │                    ┌──────▼──────┐                       │
-//! │                    │ GlobalQueue │                       │
-//! │                    └─────────────┘                       │
-//! └─────────────────────────────────────────────────────────┘
-//!                            │
-//!                            ▼
-//! ┌─────────────────────────────────────────────────────────┐
-//! │                     ActorRegistry                        │
-//! │  ┌───────────┐  ┌───────────┐  ┌───────────┐           │
-//! │  │  Actor 1  │  │  Actor 2  │  │  Actor N  │  ...      │
-//! │  │  Mailbox  │  │  Mailbox  │  │  Mailbox  │           │
-//! │  │  State    │  │  State    │  │  State    │           │
-//! │  └───────────┘  └───────────┘  └───────────┘           │
-//! └─────────────────────────────────────────────────────────┘
-//! ```
-//!
-//! # Example: Basic Actor
+//! The scheduler accepts a pluggable [`actor_kit::ResourcePolicy`]. Aether's
+//! per-tenant [`QuotaEnforcer`](crate::tenant::quota::QuotaEnforcer)
+//! implements that trait (see the impl in this module), so tenant actor
+//! limits and message-rate limits hook directly into the runtime:
 //!
 //! ```ignore
-//! use aether_core::actor::{ActorBuilder, ActorHandle, ActorScheduler, SchedulerConfig};
+//! use aether_core::actor::{ActorScheduler, NullExecutor, SchedulerConfig};
+//! use aether_core::tenant::quota::{QuotaEnforcer, QuotaLimits, ResourceQuota};
 //! use std::sync::Arc;
 //!
-//! // Create scheduler
-//! let config = SchedulerConfig::new().workers(4);
-//! let scheduler = Arc::new(ActorScheduler::new(config));
-//! scheduler.start();
-//!
-//! // Spawn actor
-//! let handle = ActorBuilder::new()
-//!     .name("my-actor")
-//!     .spawn(&scheduler)?;
-//!
-//! // Start the actor
-//! handle.start().await?;
-//!
-//! // Send messages
-//! handle.send(MessagePayload::Custom(vec![1, 2, 3])).await?;
-//!
-//! // Check state
-//! assert!(handle.is_running());
+//! let enforcer = Arc::new(QuotaEnforcer::new(ResourceQuota::with_limits(
+//!     "tenant-a",
+//!     QuotaLimits::default(),
+//! )));
+//! let scheduler = ActorScheduler::with_resource_policy(
+//!     SchedulerConfig::new().workers(4),
+//!     Arc::new(NullExecutor::new()),
+//!     enforcer, // Arc<QuotaEnforcer> coerces to Arc<dyn ResourcePolicy>
+//! );
 //! ```
-//!
-//! # Message Priorities
-//!
-//! Messages support four priority levels:
-//!
-//! - **Critical**: Processed first (system messages)
-//! - **High**: Time-sensitive operations
-//! - **Normal**: Default priority
-//! - **Low**: Background tasks
-//!
-//! # Backpressure
-//!
-//! Each actor has a bounded mailbox with backpressure:
-//!
-//! - Default capacity: 10,000 messages
-//! - Backpressure threshold: 80% capacity
-//! - Senders wait when mailbox is full
-//!
-//! # Work Stealing
-//!
-//! The scheduler uses work stealing for load balancing:
-//!
-//! 1. Each worker has a local queue
-//! 2. Workers steal from global queue when idle
-//! 3. Workers steal from each other for balance
-//! 4. Priority queue for critical messages
 
 pub mod ai_integration;
 mod executor;
-mod handle;
-mod mailbox;
-pub mod memory_pool;
 pub mod migration;
 pub mod os_resource_monitor;
-pub mod queue;
-mod registry;
-pub mod rpc;
-mod scheduler;
 pub mod supervisor;
-pub mod zero_copy;
+
+#[cfg(feature = "wasm")]
+pub use executor::WasmActorExecutor;
+
+pub use actor_kit::memory_pool;
+pub use actor_kit::queue;
+pub use actor_kit::rpc;
+pub use actor_kit::zero_copy;
+pub use actor_kit::{ActorExecutor, ExecutionResult, NullExecutor};
+
+pub use actor_kit::queue::{PriorityQueue, WorkQueue, WorkStealer, create_local_queue};
+pub use actor_kit::rpc::{
+    RpcClient, RpcError, RpcHandler, RpcMessage, RpcRegistry, RpcRequest, RpcResponse,
+    process_rpc_message,
+};
+pub use actor_kit::{
+    Actor, ActorBuilder, ActorContext, ActorHandle, ActorId, ActorRegistry, ActorScheduler,
+    ActorState, Mailbox, MailboxConfig, Message, MessagePayload, Priority, RegistryStats,
+    SchedulerConfig, SchedulerStats, Signal, StealerRegistry, WorkerStatsInfo,
+};
 
 pub use ai_integration::{
     ActorAiBridge, ActorAiTool, AiActorTool, AiRequest, AiResponse, AiToActorMcpTool,
     ToolCallRecord,
 };
-#[cfg(feature = "wasm")]
-pub use executor::WasmActorExecutor;
-pub use executor::{ActorExecutor, ExecutionResult, NullExecutor};
-pub use handle::{ActorBuilder, ActorHandle};
-pub use mailbox::{Mailbox, MailboxConfig};
 pub use migration::{
     Checkpoint, CheckpointMetadata, MigrationCoordinator, MigrationError, MigrationHandle,
     MigrationMessage, MigrationRequest, MigrationState, NodeId, SerializableMessage,
 };
 pub use os_resource_monitor::OsResourceMonitor;
-pub use queue::{PriorityQueue, WorkQueue, WorkStealer, create_local_queue};
-pub use registry::{ActorRegistry, ActorState, RegistryStats};
-pub use rpc::{
-    RpcClient, RpcError, RpcHandler, RpcMessage, RpcRegistry, RpcRequest, RpcResponse,
-    process_rpc_message,
-};
-pub use scheduler::{ActorScheduler, SchedulerConfig, SchedulerStats};
 pub use supervisor::{
     ActorConfig, ChildSpec, ChildState, DegradationController, DegradationDecision,
     EscalationAction, ExitReason, FnResourceMonitor, PressureLevel, ResourceMonitor, RestartPolicy,
@@ -135,132 +77,48 @@ pub use supervisor::{
     SupervisorHandle, SupervisorStats, SupervisorTree, SupervisorTreeStats,
 };
 
-use std::sync::Arc;
-use uuid::Uuid;
+use actor_kit::Error as KitError;
+use actor_kit::ResourcePolicy;
 
-/// Unique identifier for an actor.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
-pub struct ActorId(pub Uuid);
+use crate::tenant::quota::QuotaEnforcer;
 
-impl ActorId {
-    /// Generate a new random actor ID.
-    pub fn new() -> Self {
-        Self(Uuid::new_v4())
-    }
-}
-
-impl Default for ActorId {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-/// Priority level for actor messages.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
-pub enum Priority {
-    /// Low priority (background tasks)
-    Low = 0,
-    /// Normal priority (default)
-    #[default]
-    Normal = 1,
-    /// High priority (time-sensitive)
-    High = 2,
-    /// Critical priority (system messages)
-    Critical = 3,
-}
-
-/// A message sent to an actor.
-#[derive(Debug, Clone)]
-pub struct Message {
-    /// Sender actor ID (None for system messages)
-    pub sender: Option<ActorId>,
-    /// Message type/payload
-    pub payload: MessagePayload,
-    /// Message priority
-    pub priority: Priority,
-}
-
-impl Default for Message {
-    fn default() -> Self {
-        Self {
-            sender: None,
-            payload: MessagePayload::Empty,
-            priority: Priority::Normal,
+/// Maps runtime errors onto Aether's richer error type so `?` keeps working
+/// at Aether call sites.
+impl From<KitError> for crate::Error {
+    fn from(err: KitError) -> Self {
+        match err {
+            KitError::Actor(message) => crate::Error::actor(message),
+            KitError::ResourceExhausted(message) => crate::Error::resource_exhausted(message),
+            KitError::Serialization(message) => crate::Error::serialization(message),
+            KitError::Internal(message) => crate::Error::internal(message),
         }
     }
 }
 
-/// Payload of a message.
-#[derive(Debug, Clone, Default)]
-pub enum MessagePayload {
-    /// Start the actor
-    Start,
-    /// Stop the actor
-    Stop,
-    /// Custom binary payload
-    Custom(Vec<u8>),
-    /// System signal
-    Signal(Signal),
-    /// Default (empty)
-    #[default]
-    Empty,
-}
-
-/// System signals.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Signal {
-    /// Pause execution
-    Pause,
-    /// Resume execution
-    Resume,
-    /// Restart the actor
-    Restart,
-}
-
-/// Trait for actor behavior.
-pub trait Actor: Send + Sync + 'static {
-    /// Handle a message.
-    fn handle(
-        &mut self,
-        msg: Message,
-        ctx: &ActorContext,
-    ) -> impl std::future::Future<Output = crate::Result<()>> + Send;
-}
-
-/// Context provided to actors during message handling.
-pub struct ActorContext {
-    /// Actor's own ID
-    pub id: ActorId,
-    /// Scheduler handle for spawning work
-    scheduler: Arc<ActorScheduler>,
-}
-
-impl ActorContext {
-    /// Send a message to another actor.
-    pub async fn send(&self, target: ActorId, payload: MessagePayload) -> crate::Result<()> {
-        self.scheduler
-            .send(
-                target,
-                Message {
-                    sender: Some(self.id),
-                    payload,
-                    priority: Priority::Normal,
-                },
-            )
-            .await
+/// Admission control: Aether's tenant quota enforcer as a scheduler policy.
+///
+/// Method mapping: `try_acquire_actor` → [`ResourcePolicy::admit_actor`],
+/// `check_message_rate[_batch]` → [`ResourcePolicy::admit_message`],
+/// `release_actor` → [`ResourcePolicy::release_actor`]. Install via
+/// [`ActorScheduler::with_resource_policy`].
+impl ResourcePolicy for QuotaEnforcer {
+    fn admit_actor(&self) -> actor_kit::Result<()> {
+        QuotaEnforcer::try_acquire_actor(self).map_err(KitError::resource_exhausted)
     }
 
-    /// Send a high-priority message to another actor.
-    pub async fn send_high(&self, target: ActorId, payload: MessagePayload) -> crate::Result<()> {
-        self.scheduler
-            .send(
-                target,
-                Message {
-                    sender: Some(self.id),
-                    payload,
-                    priority: Priority::High,
-                },
-            )
-            .await
+    fn release_actor(&self) {
+        QuotaEnforcer::release_actor(self);
+    }
+
+    fn admit_message(&self, count: usize) -> actor_kit::Result<()> {
+        let check = if count <= 1 {
+            self.check_message_rate()
+        } else {
+            self.check_message_rate_batch(count)
+        };
+        check.map_err(KitError::resource_exhausted)
     }
 }
+
+#[cfg(test)]
+mod tests;

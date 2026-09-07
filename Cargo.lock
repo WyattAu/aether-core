@@ -3,6 +3,29 @@
 version = 4
 
 [[package]]
+name = "actor-kit"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b45035b91bfcdae78da8bd6ef3bbc147babe252f59489656f6384d40c14695fb"
+dependencies = [
+ "async-trait",
+ "bincode",
+ "crossbeam-deque",
+ "crossbeam-queue",
+ "crossbeam-utils",
+ "dashmap",
+ "futures",
+ "lru 0.12.5",
+ "parking_lot",
+ "rkyv",
+ "serde",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "addr2line"
 version = "0.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -99,6 +122,7 @@ dependencies = [
 name = "aether-core"
 version = "2.0.0"
 dependencies = [
+ "actor-kit",
  "async-stream",
  "async-trait",
  "axum 0.7.9",
@@ -109,9 +133,6 @@ dependencies = [
  "bytes",
  "chrono",
  "criterion",
- "crossbeam-deque",
- "crossbeam-queue",
- "crossbeam-utils",
  "cryptkit",
  "dashmap",
  "foundationdb",

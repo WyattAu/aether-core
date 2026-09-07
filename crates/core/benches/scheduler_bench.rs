@@ -255,6 +255,7 @@ fn create_test_task(id: u64) -> Task {
             priority: Priority::Normal,
         },
         priority: Priority::Normal,
+        additional_messages: Vec::new(),
     }
 }
 
@@ -267,6 +268,7 @@ fn create_test_task_with_priority(id: u64, priority: Priority) -> Task {
             priority,
         },
         priority,
+        additional_messages: Vec::new(),
     }
 }
 
