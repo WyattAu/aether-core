@@ -380,6 +380,23 @@ impl MetricsBroadcaster {
 mod tests {
     use super::*;
 
+    /// Pins the ws-kit 0.4 `BroadcastHub<T>` seam the dashboard broadcaster is
+    /// built on: a broadcast must fan out to every current subscriber.
+    #[test]
+    fn broadcast_hub_fans_out_to_all_subscribers() {
+        let hub = BroadcastHub::from_config(&dashboard_ws_config());
+        let mut sub_a = hub.subscribe();
+        let mut sub_b = hub.subscribe();
+
+        let sent = hub.try_broadcast(WebSocketMessage::Heartbeat { timestamp: 42 });
+        assert_eq!(sent, 2, "both subscribers must be reached");
+
+        for sub in [&mut sub_a, &mut sub_b] {
+            let msg: WebSocketMessage = sub.try_recv().expect("subscriber must receive the msg");
+            assert!(matches!(msg, WebSocketMessage::Heartbeat { timestamp: 42 }));
+        }
+    }
+
     #[test]
     fn test_ws_message_serialization() {
         let msg = WebSocketMessage::Heartbeat { timestamp: 12345 };

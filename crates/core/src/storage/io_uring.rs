@@ -358,7 +358,7 @@ mod tests {
         (backend, dir)
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_write_read_roundtrip() {
         let (backend, _dir) = new_test_backend().await;
 
@@ -375,14 +375,14 @@ mod tests {
         assert_eq!(val, b"hello world");
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_read_nonexistent() {
         let (backend, _dir) = new_test_backend().await;
         let val = backend.read("missing").await.expect("read failed");
         assert!(val.is_none());
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_delete() {
         let (backend, _dir) = new_test_backend().await;
 
@@ -398,7 +398,7 @@ mod tests {
         assert!(val.is_none());
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_exists() {
         let (backend, _dir) = new_test_backend().await;
 
@@ -408,7 +408,7 @@ mod tests {
         assert!(backend.exists("key1").await.expect("exists failed"));
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_list_with_prefix() {
         let (backend, _dir) = new_test_backend().await;
 
@@ -431,7 +431,7 @@ mod tests {
         assert!(keys.contains(&"app:config".to_string()));
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_overwrite() {
         let (backend, _dir) = new_test_backend().await;
 
@@ -449,7 +449,7 @@ mod tests {
         assert_eq!(val, b"second");
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_concurrent_access() {
         let (backend, _dir) = new_test_backend().await;
         let backend = Arc::new(backend);
@@ -476,7 +476,7 @@ mod tests {
         assert_eq!(keys.len(), 10);
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_close_is_ok() {
         let (backend, _dir) = new_test_backend().await;
         backend.close().await.expect("close failed");

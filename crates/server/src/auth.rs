@@ -609,7 +609,8 @@ mod tests {
         use tokenkit::service::{JwtConfig as TokenkitJwtConfig, JwtService};
         let service_config = TokenkitJwtConfig {
             algorithm: tokenkit::service::JwtAlgorithm::HS256,
-            secret: zeroize::Zeroizing::new("test-secret".to_string()),
+            // tokenkit 0.4 stores the HMAC secret as a plain `String`.
+            secret: "test-secret".to_string(),
             issuer: Some("aether-prod".to_string()),
             ..Default::default()
         };
