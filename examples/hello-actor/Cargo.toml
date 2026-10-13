@@ -8,6 +8,3 @@ crate-type = ["cdylib"]
 
 [dependencies]
 aether-actor = { path = "../../crates/actor-sdk" }
-
-[features]
-default = ["aether-actor/std"]
