@@ -80,7 +80,7 @@ macro_rules! export_actor {
         /// The caller (host runtime) must guarantee that `ptr` points to a valid
         /// buffer of at least `len` bytes. This is enforced by the host's linker
         /// and capability model.
-        #[no_mangle]
+        #[unsafe(no_mangle)]
         pub extern "C" fn handle_request(ptr: *const u8, len: usize) -> *const u8 {
             let input = unsafe {
                 // SAFETY: The host guarantees ptr is valid for len bytes (WASM ABI contract).
@@ -113,7 +113,7 @@ macro_rules! export_actor {
 
         /// Returns the length of the response data in the response buffer.
         /// Called by the host after `handle_request` returns.
-        #[no_mangle]
+        #[unsafe(no_mangle)]
         pub extern "C" fn response_len() -> usize {
             // SAFETY: RESPONSE_LEN is a static mut accessed only in single-threaded WASM execution
             unsafe { RESPONSE_LEN }

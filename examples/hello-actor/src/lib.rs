@@ -3,12 +3,16 @@
 //! Build: `cargo build --release --target wasm32-unknown-unknown`
 //! Deploy: `aether deploy` from a project whose aether.toml points at
 //! the built .wasm.
-use aether_actor::message::Message;
 
-/// Handles an incoming request by returning a fixed greeting.
-#[allow(unused_variables)]
-fn handle_request(message: Message) -> Option<Message> {
-    Some(Message::new(b"hello from the aether probe".to_vec()))
+use aether_actor::{ActorResult, Handler};
+
+/// Minimal actor: greets any message.
+pub struct HelloActor;
+
+impl Handler for HelloActor {
+    fn handle(&mut self, _message: Vec<u8>) -> ActorResult<Vec<u8>> {
+        Ok(b"hello from the aether probe".to_vec())
+    }
 }
 
-aether_actor::export_actor!(handle_request);
+aether_actor::export_actor!(HelloActor);
