@@ -38,7 +38,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@49b3bc8e6bdd4a60e6116a5414239cba5943d3cf
+        uses: docker/setup-qemu-action@06116385d9baf250c9f4dcb4858b16962ea869c3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@d70bba9e6dc7d6a82ae3ac99f96f9f5b0ea8f369
