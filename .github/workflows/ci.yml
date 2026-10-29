@@ -335,12 +335,12 @@ jobs:
             FDB_DESC=$(docker exec ${{ job.services.foundationdb.id }} cat /etc/foundationdb/fdb.cluster 2>/dev/null || echo "")
           fi
           if [ -n "$FDB_DESC" ]; then
-            # Extract the description name (first field before colon) and coordinator address
-            FDB_NAME=$(echo "$FDB_DESC" | cut -d: -f1)
-            FDB_COORDS=$(echo "$FDB_DESC" | cut -d: -f2)
-            # Replace container IP with localhost:4500
-            FIXED_COORDS=$(echo "$FDB_COORDS" | sed 's/[0-9.]*:[0-9]*/127.0.0.1:4500/' | sed 's/[0-9.]*:[0-9]*@/127.0.0.1:4500@/')
-            echo "${FDB_NAME}:${FIXED_COORDS}" | sudo tee /etc/foundationdb/fdb.cluster
+            # Rewrite every coordinator address to the host-published port.
+            # Cluster strings are `name:desc@ip:port[,...]` — rewrite the IP
+            # after each `@` while PRESERVING the port (cut -d: -f2 dropped
+            # it, producing "Connection string invalid" downstream).
+            FIXED_CLUSTER=$(echo "$FDB_DESC" | sed -E 's/@[0-9.]+:/@127.0.0.1:/g')
+            echo "$FIXED_CLUSTER" | sudo tee /etc/foundationdb/fdb.cluster
           else
             # Last resort: create a basic cluster file
             echo "aether-ci@127.0.0.1:4500" | sudo tee /etc/foundationdb/fdb.cluster
