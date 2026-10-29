@@ -31,8 +31,6 @@ class AetherError(Exception):
         ...     print(f"Aether error: {e}")
     """
 
-    pass
-
 
 class CapabilityDenied(AetherError):
     """Raised when an actor attempts an operation without required capability.
@@ -78,8 +76,6 @@ class StateError(AetherError):
     Example:
         >>> raise StateError("Failed to deserialize state value")
     """
-
-    pass
 
 
 class RpcError(AetherError):

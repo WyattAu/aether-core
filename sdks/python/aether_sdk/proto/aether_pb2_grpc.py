@@ -28,7 +28,7 @@ if _version_not_supported:
     )
 
 
-class ActorServiceStub(object):
+class ActorServiceStub:
     """============================================================
     Actor Service
     ============================================================
@@ -73,7 +73,7 @@ class ActorServiceStub(object):
         )
 
 
-class ActorServiceServicer(object):
+class ActorServiceServicer:
     """============================================================
     Actor Service
     ============================================================
@@ -149,7 +149,7 @@ def add_ActorServiceServicer_to_server(servicer, server):
 
 
 # This class is part of an EXPERIMENTAL API.
-class ActorService(object):
+class ActorService:
     """============================================================
     Actor Service
     ============================================================
@@ -307,7 +307,7 @@ class ActorService(object):
         )
 
 
-class MessageServiceStub(object):
+class MessageServiceStub:
     """============================================================
     Message Service
     ============================================================
@@ -334,7 +334,7 @@ class MessageServiceStub(object):
         )
 
 
-class MessageServiceServicer(object):
+class MessageServiceServicer:
     """============================================================
     Message Service
     ============================================================
@@ -377,7 +377,7 @@ def add_MessageServiceServicer_to_server(servicer, server):
 
 
 # This class is part of an EXPERIMENTAL API.
-class MessageService(object):
+class MessageService:
     """============================================================
     Message Service
     ============================================================
@@ -445,7 +445,7 @@ class MessageService(object):
         )
 
 
-class StateServiceStub(object):
+class StateServiceStub:
     """============================================================
     State Service
     ============================================================
@@ -484,7 +484,7 @@ class StateServiceStub(object):
         )
 
 
-class StateServiceServicer(object):
+class StateServiceServicer:
     """============================================================
     State Service
     ============================================================
@@ -549,7 +549,7 @@ def add_StateServiceServicer_to_server(servicer, server):
 
 
 # This class is part of an EXPERIMENTAL API.
-class StateService(object):
+class StateService:
     """============================================================
     State Service
     ============================================================
@@ -677,7 +677,7 @@ class StateService(object):
         )
 
 
-class EventServiceStub(object):
+class EventServiceStub:
     """============================================================
     Event / PubSub Service
     ============================================================
@@ -728,7 +728,7 @@ class EventServiceStub(object):
         )
 
 
-class EventServiceServicer(object):
+class EventServiceServicer:
     """============================================================
     Event / PubSub Service
     ============================================================
@@ -815,7 +815,7 @@ def add_EventServiceServicer_to_server(servicer, server):
 
 
 # This class is part of an EXPERIMENTAL API.
-class EventService(object):
+class EventService:
     """============================================================
     Event / PubSub Service
     ============================================================
@@ -1003,7 +1003,7 @@ class EventService(object):
         )
 
 
-class HealthServiceStub(object):
+class HealthServiceStub:
     """============================================================
     Health Service
     ============================================================
@@ -1036,7 +1036,7 @@ class HealthServiceStub(object):
         )
 
 
-class HealthServiceServicer(object):
+class HealthServiceServicer:
     """============================================================
     Health Service
     ============================================================
@@ -1090,7 +1090,7 @@ def add_HealthServiceServicer_to_server(servicer, server):
 
 
 # This class is part of an EXPERIMENTAL API.
-class HealthService(object):
+class HealthService:
     """============================================================
     Health Service
     ============================================================

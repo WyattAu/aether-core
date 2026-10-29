@@ -5,6 +5,7 @@ Comprehensive tests for bulkhead pattern implementation.
 """
 
 import asyncio
+import contextlib
 
 import pytest
 
@@ -322,10 +323,8 @@ class TestBulkhead:
         await started.wait()
 
         # Try rejected call
-        try:
+        with contextlib.suppress(BulkheadRejectedError):
             await bulkhead.execute(blocking_func)
-        except BulkheadRejectedError:
-            pass
 
         stats = bulkhead.get_stats()
         assert stats.total_rejected == 1

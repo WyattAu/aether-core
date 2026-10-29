@@ -5,6 +5,7 @@ Tests for backpressure handling strategies and controls.
 """
 
 import asyncio
+import contextlib
 from typing import Any
 from unittest.mock import Mock
 
@@ -325,7 +326,7 @@ class TestBackpressureControllerBufferStrategy:
         assert buffer_controller.stats.high_watermark_reached is True
 
         # Drain below low watermark (20% of 100 = 20)
-        for i in range(65):
+        for _ in range(65):
             buffer_controller.pop()
 
         assert buffer_controller.is_recovered is True
@@ -363,7 +364,7 @@ class TestBackpressureControllerBufferStrategy:
             controller.try_push(create_event(f"event-{i}"))
 
         # Drain below low watermark
-        for i in range(65):
+        for _ in range(65):
             controller.pop()
 
         assert len(callback_called) == 1
@@ -395,7 +396,7 @@ class TestBackpressureControllerBufferStrategy:
         # Fill and drain
         for i in range(85):
             buffer_controller.try_push(create_event(f"event-{i}"))
-        for i in range(65):
+        for _ in range(65):
             buffer_controller.pop()
 
         assert len(callback_called) == 1
@@ -502,10 +503,8 @@ class TestBackpressureControllerFailStrategy:
             fail_controller.try_push(create_event(f"event-{i}"))
 
         # Try to push and catch exception
-        try:
+        with contextlib.suppress(BufferFullError):
             fail_controller.try_push(create_event("event-100"))
-        except BufferFullError:
-            pass
 
         stats = fail_controller.stats
         assert stats.rejected_events == 1
@@ -680,7 +679,7 @@ class TestRateBasedBackpressure:
         rbp = RateBasedBackpressure(max_rate=10, window_size=1.0)
 
         # Should allow several events
-        for i in range(5):
+        for _ in range(5):
             result = await rbp.try_acquire()
             assert result is True
 
@@ -690,7 +689,7 @@ class TestRateBasedBackpressure:
         rbp = RateBasedBackpressure(max_rate=5, window_size=1.0, cooldown=0.1)
 
         # Fill up to rate limit
-        for i in range(6):
+        for _ in range(6):
             await rbp.try_acquire()
 
         # Next should be blocked
@@ -704,7 +703,7 @@ class TestRateBasedBackpressure:
         rbp = RateBasedBackpressure(max_rate=100, window_size=1.0)
 
         # Acquire 5 permits
-        for i in range(5):
+        for _ in range(5):
             await rbp.try_acquire()
 
         # Rate should be around 5 events per second
@@ -717,7 +716,7 @@ class TestRateBasedBackpressure:
         rbp = RateBasedBackpressure(max_rate=5, window_size=1.0)
 
         # Fill up
-        for i in range(6):
+        for _ in range(6):
             await rbp.try_acquire()
 
         # Should be blocked
@@ -735,7 +734,7 @@ class TestRateBasedBackpressure:
         rbp = RateBasedBackpressure(max_rate=5, window_size=0.5, cooldown=0.1)
 
         # Fill up to trigger backpressure
-        for i in range(10):
+        for _ in range(10):
             await rbp.try_acquire()
 
         assert rbp.is_backpressure_active is True
@@ -801,7 +800,7 @@ class TestThreadSafety:
 
         def pop_events():
             try:
-                for i in range(50):
+                for _ in range(50):
                     event = buffer_controller.pop()
                     if event:
                         popped.append(event.key)

@@ -233,9 +233,7 @@ def sanitize_phone(value: str) -> str:
     """
     result: List[str] = []
     for char in value:
-        if char.isdigit():
-            result.append(char)
-        elif char == "+" and len(result) == 0:
+        if char.isdigit() or char == "+" and len(result) == 0:
             result.append(char)
 
     return "".join(result)

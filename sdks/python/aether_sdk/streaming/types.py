@@ -131,7 +131,7 @@ class Timestamp:
     milliseconds: int
 
     @classmethod
-    def now(cls) -> "Timestamp":
+    def now(cls) -> Timestamp:
         """Create a timestamp from the current wall-clock time.
 
         Returns:
@@ -140,7 +140,7 @@ class Timestamp:
         return cls(int(time.time() * 1000))
 
     @classmethod
-    def from_datetime(cls, dt: datetime) -> "Timestamp":
+    def from_datetime(cls, dt: datetime) -> Timestamp:
         """Create a timestamp from a :class:`datetime`.
 
         Args:
@@ -152,7 +152,7 @@ class Timestamp:
         return cls(int(dt.timestamp() * 1000))
 
     @classmethod
-    def from_seconds(cls, seconds: float) -> "Timestamp":
+    def from_seconds(cls, seconds: float) -> Timestamp:
         """Create a timestamp from a number of seconds since epoch.
 
         Args:
@@ -169,7 +169,9 @@ class Timestamp:
         Returns:
             A :class:`datetime` representing the same instant.
         """
-        return datetime.fromtimestamp(self.milliseconds / 1000)
+        # Deliberately local: the docstring contracts a local-wall-time
+        # datetime; switching to UTC would change the public API.
+        return datetime.fromtimestamp(self.milliseconds / 1000)  # noqa: DTZ006
 
     def to_seconds(self) -> float:
         """Convert to seconds since epoch.
@@ -179,22 +181,22 @@ class Timestamp:
         """
         return self.milliseconds / 1000
 
-    def __add__(self, other: "Duration") -> "Timestamp":
+    def __add__(self, other: Duration) -> Timestamp:
         return Timestamp(self.milliseconds + other.milliseconds)
 
-    def __sub__(self, other: "Timestamp") -> "Duration":
+    def __sub__(self, other: Timestamp) -> Duration:
         return Duration(self.milliseconds - other.milliseconds)
 
-    def __lt__(self, other: "Timestamp") -> bool:
+    def __lt__(self, other: Timestamp) -> bool:
         return self.milliseconds < other.milliseconds
 
-    def __le__(self, other: "Timestamp") -> bool:
+    def __le__(self, other: Timestamp) -> bool:
         return self.milliseconds <= other.milliseconds
 
-    def __gt__(self, other: "Timestamp") -> bool:
+    def __gt__(self, other: Timestamp) -> bool:
         return self.milliseconds > other.milliseconds
 
-    def __ge__(self, other: "Timestamp") -> bool:
+    def __ge__(self, other: Timestamp) -> bool:
         return self.milliseconds >= other.milliseconds
 
 
@@ -223,7 +225,7 @@ class Duration:
         return self.ms
 
     @classmethod
-    def from_timedelta(cls, td: timedelta) -> "Duration":
+    def from_timedelta(cls, td: timedelta) -> Duration:
         """Create from a :class:`datetime.timedelta`.
 
         Args:
@@ -235,7 +237,7 @@ class Duration:
         return cls(int(td.total_seconds() * 1000))
 
     @classmethod
-    def from_millis(cls, ms: int) -> "Duration":
+    def from_millis(cls, ms: int) -> Duration:
         """Create from milliseconds.
 
         Args:
@@ -247,7 +249,7 @@ class Duration:
         return cls(ms)
 
     @classmethod
-    def from_seconds(cls, s: float) -> "Duration":
+    def from_seconds(cls, s: float) -> Duration:
         """Create from seconds.
 
         Args:
@@ -259,7 +261,7 @@ class Duration:
         return cls(int(s * 1000))
 
     @classmethod
-    def from_minutes(cls, m: float) -> "Duration":
+    def from_minutes(cls, m: float) -> Duration:
         """Create from minutes.
 
         Args:
@@ -271,7 +273,7 @@ class Duration:
         return cls(int(m * 60 * 1000))
 
     @classmethod
-    def from_hours(cls, h: float) -> "Duration":
+    def from_hours(cls, h: float) -> Duration:
         """Create from hours.
 
         Args:
@@ -306,10 +308,10 @@ class Duration:
         """
         return self.ms
 
-    def __add__(self, other: "Duration") -> "Duration":
+    def __add__(self, other: Duration) -> Duration:
         return Duration(self.ms + other.ms)
 
-    def __mul__(self, factor: int) -> "Duration":
+    def __mul__(self, factor: int) -> Duration:
         return Duration(self.ms * factor)
 
 
@@ -338,7 +340,7 @@ class StreamEvent(Generic[T]):
     @classmethod
     def create(
         cls, key: str, value: T, timestamp: Optional[Timestamp] = None, **kwargs
-    ) -> "StreamEvent[T]":
+    ) -> StreamEvent[T]:
         """Create a new stream event with defaults for optional fields.
 
         Args:

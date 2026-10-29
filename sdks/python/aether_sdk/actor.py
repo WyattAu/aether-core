@@ -73,7 +73,6 @@ class Actor(ABC):
         Returns:
             A string identifier for this actor type.
         """
-        pass
 
     @abstractmethod
     async def handle_message(self, sender: str, message: Message) -> Optional[Message]:
@@ -91,23 +90,24 @@ class Actor(ABC):
             message has a ``correlation_id``, the response will be
             routed back to the sender as an RPC response.
         """
-        pass
 
-    async def on_start(self) -> None:
+    async def on_start(
+        self,
+    ) -> None:
         """Lifecycle hook called once when the actor starts.
 
         Override this to initialize resources such as database connections,
         timers, or subscriptions. The default implementation does nothing.
         """
-        pass
 
-    async def on_stop(self) -> None:
+    async def on_stop(
+        self,
+    ) -> None:
         """Lifecycle hook called when the actor stops.
 
         Override this to flush buffers, close connections, or release
         resources. The default implementation does nothing.
         """
-        pass
 
     def require(self, *capabilities: Capability) -> None:
         """Declare capabilities required by this actor.
@@ -180,7 +180,7 @@ class Actor(ABC):
             return response
         except asyncio.TimeoutError:
             del self._pending_responses[correlation_id]
-            raise RpcError(f"RPC call to {target} timed out", code="TIMEOUT")
+            raise RpcError(f"RPC call to {target} timed out", code="TIMEOUT") from None
 
     @property
     def state(self) -> StateHandle:
@@ -247,7 +247,6 @@ class Actor(ABC):
             target: Destination actor name.
             message: The message to deliver.
         """
-        pass
 
     async def _handle_incoming(self, sender: str, message: Message) -> None:
         """Handle an incoming message from the mailbox.

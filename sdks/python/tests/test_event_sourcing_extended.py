@@ -4,7 +4,7 @@ Extended tests for Aether SDK Event Sourcing Module
 Tests for EventSourcedActor, snapshots, and uncovered InMemoryEventStore methods.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List
 
 import pytest
@@ -246,12 +246,12 @@ class TestInMemoryEventStoreExtended:
         await self.store.append("order-2", [{"type": "event2"}])
 
         # Get events from future - should be empty
-        future_time = datetime.utcnow() + timedelta(hours=1)
+        future_time = datetime.now(timezone.utc) + timedelta(hours=1)
         future_events = await self.store.get_all_events(from_timestamp=future_time)
         assert future_events == []
 
         # Get events from past - should include all
-        past_time = datetime.utcnow() - timedelta(hours=1)
+        past_time = datetime.now(timezone.utc) - timedelta(hours=1)
         all_events = await self.store.get_all_events(from_timestamp=past_time)
         assert len(all_events) == 2
 

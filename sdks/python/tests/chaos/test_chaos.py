@@ -69,7 +69,7 @@ async def test_circuit_breaker_flapping():
     opens = 0
     total_calls = 0
 
-    for cycle in range(125):
+    for _cycle in range(125):
         for should_succeed in pattern:
             total_calls += 1
             try:

@@ -8,7 +8,7 @@ import asyncio
 import logging
 import os
 import random
-from datetime import datetime
+from datetime import datetime, timezone
 
 from aether_sdk import Actor, Message, MessageType
 
@@ -26,7 +26,7 @@ class MeshNode:
         self.region = region
         self.endpoint = endpoint
         self.status = status
-        self.metadata = {"joined_at": datetime.utcnow().isoformat()}
+        self.metadata = {"joined_at": datetime.now(timezone.utc).isoformat()}
 
 
 class MeshMessage:
@@ -42,7 +42,7 @@ class MeshMessage:
         self.source_node = source_node
         self.target_node = target_node  # None = broadcast
         self.content = content
-        self.timestamp = datetime.utcnow().isoformat()
+        self.timestamp = datetime.now(timezone.utc).isoformat()
         self.hop_count = hop_count
 
 
@@ -105,7 +105,7 @@ class MeshActor(Actor):
                     "action": "pong",
                     "node_id": self.node_id,
                     "region": self.region,
-                    "timestamp": datetime.utcnow().isoformat(),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
                     "status": "healthy",
                 }
             )
@@ -156,7 +156,7 @@ class MeshActor(Actor):
                     "action": "direct_message_ack",
                     "node_id": self.node_id,
                     "received": True,
-                    "timestamp": datetime.utcnow().isoformat(),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
                 }
             )
 
@@ -193,7 +193,7 @@ class MeshActor(Actor):
                     "voter_id": self.node_id,
                     "leader_id": self.leader_id,
                     "is_leader": self.is_leader,
-                    "timestamp": datetime.utcnow().isoformat(),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
                 }
             )
 

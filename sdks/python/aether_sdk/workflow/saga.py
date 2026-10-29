@@ -518,7 +518,9 @@ class SagaExecutor:
                     await self._wait_for_retry(retry_config, attempt)
                 else:
                     step.status = StepStatus.FAILED
-                    raise SagaStepFailedError(step.name, TimeoutError(error_msg))
+                    raise SagaStepFailedError(
+                        step.name, TimeoutError(error_msg)
+                    ) from None
 
             except Exception as e:
                 logger.warning(
@@ -530,7 +532,7 @@ class SagaExecutor:
                     await self._wait_for_retry(retry_config, attempt)
                 else:
                     step.status = StepStatus.FAILED
-                    raise SagaStepFailedError(step.name, e)
+                    raise SagaStepFailedError(step.name, e) from e
 
     async def _compensate(
         self,
@@ -563,7 +565,7 @@ class SagaExecutor:
             except Exception as e:
                 step.status = StepStatus.FAILED
                 logger.error(f"Compensation failed for step '{step_name}': {e}")
-                raise SagaCompensationFailedError(step_name, e)
+                raise SagaCompensationFailedError(step_name, e) from e
 
     async def _wait_for_retry(
         self,
@@ -648,8 +650,8 @@ def saga(name: str) -> Saga[T]:
 
 
 __all__ = [
-    "SagaStep",
     "Saga",
     "SagaExecutor",
+    "SagaStep",
     "saga",
 ]

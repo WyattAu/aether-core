@@ -64,9 +64,9 @@ from .batch import (
 )
 
 # Partitioning (M4 Performance)
-from .partition import KeyExtractor  # noqa: F811
 from .partition import (
     CompositePartitioner,
+    KeyExtractor,
     Partitioner,
     PartitionProcessor,
     PartitionStrategy,

@@ -285,7 +285,7 @@ class WindowAssigner(Generic[K, V]):
 
         for wid in to_remove:
             del self._windows[wid]
-            for key, window_ids in self._key_windows.items():
+            for _key, window_ids in self._key_windows.items():
                 if wid in window_ids:
                     window_ids.remove(wid)
 
@@ -338,16 +338,17 @@ class WindowTrigger(Generic[K, V, R]):
 
         if self.early_firing:
             for window in windows:
-                if not window.early_fired and not window.is_empty():
-                    if window.max_timestamp:
-                        elapsed = (
-                            event.timestamp.milliseconds - window.start.milliseconds
-                        )
-                        if elapsed >= self.early_firing.milliseconds:
-                            result = self._fire_window(window, PaneInfo.EARLY)
-                            if result is not None:
-                                results.append(result)
-                            window.early_fired = True
+                if (
+                    not window.early_fired
+                    and not window.is_empty()
+                    and window.max_timestamp
+                ):
+                    elapsed = event.timestamp.milliseconds - window.start.milliseconds
+                    if elapsed >= self.early_firing.milliseconds:
+                        result = self._fire_window(window, PaneInfo.EARLY)
+                        if result is not None:
+                            results.append(result)
+                        window.early_fired = True
 
         return results
 

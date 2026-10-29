@@ -281,7 +281,6 @@ class StreamActor(Actor, Generic[K, V]):
         Args:
             event: The stream event to process.
         """
-        pass
 
     async def handle_message(self, sender: str, message: Message) -> Optional[Message]:
         """Handle an incoming message (overrides Actor.handle_message).
@@ -405,10 +404,9 @@ class StreamActor(Actor, Generic[K, V]):
             elif self._stream_config.late_data_output:
                 await self.emit(self._stream_config.late_data_output, event)
 
-        elif policy == LateDataPolicy.REPROCESS:
-            if self._window_assigner:
-                key = self._extract_key(event)
-                self._window_assigner.assign(event, key)
+        elif policy == LateDataPolicy.REPROCESS and self._window_assigner:
+            key = self._extract_key(event)
+            self._window_assigner.assign(event, key)
 
     async def advance_watermark(self, watermark: Watermark) -> None:
         """Advance the watermark for a stream and fire any completed windows.
@@ -490,7 +488,6 @@ class StreamActor(Actor, Generic[K, V]):
                 type=MessageType.STREAM_EVENT,
                 payload=event,
             )
-            pass
 
     def register_output_handler(
         self, stream: str, handler: Callable[[StreamEvent], None]
@@ -594,7 +591,6 @@ class StreamActor(Actor, Generic[K, V]):
 
         Override to initialize resources, register handlers, etc.
         """
-        pass
 
     async def on_stop(self) -> None:
         """Called when the stream actor stops.

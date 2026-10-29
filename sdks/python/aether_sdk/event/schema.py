@@ -163,7 +163,6 @@ class SchemaValidator(ABC):
         Returns:
             List of validation errors (empty if valid)
         """
-        pass
 
     @abstractmethod
     def check_compatibility(
@@ -179,7 +178,6 @@ class SchemaValidator(ABC):
         Returns:
             Compatibility level between the schemas
         """
-        pass
 
 
 class JsonSchemaValidator(SchemaValidator):
@@ -203,13 +201,14 @@ class JsonSchemaValidator(SchemaValidator):
 
         if "properties" in definition:
             for prop_name, prop_def in definition["properties"].items():
-                if prop_name in data:
-                    prop_type = prop_def.get("type")
-                    if prop_type:
-                        if not self._check_type(data[prop_name], prop_type):
-                            errors.append(
-                                f"Field '{prop_name}' has wrong type: expected {prop_type}"
-                            )
+                if (
+                    prop_name in data
+                    and (prop_type := prop_def.get("type"))
+                    and not self._check_type(data[prop_name], prop_type)
+                ):
+                    errors.append(
+                        f"Field '{prop_name}' has wrong type: expected {prop_type}"
+                    )
 
         return errors
 
@@ -302,7 +301,6 @@ class SchemaRegistry(ABC):
         Returns:
             The created schema version
         """
-        pass
 
     @abstractmethod
     async def get_schema(
@@ -318,7 +316,6 @@ class SchemaRegistry(ABC):
         Returns:
             The schema or None if not found
         """
-        pass
 
     @abstractmethod
     async def get_versions(self, name: str) -> List[SchemaVersion]:
@@ -331,7 +328,6 @@ class SchemaRegistry(ABC):
         Returns:
             List of schema versions
         """
-        pass
 
     @abstractmethod
     async def validate(
@@ -348,7 +344,6 @@ class SchemaRegistry(ABC):
         Returns:
             True if valid, raises SchemaError if invalid
         """
-        pass
 
     @abstractmethod
     async def check_compatibility(
@@ -365,7 +360,6 @@ class SchemaRegistry(ABC):
         Returns:
             Compatibility level
         """
-        pass
 
 
 class InMemorySchemaRegistry(SchemaRegistry):
@@ -491,11 +485,11 @@ class InMemorySchemaRegistry(SchemaRegistry):
 
 __all__ = [
     "Compatibility",
-    "SchemaVersion",
+    "InMemorySchemaRegistry",
+    "JsonSchemaValidator",
     "Schema",
     "SchemaError",
-    "SchemaValidator",
-    "JsonSchemaValidator",
     "SchemaRegistry",
-    "InMemorySchemaRegistry",
+    "SchemaValidator",
+    "SchemaVersion",
 ]

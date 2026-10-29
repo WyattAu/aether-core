@@ -78,17 +78,14 @@ class DeadLetterQueue(ABC):
     @abstractmethod
     async def add(self, entry: OutboxEntry, error: Exception) -> None:
         """Add a failed message to the DLQ."""
-        pass
 
     @abstractmethod
     async def get_pending(self, limit: int = 100) -> List[OutboxEntry]:
         """Get pending messages from the DLQ."""
-        pass
 
     @abstractmethod
     async def remove(self, entry_id: str) -> bool:
         """Remove a message from the DLQ."""
-        pass
 
 
 class InMemoryDeadLetterQueue(DeadLetterQueue):
@@ -124,22 +121,18 @@ class Outbox(ABC):
     @abstractmethod
     async def add(self, entry: OutboxEntry) -> None:
         """Add an entry to the outbox."""
-        pass
 
     @abstractmethod
     async def get_pending(self, limit: int = 100) -> List[OutboxEntry]:
         """Get pending entries for delivery."""
-        pass
 
     @abstractmethod
     async def mark_delivered(self, entry_id: str) -> None:
         """Mark an entry as delivered."""
-        pass
 
     @abstractmethod
     async def mark_failed(self, entry_id: str, error: Exception) -> None:
         """Mark an entry as failed."""
-        pass
 
 
 class InMemoryOutbox(Outbox):
@@ -181,12 +174,12 @@ class InMemoryOutbox(Outbox):
 
 
 __all__ = [
-    "DeliveryGuarantee",
-    "RetryPolicy",
-    "OutboxEntry",
-    "DeliveryStats",
     "DeadLetterQueue",
+    "DeliveryGuarantee",
+    "DeliveryStats",
     "InMemoryDeadLetterQueue",
-    "Outbox",
     "InMemoryOutbox",
+    "Outbox",
+    "OutboxEntry",
+    "RetryPolicy",
 ]

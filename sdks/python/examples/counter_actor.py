@@ -7,7 +7,7 @@ Demonstrates persistent state that survives actor restarts.
 import asyncio
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 from aether_sdk import Actor, Message
 
@@ -139,7 +139,7 @@ class CounterActor(Actor):
 
     async def _save_state(self) -> None:
         """Persist state to storage."""
-        self.state_data.last_updated = datetime.utcnow().isoformat()
+        self.state_data.last_updated = datetime.now(timezone.utc).isoformat()
         data = json.dumps(self.state_data.to_dict())
         await self.state.write(self.state_key, data.encode())
 

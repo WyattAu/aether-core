@@ -16,7 +16,7 @@ import asyncio
 import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional, Set
 
 from ..actor import Actor
@@ -75,7 +75,7 @@ class Subscription:
 
     id: str
     topic_pattern: str
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     active: bool = True
     handler: Optional[Callable[[PubSubMessage], None]] = None
 
@@ -99,7 +99,7 @@ class PubSubMessage:
     topic: str = ""
     value: Any = None
     key: Optional[str] = None
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     headers: Dict[str, str] = field(default_factory=dict)
     partition: int = 0
     offset: int = 0
@@ -133,7 +133,6 @@ class PubSubBackend(ABC):
         Returns:
             The created topic.
         """
-        pass
 
     @abstractmethod
     async def publish(self, topic: str, message: PubSubMessage) -> None:
@@ -143,7 +142,6 @@ class PubSubBackend(ABC):
             topic: Topic name.
             message: The message to publish.
         """
-        pass
 
     @abstractmethod
     async def publish_batch(self, topic: str, messages: List[PubSubMessage]) -> None:
@@ -153,7 +151,6 @@ class PubSubBackend(ABC):
             topic: Topic name.
             messages: Messages to publish.
         """
-        pass
 
     @abstractmethod
     async def subscribe(
@@ -172,7 +169,6 @@ class PubSubBackend(ABC):
         Returns:
             The created :class:`Subscription`.
         """
-        pass
 
     @abstractmethod
     async def unsubscribe(self, subscription_id: str) -> None:
@@ -181,7 +177,6 @@ class PubSubBackend(ABC):
         Args:
             subscription_id: The subscription to cancel.
         """
-        pass
 
     @abstractmethod
     async def acknowledge(self, message_id: str) -> None:
@@ -190,7 +185,6 @@ class PubSubBackend(ABC):
         Args:
             message_id: The message to acknowledge.
         """
-        pass
 
 
 class InMemoryPubSub(PubSubBackend):
@@ -457,7 +451,7 @@ class PubSubClient:
                     await result
 
             except Exception as e:
-                raise AetherError(f"Actor handler failed: {e}")
+                raise AetherError(f"Actor handler failed: {e}") from e
 
         sub_id = f"actor-{id(actor)}-{topic_pattern}"
         subscription = await self.subscribe(topic_pattern, actor_handler, sub_id)
@@ -539,17 +533,17 @@ async def publish(
 Event = PubSubMessage
 
 __all__ = [
-    "Topic",
-    "Subscription",
-    "PubSubMessage",
-    "PubSubBackend",
+    "Event",
     "InMemoryPubSub",
+    "PubSubBackend",
     "PubSubClient",
+    "PubSubMessage",
     "Publisher",
     "Subscriber",
-    "Event",
-    "subscribe",
+    "Subscription",
+    "Topic",
     "publish",
+    "subscribe",
 ]
 
 Publisher = PubSubClient

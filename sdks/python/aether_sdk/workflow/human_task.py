@@ -128,11 +128,14 @@ class TaskForm:
             if fld.name in data:
                 value = data[fld.name]
 
-                if fld.field_type == "number" and not isinstance(value, (int, float)):
-                    return False
-                elif fld.field_type == "boolean" and not isinstance(value, bool):
-                    return False
-                elif fld.field_type == "text" and not isinstance(value, str):
+                if (
+                    fld.field_type == "number"
+                    and not isinstance(value, (int, float))
+                    or fld.field_type == "boolean"
+                    and not isinstance(value, bool)
+                    or fld.field_type == "text"
+                    and not isinstance(value, str)
+                ):
                     return False
 
                 if fld.validation:
@@ -687,13 +690,16 @@ class HumanTaskManager:
         """
         tasks = []
         for task in self._tasks.values():
-            if task.assignee == user or user in task.candidate_users:
-                if include_completed or task.status not in (
+            if (task.assignee == user or user in task.candidate_users) and (
+                include_completed
+                or task.status
+                not in (
                     HumanTaskStatus.COMPLETED,
                     HumanTaskStatus.REJECTED,
                     HumanTaskStatus.TIMEOUT,
-                ):
-                    tasks.append(task)
+                )
+            ):
+                tasks.append(task)
         return tasks
 
     async def wait_for_completion(
@@ -730,7 +736,7 @@ class HumanTaskManager:
         try:
             await asyncio.wait_for(event.wait(), timeout=timeout)
         except asyncio.TimeoutError:
-            raise HumanTaskTimeoutError(task_id)
+            raise HumanTaskTimeoutError(task_id) from None
 
         task = self._tasks.get(task_id)
         if task and task.status == HumanTaskStatus.COMPLETED:
@@ -839,7 +845,6 @@ class TaskStore(ABC):
         Args:
             task: The task context to store.
         """
-        pass
 
     @abstractmethod
     async def get(self, task_id: str) -> Optional[HumanTaskContext]:
@@ -851,7 +856,6 @@ class TaskStore(ABC):
         Returns:
             The task context, or ``None`` if not found.
         """
-        pass
 
     @abstractmethod
     async def update(self, task: HumanTaskContext) -> None:
@@ -860,7 +864,6 @@ class TaskStore(ABC):
         Args:
             task: The task context with updated fields.
         """
-        pass
 
     @abstractmethod
     async def delete(self, task_id: str) -> None:
@@ -869,7 +872,6 @@ class TaskStore(ABC):
         Args:
             task_id: The task ID.
         """
-        pass
 
     @abstractmethod
     async def query(self, query: TaskQuery) -> List[HumanTaskContext]:
@@ -881,7 +883,6 @@ class TaskStore(ABC):
         Returns:
             A list of matching task contexts.
         """
-        pass
 
 
 class InMemoryTaskStore(TaskStore):
@@ -1014,11 +1015,11 @@ def create_human_task_manager(
 
 __all__ = [
     "FormField",
-    "TaskForm",
     "HumanTask",
     "HumanTaskManager",
+    "InMemoryTaskStore",
+    "TaskForm",
     "TaskQuery",
     "TaskStore",
-    "InMemoryTaskStore",
     "create_human_task_manager",
 ]

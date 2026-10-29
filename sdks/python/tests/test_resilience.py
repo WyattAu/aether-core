@@ -13,6 +13,8 @@ import pytest
 # Add the SDK to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "aether_sdk"))
 
+import contextlib
+
 from resilience import (
     BackoffStrategy,
     Bulkhead,
@@ -73,10 +75,8 @@ class TestCircuitBreaker:
 
         # Trigger failures
         for _ in range(3):
-            try:
+            with contextlib.suppress(Exception):
                 await cb.execute(fail_func)
-            except Exception:
-                pass
 
         # Circuit should be open
         assert cb.is_open
@@ -109,10 +109,8 @@ class TestCircuitBreaker:
             raise Exception("test error")
 
         for _ in range(2):
-            try:
+            with contextlib.suppress(Exception):
                 await cb.execute(fail_func)
-            except Exception:
-                pass
 
         assert cb.is_open
 

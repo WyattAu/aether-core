@@ -13,9 +13,10 @@ from __future__ import annotations
 
 import asyncio
 import random
+from collections.abc import Awaitable
 from dataclasses import dataclass
 from enum import Enum
-from typing import Awaitable, Callable, Generic, Optional, TypeVar
+from typing import Callable, Generic, Optional, TypeVar
 
 T = TypeVar("T")
 

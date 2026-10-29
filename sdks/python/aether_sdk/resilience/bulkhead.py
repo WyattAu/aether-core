@@ -63,13 +63,9 @@ class BulkheadRejectedError(Exception):
     This occurs when both the concurrency slots and the queue are full.
     """
 
-    pass
-
 
 class BulkheadTimeoutError(Exception):
     """Raised when a queued call times out before an execution slot becomes available."""
-
-    pass
 
 
 class Bulkhead:
@@ -174,12 +170,12 @@ class Bulkhead:
                         self._semaphore.acquire(),
                         timeout=self._config.timeout_ms / 1000,
                     )
-                except asyncio.TimeoutError:
+                except asyncio.TimeoutError as exc:
                     async with self._stats_lock:
                         self._total_timeout += 1
                     raise BulkheadTimeoutError(
                         f"Bulkhead queued call timed out after {self._config.timeout_ms}ms"
-                    )
+                    ) from exc
             else:
                 await self._semaphore.acquire()
 

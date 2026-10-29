@@ -27,9 +27,10 @@ from __future__ import annotations
 
 import asyncio
 import time
+from collections.abc import Awaitable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Awaitable, Callable, Generic, List, Optional, TypeVar
+from typing import Any, Callable, Generic, List, Optional, TypeVar
 
 from .types import StreamEvent
 
@@ -227,12 +228,12 @@ class BatchAggregator(Generic[T, R]):
         start_time = time.monotonic()
 
         try:
-            # Apply aggregation function
-            if self.aggregate_func:
-                result = self.aggregate_func(batch)
-            else:
-                # Default: return last item
-                result = batch[-1]  # type: ignore
+            # Apply aggregation function; default: return last item
+            result = (
+                self.aggregate_func(batch)
+                if self.aggregate_func
+                else batch[-1]  # type: ignore
+            )
 
             # Update stats
             self._batch_count += 1
@@ -404,11 +405,11 @@ class BatchProcessor(Generic[T]):
 
 
 __all__ = [
-    "BatchConfig",
-    "BatchResult",
-    "BatchStats",
-    "BatchCollector",
     "BatchAggregator",
+    "BatchCollector",
+    "BatchConfig",
     "BatchEmitter",
     "BatchProcessor",
+    "BatchResult",
+    "BatchStats",
 ]

@@ -261,8 +261,6 @@ class TestActorDecorator:
         class MyActor:
             """Test actor class."""
 
-            pass
-
         # The decorator creates a wrapper class with the same name
         assert MyActor.__name__ == "MyActor"
         # qualname will include the test context

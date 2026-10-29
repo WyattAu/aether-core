@@ -403,14 +403,14 @@ class ResilienceInstrumentation:
 
 __all__ = [
     "TRACING_AVAILABLE",
+    "ResilienceInstrumentation",
     "TracingContext",
-    "get_tracer",
-    "traced_circuit_breaker",
-    "traced_retry",
-    "traced_rate_limiter",
-    "traced_bulkhead",
     "create_resilience_span",
+    "get_tracer",
     "record_resilience_event",
     "set_resilience_attribute",
-    "ResilienceInstrumentation",
+    "traced_bulkhead",
+    "traced_circuit_breaker",
+    "traced_rate_limiter",
+    "traced_retry",
 ]

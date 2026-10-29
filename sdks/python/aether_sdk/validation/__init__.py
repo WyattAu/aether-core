@@ -39,7 +39,8 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Pattern, TypeVar, Union
+from re import Pattern
+from typing import Any, Callable, Dict, List, Optional, TypeVar, Union
 
 T = TypeVar("T")
 
@@ -77,7 +78,7 @@ class SchemaValidationError(ValidationError):
 # Sanitization Functions (re-exported from sanitize module)
 # ============================================
 
-from aether_sdk.validation.sanitize import (  # noqa: E402
+from aether_sdk.validation.sanitize import (
     escape_regex,
     escape_shell,
     normalize_line_endings,
@@ -156,7 +157,7 @@ def sanitize_json(value: Any) -> Any:
 # Common Validators (re-exported from validators module)
 # ============================================
 
-from aether_sdk.validation.validators import (  # noqa: E402
+from aether_sdk.validation.validators import (
     ALPHANUMERIC_PATTERN,
     EMAIL_PATTERN,
     IP_PATTERN,
@@ -288,12 +289,11 @@ class SchemaValidator:
             return
 
         schema_type = schema.get("type")
-        if schema_type:
-            if not self._validate_type(value, schema_type):
-                self._add_error(
-                    path, f"Expected {schema_type}, got {type(value).__name__}", value
-                )
-                return
+        if schema_type and not self._validate_type(value, schema_type):
+            self._add_error(
+                path, f"Expected {schema_type}, got {type(value).__name__}", value
+            )
+            return
 
         if schema_type == "object":
             self._validate_object(value, schema, path)
@@ -374,9 +374,8 @@ class SchemaValidator:
         if max_length is not None and len(value) > max_length:
             self._add_error(path, f"String must be at most {max_length} characters")
 
-        if pattern is not None:
-            if not re.match(pattern, value):
-                self._add_error(path, f"String does not match pattern: {pattern}")
+        if pattern is not None and not re.match(pattern, value):
+            self._add_error(path, f"String does not match pattern: {pattern}")
 
         if format_str is not None:
             self._validate_format(value, format_str, path)
@@ -384,9 +383,7 @@ class SchemaValidator:
         if enum is not None and value not in enum:
             self._add_error(path, f"Value must be one of: {enum}")
 
-    def _validate_number(
-        self, value: Union[int, float], schema: dict, path: str
-    ) -> None:
+    def _validate_number(self, value: float, schema: dict, path: str) -> None:
         """Validate number constraints."""
         minimum = schema.get("minimum")
         maximum = schema.get("maximum")

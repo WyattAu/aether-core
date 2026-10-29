@@ -141,7 +141,7 @@ class MemoryPool:
 
             return buffer
 
-    def release(self, buffer: "PooledBuffer") -> None:
+    def release(self, buffer: PooledBuffer) -> None:
         """Return a buffer to the pool."""
         with self._lock:
             if buffer._acquired:
@@ -196,7 +196,7 @@ class PooledBuffer:
     Supports zero-copy operations and must be released back to the pool.
     """
 
-    __slots__ = ["_data", "_pool", "_acquired", "_position", "__weakref__"]
+    __slots__ = ["__weakref__", "_acquired", "_data", "_pool", "_position"]
 
     def __init__(self, data: bytearray, pool: MemoryPool):
         self._data = data
@@ -544,7 +544,7 @@ __all__ = [
     "BufferStats",
     "MemoryPool",
     "PooledBuffer",
-    "ZeroCopyBuffer",
     "RingBuffer",
+    "ZeroCopyBuffer",
     "ZeroCopyEmitter",
 ]

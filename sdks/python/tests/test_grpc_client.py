@@ -204,7 +204,7 @@ class _MinimalEventService(aether_pb2_grpc.EventServiceServicer):
         return aether_pb2.SubscribeResponse(subscription_id=sub_id)
 
     def Unsubscribe(self, request, context):
-        for topic, subs in self._subscriptions.items():
+        for _topic, subs in self._subscriptions.items():
             if request.subscription_id in subs:
                 subs.remove(request.subscription_id)
                 return aether_pb2.UnsubscribeResponse(success=True)

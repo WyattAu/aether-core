@@ -16,7 +16,7 @@ Workflow:
 
 import asyncio
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from aether_sdk.workflow.human_task import HumanTask, HumanTaskManager, TaskForm
 from aether_sdk.workflow.saga import Saga, SagaExecutor
@@ -27,7 +27,7 @@ AUDIT_LOG = []
 
 
 def log_event(msg: str):
-    ts = datetime.utcnow().strftime("%H:%M:%S.%f")[:-3]
+    ts = datetime.now(timezone.utc).strftime("%H:%M:%S.%f")[:-3]
     AUDIT_LOG.append(f"[{ts}] {msg}")
     print(f"  [{ts}] {msg}")
 

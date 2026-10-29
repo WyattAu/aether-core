@@ -17,15 +17,15 @@ _server_mod = importlib.util.module_from_spec(_spec)
 sys.modules["server"] = _server_mod
 _spec.loader.exec_module(_server_mod)
 
-import pytest  # noqa: E402
-import server.app as _app_mod  # noqa: E402
-from server.actor_manager import ActorManager  # noqa: E402
-from server.app import create_app  # noqa: E402
-from server.config import ServerConfig  # noqa: E402
-from server.event_store import EventStore  # noqa: E402
-from server.message_router import MessageRouter  # noqa: E402
-from server.pubsub_service import PubSubService  # noqa: E402
-from server.state_store import MemoryStateStore  # noqa: E402
+import pytest
+import server.app as _app_mod
+from server.actor_manager import ActorManager
+from server.app import create_app
+from server.config import ServerConfig
+from server.event_store import EventStore
+from server.message_router import MessageRouter
+from server.pubsub_service import PubSubService
+from server.state_store import MemoryStateStore
 
 
 @pytest.fixture

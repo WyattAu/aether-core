@@ -57,7 +57,7 @@ class TestAnalyticsPipeline:
         weights = [0.6, 0.3, 0.1]
         events: List[StreamEvent] = []
 
-        for i in range(10_000):
+        for _i in range(10_000):
             r = random.random()
             cumulative = 0.0
             chosen = event_types[0]
@@ -166,7 +166,7 @@ class TestAnalyticsPipeline:
 
         for window_idx in range(3):
             base = window_idx * FIVE_MINUTES_MS
-            for i in range(500):
+            for _i in range(500):
                 ts_offset = base + random.randint(0, FIVE_MINUTES_MS - 1)
                 etype = random.choice(["page_view", "click", "purchase"])
                 tw.process(_make_event(etype, ts_offset_ms=ts_offset), key="avg-test")
@@ -209,7 +209,7 @@ class TestAnalyticsPipeline:
             handler=check_alerts,
         )
 
-        for i in range(1500):
+        for _i in range(1500):
             event = _make_event(
                 "purchase", ts_offset_ms=random.randint(0, FIVE_MINUTES_MS - 1)
             )
@@ -250,7 +250,7 @@ class TestAnalyticsPipeline:
             handler=aggregate_window,
         )
 
-        for i in range(500):
+        for _i in range(500):
             ts_offset = random.randint(0, FIVE_MINUTES_MS - 1)
             event = _make_event("click", ts_offset_ms=ts_offset)
             tw.process(event, key="late-test")
@@ -379,7 +379,7 @@ class TestBackpressureInPipeline:
             window_handler,
         )
 
-        for i in range(200):
+        for _i in range(200):
             ts_offset = random.randint(0, FIVE_MINUTES_MS - 1)
             event = _make_event("purchase", ts_offset_ms=ts_offset)
             await actor._process_event_internal(event)

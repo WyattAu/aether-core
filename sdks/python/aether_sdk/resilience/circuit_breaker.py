@@ -107,8 +107,6 @@ class CircuitBreakerError(Exception):
         ...     print(f"Blocked: {e}")
     """
 
-    pass
-
 
 @dataclass
 class FailureRecord:

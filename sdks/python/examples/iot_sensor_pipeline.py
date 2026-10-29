@@ -291,7 +291,7 @@ async def run_sensor_pipeline():
 
     print("--- Step 5: Fire remaining windows ---")
     final_watermark = Timestamp(base_time_ms + 180000)
-    for stype, window in window_map.items():
+    for _stype, window in window_map.items():
         results = window.advance_watermark(final_watermark)
         for r in results:
             all_aggregations.append(r)

@@ -356,8 +356,6 @@ class TransitionResult:
 class SagaError(AetherError):
     """Base exception for saga errors."""
 
-    pass
-
 
 class SagaStepFailedError(SagaError):
     """Raised when a saga step fails."""
@@ -382,8 +380,6 @@ class SagaCompensationFailedError(SagaError):
 class WorkflowError(AetherError):
     """Base exception for workflow errors."""
 
-    pass
-
 
 class InvalidTransitionError(WorkflowError):
     """Raised when an invalid state transition is attempted."""
@@ -407,8 +403,6 @@ class WorkflowSuspendedError(WorkflowError):
 
 class HumanTaskError(AetherError):
     """Base exception for human task errors."""
-
-    pass
 
 
 class HumanTaskTimeoutError(HumanTaskError):

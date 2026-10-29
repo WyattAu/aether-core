@@ -76,8 +76,6 @@ class BackpressureStats:
 class BackpressureError(Exception):
     """Base exception for backpressure-related failures."""
 
-    pass
-
 
 class BufferFullError(BackpressureError):
     """Raised when the buffer is full and the strategy is FAIL.
@@ -189,10 +187,12 @@ class BackpressureController(Generic[T]):
             if buffer_size >= self._config.buffer_size:
                 return self._handle_full_buffer(event)
 
-            if self._config.strategy == BackpressureStrategy.LATEST:
-                if buffer_size >= self._config.buffer_size:
-                    self._buffer.popleft()
-                    self._stats.dropped_events += 1
+            if (
+                self._config.strategy == BackpressureStrategy.LATEST
+                and buffer_size >= self._config.buffer_size
+            ):
+                self._buffer.popleft()
+                self._stats.dropped_events += 1
 
             self._buffer.append(event)
             self._stats.buffered_events += 1

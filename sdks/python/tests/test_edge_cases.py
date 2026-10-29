@@ -24,7 +24,9 @@ from aether_sdk.resilience.circuit_breaker import (
     CircuitBreakerError,
     CircuitState,
 )
-from aether_sdk.resilience.retry import BackoffStrategy
+from aether_sdk.resilience.retry import (
+    BackoffStrategy,
+)
 from aether_sdk.resilience.retry import RetryConfig as ResRetryConfig
 from aether_sdk.resilience.retry import RetryExhaustedError, RetryPolicy
 from aether_sdk.streaming.backpressure import BackpressureController
@@ -311,7 +313,7 @@ async def test_state_machine_rapid_transitions():
     wf_id = start_result.workflow_id
     assert start_result.current_state == "A"
 
-    for i in range(50):
+    for _i in range(50):
         r = await executor.transition(wf_id, "to_b")
         assert r.success is True
         assert r.to_state == "B"

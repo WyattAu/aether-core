@@ -98,10 +98,12 @@ class TestGetTracer:
 
     def test_get_tracer_without_opentelemetry(self):
         """Test getting tracer when OpenTelemetry is not available."""
-        with patch("aether_sdk.resilience.tracing.TRACING_AVAILABLE", False):
-            with patch("aether_sdk.resilience.tracing._tracer_module", None):
-                tracer = get_tracer()
-                assert tracer is None
+        with (
+            patch("aether_sdk.resilience.tracing.TRACING_AVAILABLE", False),
+            patch("aether_sdk.resilience.tracing._tracer_module", None),
+        ):
+            tracer = get_tracer()
+            assert tracer is None
 
     def test_get_tracer_with_service_name(self):
         """Test getting tracer with custom service name."""
@@ -482,10 +484,12 @@ class TestResilienceInstrumentation:
         """Test nested trace contexts."""
         instrumentation = ResilienceInstrumentation()
 
-        with instrumentation.trace_circuit_breaker("cb", "closed", "exec"):
-            with instrumentation.trace_retry("retry", 1, 3, "exec"):
-                with instrumentation.trace_bulkhead("bh", "exec", 1, 10):
-                    pass  # Nested contexts work
+        with (
+            instrumentation.trace_circuit_breaker("cb", "closed", "exec"),
+            instrumentation.trace_retry("retry", 1, 3, "exec"),
+            instrumentation.trace_bulkhead("bh", "exec", 1, 10),
+        ):
+            pass  # Nested contexts work
 
 
 # ============================================

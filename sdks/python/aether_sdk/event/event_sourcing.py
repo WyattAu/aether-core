@@ -32,7 +32,7 @@ import asyncio
 import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, TypeVar
 
 from ..exceptions import AetherError
@@ -86,7 +86,7 @@ class EventEnvelope:
     aggregate_type: str = ""
     event_type: str = ""
     version: int = 1  # Sequence number within aggregate
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     payload: Dict[str, Any] = field(default_factory=dict)
     metadata: Dict[str, Any] = field(default_factory=dict)
     schema_version: EventVersion = field(default_factory=EventVersion)
@@ -140,7 +140,7 @@ class Snapshot:
     aggregate_type: str
     version: int  # Version at which snapshot was taken
     state: Dict[str, Any]
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     metadata: Dict[str, Any] = field(default_factory=dict)
 
 
@@ -319,7 +319,6 @@ class EventStore(ABC):
         Raises:
             ConcurrencyError: If version mismatch
         """
-        pass
 
     @abstractmethod
     async def get_events(
@@ -335,7 +334,6 @@ class EventStore(ABC):
         Returns:
             List of event envelopes
         """
-        pass
 
     @abstractmethod
     async def get_events_after(
@@ -351,7 +349,6 @@ class EventStore(ABC):
         Returns:
             List of event envelopes
         """
-        pass
 
     @abstractmethod
     async def get_events_between_versions(
@@ -368,7 +365,6 @@ class EventStore(ABC):
         Returns:
             List of event envelopes
         """
-        pass
 
     @abstractmethod
     async def get_all_events(
@@ -386,17 +382,14 @@ class EventStore(ABC):
         Returns:
             List of event envelopes
         """
-        pass
 
     @abstractmethod
     async def save_snapshot(self, snapshot: Snapshot) -> None:
         """Save a snapshot for an aggregate."""
-        pass
 
     @abstractmethod
     async def load_snapshot(self, aggregate_id: str) -> Optional[Snapshot]:
         """Load the latest snapshot for an aggregate."""
-        pass
 
 
 class InMemoryEventStore(EventStore):
@@ -516,8 +509,6 @@ class InMemoryEventStore(EventStore):
 class ConcurrencyError(AetherError):
     """Raised when optimistic concurrency check fails."""
 
-    pass
-
 
 class EventSourcedActor:
     """
@@ -599,13 +590,13 @@ def apply_event(aggregate: Aggregate, envelope: EventEnvelope) -> None:
 
 
 __all__ = [
-    "EventVersion",
-    "EventEnvelope",
-    "Snapshot",
     "Aggregate",
-    "EventStore",
-    "InMemoryEventStore",
-    "EventSourcedActor",
     "ConcurrencyError",
+    "EventEnvelope",
+    "EventSourcedActor",
+    "EventStore",
+    "EventVersion",
+    "InMemoryEventStore",
+    "Snapshot",
     "apply_event",
 ]

@@ -9,6 +9,7 @@ Simulates IoT device lifecycle:
 """
 
 import asyncio
+import contextlib
 import random
 from typing import Any, Dict, List, Optional
 
@@ -469,10 +470,8 @@ class TestDeviceHealth:
         assert cb.state == CircuitState.CLOSED
 
         for _ in range(3):
-            try:
+            with contextlib.suppress(Exception):
                 await cb.execute(lambda did=fail_device: ping_device(did))
-            except Exception:
-                pass
 
         assert cb.state == CircuitState.OPEN
         stats = cb.get_stats()
@@ -537,7 +536,7 @@ class TestDeviceHealth:
         )
         audit_log.append(f"REGISTERED: {device_id}")
 
-        for i in range(10):
+        for _i in range(10):
             temp = random.uniform(-5, 60)
             if temp > 50:
                 alerts.append(

@@ -165,7 +165,7 @@ class TestOutboxEntry:
 
     def test_entry_with_retry_info(self):
         """Test entry with retry information."""
-        retry_time = datetime.utcnow() + timedelta(minutes=5)
+        retry_time = datetime.now(timezone.utc) + timedelta(minutes=5)
         entry = OutboxEntry(
             topic="events",
             value={"data": "test"},
@@ -207,7 +207,7 @@ class TestDeliveryStats:
 
     def test_custom_stats(self):
         """Test custom delivery stats."""
-        sent_time = datetime.utcnow()
+        sent_time = datetime.now(timezone.utc)
         stats = DeliveryStats(
             total_sent=100, total_failed=5, total_retries=15, last_sent_at=sent_time
         )

@@ -5,6 +5,7 @@ Comprehensive tests for rate limiting with multiple strategies.
 """
 
 import asyncio
+import contextlib
 
 import pytest
 
@@ -263,7 +264,7 @@ class TestSlidingWindow:
     @pytest.mark.asyncio
     async def test_acquire_within_limit(self, sliding_window):
         """Test acquiring within limit."""
-        for i in range(5):
+        for _i in range(5):
             result = await sliding_window.try_acquire()
             assert result.allowed is True
 
@@ -340,7 +341,7 @@ class TestFixedWindow:
     @pytest.mark.asyncio
     async def test_acquire_within_limit(self, fixed_window):
         """Test acquiring within limit."""
-        for i in range(5):
+        for _i in range(5):
             result = await fixed_window.try_acquire()
             assert result.allowed is True
             assert result.reset_in is not None
@@ -515,10 +516,8 @@ class TestRateLimiter:
         await rl.try_acquire()
 
         # Try to acquire with short wait (might fail if still no token)
-        try:
-            await rl.acquire(max_wait_ms=50)
-        except RateLimitExhaustedError:
-            pass  # Expected if still rate limited
+        with contextlib.suppress(RateLimitExhaustedError):
+            await rl.acquire(max_wait_ms=50)  # Expected if still rate limited
 
     @pytest.mark.asyncio
     async def test_execute_with_rate_limiting(self):

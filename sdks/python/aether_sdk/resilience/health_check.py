@@ -18,9 +18,10 @@ import asyncio
 import platform
 import resource
 import time
+from collections.abc import Awaitable
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Awaitable, Callable, Dict, Optional, Union
+from typing import Any, Callable, Dict, Optional, Union
 
 
 class HealthStatus(Enum):
@@ -225,9 +226,13 @@ class HealthChecker:
 
         options: HealthCheckOptions = entry["options"]
 
-        if options.cache_duration_ms > 0 and entry["last_result"] and entry["last_run"]:
-            if time.time() - entry["last_run"] < options.cache_duration_ms / 1000:
-                return entry["last_result"]
+        if (
+            options.cache_duration_ms > 0
+            and entry["last_result"]
+            and entry["last_run"]
+            and time.time() - entry["last_run"] < options.cache_duration_ms / 1000
+        ):
+            return entry["last_result"]
 
         try:
             result = await self._run_check_with_timeout(
@@ -392,7 +397,7 @@ class HealthChecker:
                 )
             return result
         except asyncio.TimeoutError:
-            raise Exception(f"Health check timed out after {timeout_ms}ms")
+            raise Exception(f"Health check timed out after {timeout_ms}ms") from None
 
     def _get_timestamp(self) -> str:
         """Return the current UTC time as an ISO 8601 string.

@@ -96,8 +96,6 @@ class RateLimitResult:
 class RateLimitExhaustedError(Exception):
     """Raised when a rate limit cannot be satisfied within the allowed wait time."""
 
-    pass
-
 
 # ============================================
 # Token Bucket Implementation
@@ -433,9 +431,7 @@ class RateLimiter:
                 if self._config.burst_size
                 else 0
             )
-        elif isinstance(self._impl, SlidingWindow):
-            current_rate = self._impl.get_current_count()
-        elif isinstance(self._impl, FixedWindow):
+        elif isinstance(self._impl, (SlidingWindow, FixedWindow)):
             current_rate = self._impl.get_current_count()
 
         return RateLimitStats(

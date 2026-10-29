@@ -78,7 +78,7 @@ class Partitioner(Generic[T, K]):
     def __init__(self, config: PartitionConfig):
         self.config = config
         self._partition_counts: Dict[int, int] = defaultdict(int)
-        self._partition_processors: Dict[int, "PartitionProcessor[T]"] = {}
+        self._partition_processors: Dict[int, PartitionProcessor[T]] = {}
         self._total_events = 0
         self._key_distribution: Dict[K, int] = defaultdict(int)
 
@@ -161,7 +161,7 @@ class Partitioner(Generic[T, K]):
         """Round-robin partition assignment."""
         return self._total_events % self.config.num_partitions
 
-    def get_processor(self, partition: int) -> "PartitionProcessor[T]":
+    def get_processor(self, partition: int) -> PartitionProcessor[T]:
         """Get the processor for a partition."""
         if partition not in self._partition_processors:
             self._partition_processors[partition] = PartitionProcessor(partition)
@@ -375,10 +375,10 @@ class KeyExtractor(Generic[T, K]):
 
 
 __all__ = [
-    "PartitionStrategy",
-    "PartitionConfig",
-    "Partitioner",
-    "PartitionProcessor",
     "CompositePartitioner",
     "KeyExtractor",
+    "PartitionConfig",
+    "PartitionProcessor",
+    "PartitionStrategy",
+    "Partitioner",
 ]

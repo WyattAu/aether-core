@@ -1,0 +1,42 @@
+# Ruff gates for the Python SDK.
+#
+# ruff 0.17 expanded the default select to ~819 rules; an unpinned
+# `ruff check` (what sdk-ci.yml runs after `pip install ruff`) can
+# never pass a py3.9 codebase — the PEP 604/585 modernization rules
+# (UP006/UP007/UP035/UP045, FA100/FA102) demand 3.10+ syntax. Those
+# stay off until requires-python moves to 3.10+. Quality rules that
+# catch real bug classes stay on. Formatting is owned by black +
+# isort (black profile); ruff's formatter is deliberately unused to
+# avoid two formatters fighting.
+
+target-version = "py39"
+line-length = 88
+
+[lint]
+select = [
+    "E4",  # pycodestyle errors (imports, indentation)
+    "E7",  # statement-level errors
+    "E9",  # runtime errors (syntax, undefined name)
+    "F",   # pyflakes (unused imports/vars, f-string bugs)
+    "B",   # flake8-bugbear (real footguns)
+    "DTZ", # naive datetime usage (utcnow class bugs)
+    "SIM", # simplification (collapsible ifs, needless bools)
+    "W",   # trailing whitespace etc.
+]
+
+[lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[lint.per-file-ignores]
+# __init__ re-export layout: module docstring + section banners precede
+# the import block by design.
+"aether_sdk/validation/__init__.py" = ["E402"]
+# Test bootstrap: sys.path must be patched before the test imports.
+"tests/conftest.py" = ["E402"]
+# Fixture re-exports: star imports are the point of this namespace.
+"tests/test_workflow/__init__.py" = ["F403"]
+# Actor lifecycle hooks are optional overrides: an empty default body is
+# the contract (B027). Aggregate is a marker base; subclasses declare
+# apply_* methods by convention (B024).
+"aether_sdk/actor.py" = ["B027"]
+"aether_sdk/event/event_sourcing.py" = ["B024"]

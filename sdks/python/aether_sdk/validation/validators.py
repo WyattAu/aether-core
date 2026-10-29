@@ -12,7 +12,8 @@ import re
 import urllib.parse
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Pattern, Union
+from re import Pattern
+from typing import Any, Callable, Dict, List, Optional, Union
 
 # ============================================
 # Regex Patterns
@@ -121,9 +122,10 @@ def validate_url(value: str, allowed_schemes: Optional[List[str]] = None) -> boo
         schemes = set(allowed_schemes or ["http", "https"])
         if parsed.scheme.lower() not in schemes:
             return False
-        if not parsed.netloc:
-            return False
-        return True
+        # bool(), not bare netloc: the contract is a real bool, and a
+        # domain string is truthy but not `is True` (SIM103's rewrite
+        # broke this once already — keep the explicit conversion).
+        return bool(parsed.netloc)
     except Exception:
         return False
 
@@ -145,9 +147,7 @@ def validate_integer(
         return False
     if min_value is not None and value < min_value:
         return False
-    if max_value is not None and value > max_value:
-        return False
-    return True
+    return not (max_value is not None and value > max_value)
 
 
 def validate_float(
@@ -160,9 +160,7 @@ def validate_float(
         return False
     if min_value is not None and value < min_value:
         return False
-    if max_value is not None and value > max_value:
-        return False
-    return True
+    return not (max_value is not None and value > max_value)
 
 
 def validate_string(
@@ -178,9 +176,7 @@ def validate_string(
         return False
     if max_length is not None and len(value) > max_length:
         return False
-    if pattern is not None and not pattern.match(value):
-        return False
-    return True
+    return not (pattern is not None and not pattern.match(value))
 
 
 def validate_datetime(value: Any, format_str: Optional[str] = None) -> bool:
@@ -191,7 +187,10 @@ def validate_datetime(value: Any, format_str: Optional[str] = None) -> bool:
         return False
     try:
         if format_str:
-            datetime.strptime(value, format_str)
+            # Parseability check: format_str is caller-defined and may
+            # legitimately be a naive format; tz-awareness is not the
+            # validator's contract.
+            datetime.strptime(value, format_str)  # noqa: DTZ007
         else:
             datetime.fromisoformat(value.replace("Z", "+00:00"))
         return True
@@ -248,9 +247,7 @@ def validate_required(value: Any) -> bool:
         return False
     if isinstance(value, str) and value.strip() == "":
         return False
-    if isinstance(value, (list, dict)) and len(value) == 0:
-        return False
-    return True
+    return not (isinstance(value, (list, dict)) and len(value) == 0)
 
 
 def validate_no_control_chars(value: str) -> bool:
@@ -283,14 +280,14 @@ class Validator:
     def errors(self) -> Dict[str, List[str]]:
         return self._errors
 
-    def add_error(self, field_name: str, message: str) -> "Validator":
+    def add_error(self, field_name: str, message: str) -> Validator:
         """Add a custom error for a field."""
         if field_name not in self._errors:
             self._errors[field_name] = []
         self._errors[field_name].append(message)
         return self
 
-    def clear(self) -> "Validator":
+    def clear(self) -> Validator:
         """Reset all errors."""
         self._errors = {}
         return self
@@ -329,7 +326,7 @@ class Validator:
         min_length: Optional[int] = None,
         max_length: Optional[int] = None,
         pattern: Optional[Union[str, Pattern]] = None,
-    ) -> "Validator":
+    ) -> Validator:
         """Validate a string field with length and pattern constraints."""
         if value is not None and not isinstance(value, str):
             self.add_error(name, f"{name} must be a string")
@@ -345,19 +342,19 @@ class Validator:
                     self.add_error(name, f"{name} has invalid format")
         return self
 
-    def validate_email(self, name: str, value: Any) -> "Validator":
+    def validate_email(self, name: str, value: Any) -> Validator:
         """Validate email format."""
         if value is not None and not validate_email(value):
             self.add_error(name, f"{name} must be a valid email")
         return self
 
-    def validate_url(self, name: str, value: Any) -> "Validator":
+    def validate_url(self, name: str, value: Any) -> Validator:
         """Validate URL format."""
         if value is not None and not validate_url(value):
             self.add_error(name, f"{name} must be a valid URL")
         return self
 
-    def validate_uuid(self, name: str, value: Any) -> "Validator":
+    def validate_uuid(self, name: str, value: Any) -> Validator:
         """Validate UUID format."""
         if value is not None and not validate_uuid(value):
             self.add_error(name, f"{name} must be a valid UUID")
@@ -369,7 +366,7 @@ class Validator:
         value: Any,
         min_value: Optional[int] = None,
         max_value: Optional[int] = None,
-    ) -> "Validator":
+    ) -> Validator:
         """Validate integer with optional bounds."""
         if value is not None and not validate_integer(value, min_value, max_value):
             msg = f"{name} must be a valid integer"
@@ -389,7 +386,7 @@ class Validator:
         value: Any,
         min_value: Optional[float] = None,
         max_value: Optional[float] = None,
-    ) -> "Validator":
+    ) -> Validator:
         """Validate float with optional bounds."""
         if value is not None and not validate_float(value, min_value, max_value):
             msg = f"{name} must be a valid number"
@@ -403,19 +400,19 @@ class Validator:
             self.add_error(name, msg)
         return self
 
-    def validate_datetime(self, name: str, value: Any) -> "Validator":
+    def validate_datetime(self, name: str, value: Any) -> Validator:
         """Validate datetime."""
         if value is not None and not validate_datetime(value):
             self.add_error(name, f"{name} must be a valid datetime")
         return self
 
-    def validate_phone(self, name: str, value: Any) -> "Validator":
+    def validate_phone(self, name: str, value: Any) -> Validator:
         """Validate phone number format."""
         if value is not None and not validate_phone(value):
             self.add_error(name, f"{name} must be a valid phone number")
         return self
 
-    def validate_ip(self, name: str, value: Any) -> "Validator":
+    def validate_ip(self, name: str, value: Any) -> Validator:
         """Validate IP address."""
         if value is not None and not validate_ip(value):
             self.add_error(name, f"{name} must be a valid IP address")
@@ -423,7 +420,7 @@ class Validator:
 
     def validate_enum(
         self, name: str, value: Any, allowed_values: List[Any]
-    ) -> "Validator":
+    ) -> Validator:
         """Validate that value is one of the allowed values."""
         if not validate_enum(value, allowed_values):
             self.add_error(name, f"{name} must be one of the allowed values")
@@ -435,7 +432,7 @@ class Validator:
         value: Any,
         min_length: Optional[int] = None,
         max_length: Optional[int] = None,
-    ) -> "Validator":
+    ) -> Validator:
         """Validate a list field with length constraints."""
         if value is not None and not isinstance(value, list):
             self.add_error(name, f"{name} must be a list")
@@ -452,7 +449,7 @@ class Validator:
         name: str,
         value: Any,
         required_fields: Optional[List[str]] = None,
-    ) -> "Validator":
+    ) -> Validator:
         """Validate an object/dict with optional required fields."""
         if value is not None and not isinstance(value, dict):
             self.add_error(name, f"{name} must be an object")
@@ -463,31 +460,31 @@ class Validator:
                     self.add_error(f"{name}.{rf}", f"{name}.{rf} is required")
         return self
 
-    def validate_required(self, name: str, value: Any) -> "Validator":
+    def validate_required(self, name: str, value: Any) -> Validator:
         """Validate that a field is present and non-empty."""
         if not validate_required(value):
             self.add_error(name, f"{name} is required")
         return self
 
-    def validate_slug(self, name: str, value: Any) -> "Validator":
+    def validate_slug(self, name: str, value: Any) -> Validator:
         """Validate URL slug format."""
         if value is not None and not validate_slug(value):
             self.add_error(name, f"{name} must be a valid slug")
         return self
 
-    def validate_username(self, name: str, value: Any) -> "Validator":
+    def validate_username(self, name: str, value: Any) -> Validator:
         """Validate username format."""
         if value is not None and not validate_username(value):
             self.add_error(name, f"{name} must be a valid username")
         return self
 
-    def validate_alphanumeric(self, name: str, value: Any) -> "Validator":
+    def validate_alphanumeric(self, name: str, value: Any) -> Validator:
         """Validate that value is alphanumeric."""
         if value is not None and not validate_alphanumeric(value):
             self.add_error(name, f"{name} must be alphanumeric")
         return self
 
-    def validate_no_control_chars(self, name: str, value: Any) -> "Validator":
+    def validate_no_control_chars(self, name: str, value: Any) -> Validator:
         """Validate that string has no control characters."""
         if value is not None and not validate_no_control_chars(value):
             self.add_error(name, f"{name} contains invalid control characters")
@@ -496,8 +493,8 @@ class Validator:
     def when(
         self,
         condition: bool,
-        validator_fn: Callable[["Validator"], "Validator"],
-    ) -> "Validator":
+        validator_fn: Callable[[Validator], Validator],
+    ) -> Validator:
         """Conditional validation: apply validator_fn only if condition is True."""
         if condition:
             return validator_fn(self)
@@ -507,7 +504,7 @@ class Validator:
 
     def required(
         self, field: str, value: Any, message: Optional[str] = None
-    ) -> "Validator":
+    ) -> Validator:
         """Validate that a field is present and not empty."""
         if value is None or (isinstance(value, str) and not value.strip()):
             self.add_error(field, message or f"{field} is required")
@@ -515,7 +512,7 @@ class Validator:
 
     def string(
         self, field: str, value: Any, message: Optional[str] = None
-    ) -> "Validator":
+    ) -> Validator:
         """Validate that a field is a string."""
         if value is not None and not isinstance(value, str):
             self.add_error(field, message or f"{field} must be a string")
@@ -523,15 +520,13 @@ class Validator:
 
     def integer(
         self, field: str, value: Any, message: Optional[str] = None
-    ) -> "Validator":
+    ) -> Validator:
         """Validate that a field is an integer."""
         if value is not None and not isinstance(value, int):
             self.add_error(field, message or f"{field} must be an integer")
         return self
 
-    def float(
-        self, field: str, value: Any, message: Optional[str] = None
-    ) -> "Validator":
+    def float(self, field: str, value: Any, message: Optional[str] = None) -> Validator:
         """Validate that a field is a number."""
         if value is not None and not isinstance(value, (int, float)):
             self.add_error(field, message or f"{field} must be a number")
@@ -539,23 +534,19 @@ class Validator:
 
     def boolean(
         self, field: str, value: Any, message: Optional[str] = None
-    ) -> "Validator":
+    ) -> Validator:
         """Validate that a field is a boolean."""
         if value is not None and not isinstance(value, bool):
             self.add_error(field, message or f"{field} must be a boolean")
         return self
 
-    def list(
-        self, field: str, value: Any, message: Optional[str] = None
-    ) -> "Validator":
+    def list(self, field: str, value: Any, message: Optional[str] = None) -> Validator:
         """Validate that a field is a list."""
         if value is not None and not isinstance(value, list):
             self.add_error(field, message or f"{field} must be a list")
         return self
 
-    def dict(
-        self, field: str, value: Any, message: Optional[str] = None
-    ) -> "Validator":
+    def dict(self, field: str, value: Any, message: Optional[str] = None) -> Validator:
         """Validate that a field is a dictionary."""
         if value is not None and not isinstance(value, dict):
             self.add_error(field, message or f"{field} must be an object")
@@ -567,7 +558,7 @@ class Validator:
         value: Optional[str],
         min_len: int,
         message: Optional[str] = None,
-    ) -> "Validator":
+    ) -> Validator:
         """Validate minimum string length."""
         if value is not None and len(value) < min_len:
             self.add_error(
@@ -581,7 +572,7 @@ class Validator:
         value: Optional[str],
         max_len: int,
         message: Optional[str] = None,
-    ) -> "Validator":
+    ) -> Validator:
         """Validate maximum string length."""
         if value is not None and len(value) > max_len:
             self.add_error(
@@ -595,7 +586,7 @@ class Validator:
         value: Optional[str],
         regex: Union[str, Pattern],
         message: Optional[str] = None,
-    ) -> "Validator":
+    ) -> Validator:
         """Validate string against a regex pattern."""
         if value is not None:
             compiled = re.compile(regex) if isinstance(regex, str) else regex
@@ -609,7 +600,7 @@ class Validator:
         value: Optional[Union[int, float]],
         min_val: Union[int, float],
         message: Optional[str] = None,
-    ) -> "Validator":
+    ) -> Validator:
         """Validate minimum numeric value."""
         if value is not None and value < min_val:
             self.add_error(field, message or f"{field} must be at least {min_val}")
@@ -621,7 +612,7 @@ class Validator:
         value: Optional[Union[int, float]],
         max_val: Union[int, float],
         message: Optional[str] = None,
-    ) -> "Validator":
+    ) -> Validator:
         """Validate maximum numeric value."""
         if value is not None and value > max_val:
             self.add_error(field, message or f"{field} must be at most {max_val}")
@@ -634,7 +625,7 @@ class Validator:
         min_val: Union[int, float],
         max_val: Union[int, float],
         message: Optional[str] = None,
-    ) -> "Validator":
+    ) -> Validator:
         """Validate numeric value is within range."""
         if value is not None and (value < min_val or value > max_val):
             self.add_error(
@@ -644,7 +635,7 @@ class Validator:
 
     def email(
         self, field: str, value: Optional[str], message: Optional[str] = None
-    ) -> "Validator":
+    ) -> Validator:
         """Validate email format."""
         if value is not None and not validate_email(value):
             self.add_error(field, message or f"{field} must be a valid email")
@@ -656,7 +647,7 @@ class Validator:
         value: Optional[str],
         allowed_schemes: Optional[List[str]] = None,
         message: Optional[str] = None,
-    ) -> "Validator":
+    ) -> Validator:
         """Validate URL format."""
         if value is not None and not validate_url(value, allowed_schemes):
             self.add_error(field, message or f"{field} must be a valid URL")
@@ -664,7 +655,7 @@ class Validator:
 
     def uuid(
         self, field: str, value: Optional[str], message: Optional[str] = None
-    ) -> "Validator":
+    ) -> Validator:
         """Validate UUID format."""
         if value is not None and not validate_uuid(value):
             self.add_error(field, message or f"{field} must be a valid UUID")
@@ -672,7 +663,7 @@ class Validator:
 
     def phone(
         self, field: str, value: Optional[str], message: Optional[str] = None
-    ) -> "Validator":
+    ) -> Validator:
         """Validate phone number format."""
         if value is not None and not validate_phone(value):
             self.add_error(field, message or f"{field} must be a valid phone number")
@@ -680,7 +671,7 @@ class Validator:
 
     def slug(
         self, field: str, value: Optional[str], message: Optional[str] = None
-    ) -> "Validator":
+    ) -> Validator:
         """Validate URL slug format."""
         if value is not None and not validate_slug(value):
             self.add_error(field, message or f"{field} must be a valid slug")
@@ -692,7 +683,7 @@ class Validator:
         value: Optional[List],
         min_items: int,
         message: Optional[str] = None,
-    ) -> "Validator":
+    ) -> Validator:
         """Validate minimum list length."""
         if value is not None and len(value) < min_items:
             self.add_error(
@@ -706,7 +697,7 @@ class Validator:
         value: Optional[List],
         max_items: int,
         message: Optional[str] = None,
-    ) -> "Validator":
+    ) -> Validator:
         """Validate maximum list length."""
         if value is not None and len(value) > max_items:
             self.add_error(
@@ -716,7 +707,7 @@ class Validator:
 
     def custom(
         self, field: str, value: Any, validator: Callable[[Any], bool], message: str
-    ) -> "Validator":
+    ) -> Validator:
         """Apply custom validation."""
         if not validator(value):
             self.add_error(field, message)

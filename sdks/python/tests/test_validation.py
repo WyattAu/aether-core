@@ -3,7 +3,7 @@ Tests for Aether SDK Validation Module
 """
 
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 
@@ -387,7 +387,7 @@ class TestValidateDatetime:
 
     def test_valid_datetime_object(self):
         """Test datetime object."""
-        assert validate_datetime(datetime.now()) is True
+        assert validate_datetime(datetime.now(timezone.utc)) is True
 
     def test_valid_iso_string(self):
         """Test ISO format string."""
@@ -1054,7 +1054,7 @@ class TestValidatedDecorator:
         greet("ab")  # Too short - check what happens
         # If it doesn't raise, the decorator implementation might be different
         # For now, let's test with a definitely invalid case
-        pass  # Skip this test - decorator behavior differs
+        # Skip this test - decorator behavior differs
 
     def test_validated_decorator_with_none(self):
         """Test validated decorator with None value."""

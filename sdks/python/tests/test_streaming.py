@@ -6,7 +6,7 @@ Tests for the Streaming Module
 import asyncio
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List
 
 import pytest
@@ -120,7 +120,7 @@ class TestTimestamp:
         assert ts.milliseconds > 0
 
     def test_timestamp_from_datetime(self):
-        dt = datetime.now()
+        dt = datetime.now(timezone.utc)
         ts = Timestamp.from_datetime(dt)
         assert isinstance(ts, Timestamp)
 
@@ -260,7 +260,7 @@ class TestBackpressureController:
         assert controller.is_overloaded
 
         # Drain to 40% (below low watermark)
-        for i in range(40):
+        for _ in range(40):
             controller.pop()
 
         assert controller.is_recovered

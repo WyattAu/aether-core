@@ -5,8 +5,6 @@ from typing import Optional
 class AetherError(Exception):
     """Base exception for Aether SDK."""
 
-    pass
-
 class CapabilityDenied(AetherError):
     """Capability not granted."""
 
@@ -19,8 +17,6 @@ class ActorNotFound(AetherError):
 
 class StateError(AetherError):
     """State operation failed."""
-
-    pass
 
 class RpcError(AetherError):
     """RPC call failed."""
