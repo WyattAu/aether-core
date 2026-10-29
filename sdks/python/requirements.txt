@@ -10,3 +10,4 @@ black>=23.0
 # server.app, which is FastAPI-based; the suite drives it over HTTP).
 fastapi>=0.104.0
 httpx>=0.25.0
+pytest-cov>=4.1.0
