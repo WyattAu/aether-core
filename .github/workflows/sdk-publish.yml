@@ -43,18 +43,18 @@ jobs:
       run:
         working-directory: sdks/javascript
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
       
       - name: Setup Node.js
-        uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
       
       - name: Setup pnpm
-        uses: pnpm/action-setup@d6b3bfb0e4eaf29a4930e0d4e1dc905c2cc51f33
+        uses: pnpm/action-setup@d9184bf108216479bc5a137cc391f4d7b14c870b
         with:
           version: 10
       
@@ -90,12 +90,12 @@ jobs:
       run:
         working-directory: sdks/python
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
       
       - name: Setup Python
-        uses: actions/setup-python@42375524e23c591e6cc1a578853edd1d6c9435e2
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
         with:
           python-version: '3.11'
       
@@ -131,12 +131,12 @@ jobs:
       run:
         working-directory: sdks/go
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
       
       - name: Setup Go
-        uses: actions/setup-go@41dfa10bad2bb2ae58a36e4b2e447ee5c8612c8f
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
         with:
           go-version: '1.22'
       

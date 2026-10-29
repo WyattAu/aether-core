@@ -33,19 +33,19 @@ jobs:
       digest: ${{ steps.build.outputs.digest }}
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@49b3bc8e6bdd4a60e6116a5414239cba5943d3cf
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@d70bba9e6dc7d6a82ae3ac99f96f9f5b0ea8f369
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069
 
       - name: Log in to Container Registry
         if: github.event_name != 'pull_request'
-        uses: docker/login-action@e9d90e5f6e9f1e260c9cdeb2e29d4dbe11b8e3b3
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -53,7 +53,7 @@ jobs:
 
       - name: Extract metadata
         id: meta
-        uses: docker/metadata-action@db97c247a8063ddb20004acedaa4c014d5a41495
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
@@ -67,7 +67,7 @@ jobs:
 
       - name: Build and push
         id: build
-        uses: docker/build-push-action@471d14dc28dbda73b6b29e5a4b6a4a870b2b07a3
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc
         with:
           context: .
           file: ./Dockerfile
@@ -82,7 +82,7 @@ jobs:
 
       - name: Generate artifact attestation
         if: github.event_name != 'pull_request'
-        uses: actions/attest-build-provenance@1c4988873b77425d94b6cb5c6ac09e52f909d10a
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8
         with:
           subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           subject-digest: ${{ steps.build.outputs.digest }}
@@ -95,7 +95,7 @@ jobs:
     if: github.event_name != 'pull_request'
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
 
@@ -103,7 +103,7 @@ jobs:
         run: docker build -t aether-core:scan -f ./Dockerfile .
 
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@8854e74eb5317046bdf8d4a4d37a387affa15d41
+        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8
         with:
           image-ref: 'aether-core:scan'
           format: 'sarif'
@@ -111,13 +111,13 @@ jobs:
           severity: 'CRITICAL,HIGH'
 
       - name: Upload Trivy scan results
-        uses: github/codeql-action/upload-sarif@382eb82952427676a27a9c07b9e80514daa2d83c
+        uses: github/codeql-action/upload-sarif@4bfa242aa49c5f7c6770b98670d354a7dfac05f8
         with:
           sarif_file: 'trivy-results.sarif'
           category: 'container-vulnerabilities'
 
       - name: Run Trivy for exit code
-        uses: aquasecurity/trivy-action@8854e74eb5317046bdf8d4a4d37a387affa15d41
+        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8
         with:
           image-ref: 'aether-core:scan'
           format: 'table'
@@ -132,12 +132,12 @@ jobs:
     if: github.event_name != 'pull_request'
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
 
       - name: Log in to Container Registry
-        uses: docker/login-action@e9d90e5f6e9f1e260c9cdeb2e29d4dbe11b8e3b3
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}

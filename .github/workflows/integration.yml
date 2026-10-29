@@ -34,7 +34,7 @@ jobs:
           - os: macos-latest
             rust: stable
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
 
@@ -44,7 +44,7 @@ jobs:
           toolchain: ${{ matrix.rust }}
           targets: wasm32-wasip1
 
-      - uses: Swatinem/rust-cache@923806f6a5b9ac6d707a178f02738743342a1789
+      - uses: Swatinem/rust-cache@2201cc584a476d1b508be977bbe4b7d1c7a52e9c
 
       - name: Install FoundationDB client (Linux)
         if: runner.os == 'Linux'
@@ -74,7 +74,7 @@ jobs:
     name: End-to-End Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
 
@@ -84,7 +84,7 @@ jobs:
           toolchain: nightly-2026-03-01
           targets: wasm32-wasip1
 
-      - uses: Swatinem/rust-cache@923806f6a5b9ac6d707a178f02738743342a1789
+      - uses: Swatinem/rust-cache@2201cc584a476d1b508be977bbe4b7d1c7a52e9c
 
       - name: Install FoundationDB client
         run: |
@@ -109,7 +109,7 @@ jobs:
 
       - name: Upload e2e logs
         if: failure()
-        uses: actions/upload-artifact@654c28fbec712ddbf170266f20aa82b4a8e84e26
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: e2e-logs
           path: |
@@ -121,7 +121,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
 
@@ -130,7 +130,7 @@ jobs:
         with:
           toolchain: nightly-2026-03-01
 
-      - uses: Swatinem/rust-cache@923806f6a5b9ac6d707a178f02738743342a1789
+      - uses: Swatinem/rust-cache@2201cc584a476d1b508be977bbe4b7d1c7a52e9c
 
       - name: Install FoundationDB client
         run: |
@@ -164,7 +164,7 @@ jobs:
           exit $CHAOS_EXIT
 
       - name: Upload chaos results
-        uses: actions/upload-artifact@654c28fbec712ddbf170266f20aa82b4a8e84e26
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
         with:
           name: chaos-results
@@ -175,7 +175,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
 
@@ -184,7 +184,7 @@ jobs:
         with:
           toolchain: nightly-2026-03-01
 
-      - uses: Swatinem/rust-cache@923806f6a5b9ac6d707a178f02738743342a1789
+      - uses: Swatinem/rust-cache@2201cc584a476d1b508be977bbe4b7d1c7a52e9c
 
       - name: Install FoundationDB client
         run: |
@@ -202,7 +202,7 @@ jobs:
           exit ${PIPESTATUS[0]}
 
       - name: Upload stress results
-        uses: actions/upload-artifact@654c28fbec712ddbf170266f20aa82b4a8e84e26
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
         with:
           name: stress-results

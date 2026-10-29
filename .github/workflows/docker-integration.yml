@@ -28,7 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
 
@@ -39,7 +39,7 @@ jobs:
           targets: wasm32-wasip1
 
       - name: Cache cargo registry
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: |
             ~/.cargo/registry
@@ -110,7 +110,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@654c28fbec712ddbf170266f20aa82b4a8e84e26
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: fdb-integration-results
           path: target/test-results/
@@ -121,7 +121,7 @@ jobs:
     needs: docker-integration
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
 
@@ -247,7 +247,7 @@ jobs:
 
       - name: Upload cluster logs
         if: always()
-        uses: actions/upload-artifact@654c28fbec712ddbf170266f20aa82b4a8e84e26
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: docker-cluster-logs
           path: docker-cluster-logs.txt
@@ -275,13 +275,13 @@ jobs:
 
       - name: Download all test artifacts
         if: always()
-        uses: actions/download-artifact@65a9adbc1b9e016452a3365e6d87a636e8e2291f
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           path: all-test-results
 
       - name: Upload combined test results
         if: always()
-        uses: actions/upload-artifact@654c28fbec712ddbf170266f20aa82b4a8e84e26
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: docker-integration-combined-results
           path: all-test-results/
