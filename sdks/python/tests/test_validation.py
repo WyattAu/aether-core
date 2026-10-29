@@ -717,7 +717,8 @@ class TestValidator:
 
         # Test that when() returns a new validator with errors
         result = validator.when(
-            True, lambda v: v.required("admin_code", None)  # None should fail required
+            True,
+            lambda v: v.required("admin_code", None),  # None should fail required
         )
         # The result is a new validator with the error
         assert result.is_valid() is False

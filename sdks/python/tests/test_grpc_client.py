@@ -336,7 +336,6 @@ class TestHelpers:
 
 
 class TestGrpcClientHealth:
-
     async def test_health(self, grpc_client):
         info = await grpc_client.health()
         assert isinstance(info, ServerInfo)
@@ -350,7 +349,6 @@ class TestGrpcClientHealth:
 
 
 class TestGrpcClientActors:
-
     async def test_register_actor(self, grpc_client):
         info = await grpc_client.register_actor("grpc-1", "worker")
         assert isinstance(info, ActorInfo)
@@ -396,7 +394,6 @@ class TestGrpcClientActors:
 
 
 class TestGrpcClientMessaging:
-
     async def test_send_message(self, grpc_client):
         receipt = await grpc_client.send_message(
             "msg-tgt",
@@ -423,7 +420,6 @@ class TestGrpcClientMessaging:
 
 
 class TestGrpcClientState:
-
     async def test_set_and_get_state(self, grpc_client):
         entry = await grpc_client.set_state("st-1", "counter", 42)
         assert isinstance(entry, StateEntry)
@@ -469,7 +465,6 @@ class TestGrpcClientState:
 
 
 class TestGrpcClientEvents:
-
     async def test_publish_and_subscribe(self, grpc_client):
         sub_id = await grpc_client.subscribe("grpc-topic", "sub-1")
         assert isinstance(sub_id, str)
@@ -508,7 +503,6 @@ class TestGrpcClientEvents:
 
 
 class TestGrpcClientContextManager:
-
     async def test_context_manager(self):
         port, server = _start_grpc_server()
         async with AetherGrpcClient(f"localhost:{port}", timeout=5.0) as client:
@@ -523,7 +517,6 @@ class TestGrpcClientContextManager:
 
 
 class TestGrpcClientError:
-
     async def test_version_conflict(self, grpc_client):
         await grpc_client.set_state("vc-1", "val", "v1")
         await grpc_client.set_state("vc-1", "val", "v2")

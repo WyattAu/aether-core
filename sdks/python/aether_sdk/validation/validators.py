@@ -379,7 +379,7 @@ class Validator:
                     bounds.append(f">= {min_value}")
                 if max_value is not None:
                     bounds.append(f"<= {max_value}")
-                msg = f'{name} must be an integer ({", ".join(bounds)})'
+                msg = f"{name} must be an integer ({', '.join(bounds)})"
             self.add_error(name, msg)
         return self
 
@@ -399,7 +399,7 @@ class Validator:
                     bounds.append(f">= {min_value}")
                 if max_value is not None:
                     bounds.append(f"<= {max_value}")
-                msg = f'{name} must be a number ({", ".join(bounds)})'
+                msg = f"{name} must be a number ({', '.join(bounds)})"
             self.add_error(name, msg)
         return self
 

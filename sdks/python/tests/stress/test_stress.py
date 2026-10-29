@@ -90,10 +90,10 @@ def test_1m_stream_events_windowing():
     print("\n=== 1M Stream Events Windowing ===")
     print(f"  Time:       {elapsed:.2f}s")
     print(f"  Events/sec: {eps:,.0f}")
-    print(f"  Mem before: {mem_before / 1024 ** 2:.1f} MB")
-    print(f"  Mem after:  {mem_after / 1024 ** 2:.1f} MB")
+    print(f"  Mem before: {mem_before / 1024**2:.1f} MB")
+    print(f"  Mem after:  {mem_after / 1024**2:.1f} MB")
     print(f"  Mem growth: {growth_mb:.1f} MB")
-    print(f"  Peak mem:   {peak / 1024 ** 2:.1f} MB")
+    print(f"  Peak mem:   {peak / 1024**2:.1f} MB")
     print(f"  Windows:    {len(assigner._windows)}")
 
     assert elapsed < 60, f"Took {elapsed:.1f}s (limit 60s)"

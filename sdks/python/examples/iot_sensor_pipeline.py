@@ -314,7 +314,7 @@ async def run_sensor_pipeline():
             log(f"MLBP: Event {i} dropped (priority={priority})")
 
     mlbp_stats = mlbp.size()
-    log(f"Multi-level BP: buffered={mlbp_stats}, " f"dropped={15 - mlbp_stats}")
+    log(f"Multi-level BP: buffered={mlbp_stats}, dropped={15 - mlbp_stats}")
 
     while not mlbp.is_empty():
         mlbp.pop()

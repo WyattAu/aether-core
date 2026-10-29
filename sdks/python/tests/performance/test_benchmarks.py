@@ -33,7 +33,7 @@ def _fmt_ops(n: int, elapsed: float) -> str:
 
 def _fmt_latency(total_ns: float, n: int) -> str:
     avg_us = (total_ns / n) / 1000
-    return f"{avg_us:.2f} us/call  (total {total_ns/1e6:.3f}ms for {n:,} calls)"
+    return f"{avg_us:.2f} us/call  (total {total_ns / 1e6:.3f}ms for {n:,} calls)"
 
 
 @pytest.mark.performance
@@ -214,7 +214,9 @@ class TestCircuitBreaker:
 
         overhead_us = ((with_cb - without_cb) / n) * 1_000_000
         print(f"\n  [CircuitBreaker overhead vs direct] {overhead_us:.2f} us/call")
-        print(f"    with_cb={with_cb*1000:.2f}ms  without_cb={without_cb*1000:.2f}ms")
+        print(
+            f"    with_cb={with_cb * 1000:.2f}ms  without_cb={without_cb * 1000:.2f}ms"
+        )
 
 
 @pytest.mark.performance

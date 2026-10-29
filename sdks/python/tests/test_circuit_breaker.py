@@ -556,7 +556,8 @@ class TestCircuitBreakerFailureWindow:
     def setup_method(self):
         """Set up test fixtures."""
         self.config = CircuitBreakerConfig(
-            failure_threshold=3, failure_window_ms=200  # Short window for testing
+            failure_threshold=3,
+            failure_window_ms=200,  # Short window for testing
         )
         self.breaker = CircuitBreaker(self.config)
 

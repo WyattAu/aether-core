@@ -51,7 +51,7 @@ if __name__ == "__main__":
         for i in range(3):
             msg = Message(type=MessageType.CUSTOM, payload={"action": "increment"})
             response = await actor.handle_message("test", msg)
-            print(f"After increment {i+1}: counter = {response.payload['counter']}")
+            print(f"After increment {i + 1}: counter = {response.payload['counter']}")
 
         msg = Message(type=MessageType.CUSTOM, payload={"action": "get"})
         response = await actor.handle_message("test", msg)
