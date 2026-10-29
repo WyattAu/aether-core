@@ -57,11 +57,11 @@ jobs:
       - name: Run benchmarks
         continue-on-error: true
         run: |
-          cargo bench --package aether-core --features "wasm,mesh,rkyv" -- --output-format bencher 2>&1 | tee benchmark-results.txt || true
+          cargo bench --package aether-core --features "wasm,mesh" -- --output-format bencher 2>&1 | tee benchmark-results.txt || true
           # Verify at least one benchmark ran
           if ! grep -q 'test' benchmark-results.txt; then
             echo "WARNING: No benchmark output detected. Trying with fewer features..."
-            cargo bench --package aether-core --features "rkyv" -- --output-format bencher 2>&1 | tee benchmark-results.txt || true
+            cargo bench --package aether-core --features "wasm,mesh" -- --output-format bencher 2>&1 | tee benchmark-results.txt || true
           fi
       
       - name: Download previous baseline

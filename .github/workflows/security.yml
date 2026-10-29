@@ -258,7 +258,7 @@ jobs:
           toolchain: nightly-2026-03-01
 
       - name: Install Syft
-        uses: anchore/sbom-action/download-syft@f6c3d0fe42c3cf876e3462574e4c9416b5e0f07a
+        uses: anchore/sbom-action/download-syft@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c
 
       - name: Generate SBOM (source code)
         run: syft packages dir:. --output cyclonedx-json=sbom.cdx.json
