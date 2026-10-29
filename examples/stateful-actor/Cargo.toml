@@ -11,3 +11,6 @@ aether-actor = { path = "../../crates/actor-sdk" }
 
 [features]
 default = ["aether-actor/std"]
+
+# Standalone example: excluded from the root workspace.
+[workspace]

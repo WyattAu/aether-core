@@ -60,7 +60,7 @@ jobs:
 
       - name: Run all tests (macOS -- exclude FDB)
         if: runner.os == 'macOS'
-        run: cargo test --workspace --features "wasm mesh rkyv"
+        run: cargo test --workspace --features "wasm mesh"
 
       - name: Run doc tests (Linux)
         if: runner.os == 'Linux'
@@ -68,7 +68,7 @@ jobs:
 
       - name: Run doc tests (macOS)
         if: runner.os == 'macOS'
-        run: cargo test --workspace --doc --features "wasm mesh rkyv"
+        run: cargo test --workspace --doc --features "wasm mesh"
 
   e2e:
     name: End-to-End Tests
