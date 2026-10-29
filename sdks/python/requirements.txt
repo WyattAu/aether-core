@@ -5,3 +5,8 @@ pytest>=7.0
 pytest-asyncio>=0.21
 mypy>=1.0
 black>=23.0
+
+# Test fixture server + async test client (tests/conftest.py imports
+# server.app, which is FastAPI-based; the suite drives it over HTTP).
+fastapi>=0.104.0
+httpx>=0.25.0
