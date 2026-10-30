@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793333948084,
+  "lastUpdate": 1793335810091,
   "repoUrl": "https://github.com/WyattAu/aether-core",
   "entries": {
     "Benchmark": [
@@ -587,6 +587,90 @@ window.BENCHMARK_DATA = {
             "name": "registry/concurrent/4_threads_1000_each",
             "value": 252284995,
             "range": "± 23504505",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "98270a422355fba87b638c1a95ca3947c62dd459",
+          "message": "ci(fdb): stop fighting the server .deb — its postinst generates the cluster file AND starts a matching fdbserver via fdbmonitor; rewriting the file desynced it from the running server ('Unable to locate a cluster controller', visible in the wait-loop diagnostics). Use the generated pair as-is; the wait loop's configure fallback creates the database",
+          "timestamp": "2026-10-30T04:43:10Z",
+          "tree_id": "7c251b368d1580d41a0d51206a7d552ceb4e7121",
+          "url": "https://github.com/WyattAu/aether-core/commit/98270a422355fba87b638c1a95ca3947c62dd459"
+        },
+        "date": 1793335808895,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "registry/register/100",
+            "value": 15535330,
+            "range": "± 614209",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/register/1000",
+            "value": 112842543,
+            "range": "± 104747869",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/register/10000",
+            "value": 1171959122,
+            "range": "± 236029046",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/100",
+            "value": 24,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/1000",
+            "value": 24,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/10000",
+            "value": 24,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/100",
+            "value": 2396,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/1000",
+            "value": 20997,
+            "range": "± 40",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/10000",
+            "value": 207740,
+            "range": "± 826",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/concurrent/4_threads_1000_each",
+            "value": 431230848,
+            "range": "± 80996124",
             "unit": "ns/iter"
           }
         ]
