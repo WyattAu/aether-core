@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793344786868,
+  "lastUpdate": 1793345733760,
   "repoUrl": "https://github.com/WyattAu/aether-core",
   "entries": {
     "Benchmark": [
@@ -1007,6 +1007,90 @@ window.BENCHMARK_DATA = {
             "name": "registry/concurrent/4_threads_1000_each",
             "value": 422208136,
             "range": "± 164672584",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "a40d9d4d6618897ecfd57b5050afc341d2801b10",
+          "message": "ci(docker): drop FDB_NETWORKING_MODE=host (binds fdbserver to the container's loopback — unreachable through -p 4500:4500); extract locates the cluster file from fdbserver's cmdline and rewrites the coordinator IP to 127.0.0.1 while preserving the name:desc identity, matching ci.yml's working pattern",
+          "timestamp": "2026-10-30T07:28:45Z",
+          "tree_id": "1e88a88023592fadbb05a0ef5878b697dd531e82",
+          "url": "https://github.com/WyattAu/aether-core/commit/a40d9d4d6618897ecfd57b5050afc341d2801b10"
+        },
+        "date": 1793345732833,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "registry/register/100",
+            "value": 11099041,
+            "range": "± 160606",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/register/1000",
+            "value": 167926815,
+            "range": "± 1408728",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/register/10000",
+            "value": 1271802155,
+            "range": "± 151311293",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/100",
+            "value": 32,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/1000",
+            "value": 32,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/10000",
+            "value": 32,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/100",
+            "value": 3157,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/1000",
+            "value": 25819,
+            "range": "± 42",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/10000",
+            "value": 248656,
+            "range": "± 352",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/concurrent/4_threads_1000_each",
+            "value": 362285262,
+            "range": "± 78218426",
             "unit": "ns/iter"
           }
         ]
