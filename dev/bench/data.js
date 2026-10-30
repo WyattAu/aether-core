@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793327992964,
+  "lastUpdate": 1793329384402,
   "repoUrl": "https://github.com/WyattAu/aether-core",
   "entries": {
     "Benchmark": [
@@ -335,6 +335,90 @@ window.BENCHMARK_DATA = {
             "name": "registry/concurrent/4_threads_1000_each",
             "value": 333662933,
             "range": "± 122404332",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "666133a16b817ac1dfb9269df05c038096c32a93",
+          "message": "ci(fdb): pin public+listen to 127.0.0.1:4500 — auto: advertises the primary interface IP which never matches the cluster file's coordinator address",
+          "timestamp": "2026-10-30T02:58:29Z",
+          "tree_id": "ab3d489f9320d6c64c84d1fc8b50df12c70e2201",
+          "url": "https://github.com/WyattAu/aether-core/commit/666133a16b817ac1dfb9269df05c038096c32a93"
+        },
+        "date": 1793329383359,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "registry/register/100",
+            "value": 3068114,
+            "range": "± 162698",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/register/1000",
+            "value": 53334133,
+            "range": "± 94387285",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/register/10000",
+            "value": 560430703,
+            "range": "± 154204224",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/100",
+            "value": 25,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/1000",
+            "value": 25,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/10000",
+            "value": 25,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/100",
+            "value": 2567,
+            "range": "± 28",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/1000",
+            "value": 19267,
+            "range": "± 526",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/10000",
+            "value": 186880,
+            "range": "± 2849",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/concurrent/4_threads_1000_each",
+            "value": 234125483,
+            "range": "± 83695706",
             "unit": "ns/iter"
           }
         ]
