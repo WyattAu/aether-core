@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793330999125,
+  "lastUpdate": 1793333948084,
   "repoUrl": "https://github.com/WyattAu/aether-core",
   "entries": {
     "Benchmark": [
@@ -503,6 +503,90 @@ window.BENCHMARK_DATA = {
             "name": "registry/concurrent/4_threads_1000_each",
             "value": 366309853,
             "range": "± 96876832",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "5fded7a5626f0b819e61b3b431b2b9911be9e1c7",
+          "message": "ci(fdb): bound every fdbcli call with timeout 20 — the wait loop hung the job 50m on a blocking call; loop now surfaces the server process, stdout log, and cluster file on failure",
+          "timestamp": "2026-10-30T04:14:29Z",
+          "tree_id": "ce5ae58ca8bc589c99433ff0b5739726b8b13aae",
+          "url": "https://github.com/WyattAu/aether-core/commit/5fded7a5626f0b819e61b3b431b2b9911be9e1c7"
+        },
+        "date": 1793333947064,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "registry/register/100",
+            "value": 3230423,
+            "range": "± 319074",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/register/1000",
+            "value": 50851782,
+            "range": "± 96793327",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/register/10000",
+            "value": 602142517,
+            "range": "± 182352744",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/100",
+            "value": 25,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/1000",
+            "value": 25,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/10000",
+            "value": 25,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/100",
+            "value": 2555,
+            "range": "± 38",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/1000",
+            "value": 19016,
+            "range": "± 128",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/10000",
+            "value": 187497,
+            "range": "± 3801",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/concurrent/4_threads_1000_each",
+            "value": 252284995,
+            "range": "± 23504505",
             "unit": "ns/iter"
           }
         ]
