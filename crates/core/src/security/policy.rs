@@ -534,10 +534,18 @@ impl PolicyEvaluator {
     }
 
     fn get_cached(&self, key: &CacheKey) -> Option<PolicyEffect> {
-        let timestamps = self.cache_timestamps.read();
-        if let Some(timestamp) = timestamps.get(key)
-            && timestamp.elapsed() < self.cache_ttl
-        {
+        // Copy the timestamp check out and DROP the timestamps lock before
+        // taking the cache lock: get_cached (timestamps → cache) and
+        // cache_result (cache → timestamps) acquired the same two locks in
+        // OPPOSITE order — a two-lock deadlock under contention (observed as
+        // test_rbac_concurrent_evaluation hanging forever on stable).
+        let fresh = {
+            let timestamps = self.cache_timestamps.read();
+            timestamps
+                .get(key)
+                .is_some_and(|timestamp| timestamp.elapsed() < self.cache_ttl)
+        };
+        if fresh {
             let mut cache = self.cache.write();
             return cache.get(key).copied();
         }
@@ -545,9 +553,10 @@ impl PolicyEvaluator {
     }
 
     fn cache_result(&self, key: CacheKey, effect: PolicyEffect) {
-        let mut cache = self.cache.write();
-        cache.put(key.clone(), effect);
-
+        {
+            let mut cache = self.cache.write();
+            cache.put(key.clone(), effect);
+        }
         let mut timestamps = self.cache_timestamps.write();
         timestamps.insert(key, Instant::now());
     }
