@@ -25,6 +25,27 @@ use foundationdb::{Database, RangeOption};
 #[cfg(feature = "fdb")]
 use tracing::info;
 
+#[cfg(feature = "fdb")]
+static FDB_NETWORK_BOOT: std::sync::Once = std::sync::Once::new();
+
+/// Start the foundationdb client network thread exactly once.
+///
+/// Every other FDB API fails with "Action not possible before the
+/// network is configured" until `boot()` runs. The returned guard
+/// must outlive all clients — for a library, leaking it (process-
+/// lifetime network) is the documented pattern.
+#[cfg(feature = "fdb")]
+fn ensure_network_booted() {
+    FDB_NETWORK_BOOT.call_once(|| {
+        // SAFETY: boot() starts the FDB client network thread; the crate
+        // requires it to run exactly once per process before any other
+        // call, and the guard must never drop while clients exist —
+        // leaking it is the documented library pattern.
+        let guard = unsafe { foundationdb::boot() };
+        std::mem::forget(guard);
+    });
+}
+
 /// Default path to the FoundationDB cluster file.
 pub const DEFAULT_CLUSTER_FILE: &str = "/etc/foundationdb/fdb.cluster";
 const MAX_CONNECTIONS: usize = 100;
@@ -302,6 +323,8 @@ pub struct FdbClient {
 impl FdbClient {
     /// Creates a new FDB client from the given configuration.
     pub async fn new(config: FdbConfig) -> Result<Self> {
+        ensure_network_booted();
+
         let cluster_file = config
             .cluster_path
             .as_deref()
