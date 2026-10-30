@@ -327,14 +327,16 @@ jobs:
           echo "aether:ci@127.0.0.1:4500" | sudo tee /etc/foundationdb/fdb.cluster
           sudo mkdir -p /var/lib/foundationdb/data /var/log/foundationdb
           sudo chown -R foundationdb:foundationdb /var/lib/foundationdb /var/log/foundationdb /etc/foundationdb
-          sudo -u foundationdb fdbserver \
+          # fdbserver has no daemon flag on 7.3 (the .deb uses fdbmonitor);
+          # detach with nohup + & so the step returns while the server lives.
+          sudo -u foundationdb nohup fdbserver \
             --cluster-file /etc/foundationdb/fdb.cluster \
             --datadir /var/lib/foundationdb/data \
             --logdir /var/log/foundationdb \
             --public-address 127.0.0.1:4500 \
             --listen-address 127.0.0.1:4500 \
             --class storage \
-            -d
+            > /var/log/foundationdb/stdout.log 2>&1 &
       - name: Wait for FoundationDB to be ready
         run: |
           for i in $(seq 1 40); do
