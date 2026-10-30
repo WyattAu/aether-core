@@ -100,6 +100,13 @@ jobs:
         run: |
           for example in examples/*/; do
             if [ -f "$example/Cargo.toml" ]; then
+              # WASM actors depend on the actor SDK; examples bound to the
+              # full runtime (tokio rt-multi-thread, quinn) are host-side
+              # programs and cannot target wasm32-wasip1.
+              if grep -q 'crates/core"' "$example/Cargo.toml"; then
+                echo "Skipping $example (runtime-bound, not a WASM actor)"
+                continue
+              fi
               cargo build --release --target wasm32-wasip1 --manifest-path "$example/Cargo.toml"
             fi
           done

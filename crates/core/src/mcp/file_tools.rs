@@ -311,6 +311,7 @@ impl SearchFilesTool {
     fn search_recursive(
         &self,
         dir: &Path,
+        canonical_root: &Path,
         pattern: &str,
         current_depth: usize,
         max_depth: usize,
@@ -326,15 +327,26 @@ impl SearchFilesTool {
             for entry in entries.flatten() {
                 let name = entry.file_name().to_string_lossy().to_string();
 
+                // strip against the CANONICALIZED root: walking a resolved
+                // dir yields resolved entry paths, which never share a
+                // prefix with an unresolved root (macOS /var/folders ->
+                // /private/var/folders).
                 if name.to_lowercase().contains(&pattern_lower)
-                    && let Ok(relative) = entry.path().strip_prefix(&self.root_dir)
+                    && let Ok(relative) = entry.path().strip_prefix(canonical_root)
                 {
                     results.push(relative.to_string_lossy().to_string());
                 }
 
                 let path = entry.path();
                 if path.is_dir() {
-                    self.search_recursive(&path, pattern, current_depth + 1, max_depth, results);
+                    self.search_recursive(
+                        &path,
+                        canonical_root,
+                        pattern,
+                        current_depth + 1,
+                        max_depth,
+                        results,
+                    );
                 }
             }
         }
@@ -358,8 +370,15 @@ impl ToolExecutor for SearchFilesTool {
 
         let path = resolve_path(&self.root_dir, path_str)?;
 
+        // Same canonicalization contract as resolve_path: containment and
+        // relative-path computation must compare resolved against resolved.
+        let canonical_root = self
+            .root_dir
+            .canonicalize()
+            .unwrap_or_else(|_| self.root_dir.clone());
+
         let mut results = Vec::new();
-        self.search_recursive(&path, pattern, 0, max_depth, &mut results);
+        self.search_recursive(&path, &canonical_root, pattern, 0, max_depth, &mut results);
 
         if results.is_empty() {
             return Ok(ToolResult::text(format!(
