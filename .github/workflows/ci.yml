@@ -310,10 +310,11 @@ jobs:
 
       - name: Install FoundationDB client and configure cluster
         run: |
-          # Server runs NATIVELY on the runner: a service container's
-          # advertised cluster key never matches a host-side cluster file
-          # (and the introspection used to learn it returned empty), while
-          # a localhost server makes the whole class impossible.
+          # The server .deb's postinst generates /etc/foundationdb/fdb.cluster
+          # AND starts a matching fdbserver via fdbmonitor. Do not rewrite
+          # either half: a hand-written file never matches the running
+          # server's in-memory credentials ("Unable to locate a cluster
+          # controller"), and a second fdbserver cannot bind port 4500.
           curl -sSL https://github.com/apple/foundationdb/releases/download/${{ env.FDB_VERSION }}/foundationdb-clients_${{ env.FDB_VERSION }}-1_amd64.deb -o /tmp/fdbc.deb
           curl -sSL https://github.com/apple/foundationdb/releases/download/${{ env.FDB_VERSION }}/foundationdb-server_${{ env.FDB_VERSION }}-1_amd64.deb -o /tmp/fdbs.deb
           sudo dpkg -i /tmp/fdbc.deb || true
@@ -321,22 +322,10 @@ jobs:
           sudo ldconfig
           echo "LIBRARY_PATH=/usr/lib/x86_64-linux-gnu" >> $GITHUB_ENV
           echo "LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu" >> $GITHUB_ENV
-          sudo mkdir -p /etc/foundationdb
-          # Cluster names cannot contain '-' (2104 Connection string
-          # invalid — verified against fdbcli 7.3.27 locally).
-          echo "aether:ci@127.0.0.1:4500" | sudo tee /etc/foundationdb/fdb.cluster
-          sudo mkdir -p /var/lib/foundationdb/data /var/log/foundationdb
-          sudo chown -R foundationdb:foundationdb /var/lib/foundationdb /var/log/foundationdb /etc/foundationdb
-          # fdbserver has no daemon flag on 7.3 (the .deb uses fdbmonitor);
-          # detach with nohup + & so the step returns while the server lives.
-          sudo -u foundationdb nohup fdbserver \
-            --cluster-file /etc/foundationdb/fdb.cluster \
-            --datadir /var/lib/foundationdb/data \
-            --logdir /var/log/foundationdb \
-            --public-address 127.0.0.1:4500 \
-            --listen-address 127.0.0.1:4500 \
-            --class storage \
-            > /var/log/foundationdb/stdout.log 2>&1 &
+          echo "--- generated cluster file ---"
+          sudo cat /etc/foundationdb/fdb.cluster
+          echo "--- fdbserver process ---"
+          ps aux | grep [f]dbserver || echo "fdbserver NOT RUNNING (fdbmonitor may still be starting it)"
       - name: Wait for FoundationDB to be ready
         run: |
           # timeout per call: fdbcli can block indefinitely on a
