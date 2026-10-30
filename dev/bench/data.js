@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793345733760,
+  "lastUpdate": 1793347136398,
   "repoUrl": "https://github.com/WyattAu/aether-core",
   "entries": {
     "Benchmark": [
@@ -1091,6 +1091,90 @@ window.BENCHMARK_DATA = {
             "name": "registry/concurrent/4_threads_1000_each",
             "value": 362285262,
             "range": "± 78218426",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "436300b2b3f2126f48dbcd650af0f6b79edf54f2",
+          "message": "ci(docker): pin the compose build context to the absolute repo root — compose v2 resolved 'context: ../..' to <repo>/tests (one level short), so buildkit lstat'd <repo>/tests/tests inside COPY tests and died before building. Interpolate ${AETHER_REPO_ROOT} from github.workspace; ../.. remains the local fallback",
+          "timestamp": "2026-10-30T07:48:48Z",
+          "tree_id": "b55fd57d6ead3d935f524ad9f4b96f2104390f12",
+          "url": "https://github.com/WyattAu/aether-core/commit/436300b2b3f2126f48dbcd650af0f6b79edf54f2"
+        },
+        "date": 1793347135347,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "registry/register/100",
+            "value": 10766665,
+            "range": "± 262591",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/register/1000",
+            "value": 237874939,
+            "range": "± 43547453",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/register/10000",
+            "value": 1263987595,
+            "range": "± 193145945",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/100",
+            "value": 34,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/1000",
+            "value": 34,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/10000",
+            "value": 34,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/100",
+            "value": 3416,
+            "range": "± 15",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/1000",
+            "value": 27566,
+            "range": "± 163",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/10000",
+            "value": 265652,
+            "range": "± 1140",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/concurrent/4_threads_1000_each",
+            "value": 410506850,
+            "range": "± 47628386",
             "unit": "ns/iter"
           }
         ]
