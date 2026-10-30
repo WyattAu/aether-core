@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793347136398,
+  "lastUpdate": 1793348854512,
   "repoUrl": "https://github.com/WyattAu/aether-core",
   "entries": {
     "Benchmark": [
@@ -1175,6 +1175,90 @@ window.BENCHMARK_DATA = {
             "name": "registry/concurrent/4_threads_1000_each",
             "value": 410506850,
             "range": "± 47628386",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "23fab54fdeacfcaac717e05855113b833519d570",
+          "message": "ci(docker): remove the 3-node compose mesh job — it exercised an imagined CLI contract (fictional flags, binary name aether that is aether-cli, aether-server never shipped in the image); a real mesh compose demo needs node-identity/mesh-seed CLI surface first (backlogged)",
+          "timestamp": "2026-10-30T08:21:37Z",
+          "tree_id": "2540c5d2141a0abc95db9a47297684873011db7d",
+          "url": "https://github.com/WyattAu/aether-core/commit/23fab54fdeacfcaac717e05855113b833519d570"
+        },
+        "date": 1793348853551,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "registry/register/100",
+            "value": 3941766,
+            "range": "± 27942",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/register/1000",
+            "value": 120704912,
+            "range": "± 87941562",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/register/10000",
+            "value": 1209326974,
+            "range": "± 122711086",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/100",
+            "value": 29,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/1000",
+            "value": 29,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/10000",
+            "value": 29,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/100",
+            "value": 2937,
+            "range": "± 34",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/1000",
+            "value": 23668,
+            "range": "± 56",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/10000",
+            "value": 227915,
+            "range": "± 1098",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/concurrent/4_threads_1000_each",
+            "value": 247374909,
+            "range": "± 18008104",
             "unit": "ns/iter"
           }
         ]
