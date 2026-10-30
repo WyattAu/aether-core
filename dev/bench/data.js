@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793337318889,
+  "lastUpdate": 1793338758310,
   "repoUrl": "https://github.com/WyattAu/aether-core",
   "entries": {
     "Benchmark": [
@@ -755,6 +755,90 @@ window.BENCHMARK_DATA = {
             "name": "registry/concurrent/4_threads_1000_each",
             "value": 452898861,
             "range": "± 304966701",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "2eb6987d244aa58031817c90bea7547fef760832",
+          "message": "test(fdb): range-scan keys must carry the scanned prefix — format!(\"{:?}\", (prefix, i)) wrote Debug-tuple strings ('(\"test_range_\", 0)') outside the scan range, so the assertion saw 0 results; zero-padded real keys keep lexicographic order deterministic. First run of this suite ever — the test predated the server it needs",
+          "timestamp": "2026-10-30T05:32:12Z",
+          "tree_id": "8439d26798c13eda18b7deac4cd8b71c936f4c50",
+          "url": "https://github.com/WyattAu/aether-core/commit/2eb6987d244aa58031817c90bea7547fef760832"
+        },
+        "date": 1793338757166,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "registry/register/100",
+            "value": 3127170,
+            "range": "± 146189",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/register/1000",
+            "value": 51202974,
+            "range": "± 106835222",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/register/10000",
+            "value": 579495550,
+            "range": "± 189252485",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/100",
+            "value": 25,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/1000",
+            "value": 25,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/10000",
+            "value": 25,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/100",
+            "value": 2591,
+            "range": "± 56",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/1000",
+            "value": 19338,
+            "range": "± 573",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/10000",
+            "value": 186085,
+            "range": "± 2593",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/concurrent/4_threads_1000_each",
+            "value": 258618732,
+            "range": "± 53316823",
             "unit": "ns/iter"
           }
         ]
