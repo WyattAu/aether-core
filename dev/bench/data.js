@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793329384402,
+  "lastUpdate": 1793330999125,
   "repoUrl": "https://github.com/WyattAu/aether-core",
   "entries": {
     "Benchmark": [
@@ -419,6 +419,90 @@ window.BENCHMARK_DATA = {
             "name": "registry/concurrent/4_threads_1000_each",
             "value": 234125483,
             "range": "± 83695706",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "e1a62254e1d2fda81cae387d08bc777cef85867f",
+          "message": "ci(fdb): fdbserver 7.3 has no daemon flag at all (-d is --datadir — it consumed the next arg); detach with nohup+& . Full chain rehearsed locally: pinned-address server + aether:ci cluster file + configure new single memory + status minimal all green against fdbcli/fdbserver 7.3.27",
+          "timestamp": "2026-10-30T03:23:03Z",
+          "tree_id": "bdb0c037d10ffa20a685c8d54baa7fc267253a66",
+          "url": "https://github.com/WyattAu/aether-core/commit/e1a62254e1d2fda81cae387d08bc777cef85867f"
+        },
+        "date": 1793330997916,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "registry/register/100",
+            "value": 9854189,
+            "range": "± 565011",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/register/1000",
+            "value": 129545320,
+            "range": "± 28139040",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/register/10000",
+            "value": 1307790020,
+            "range": "± 185532953",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/100",
+            "value": 35,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/1000",
+            "value": 35,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/10000",
+            "value": 35,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/100",
+            "value": 3546,
+            "range": "± 37",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/1000",
+            "value": 28730,
+            "range": "± 787",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/10000",
+            "value": 278222,
+            "range": "± 1908",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/concurrent/4_threads_1000_each",
+            "value": 366309853,
+            "range": "± 96876832",
             "unit": "ns/iter"
           }
         ]
