@@ -158,6 +158,11 @@ jobs:
 
       - name: Start docker-compose cluster
         working-directory: tests/integration/docker
+        env:
+          # compose v2 resolves relative build contexts inconsistently
+          # depending on the invocation; an absolute repo root removes
+          # the ambiguity (compose interpolates ${AETHER_REPO_ROOT}).
+          AETHER_REPO_ROOT: ${{ github.workspace }}
         run: docker compose -f docker-compose.test.yml up -d --build
 
       - name: Wait for all nodes healthy
