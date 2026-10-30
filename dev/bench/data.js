@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793352389979,
+  "lastUpdate": 1793358532390,
   "repoUrl": "https://github.com/WyattAu/aether-core",
   "entries": {
     "Benchmark": [
@@ -1341,6 +1341,90 @@ window.BENCHMARK_DATA = {
             "name": "registry/concurrent/4_threads_1000_each",
             "value": 326585438,
             "range": "± 99206852",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "3e23f72a5cfc40432fd75e6d7750c491a77d6290",
+          "message": "ci(macos): cap test build parallelism at -j 2 — macOS arm64 runners died with the log truncated mid-test-listing and zero FAILED lines (OOM during parallel wasmtime-scale test-binary linking); two prior green runs on identical inputs rule out code",
+          "timestamp": "2026-10-30T11:03:50Z",
+          "tree_id": "a00de375f0f908f55671084e41427ff44fb64816",
+          "url": "https://github.com/WyattAu/aether-core/commit/3e23f72a5cfc40432fd75e6d7750c491a77d6290"
+        },
+        "date": 1793358531381,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "registry/register/100",
+            "value": 7421727,
+            "range": "± 482942",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/register/1000",
+            "value": 47869392,
+            "range": "± 35397758",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/register/10000",
+            "value": 631286843,
+            "range": "± 176960002",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/100",
+            "value": 25,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/1000",
+            "value": 25,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/10000",
+            "value": 25,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/100",
+            "value": 2634,
+            "range": "± 87",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/1000",
+            "value": 19541,
+            "range": "± 619",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/10000",
+            "value": 191615,
+            "range": "± 8744",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/concurrent/4_threads_1000_each",
+            "value": 320069480,
+            "range": "± 56136892",
             "unit": "ns/iter"
           }
         ]
