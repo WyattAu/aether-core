@@ -331,10 +331,10 @@ jobs:
             --cluster-file /etc/foundationdb/fdb.cluster \
             --datadir /var/lib/foundationdb/data \
             --logdir /var/log/foundationdb \
-            --public-address auto:4500 \
-            --listen-address 0.0.0.0:4500 \
+            --public-address 127.0.0.1:4500 \
+            --listen-address 127.0.0.1:4500 \
             --class storage \
-            --daemon
+            -d
       - name: Wait for FoundationDB to be ready
         run: |
           for i in $(seq 1 40); do
