@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793368958813,
+  "lastUpdate": 1793375743063,
   "repoUrl": "https://github.com/WyattAu/aether-core",
   "entries": {
     "Benchmark": [
@@ -1509,6 +1509,90 @@ window.BENCHMARK_DATA = {
             "name": "registry/concurrent/4_threads_1000_each",
             "value": 272483691,
             "range": "± 52409874",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "fbafd282273428323f2bb8665a65cc9f03567750",
+          "message": "fix(security): two-lock deadlock in the RBAC policy cache — get_cached held cache_timestamps.read() while acquiring cache.write(), and cache_result held cache.write() while acquiring cache_timestamps.write(): opposite orders on the same pair = a cycle under contention. Observed as test_rbac_concurrent_evaluation hanging forever on stable (--all-features, 4 threads hammering is_allowed); nightly passed it repeatedly by timing luck. Fix: copy the timestamp decision out and drop the timestamps lock before the cache lock; never nest the pair. Local: 5/5 hammer runs green, 187 security tests green, clippy clean",
+          "timestamp": "2026-10-30T15:49:16Z",
+          "tree_id": "1a62e75e20f0b0dc2821b4a8282dc7fd1607ac94",
+          "url": "https://github.com/WyattAu/aether-core/commit/fbafd282273428323f2bb8665a65cc9f03567750"
+        },
+        "date": 1793375741961,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "registry/register/100",
+            "value": 7173257,
+            "range": "± 174174",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/register/1000",
+            "value": 173649898,
+            "range": "± 2070301",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/register/10000",
+            "value": 966282741,
+            "range": "± 229043816",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/100",
+            "value": 24,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/1000",
+            "value": 24,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/10000",
+            "value": 24,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/100",
+            "value": 2399,
+            "range": "± 57",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/1000",
+            "value": 20987,
+            "range": "± 34",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/10000",
+            "value": 206986,
+            "range": "± 478",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/concurrent/4_threads_1000_each",
+            "value": 394935857,
+            "range": "± 126731398",
             "unit": "ns/iter"
           }
         ]
