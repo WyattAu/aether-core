@@ -2,7 +2,8 @@
 //!
 //! Demonstrates state persistence.
 
-#![no_std]
+// Note: this example uses std (String, format!); it is compiled for
+// wasm32-wasip1 as a cdylib, where std is available.
 
 use aether_actor::*;
 

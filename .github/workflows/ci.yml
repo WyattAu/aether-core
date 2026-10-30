@@ -298,15 +298,6 @@ jobs:
     name: FDB Integration Tests
     runs-on: ubuntu-latest
     needs: check
-    services:
-      foundationdb:
-        image: foundationdb/foundationdb:7.3.27
-        ports:
-          - 4500:4500
-          - 4501:4501
-        env:
-          FDB_NETWORK_OPTION_TRACE_LOG_LEVEL: "5"
-          FDB_NETWORK_OPTION_TRACE_ENABLE: "1"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -319,36 +310,31 @@ jobs:
 
       - name: Install FoundationDB client and configure cluster
         run: |
-          curl -sSL https://github.com/apple/foundationdb/releases/download/${{ env.FDB_VERSION }}/foundationdb-clients_${{ env.FDB_VERSION }}-1_amd64.deb -o /tmp/fdb.deb
-          sudo dpkg -i /tmp/fdb.deb || true
+          # Server runs NATIVELY on the runner: a service container's
+          # advertised cluster key never matches a host-side cluster file
+          # (and the introspection used to learn it returned empty), while
+          # a localhost server makes the whole class impossible.
+          curl -sSL https://github.com/apple/foundationdb/releases/download/${{ env.FDB_VERSION }}/foundationdb-clients_${{ env.FDB_VERSION }}-1_amd64.deb -o /tmp/fdbc.deb
+          curl -sSL https://github.com/apple/foundationdb/releases/download/${{ env.FDB_VERSION }}/foundationdb-server_${{ env.FDB_VERSION }}-1_amd64.deb -o /tmp/fdbs.deb
+          sudo dpkg -i /tmp/fdbc.deb || true
+          sudo dpkg -i /tmp/fdbs.deb || true
           sudo ldconfig
           echo "LIBRARY_PATH=/usr/lib/x86_64-linux-gnu" >> $GITHUB_ENV
           echo "LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu" >> $GITHUB_ENV
           sudo mkdir -p /etc/foundationdb
-          # The FDB container auto-generates a cluster file with its internal IP.
-          # We need to reconstruct it to point to localhost:4500 which maps via Docker ports.
-          # Get the cluster description (first line of container's cluster file)
-          FDB_DESC=$(docker run --rm --network ${{ job.services.foundationdb.network }} \
-            alpine/cat /etc/foundationdb/fdb.cluster 2>/dev/null || echo "")
-          if [ -z "$FDB_DESC" ]; then
-            # Fallback: use docker exec with the service container
-            FDB_DESC=$(docker exec ${{ job.services.foundationdb.id }} cat /etc/foundationdb/fdb.cluster 2>/dev/null || echo "")
-          fi
-          if [ -n "$FDB_DESC" ]; then
-            # Rewrite every coordinator address to the host-published port.
-            # Cluster strings are `name:desc@ip:port[,...]` — rewrite the IP
-            # after each `@` while PRESERVING the port (cut -d: -f2 dropped
-            # it, producing "Connection string invalid" downstream).
-            FIXED_CLUSTER=$(echo "$FDB_DESC" | sed -E 's/@[0-9.]+:/@127.0.0.1:/g')
-            echo "$FIXED_CLUSTER" | sudo tee /etc/foundationdb/fdb.cluster
-          else
-            # Last resort: create a basic cluster file
-            echo "aether-ci@127.0.0.1:4500" | sudo tee /etc/foundationdb/fdb.cluster
-          fi
-          echo "Cluster file contents:"
-          cat /etc/foundationdb/fdb.cluster
-          echo -e "trace_enable = 1\ntrace_log_group = aether-ci" | sudo tee /etc/foundationdb/fdb.options
-
+          # Cluster names cannot contain '-' (2104 Connection string
+          # invalid — verified against fdbcli 7.3.27 locally).
+          echo "aether:ci@127.0.0.1:4500" | sudo tee /etc/foundationdb/fdb.cluster
+          sudo mkdir -p /var/lib/foundationdb/data /var/log/foundationdb
+          sudo chown -R foundationdb:foundationdb /var/lib/foundationdb /var/log/foundationdb /etc/foundationdb
+          sudo -u foundationdb fdbserver \
+            --cluster-file /etc/foundationdb/fdb.cluster \
+            --datadir /var/lib/foundationdb/data \
+            --logdir /var/log/foundationdb \
+            --public-address auto:4500 \
+            --listen-address 0.0.0.0:4500 \
+            --class storage \
+            --daemonize
       - name: Wait for FoundationDB to be ready
         run: |
           for i in $(seq 1 40); do
