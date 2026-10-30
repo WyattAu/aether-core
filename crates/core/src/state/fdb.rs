@@ -1248,10 +1248,12 @@ mod fdb_integration_tests {
         let config = FdbConfig::default();
         let client = FdbClient::new(config).await.unwrap();
 
-        let prefix = b"test_range_";
+        // Zero-padded so lexicographic order matches numeric order; the
+        // keys must literally carry the scanned prefix (a Debug-tuple
+        // format once made the scan return 0 — the test never ran).
+        let key_for = |i: u32| format!("test_range_{i:010}");
         for i in 0u32..10 {
-            let key = format!("{:?}", (prefix, i));
-            client.set(key.as_bytes(), b"value").await.unwrap();
+            client.set(key_for(i).as_bytes(), b"value").await.unwrap();
         }
 
         let results = client
@@ -1261,8 +1263,7 @@ mod fdb_integration_tests {
         assert_eq!(results.len(), 10);
 
         for i in 0u32..10 {
-            let key = format!("{:?}", (prefix, i));
-            client.clear(key.as_bytes()).await.unwrap();
+            client.clear(key_for(i).as_bytes()).await.unwrap();
         }
     }
 
