@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793323352950,
+  "lastUpdate": 1793325467650,
   "repoUrl": "https://github.com/WyattAu/aether-core",
   "entries": {
     "Benchmark": [
@@ -83,6 +83,90 @@ window.BENCHMARK_DATA = {
             "name": "registry/concurrent/4_threads_1000_each",
             "value": 301146446,
             "range": "± 170391978",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "99bc7ce2e4ef823f920616b00d765399b67d569d",
+          "message": "ci(fdb): run fdbserver natively on the runner — the service container's cluster key can never match a host-side cluster file (introspection returned empty, and the fallback string was doubly invalid: hyphens are illegal in cluster names — 'aether-ci@ip:port' fails fdbcli 7.3.7 parse with 2104, verified locally; 'aether:ci@ip:port' parses). Install foundationdb-server, pin public+listen to 127.0.0.1:4500, daemonize under the foundationdb user. Also: stateful-actor example was #![no_std] while using String/format!/to_string — uncompilable on any target; drop the attribute",
+          "timestamp": "2026-10-30T01:46:34Z",
+          "tree_id": "1d8b95fc561b787b9e2c8f380b51e464bf42f080",
+          "url": "https://github.com/WyattAu/aether-core/commit/99bc7ce2e4ef823f920616b00d765399b67d569d"
+        },
+        "date": 1793325466513,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "registry/register/100",
+            "value": 7053343,
+            "range": "± 185928",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/register/1000",
+            "value": 87759163,
+            "range": "± 115480140",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/register/10000",
+            "value": 878005300,
+            "range": "± 247775374",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/100",
+            "value": 24,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/1000",
+            "value": 24,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/10000",
+            "value": 24,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/100",
+            "value": 2403,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/1000",
+            "value": 21096,
+            "range": "± 620",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/10000",
+            "value": 208128,
+            "range": "± 452",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/concurrent/4_threads_1000_each",
+            "value": 430398927,
+            "range": "± 79353640",
             "unit": "ns/iter"
           }
         ]
