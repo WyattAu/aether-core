@@ -63,7 +63,6 @@ jobs:
             --name fdb \
             --network aether-net \
             -p 4500:4500 \
-            -e FDB_NETWORKING_MODE=host \
             ${{ env.FDB_IMAGE }}
 
       - name: Wait for FDB healthy
@@ -87,10 +86,23 @@ jobs:
 
       - name: Extract FDB cluster file
         run: |
-          docker cp fdb:/etc/foundationdb/fdb.cluster /tmp/fdb.cluster
-          cat /tmp/fdb.cluster
-          sudo mkdir -p /etc/foundationdb
-          sudo cp /tmp/fdb.cluster /etc/foundationdb/fdb.cluster
+          # In FDB_NETWORKING_MODE=host the entrypoint may place the
+          # cluster file outside /etc/foundationdb (it also wants FDB_IP
+          # set; without it the location is not guaranteed). Locate it
+          # from the running fdbserver's own cmdline, then copy it out.
+          CLUSTER_PATH=$(docker exec fdb sh -c \
+            'tr "\0" "\n" < /proc/1/cmdline | grep -A1 -- -C | tail -1' 2>/dev/null || true)
+          if [ -z "$CLUSTER_PATH" ]; then
+            CLUSTER_PATH=$(docker exec fdb sh -c \
+              'ls /etc/foundationdb/fdb.cluster /var/fdb/fdb.cluster 2>/dev/null | head -1')
+          fi
+          echo "cluster file in container: $CLUSTER_PATH"
+          # Rewrite the coordinator IP to the published-port address,
+          # PRESERVING name:desc (the server's identity): the server is
+          # reached through -p 4500:4500 from the runner.
+          docker exec fdb cat "$CLUSTER_PATH" \
+            | sed -E 's/@[0-9.]+:/@127.0.0.1:/g' \
+            | sudo tee /etc/foundationdb/fdb.cluster
           echo "FDB_CLUSTER_FILE=/etc/foundationdb/fdb.cluster" >> "$GITHUB_ENV"
 
       - name: Build with fdb feature
