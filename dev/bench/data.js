@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793342037273,
+  "lastUpdate": 1793344786868,
   "repoUrl": "https://github.com/WyattAu/aether-core",
   "entries": {
     "Benchmark": [
@@ -923,6 +923,90 @@ window.BENCHMARK_DATA = {
             "name": "registry/concurrent/4_threads_1000_each",
             "value": 316134615,
             "range": "± 76731017",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "10a66d833aa119472e817b84caaea8fc804b9f09",
+          "message": "ci(docker): a fresh FDB container has no database — poll status AND attempt 'configure new single memory' until 'The database is available'; the old check demanded availability from a cluster that was never configured (36 minutes of futile retries)",
+          "timestamp": "2026-10-30T07:09:48Z",
+          "tree_id": "1f4385705b519d89759c6d5978002c7007801509",
+          "url": "https://github.com/WyattAu/aether-core/commit/10a66d833aa119472e817b84caaea8fc804b9f09"
+        },
+        "date": 1793344785837,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "registry/register/100",
+            "value": 7217320,
+            "range": "± 267479",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/register/1000",
+            "value": 101921782,
+            "range": "± 109984536",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/register/10000",
+            "value": 987118635,
+            "range": "± 210920156",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/100",
+            "value": 24,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/1000",
+            "value": 24,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/10000",
+            "value": 24,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/100",
+            "value": 2429,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/1000",
+            "value": 21012,
+            "range": "± 34",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/10000",
+            "value": 207022,
+            "range": "± 324",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/concurrent/4_threads_1000_each",
+            "value": 422208136,
+            "range": "± 164672584",
             "unit": "ns/iter"
           }
         ]
