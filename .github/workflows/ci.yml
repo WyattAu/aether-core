@@ -339,23 +339,35 @@ jobs:
             > /var/log/foundationdb/stdout.log 2>&1 &
       - name: Wait for FoundationDB to be ready
         run: |
-          for i in $(seq 1 40); do
-            if fdbcli --exec "status minimal" 2>/dev/null | grep -q "The database is available"; then
+          # timeout per call: fdbcli can block indefinitely on a
+          # half-open coordinator; without it the whole job hangs.
+          for i in $(seq 1 20); do
+            if timeout 20 fdbcli --exec "status minimal" 2>&1 | grep -q "The database is available"; then
               echo "FDB is ready"
               exit 0
             fi
-            echo "Waiting for FDB... ($i/40)"
+            echo "Waiting for FDB... ($i/20)"
+            ps aux | grep [f]dbserver || echo "fdbserver NOT RUNNING"
             sleep 5
           done
           echo "FDB did not become ready in time, attempting to configure database..."
-          fdbcli --exec "configure new single memory" 2>/dev/null || true
+          timeout 30 fdbcli --exec "configure new single memory" || true
           sleep 5
-          if fdbcli --exec "status minimal" 2>/dev/null | grep -q "The database is available"; then
+          if timeout 20 fdbcli --exec "status minimal" 2>&1 | grep -q "The database is available"; then
             echo "FDB is ready after manual configuration"
             exit 0
           fi
           echo "FDB still not ready. Dumping diagnostics:"
-          fdbcli --exec "status" 2>&1 || true
+          echo "--- server process ---"
+          ps aux | grep [f]dbserver || echo "fdbserver NOT RUNNING"
+          echo "--- stdout log ---"
+          sudo tail -20 /var/log/foundationdb/stdout.log 2>/dev/null || true
+          echo "--- server trace log ---"
+          sudo ls -la /var/log/foundationdb/ 2>/dev/null || true
+          echo "--- cluster file ---"
+          cat /etc/foundationdb/fdb.cluster
+          echo "--- fdbcli status ---"
+          timeout 20 fdbcli --exec "status" 2>&1 || true
           exit 1
 
       - name: Cache cargo registry
