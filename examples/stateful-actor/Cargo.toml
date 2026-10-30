@@ -8,6 +8,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 aether-actor = { path = "../../crates/actor-sdk" }
+futures = { version = "0.3", default-features = false, features = ["executor", "async-await"] }
 
 [features]
 default = ["aether-actor/std"]
