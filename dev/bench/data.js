@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793335810091,
+  "lastUpdate": 1793337318889,
   "repoUrl": "https://github.com/WyattAu/aether-core",
   "entries": {
     "Benchmark": [
@@ -671,6 +671,90 @@ window.BENCHMARK_DATA = {
             "name": "registry/concurrent/4_threads_1000_each",
             "value": 431230848,
             "range": "± 80996124",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "52d9e13fe16f96be61289cfd2a7b4e16cabacb1c",
+          "message": "fix(core): boot the FDB client network before any API use — foundationdb 0.9 requires exactly one process-lifetime boot(); every client call failed with 'Action not possible before the network is configured' (first live run of the FDB integration suite). Verified locally: the network error is gone; the residual Unhealthy is the absent local server",
+          "timestamp": "2026-10-30T05:08:43Z",
+          "tree_id": "76e71de260db8b3d1fff67de01e8d40c7a321b29",
+          "url": "https://github.com/WyattAu/aether-core/commit/52d9e13fe16f96be61289cfd2a7b4e16cabacb1c"
+        },
+        "date": 1793337317752,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "registry/register/100",
+            "value": 7301526,
+            "range": "± 207326",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/register/1000",
+            "value": 94049311,
+            "range": "± 114377577",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/register/10000",
+            "value": 1045290485,
+            "range": "± 293157986",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/100",
+            "value": 24,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/1000",
+            "value": 24,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/10000",
+            "value": 24,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/100",
+            "value": 2386,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/1000",
+            "value": 20990,
+            "range": "± 43",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/10000",
+            "value": 206725,
+            "range": "± 860",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/concurrent/4_threads_1000_each",
+            "value": 452898861,
+            "range": "± 304966701",
             "unit": "ns/iter"
           }
         ]
