@@ -60,7 +60,11 @@ jobs:
 
       - name: Run all tests (macOS -- exclude FDB)
         if: runner.os == 'macOS'
-        run: cargo test --workspace --features "wasm mesh"
+        # -j 2: macOS arm64 runners died with the log truncated
+        # mid-test-listing and no FAILED lines — the OOM signature of
+        # parallel test-binary linking (wasmtime-scale). Cap parallel
+        # crates; test threads stay default.
+        run: cargo test -j 2 --workspace --features "wasm mesh"
 
       - name: Run doc tests (Linux)
         if: runner.os == 'Linux'
