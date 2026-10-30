@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793358532390,
+  "lastUpdate": 1793368958813,
   "repoUrl": "https://github.com/WyattAu/aether-core",
   "entries": {
     "Benchmark": [
@@ -1425,6 +1425,90 @@ window.BENCHMARK_DATA = {
             "name": "registry/concurrent/4_threads_1000_each",
             "value": 320069480,
             "range": "± 56136892",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "54b4f7b0e37a97f10afb2d5dfbb5362f13de055d",
+          "message": "ci(integration): bound the test job at 90 minutes — the stable/all-features job hung >1h45m inside one test step (nondeterministic; nightly passed the identical command in 8m). Hangs must self-terminate; cargo-nextest per-test timeouts is the estate-grade follow-up",
+          "timestamp": "2026-10-30T13:55:40Z",
+          "tree_id": "123682033170354a708199d409efcbc3c1f43c23",
+          "url": "https://github.com/WyattAu/aether-core/commit/54b4f7b0e37a97f10afb2d5dfbb5362f13de055d"
+        },
+        "date": 1793368957858,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "registry/register/100",
+            "value": 3001857,
+            "range": "± 326803",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/register/1000",
+            "value": 48444562,
+            "range": "± 53918351",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/register/10000",
+            "value": 556062568,
+            "range": "± 197038337",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/100",
+            "value": 25,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/1000",
+            "value": 25,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/10000",
+            "value": 25,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/100",
+            "value": 2620,
+            "range": "± 166",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/1000",
+            "value": 19489,
+            "range": "± 279",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/10000",
+            "value": 185049,
+            "range": "± 10352",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/concurrent/4_threads_1000_each",
+            "value": 272483691,
+            "range": "± 52409874",
             "unit": "ns/iter"
           }
         ]
