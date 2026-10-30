@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793325467650,
+  "lastUpdate": 1793326201454,
   "repoUrl": "https://github.com/WyattAu/aether-core",
   "entries": {
     "Benchmark": [
@@ -167,6 +167,90 @@ window.BENCHMARK_DATA = {
             "name": "registry/concurrent/4_threads_1000_each",
             "value": 430398927,
             "range": "± 79353640",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "ffd58fc8f0a5ba7e0c4447fe67f1182b5149151c",
+          "message": "fix(examples): stateful-actor rebuilt against the real SDK API — the old source was written against an imagined API (#[aether_actor] attribute, async Handler::handle, String error type) and could not compile for any target; rewrite on Handler::handle(sync, ActorResult) + StateHandle bridged with futures::executor, export_actor!(StatefulActor::new()) — wasm32-wasip1 build verified locally with the CI command",
+          "timestamp": "2026-10-30T01:59:47Z",
+          "tree_id": "0eaf86916e616d569a7573e2dccbd37ae0d7f6d3",
+          "url": "https://github.com/WyattAu/aether-core/commit/ffd58fc8f0a5ba7e0c4447fe67f1182b5149151c"
+        },
+        "date": 1793326200238,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "registry/register/100",
+            "value": 6684084,
+            "range": "± 434044",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/register/1000",
+            "value": 88122375,
+            "range": "± 6989306",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/register/10000",
+            "value": 975177530,
+            "range": "± 234611978",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/100",
+            "value": 24,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/1000",
+            "value": 24,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/10000",
+            "value": 24,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/100",
+            "value": 2401,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/1000",
+            "value": 20993,
+            "range": "± 115",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/10000",
+            "value": 207195,
+            "range": "± 509",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/concurrent/4_threads_1000_each",
+            "value": 369431248,
+            "range": "± 108435514",
             "unit": "ns/iter"
           }
         ]
