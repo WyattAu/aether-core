@@ -16,8 +16,17 @@ use super::types::{Tool, ToolResult};
 fn resolve_path(root_dir: &Path, path_str: &str) -> Result<PathBuf> {
     let path = PathBuf::from(path_str);
 
+    // Canonicalize the root once for containment checks: on macOS the
+    // temp dir lives under /var/folders/... which is a symlink to
+    // /private/var/folders/... — comparing a canonicalized child against
+    // an unresolved root makes EVERY path appear outside the root.
+    let canonical_root = root_dir
+        .canonicalize()
+        .unwrap_or_else(|_| root_dir.to_path_buf());
+
     if path.is_absolute() {
-        if !path.starts_with(root_dir) {
+        let canonical = path.canonicalize().unwrap_or_else(|_| path.clone());
+        if !canonical.starts_with(&canonical_root) {
             return Err(Error::capability_denied_simple(format!(
                 "Path '{}' is outside root directory",
                 path_str
@@ -31,7 +40,7 @@ fn resolve_path(root_dir: &Path, path_str: &str) -> Result<PathBuf> {
     // Try to canonicalize - if file doesn't exist, just return resolved path
     match resolved.canonicalize() {
         Ok(canonical) => {
-            if !canonical.starts_with(root_dir) {
+            if !canonical.starts_with(&canonical_root) {
                 return Err(Error::capability_denied_simple(format!(
                     "Path '{}' resolves outside root directory",
                     path_str
@@ -43,7 +52,7 @@ fn resolve_path(root_dir: &Path, path_str: &str) -> Result<PathBuf> {
             // File doesn't exist - check parent directory
             if let Some(parent) = resolved.parent()
                 && let Ok(canonical_parent) = parent.canonicalize()
-                && !canonical_parent.starts_with(root_dir)
+                && !canonical_parent.starts_with(&canonical_root)
             {
                 return Err(Error::capability_denied_simple(format!(
                     "Path '{}' resolves outside root directory",

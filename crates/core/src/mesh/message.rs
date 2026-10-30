@@ -407,7 +407,10 @@ impl MeshMessage {
             .unwrap_or(u64::MAX);
         let elapsed_ns = now_ns.saturating_sub(self.timestamp_ns);
         let ttl_ns = (self.ttl_ms as u64) * 1_000_000;
-        elapsed_ns > ttl_ns
+        // >= not >: a ttl of 0 means "expires immediately" — on coarse
+        // monotonicity (macOS µs-resolution clocks), elapsed can read 0
+        // right after send, and `> 0` would keep the message alive.
+        elapsed_ns >= ttl_ns
     }
 
     /// Compresses the payload with zstd if it exceeds the compression threshold.

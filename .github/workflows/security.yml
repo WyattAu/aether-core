@@ -265,8 +265,8 @@ jobs:
 
       - name: Generate SBOM (Dockerfile)
         run: |
-          syft packages dockerfile:Dockerfile --output cyclonedx-json=sbom-dockerfile.cdx.json
-          syft packages dockerfile:server/Dockerfile --output cyclonedx-json=sbom-server-dockerfile.cdx.json
+          syft packages file:Dockerfile --output cyclonedx-json=sbom-dockerfile.cdx.json
+          syft packages file:server/Dockerfile --output cyclonedx-json=sbom-server-dockerfile.cdx.json
 
       - name: Upload SBOM artifacts
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
