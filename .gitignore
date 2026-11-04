@@ -64,3 +64,6 @@ pytestdebug.log
 
 # direnv
 .direnv/
+
+# local CI-vendoring artifact
+.cargo/

@@ -56,7 +56,9 @@ const DEFAULT_TIMEOUT_MS: u64 = 5000;
 /// Configuration for connecting to a FoundationDB cluster.
 #[derive(Debug, Clone)]
 pub struct FdbConfig {
-    /// Path to the FDB cluster file (defaults to [`DEFAULT_CLUSTER_FILE`]).
+    /// Path to the FDB cluster file. `None` defers to the C API's
+    /// resolution order: `FDB_CLUSTER_FILE` env, then
+    /// `/etc/foundationdb/fdb.cluster` ([`DEFAULT_CLUSTER_FILE`]).
     pub cluster_path: Option<PathBuf>,
     /// Logical database name within the cluster.
     pub database_name: String,
@@ -325,13 +327,13 @@ impl FdbClient {
     pub async fn new(config: FdbConfig) -> Result<Self> {
         ensure_network_booted();
 
-        let cluster_file = config
-            .cluster_path
-            .as_deref()
-            .and_then(|p| p.to_str())
-            .unwrap_or(DEFAULT_CLUSTER_FILE);
+        let cluster_file = config.cluster_path.as_deref().and_then(|p| p.to_str());
+        // None defers to the C API's resolution order: FDB_CLUSTER_FILE
+        // env first, then /etc/foundationdb/fdb.cluster. Hardcoding the
+        // default here would silently ignore FDB_CLUSTER_FILE on hosts
+        // whose cluster file lives elsewhere (dev boxes, containers).
 
-        let db = Database::new(Some(cluster_file))
+        let db = Database::new(cluster_file)
             .map_err(|e| Error::storage(format!("Failed to connect to FDB: {}", e)))?;
 
         let pool = Arc::new(Semaphore::new(config.max_transactions));
@@ -339,7 +341,7 @@ impl FdbClient {
         let metrics = FdbMetrics::new();
 
         info!(
-            "FDB client initialized: cluster={}, db={}",
+            "FDB client initialized: cluster={:?}, db={}",
             cluster_file, config.database_name
         );
 
@@ -1405,5 +1407,149 @@ mod fdb_integration_tests {
         assert!(metrics.successful_operations.load(Ordering::Relaxed) >= 2);
 
         client.clear(b"test_metrics_key").await.unwrap();
+    }
+
+    // --- concurrency properties (iteration 22) -----------------------------
+    //
+    // The nine tests above prove the happy paths; these prove the reason a
+    // ledger can sit on this client: optimistic concurrency control. A lost
+    // update here is a customer's money elsewhere.
+
+    #[tokio::test]
+    #[ignore = "Requires running FDB instance"]
+    async fn test_real_fdb_conflict_isolation() {
+        let config = FdbConfig::default();
+        let client = FdbClient::new(config).await.unwrap();
+
+        let key = b"test_conflict_isolation";
+        client.set(key, b"initial").await.unwrap();
+
+        // Two transactions read the SAME baseline, then write different
+        // values. The first commit wins; the second MUST fail its commit
+        // (its read range overlaps the winner's write range) — a silent
+        // last-writer-wins here would be a lost update.
+        let tx1 = client.transaction().unwrap();
+        let tx2 = client.transaction().unwrap();
+
+        let _baseline1 = tx1.get(key).await.unwrap();
+        let _baseline2 = tx2.get(key).await.unwrap();
+
+        tx1.set(key, b"writer1");
+        tx2.set(key, b"writer2");
+
+        tx1.commit().await.expect("first committer wins");
+        let second = tx2.commit().await;
+
+        assert!(
+            second.is_err(),
+            "conflicting second commit must fail, not silently overwrite"
+        );
+        let final_value = client.get(key).await.unwrap();
+        assert_eq!(final_value, Some(b"writer1".to_vec()));
+
+        client.clear(key).await.unwrap();
+    }
+
+    #[tokio::test]
+    #[ignore = "Requires running FDB instance"]
+    async fn test_real_fdb_compare_and_swap_exactly_one_winner() {
+        let config = FdbConfig::default();
+        let client = FdbClient::new(config).await.unwrap();
+
+        let key = b"test_cas_contention";
+        client.set(key, b"v0").await.unwrap();
+
+        // Two CAS from the same expected value: exactly one claims it.
+        let a = client.compare_and_swap(key, b"v0", b"vA").await.unwrap();
+        let b = client.compare_and_swap(key, b"v0", b"vB").await.unwrap();
+        assert!(
+            a ^ b,
+            "exactly one CAS from the same expected value may win (a={a}, b={b})"
+        );
+
+        let final_value = client.get(key).await.unwrap();
+        let expected = if a { b"vA" } else { b"vB" };
+        assert_eq!(final_value, Some(expected.to_vec()));
+
+        client.clear(key).await.unwrap();
+    }
+
+    #[tokio::test]
+    #[ignore = "Requires running FDB instance"]
+    async fn test_real_fdb_concurrent_atomic_increments_converge() {
+        let config = FdbConfig::default();
+        let client = Arc::new(FdbClient::new(config).await.unwrap());
+
+        let key = b"test_concurrent_increments";
+        client.set(key, &0i64.to_be_bytes()).await.unwrap();
+
+        // FDB atomic adds are commutative: N concurrent increments must
+        // land on the exact total — no retries needed, no lost increment.
+        const TASKS: u64 = 8;
+        const PER_TASK: u64 = 10;
+        let mut handles = Vec::new();
+        for _ in 0..TASKS {
+            let client = Arc::clone(&client);
+            handles.push(tokio::spawn(async move {
+                for _ in 0..PER_TASK {
+                    client.atomic_increment(key, 1).await.expect("increment");
+                }
+            }));
+        }
+        for handle in handles {
+            handle.await.expect("increment task");
+        }
+
+        let total = client.get(key).await.unwrap().unwrap();
+        assert_eq!(
+            u64::from_be_bytes(total.as_slice().try_into().unwrap()),
+            TASKS * PER_TASK,
+            "atomic increments must not be lost under concurrency"
+        );
+
+        client.clear(key).await.unwrap();
+    }
+
+    #[tokio::test]
+    #[ignore = "Requires running FDB instance"]
+    async fn test_real_fdb_conflicting_transact_both_commit_via_retry() {
+        let config = FdbConfig::default();
+        let client = Arc::new(FdbClient::new(config).await.unwrap());
+
+        let key = b"test_transact_retry";
+        client.set(key, b"base").await.unwrap();
+
+        // Two read-modify-write transactions on the same key: OCC retry
+        // must serialize them — BOTH return Ok, and the final value is
+        // one derived successor of the loser's view, never the initial.
+        let c1 = Arc::clone(&client);
+        let c2 = Arc::clone(&client);
+        let (r1, r2) = tokio::join!(
+            c1.transact(|tx| async move {
+                let key = key.to_vec();
+                let baseline = tx.get(&key).await?.unwrap_or_default();
+                tx.set(&key, &[baseline.as_slice(), b"-a"].concat());
+                tx.commit().await?;
+                Ok(())
+            }),
+            c2.transact(|tx| async move {
+                let key = key.to_vec();
+                let baseline = tx.get(&key).await?.unwrap_or_default();
+                tx.set(&key, &[baseline.as_slice(), b"-b"].concat());
+                tx.commit().await?;
+                Ok(())
+            }),
+        );
+        r1.expect("first writer retries to success");
+        r2.expect("second writer retries to success");
+
+        let final_value = client.get(key).await.unwrap().unwrap();
+        let rendered = String::from_utf8(final_value).unwrap();
+        assert!(
+            rendered != "base" && rendered.contains('-'),
+            "final value must be a serialized successor, got: {rendered}"
+        );
+
+        client.clear(key).await.unwrap();
     }
 }
