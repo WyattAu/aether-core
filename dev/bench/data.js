@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793787417134,
+  "lastUpdate": 1793806651339,
   "repoUrl": "https://github.com/WyattAu/aether-core",
   "entries": {
     "Benchmark": [
@@ -2003,6 +2003,90 @@ window.BENCHMARK_DATA = {
             "name": "registry/concurrent/4_threads_1000_each",
             "value": 364247703,
             "range": "± 63438303",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "3c458792d5f6ee5d8323b2a17b9396dbf06c8403",
+          "message": "fdb: four concurrency property tests + honest cluster resolution — conflict isolation (the losing commit of two same-baseline writers MUST fail; silent overwrite = lost update), CAS exactly-one-winner, 8x10 concurrent atomic increments landing on the exact total, conflicting transact() both committing via OCC retry. FdbClient::new no longer hardcodes /etc/foundationdb/fdb.cluster — None defers to the C API (FDB_CLUSTER_FILE env, then default), so the suite runs on hosts whose cluster file lives elsewhere. 13/13 locally against a real fdbserver; fmt clean; local stable clippy's 53 lib errors pre-date this change (verified via stash-run; CI clippy is the pinned nightly). --no-verify: the workspace gate adds ~30min of recompilation and its clippy step runs a stricter toolchain than CI's pinned nightly; every element was verified directly",
+          "timestamp": "2026-11-04T15:12:51Z",
+          "tree_id": "2e1cb0e9111e4ba00ee174f847e532b55e4598b4",
+          "url": "https://github.com/WyattAu/aether-core/commit/3c458792d5f6ee5d8323b2a17b9396dbf06c8403"
+        },
+        "date": 1793806647680,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "registry/register/100",
+            "value": 3912892,
+            "range": "± 32025",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/register/1000",
+            "value": 103840448,
+            "range": "± 8658528",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/register/10000",
+            "value": 913806907,
+            "range": "± 119099810",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/100",
+            "value": 25,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/1000",
+            "value": 25,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/10000",
+            "value": 25,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/100",
+            "value": 2652,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/1000",
+            "value": 21245,
+            "range": "± 18",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/10000",
+            "value": 205704,
+            "range": "± 319",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/concurrent/4_threads_1000_each",
+            "value": 251289042,
+            "range": "± 19007774",
             "unit": "ns/iter"
           }
         ]
