@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793847404636,
+  "lastUpdate": 1793873445308,
   "repoUrl": "https://github.com/WyattAu/aether-core",
   "entries": {
     "Benchmark": [
@@ -2255,6 +2255,88 @@ window.BENCHMARK_DATA = {
             "name": "registry/concurrent/4_threads_1000_each",
             "value": 442218833,
             "range": "± 188817720",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "WyattAu",
+            "username": "WyattAu",
+            "email": "wyatt_au@protonmail.com"
+          },
+          "committer": {
+            "name": "WyattAu",
+            "username": "WyattAu",
+            "email": "wyatt_au@protonmail.com"
+          },
+          "id": "eec21d9e9b58fa1c1f2bb037438ac2ca4080c6d3",
+          "message": "test(ai): de-race test_throttle_decision — sleep(50ms) against a 200ms period let a loaded macOS runner overshoot the period, resetting usage and flapping the decision to Allow (the only failure in 1414 tests on macos-15). A 1s period with no sleep gives remaining ~1s < the 5s threshold and elapsed ~0 << period, deterministically. --no-verify: the changed test was run locally 12/12; the workspace gate adds ~30min recompilation for a one-line test fix",
+          "timestamp": "2026-11-05T02:50:04Z",
+          "url": "https://github.com/WyattAu/aether-core/commit/eec21d9e9b58fa1c1f2bb037438ac2ca4080c6d3"
+        },
+        "date": 1793873444136,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "registry/register/100",
+            "value": 3044622,
+            "range": "± 223731",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/register/1000",
+            "value": 113627256,
+            "range": "± 20244281",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/register/10000",
+            "value": 570177359,
+            "range": "± 176999472",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/100",
+            "value": 25,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/1000",
+            "value": 25,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/10000",
+            "value": 25,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/100",
+            "value": 2565,
+            "range": "± 17",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/1000",
+            "value": 18918,
+            "range": "± 170",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/10000",
+            "value": 186408,
+            "range": "± 8053",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/concurrent/4_threads_1000_each",
+            "value": 288351146,
+            "range": "± 71074179",
             "unit": "ns/iter"
           }
         ]
