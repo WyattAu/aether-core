@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793873445308,
+  "lastUpdate": 1793923007525,
   "repoUrl": "https://github.com/WyattAu/aether-core",
   "entries": {
     "Benchmark": [
@@ -2337,6 +2337,90 @@ window.BENCHMARK_DATA = {
             "name": "registry/concurrent/4_threads_1000_each",
             "value": 288351146,
             "range": "± 71074179",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "0ec6a98918d00de4ba6b90479efadda4fd75baf2",
+          "message": "feat(mesh): the node-identity/mesh-seed contract the compose demo needs — aether-server gains --node-id/--mesh-port/--mesh-seeds (mesh enabled when identity+port both set; binds the QUIC endpoint, dials each seed via MeshNode::connect, handles held for the process lifetime), aether run gains the same flags and passes them through (server_args() is unit-tested; --host now actually exists on the server — run.rs was passing it into the void). Core gains test_two_node_seed_dial (B dials A as seed → live pool connection). This is the product surface the removed 3-node compose job imagined; compose + CI restoration follows once this is watched green. --no-verify: targeted tests ran locally (mesh 12/12, cli 149 incl. new arg-mapping tests, cli+server check clean); the pre-push workspace gate recompiles ~30min for changes already verified",
+          "timestamp": "2026-11-05T23:50:09Z",
+          "tree_id": "9ca38951e4821d4208ebfa649a54533cdd52eda7",
+          "url": "https://github.com/WyattAu/aether-core/commit/0ec6a98918d00de4ba6b90479efadda4fd75baf2"
+        },
+        "date": 1793923006770,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "registry/register/100",
+            "value": 11298497,
+            "range": "± 1588980",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/register/1000",
+            "value": 212123766,
+            "range": "± 11854451",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/register/10000",
+            "value": 1158636050,
+            "range": "± 137507078",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/100",
+            "value": 32,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/1000",
+            "value": 32,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/10000",
+            "value": 32,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/100",
+            "value": 3217,
+            "range": "± 48",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/1000",
+            "value": 25877,
+            "range": "± 116",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/10000",
+            "value": 248276,
+            "range": "± 1775",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/concurrent/4_threads_1000_each",
+            "value": 443075109,
+            "range": "± 93470694",
             "unit": "ns/iter"
           }
         ]
