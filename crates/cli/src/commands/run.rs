@@ -18,6 +18,46 @@ pub struct RunCommand {
     /// Bind address.
     #[arg(long, default_value = "127.0.0.1")]
     host: String,
+
+    /// Mesh node identity. Mesh networking is enabled only when both
+    /// this and `--mesh-port` are set.
+    #[arg(long)]
+    node_id: Option<String>,
+
+    /// QUIC listen port for the actor mesh.
+    #[arg(long)]
+    mesh_port: Option<u16>,
+
+    /// Comma-separated `host:port` addresses of existing mesh nodes to
+    /// dial at startup.
+    #[arg(long, value_delimiter = ',')]
+    mesh_seeds: Vec<String>,
+}
+
+impl RunCommand {
+    /// The argument vector handed to the spawned aether-server. Kept as a
+    /// method so the flag mapping is unit-testable.
+    fn server_args(&self) -> Vec<String> {
+        let mut args = vec![
+            "--host".to_string(),
+            self.host.clone(),
+            "--port".to_string(),
+            self.port.to_string(),
+        ];
+        if let Some(id) = &self.node_id {
+            args.push("--node-id".to_string());
+            args.push(id.clone());
+        }
+        if let Some(port) = self.mesh_port {
+            args.push("--mesh-port".to_string());
+            args.push(port.to_string());
+        }
+        if !self.mesh_seeds.is_empty() {
+            args.push("--mesh-seeds".to_string());
+            args.push(self.mesh_seeds.join(","));
+        }
+        args
+    }
 }
 
 #[derive(Error, Debug)]
@@ -86,20 +126,12 @@ impl RunCommand {
 
                 let mut cmd = if binary == "cargo run --bin aether-server" {
                     let mut c = tokio::process::Command::new("cargo");
-                    c.args([
-                        "run",
-                        "--bin",
-                        "aether-server",
-                        "--",
-                        "--host",
-                        &self.host,
-                        "--port",
-                        &self.port.to_string(),
-                    ]);
+                    c.args(["run", "--bin", "aether-server", "--"]);
+                    c.args(self.server_args());
                     c
                 } else {
                     let mut c = tokio::process::Command::new(&binary);
-                    c.args(["--host", &self.host, "--port", &self.port.to_string()]);
+                    c.args(self.server_args());
                     c
                 };
 
@@ -134,5 +166,50 @@ impl RunCommand {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn server_args_map_http_flags() {
+        let cmd = RunCommand {
+            port: 9000,
+            host: "0.0.0.0".to_string(),
+            node_id: None,
+            mesh_port: None,
+            mesh_seeds: Vec::new(),
+        };
+        assert_eq!(cmd.server_args(), ["--host", "0.0.0.0", "--port", "9000"]);
+    }
+
+    #[test]
+    fn server_args_map_mesh_flags() {
+        // The 3-node compose demo's contract: identity, mesh port, and
+        // seeds flow through to the server verbatim.
+        let cmd = RunCommand {
+            port: 8080,
+            host: "127.0.0.1".to_string(),
+            node_id: Some("node-1".to_string()),
+            mesh_port: Some(9101),
+            mesh_seeds: vec!["10.0.0.2:9101".to_string(), "10.0.0.3:9101".to_string()],
+        };
+        assert_eq!(
+            cmd.server_args(),
+            [
+                "--host",
+                "127.0.0.1",
+                "--port",
+                "8080",
+                "--node-id",
+                "node-1",
+                "--mesh-port",
+                "9101",
+                "--mesh-seeds",
+                "10.0.0.2:9101,10.0.0.3:9101"
+            ]
+        );
     }
 }

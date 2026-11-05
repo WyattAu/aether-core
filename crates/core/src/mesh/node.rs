@@ -639,4 +639,21 @@ mod tests {
         let stats = node.stats().await;
         assert_eq!(stats.node_id, "node-1");
     }
+
+    #[tokio::test]
+    async fn test_two_node_seed_dial() {
+        init_crypto();
+        // The compose-demo contract: node B is given node A's address as a
+        // seed and dials it at startup. The seed dial must succeed and
+        // leave a live connection in B's pool.
+        let a_addr: SocketAddr = "127.0.0.1:9111".parse().unwrap();
+        let b_addr: SocketAddr = "127.0.0.1:9112".parse().unwrap();
+        let node_a = MeshNode::new("node-a", a_addr);
+        let node_b = MeshNode::new("node-b", b_addr);
+
+        node_b.connect("node-a", a_addr).await.expect("seed dial");
+
+        let count = node_b.connection_pool().connection_count().await;
+        assert!(count >= 1, "seeded connection must be in the pool: {count}");
+    }
 }

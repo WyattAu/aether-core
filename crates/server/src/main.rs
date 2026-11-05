@@ -21,6 +21,24 @@ struct Cli {
     #[arg(long, default_value_t = 8080)]
     port: u16,
 
+    /// Bind address for the HTTP API.
+    #[arg(long, default_value = "127.0.0.1")]
+    host: String,
+
+    /// Mesh node identity. Mesh networking is enabled only when both
+    /// this and `--mesh-port` are set.
+    #[arg(long)]
+    node_id: Option<String>,
+
+    /// QUIC listen port for the actor mesh.
+    #[arg(long)]
+    mesh_port: Option<u16>,
+
+    /// Comma-separated `host:port` addresses of existing mesh nodes to
+    /// dial at startup (the compose demo's `--mesh-seeds`).
+    #[arg(long, value_delimiter = ',')]
+    mesh_seeds: Vec<String>,
+
     #[arg(long)]
     config_path: Option<String>,
 }
@@ -57,6 +75,58 @@ async fn main() {
 
     #[cfg(not(feature = "wasm"))]
     let state = Arc::new(AppState::new());
+
+    // --- actor mesh (optional) ------------------------------------------
+    // Enabled when --node-id and --mesh-port are both set: binds the QUIC
+    // endpoint, then dials each --mesh-seeds address so the node joins an
+    // existing mesh at startup (the 3-node compose demo's contract).
+    // mesh_handles is held in main's scope for the process lifetime:
+    // dropping the last Arc shuts the QUIC endpoint down.
+    #[cfg(feature = "mesh")]
+    let mesh_enabled = cli.node_id.is_some() && cli.mesh_port.is_some();
+    #[cfg(feature = "mesh")]
+    let mut mesh_handles: Vec<Arc<aether_core::mesh::MeshNode>> = Vec::new();
+    #[cfg(feature = "mesh")]
+    if mesh_enabled {
+        let (Some(node_id), Some(mesh_port)) = (&cli.node_id, cli.mesh_port) else {
+            unreachable!("mesh_enabled implies both flags");
+        };
+        let listen: std::net::SocketAddr = format!("{host}:{mesh_port}")
+            .parse()
+            .unwrap_or_else(|e| panic!("invalid --mesh-port binding: {e}"));
+        let config = aether_core::mesh::MeshConfig {
+            node_id: node_id.clone(),
+            namespace: "aether".to_string(),
+            listen_addr: listen,
+            ..aether_core::mesh::MeshConfig::default()
+        };
+        match aether_core::mesh::MeshNode::with_config(config) {
+            Ok(node) => {
+                let node = Arc::new(node);
+                let mut joined = Vec::new();
+                for (i, seed) in cli.mesh_seeds.iter().enumerate() {
+                    let addr: std::net::SocketAddr = match seed.parse() {
+                        Ok(a) => a,
+                        Err(e) => {
+                            tracing::error!("invalid --mesh-seeds entry '{seed}': {e}");
+                            continue;
+                        }
+                    };
+                    match node.connect(&format!("seed-{i}"), addr).await {
+                        Ok(()) => joined.push(addr.to_string()),
+                        Err(e) => tracing::error!("seed dial {addr} failed: {e}"),
+                    }
+                }
+                tracing::info!(
+                    "mesh enabled: node {node_id} listening on {listen}; dialed {} of {} seeds",
+                    joined.len(),
+                    cli.mesh_seeds.len()
+                );
+                mesh_handles.push(node);
+            }
+            Err(e) => tracing::error!("mesh node init failed: {e}"),
+        }
+    }
 
     tracing::info!(
         "wasm execution: {}",
