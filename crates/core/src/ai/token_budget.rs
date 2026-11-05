@@ -439,12 +439,15 @@ mod tests {
         let decision = e.check_budget("actor-1", "tenant-1", 5);
         assert!(matches!(decision, BudgetDecision::Deny { .. }));
 
-        // Use a short period so the remaining time falls below the 5s
-        // throttle threshold but the usage has NOT been reset yet.
-        let budget2 = TokenBudget::new(10, 100, 1000, Duration::from_millis(200));
+        // remaining time falls below the 5s throttle threshold but the
+        // usage has NOT been reset yet. A 1s period with NO sleep gives
+        // both properties deterministically: remaining ~= 1s < 5s, and
+        // elapsed ~= 0 << period. The original 200ms + sleep(50ms) raced
+        // a loaded macOS runner — sleep overshoot past the period reset
+        // the usage and the decision flapped to Allow.
+        let budget2 = TokenBudget::new(10, 100, 1000, Duration::from_secs(1));
         let e2 = TokenBudgetEnforcer::new(budget2);
         e2.record_usage("actor-1", "tenant-1", 8, 0);
-        std::thread::sleep(Duration::from_millis(50));
         let decision2 = e2.check_budget("actor-1", "tenant-1", 5);
         assert!(matches!(decision2, BudgetDecision::Throttle { .. }));
     }
