@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793806651339,
+  "lastUpdate": 1793845148894,
   "repoUrl": "https://github.com/WyattAu/aether-core",
   "entries": {
     "Benchmark": [
@@ -2087,6 +2087,90 @@ window.BENCHMARK_DATA = {
             "name": "registry/concurrent/4_threads_1000_each",
             "value": 251289042,
             "range": "± 19007774",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "87209d60a567914d14c3648e20433aad6e30dfd4",
+          "message": "ci(integration): pin macos-15 — the floating macos-latest label migrated to the macOS 26 arm64 image whose hosted fleet cannot acquire jobs (two consecutive 'was not acquired by Runner of type hosted' failures); pin images the way actions are pinned. --no-verify: workflow-only change",
+          "timestamp": "2026-11-05T02:09:13Z",
+          "tree_id": "dd5fb59a61ad7b7b7acf2802d2d3e2d929fed17c",
+          "url": "https://github.com/WyattAu/aether-core/commit/87209d60a567914d14c3648e20433aad6e30dfd4"
+        },
+        "date": 1793845147636,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "registry/register/100",
+            "value": 4652310,
+            "range": "± 240273",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/register/1000",
+            "value": 129034667,
+            "range": "± 77393424",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/register/10000",
+            "value": 1313795867,
+            "range": "± 190898143",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/100",
+            "value": 33,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/1000",
+            "value": 33,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/10000",
+            "value": 33,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/100",
+            "value": 3320,
+            "range": "± 144",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/1000",
+            "value": 26995,
+            "range": "± 338",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/10000",
+            "value": 261282,
+            "range": "± 3649",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/concurrent/4_threads_1000_each",
+            "value": 408268053,
+            "range": "± 141493744",
             "unit": "ns/iter"
           }
         ]
