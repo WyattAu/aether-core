@@ -29,10 +29,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        # macos-15 pinned, NOT macos-latest: the floating label migrated
+        # to the macOS 26 arm64 image and its hosted fleet cannot acquire
+        # jobs ("was not acquired by Runner of type hosted even after
+        # multiple attempts" — two consecutive failures on 2026-11-04).
+        # Pin images the way actions are pinned: SHAs and versions, never
+        # floats. macos-15 is the stable arm64 fleet.
+        os: [ubuntu-latest, macos-15]
         rust: [nightly-2026-03-01, stable]
         exclude:
-          - os: macos-latest
+          - os: macos-15
             rust: stable
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
