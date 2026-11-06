@@ -79,6 +79,9 @@ impl QuicConfig {
 
 /// TLS certificate and key pair for QUIC endpoints.
 #[derive(Clone, Debug)]
+/// ALPN token for mesh QUIC endpoints (RFC 9001 mandates ALPN).
+pub const MESH_ALPN: &str = "aether-mesh/1";
+
 pub struct CertificateConfig {
     /// The leaf certificate.
     pub cert: CertificateDer<'static>,
@@ -223,10 +226,20 @@ impl QuicEndpoint {
         let mut certs = vec![cert_config.cert.clone()];
         certs.extend(cert_config.cert_chain.iter().cloned());
 
-        let server_config = quinn::ServerConfig::with_single_cert(certs, cert_config.private_key())
+        // ALPN is MANDATORY for QUIC (RFC 9001 §8.1): rustls server and
+        // client configs without it produce a handshake that silently
+        // times out on BOTH sides (verified: CI ubuntu runners and local
+        // kernels behave identically). Both endpoints must advertise the
+        // same protocol token.
+        let mut server_crypto = rustls::ServerConfig::builder()
+            .with_no_client_auth()
+            .with_single_cert(certs, cert_config.private_key())
             .map_err(|e| Error::internal(format!("Server config failed: {}", e)))?;
+        server_crypto.alpn_protocols = vec![MESH_ALPN.to_vec()];
 
-        Ok(server_config)
+        Ok(quinn::ServerConfig::with_crypto(std::sync::Arc::new(
+            server_crypto,
+        )))
     }
 
     fn create_client_config(cert_config: &CertificateConfig) -> Result<quinn::ClientConfig> {
@@ -235,9 +248,10 @@ impl QuicEndpoint {
             .add(cert_config.cert.clone())
             .map_err(|e| Error::internal(format!("Failed to add cert to roots: {}", e)))?;
 
-        let client_crypto = rustls::ClientConfig::builder()
+        let mut client_crypto = rustls::ClientConfig::builder()
             .with_root_certificates(roots)
             .with_no_client_auth();
+        client_crypto.alpn_protocols = vec![MESH_ALPN.to_vec()];
 
         let quic_client_config = quinn::crypto::rustls::QuicClientConfig::try_from(client_crypto)
             .map_err(|e| {
