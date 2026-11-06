@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793927067683,
+  "lastUpdate": 1793928649663,
   "repoUrl": "https://github.com/WyattAu/aether-core",
   "entries": {
     "Benchmark": [
@@ -2505,6 +2505,90 @@ window.BENCHMARK_DATA = {
             "name": "registry/concurrent/4_threads_1000_each",
             "value": 293032963,
             "range": "± 89517340",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "7adc1156e2ecd4ca3ed0822f463497d4716d1d9e",
+          "message": "fix(mesh): ALPN via the quinn idiom — QuicServerConfig::try_from(rustls_server_config) after setting alpn_protocols on the rustls config (with_crypto requires quinn-proto's QuicServerConfig wrapper, not a bare rustls::ServerConfig); MESH_ALPN.as_bytes().to_vec() (str::to_vec doesn't exist); CertificateConfig derives Clone. Local mesh::quic 4/4; fmt clean; cli 12/12. --no-verify: CI is the judge of the handshake (local kernel breaks raw quinn too)",
+          "timestamp": "2026-11-06T01:24:41Z",
+          "tree_id": "113884223d8cb258d606dc269ad3d209b6a00548",
+          "url": "https://github.com/WyattAu/aether-core/commit/7adc1156e2ecd4ca3ed0822f463497d4716d1d9e"
+        },
+        "date": 1793928648771,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "registry/register/100",
+            "value": 7373670,
+            "range": "± 195304",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/register/1000",
+            "value": 96338800,
+            "range": "± 112378841",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/register/10000",
+            "value": 964851143,
+            "range": "± 270876269",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/100",
+            "value": 24,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/1000",
+            "value": 24,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/10000",
+            "value": 24,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/100",
+            "value": 2402,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/1000",
+            "value": 21104,
+            "range": "± 152",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/10000",
+            "value": 206977,
+            "range": "± 9548",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/concurrent/4_threads_1000_each",
+            "value": 389213617,
+            "range": "± 102591214",
             "unit": "ns/iter"
           }
         ]
