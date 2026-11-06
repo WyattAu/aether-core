@@ -39,8 +39,11 @@ tower = { version = "0.4", features = ["util"] }
 http-body-util = "0.1"
 
 [features]
-default = ["wasm"]
+default = ["wasm", "mesh"]
 wasm = ["aether-core/wasm"]
+# The actor mesh: needed by --node-id/--mesh-port/--mesh-seeds on the
+# server binary (see main.rs).
+mesh = ["aether-core/mesh"]
 sqlite = ["dep:rusqlite"]
 jwt = ["dep:tokenkit"]
 io_uring = ["dep:monoio"]

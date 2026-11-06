@@ -648,12 +648,28 @@ mod tests {
         // leave a live connection in B's pool.
         let a_addr: SocketAddr = "127.0.0.1:9111".parse().unwrap();
         let b_addr: SocketAddr = "127.0.0.1:9112".parse().unwrap();
-        let node_a = MeshNode::new("node-a", a_addr);
-        let node_b = MeshNode::new("node-b", b_addr);
+        // Cross-node QUIC requires a SHARED certificate: the client roots
+        // trust only its own cert_config.cert, so every node in the mesh
+        // must hold the same cert and verify against its SAN
+        // (with_shared_cert sets server_name to "localhost"). Per-node
+        // self-signed certs fail TLS verification on every seed dial.
+        let shared = crate::mesh::CertificateConfig::generate_self_signed("localhost")
+            .expect("self-signed cert");
+        let mk = |node_id: &str, addr: SocketAddr| {
+            MeshNode::with_config(MeshConfig {
+                node_id: node_id.to_string(),
+                listen_addr: addr,
+                cert_config: Some(shared.clone()),
+                ..MeshConfig::default()
+            })
+            .expect("node config")
+        };
+        let node_a = mk("node-a", a_addr);
+        let node_b = mk("node-b", b_addr);
 
         node_b.connect("node-a", a_addr).await.expect("seed dial");
 
-        let count = node_b.connection_pool().connection_count().await;
+        let count = node_b.pool().connection_count().await;
         assert!(count >= 1, "seeded connection must be in the pool: {count}");
     }
 }

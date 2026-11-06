@@ -91,9 +91,11 @@ async fn main() {
         let (Some(node_id), Some(mesh_port)) = (&cli.node_id, cli.mesh_port) else {
             unreachable!("mesh_enabled implies both flags");
         };
-        let listen: std::net::SocketAddr = format!("{host}:{mesh_port}")
-            .parse()
-            .unwrap_or_else(|e| panic!("invalid --mesh-port binding: {e}"));
+        let listen: Option<std::net::SocketAddr> = format!("0.0.0.0:{mesh_port}").parse().ok();
+        let Some(listen) = listen else {
+            tracing::error!("invalid --mesh-port binding '0.0.0.0:{mesh_port}' — mesh disabled");
+            return;
+        };
         let config = aether_core::mesh::MeshConfig {
             node_id: node_id.clone(),
             namespace: "aether".to_string(),
