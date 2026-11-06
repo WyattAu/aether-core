@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793923007525,
+  "lastUpdate": 1793927067683,
   "repoUrl": "https://github.com/WyattAu/aether-core",
   "entries": {
     "Benchmark": [
@@ -2421,6 +2421,90 @@ window.BENCHMARK_DATA = {
             "name": "registry/concurrent/4_threads_1000_each",
             "value": 443075109,
             "range": "± 93470694",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "22df57169fd411ce918b3c19154dd036ce00a7bd",
+          "message": "fix(mesh): the seed-dial path had never been exercised — first real two-node test exposed three defects: (1) MeshNode::new hardcodes enable_mtls=true with no certificate config, so every handshake failed at TLS (mTLS now off until cert config exists — tracked in key-custody-policy follow-up); (2) cross-node QUIC requires a shared certificate (client roots trust only its own cert_config) — documented and the server wiring notes it; (3) test_two_node_seed_dial still times out on this machine (CachyOS 7.2.6) even with a minimal out-of-workspace quinn 0.11.9/0.11.12 repro — packets flow both ways, handshake never completes: environment or quinn/kernel interplay, decided by CI's standard kernel on this push (ubuntu runners). --no-verify: mesh tests + cli arg tests ran locally (12/12, 149); the workspace gate recompiles ~30min",
+          "timestamp": "2026-11-06T00:57:40Z",
+          "tree_id": "396808873d738b25a4f866232b0f18b96b559036",
+          "url": "https://github.com/WyattAu/aether-core/commit/22df57169fd411ce918b3c19154dd036ce00a7bd"
+        },
+        "date": 1793927066657,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "registry/register/100",
+            "value": 10924203,
+            "range": "± 196523",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/register/1000",
+            "value": 343218960,
+            "range": "± 2141521",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/register/10000",
+            "value": 1208365454,
+            "range": "± 179700236",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/100",
+            "value": 32,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/1000",
+            "value": 32,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/10000",
+            "value": 32,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/100",
+            "value": 3139,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/1000",
+            "value": 25734,
+            "range": "± 35",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/10000",
+            "value": 245728,
+            "range": "± 5358",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/concurrent/4_threads_1000_each",
+            "value": 293032963,
+            "range": "± 89517340",
             "unit": "ns/iter"
           }
         ]
