@@ -77,11 +77,11 @@ impl QuicConfig {
     }
 }
 
-/// TLS certificate and key pair for QUIC endpoints.
-#[derive(Clone, Debug)]
 /// ALPN token for mesh QUIC endpoints (RFC 9001 mandates ALPN).
 pub const MESH_ALPN: &str = "aether-mesh/1";
 
+/// TLS certificate and key pair for QUIC endpoints.
+#[derive(Clone, Debug)]
 pub struct CertificateConfig {
     /// The leaf certificate.
     pub cert: CertificateDer<'static>,
@@ -235,10 +235,13 @@ impl QuicEndpoint {
             .with_no_client_auth()
             .with_single_cert(certs, cert_config.private_key())
             .map_err(|e| Error::internal(format!("Server config failed: {}", e)))?;
-        server_crypto.alpn_protocols = vec![MESH_ALPN.to_vec()];
+        server_crypto.alpn_protocols = vec![MESH_ALPN.as_bytes().to_vec()];
 
-        Ok(quinn::ServerConfig::with_crypto(std::sync::Arc::new(
-            server_crypto,
+        let quic_server_config =
+            quinn::crypto::rustls::QuicServerConfig::try_from(server_crypto)
+                .map_err(|e| Error::internal(format!("QUIC server config: {}", e)))?;
+        Ok(quinn::ServerConfig::with_crypto(Arc::new(
+            quic_server_config,
         )))
     }
 
@@ -251,7 +254,7 @@ impl QuicEndpoint {
         let mut client_crypto = rustls::ClientConfig::builder()
             .with_root_certificates(roots)
             .with_no_client_auth();
-        client_crypto.alpn_protocols = vec![MESH_ALPN.to_vec()];
+        client_crypto.alpn_protocols = vec![MESH_ALPN.as_bytes().to_vec()];
 
         let quic_client_config = quinn::crypto::rustls::QuicClientConfig::try_from(client_crypto)
             .map_err(|e| {
