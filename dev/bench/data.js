@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793928649663,
+  "lastUpdate": 1793929896275,
   "repoUrl": "https://github.com/WyattAu/aether-core",
   "entries": {
     "Benchmark": [
@@ -2589,6 +2589,90 @@ window.BENCHMARK_DATA = {
             "name": "registry/concurrent/4_threads_1000_each",
             "value": 389213617,
             "range": "± 102591214",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "ecddc5d26f8fce5abe2d7ac1781873735a3a6e0e",
+          "message": "test(mesh): ignore the seed-dial test with the full falsification ledger — environment ruled out via CI (fails identically on standard-kernel ubuntu runners); mTLS, per-node certs, and missing ALPN all falsified as hypotheses; observed: datagrams flow both ways, the server's rustls never processes the ClientHello, no TLS alert is ever sent — quinn 0.11.9+rustls 0.23.37 in-process handshake investigation is upstream work. The mesh CLI/wiring surface stays; the compose demo stays removed until the dial passes",
+          "timestamp": "2026-11-06T01:46:28Z",
+          "tree_id": "8c1a84ef525b3e9934045f545bf92af7ef723dd7",
+          "url": "https://github.com/WyattAu/aether-core/commit/ecddc5d26f8fce5abe2d7ac1781873735a3a6e0e"
+        },
+        "date": 1793929895015,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "registry/register/100",
+            "value": 3861644,
+            "range": "± 365551",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/register/1000",
+            "value": 54383301,
+            "range": "± 20161325",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/register/10000",
+            "value": 634954885,
+            "range": "± 228178636",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/100",
+            "value": 18,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/1000",
+            "value": 18,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/10000",
+            "value": 18,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/100",
+            "value": 2162,
+            "range": "± 23",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/1000",
+            "value": 18608,
+            "range": "± 29",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/10000",
+            "value": 184303,
+            "range": "± 1644",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/concurrent/4_threads_1000_each",
+            "value": 284999608,
+            "range": "± 25275432",
             "unit": "ns/iter"
           }
         ]
