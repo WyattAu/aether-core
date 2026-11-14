@@ -124,7 +124,24 @@ async fn main() {
                     joined.len(),
                     cli.mesh_seeds.len()
                 );
+                // Accept loop: quinn's server handshake is accept-gated —
+                // without something polling accept(), the server buffers
+                // incoming Initials and never answers them (iteration 23).
+                // Dropping the Connecting future aborts the handshake, so
+                // each connection is held until the peer closes it. The
+                // endpoint Arc moves into this task, keeping it bound.
+                let accept_endpoint = Arc::clone(&node);
                 mesh_handles.push(node);
+                tokio::spawn(async move {
+                    // The wrapper's accept() drives the handshake and
+                    // returns the established connection + peer address.
+                    while let Ok((conn, _peer)) = accept_endpoint.endpoint().accept().await {
+                        // Hold the connection: dropping it closes it.
+                        tokio::spawn(async move {
+                            conn.closed().await;
+                        });
+                    }
+                });
             }
             Err(e) => tracing::error!("mesh node init failed: {e}"),
         }

@@ -653,7 +653,6 @@ mod tests {
     // removed until this passes. Run locally with:
     //   cargo test --lib --features mesh -- --ignored test_two_node
     #[tokio::test]
-    #[ignore = "quinn 0.11.9 in-process handshake times out (iteration 23 ledger); requires upstream-level investigation"]
     async fn test_two_node_seed_dial() {
         init_crypto();
         // The compose-demo contract: node B is given node A's address as a
@@ -677,8 +676,22 @@ mod tests {
             })
             .expect("node config")
         };
-        let node_a = mk("node-a", a_addr);
+        let node_a = Arc::new(mk("node-a", a_addr));
         let node_b = mk("node-b", b_addr);
+
+        // Accept-gated handshake: node A must poll accept() or its side
+        // of the handshake never starts (see crates/server/src/main.rs).
+        let accept_node = Arc::clone(&node_a);
+        tokio::spawn(async move {
+            // The wrapper's accept() drives the handshake and returns
+            // the established connection + peer address.
+            while let Ok((conn, _peer)) = accept_node.endpoint().accept().await {
+                // Hold the connection: dropping it closes it.
+                tokio::spawn(async move {
+                    conn.closed().await;
+                });
+            }
+        });
 
         node_b.connect("node-a", a_addr).await.expect("seed dial");
 
