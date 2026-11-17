@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794824846319,
+  "lastUpdate": 1794914907972,
   "repoUrl": "https://github.com/WyattAu/aether-core",
   "entries": {
     "Benchmark": [
@@ -3659,6 +3659,88 @@ window.BENCHMARK_DATA = {
             "name": "registry/concurrent/4_threads_1000_each",
             "value": 350874152,
             "range": "± 93451379",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "WyattAu",
+            "username": "WyattAu",
+            "email": "wyatt_au@protonmail.com"
+          },
+          "committer": {
+            "name": "WyattAu",
+            "username": "WyattAu",
+            "email": "wyatt_au@protonmail.com"
+          },
+          "id": "2ee5ca4dd908efa7e007fc7879b71b469c7b1caa",
+          "message": "fix(mesh): spawn the accept loop — quinn's server handshake is accept-gated and nothing polled accept(), so every incoming Initial was buffered and never answered (the iteration-23 'kernel breaks quinn' conclusion is overturned: the minimal repro failed for the same reason — it never polled accept either). server wiring spawns the accept loop on the mesh endpoint; test_two_node_seed_dial un-ignored and GREEN locally (4/4) — the dial that never worked now works. --no-verify: targeted tests + fmt + server check ran locally; local stable clippy's server errors verified pre-existing via stash-run; the pre-push workspace gate adds ~30min recompilation",
+          "timestamp": "2026-11-14T15:23:09Z",
+          "url": "https://github.com/WyattAu/aether-core/commit/2ee5ca4dd908efa7e007fc7879b71b469c7b1caa"
+        },
+        "date": 1794914907003,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "registry/register/100",
+            "value": 3889479,
+            "range": "± 643662",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/register/1000",
+            "value": 57199674,
+            "range": "± 2750704",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/register/10000",
+            "value": 625799442,
+            "range": "± 305268996",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/100",
+            "value": 18,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/1000",
+            "value": 18,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/10000",
+            "value": 18,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/100",
+            "value": 2164,
+            "range": "± 31",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/1000",
+            "value": 18942,
+            "range": "± 68",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/10000",
+            "value": 184316,
+            "range": "± 1892",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/concurrent/4_threads_1000_each",
+            "value": 386413535,
+            "range": "± 146460138",
             "unit": "ns/iter"
           }
         ]
