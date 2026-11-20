@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795086199436,
+  "lastUpdate": 1795157626369,
   "repoUrl": "https://github.com/WyattAu/aether-core",
   "entries": {
     "Benchmark": [
@@ -3905,6 +3905,90 @@ window.BENCHMARK_DATA = {
             "name": "registry/concurrent/4_threads_1000_each",
             "value": 308707382,
             "range": "± 129140960",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt@users.noreply.github.com",
+            "name": "wyatt",
+            "username": "wyatt"
+          },
+          "committer": {
+            "email": "wyatt@users.noreply.github.com",
+            "name": "wyatt",
+            "username": "wyatt"
+          },
+          "distinct": true,
+          "id": "94cfb3d8017812ba03d8b4db6b3cde9406b4e339",
+          "message": "PATTERN_ADOPTION: declare pattern relationships (M2)",
+          "timestamp": "2026-11-20T05:20:09Z",
+          "tree_id": "f9becf1ff3cf94c88693c51d2e6a591d452add9f",
+          "url": "https://github.com/WyattAu/aether-core/commit/94cfb3d8017812ba03d8b4db6b3cde9406b4e339"
+        },
+        "date": 1795157625423,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "registry/register/100",
+            "value": 3534043,
+            "range": "± 259198",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/register/1000",
+            "value": 55392842,
+            "range": "± 75434462",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/register/10000",
+            "value": 639914593,
+            "range": "± 248365024",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/100",
+            "value": 25,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/1000",
+            "value": 25,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/10000",
+            "value": 24,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/100",
+            "value": 2486,
+            "range": "± 19",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/1000",
+            "value": 18359,
+            "range": "± 105",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/10000",
+            "value": 177856,
+            "range": "± 4271",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/concurrent/4_threads_1000_each",
+            "value": 268308290,
+            "range": "± 130320197",
             "unit": "ns/iter"
           }
         ]
