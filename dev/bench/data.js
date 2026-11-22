@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795257479788,
+  "lastUpdate": 1795344061879,
   "repoUrl": "https://github.com/WyattAu/aether-core",
   "entries": {
     "Benchmark": [
@@ -4071,6 +4071,88 @@ window.BENCHMARK_DATA = {
             "name": "registry/concurrent/4_threads_1000_each",
             "value": 466602655,
             "range": "± 150354916",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "wyatt",
+            "username": "wyatt",
+            "email": "wyatt@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "wyatt",
+            "username": "wyatt",
+            "email": "wyatt@users.noreply.github.com"
+          },
+          "id": "94cfb3d8017812ba03d8b4db6b3cde9406b4e339",
+          "message": "PATTERN_ADOPTION: declare pattern relationships (M2)",
+          "timestamp": "2026-11-20T05:20:09Z",
+          "url": "https://github.com/WyattAu/aether-core/commit/94cfb3d8017812ba03d8b4db6b3cde9406b4e339"
+        },
+        "date": 1795344060695,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "registry/register/100",
+            "value": 10424936,
+            "range": "± 209666",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/register/1000",
+            "value": 348036268,
+            "range": "± 6222193",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/register/10000",
+            "value": 1199184826,
+            "range": "± 178674548",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/100",
+            "value": 32,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/1000",
+            "value": 32,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/lookup/10000",
+            "value": 32,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/100",
+            "value": 3110,
+            "range": "± 24",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/1000",
+            "value": 25434,
+            "range": "± 331",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/list/10000",
+            "value": 245423,
+            "range": "± 1551",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "registry/concurrent/4_threads_1000_each",
+            "value": 374698164,
+            "range": "± 178023746",
             "unit": "ns/iter"
           }
         ]
